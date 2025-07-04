@@ -1,0 +1,1169 @@
+const std = @import("std");
+const json = std.json;
+
+pub const OpenAPI = struct {
+    openapi: []const u8,
+    info: Info,
+    paths: Paths,
+    externalDocs: ?ExternalDocumentation = null,
+    servers: ?[]const Server = null,
+    security: ?[]const SecurityRequirement = null,
+    tags: ?[]const Tag = null,
+    components: ?Components = null,
+
+    pub fn parse(allocator: std.mem.Allocator, json_string: []const u8) !OpenAPI {
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        const gpa = arena.allocator();
+
+        var parsed = try json.parseFromSlice(json.Value, gpa, json_string, .{ .allocate_strings = true });
+        defer parsed.deinit();
+
+        const root = parsed.value;
+
+        return OpenAPI{
+            .openapi = root.object.get("openapi").?.string,
+            .info = try Info.parse(gpa, root.object.get("info").?),
+            .paths = try Paths.parse(gpa, root.object.get("paths").?),
+            .externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parse(val) else null,
+            .servers = if (root.object.get("servers")) |val| try parseServers(gpa, val) else null,
+            .security = if (root.object.get("security")) |val| try parseSecurityRequirements(gpa, val) else null,
+            .tags = if (root.object.get("tags")) |val| try parseTags(gpa, val) else null,
+            .components = if (root.object.get("components")) |val| try Components.parse(gpa, val) else null,
+        };
+    }
+
+    fn parseServers(allocator: std.mem.Allocator, value: json.Value) ![]const Server {
+        var array_list = std.ArrayList(Server).init(allocator);
+        for (value.array.items) |item| {
+            try array_list.append(try Server.parse(allocator, item));
+        }
+        return array_list.toOwnedSlice();
+    }
+
+    fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) ![]const SecurityRequirement {
+        var array_list = std.ArrayList(SecurityRequirement).init(allocator);
+        for (value.array.items) |item| {
+            try array_list.append(try SecurityRequirement.parse(allocator, item));
+        }
+        return array_list.toOwnedSlice();
+    }
+
+    fn parseTags(allocator: std.mem.Allocator, value: json.Value) ![]const Tag {
+        var array_list = std.ArrayList(Tag).init(allocator);
+        for (value.array.items) |item| {
+            try array_list.append(try Tag.parse(allocator, item));
+        }
+        return array_list.toOwnedSlice();
+    }
+};
+
+pub const Info = struct {
+    title: []const u8,
+    version: []const u8,
+    description: ?[]const u8 = null,
+    termsOfService: ?[]const u8 = null,
+    contact: ?Contact = null,
+    license: ?License = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Info {
+        const obj = value.object;
+        return Info{
+            .title = obj.get("title").?.string,
+            .version = obj.get("version").?.string,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .termsOfService = if (obj.get("termsOfService")) |val| val.string else null,
+            .contact = if (obj.get("contact")) |val| try Contact.parse(allocator, val) else null,
+            .license = if (obj.get("license")) |val| try License.parse(val) else null,
+        };
+    }
+};
+
+pub const Contact = struct {
+    name: ?[]const u8 = null,
+    url: ?[]const u8 = null,
+    email: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Contact {
+        const obj = value.object;
+        return Contact{
+            .name = if (obj.get("name")) |val| val.string else null,
+            .url = if (obj.get("url")) |val| val.string else null,
+            .email = if (obj.get("email")) |val| val.string else null,
+        };
+    }
+};
+
+pub const License = struct {
+    name: []const u8,
+    url: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !License {
+        const obj = value.object;
+        return License{
+            .name = obj.get("name").?.string,
+            .url = if (obj.get("url")) |val| val.string else null,
+        };
+    }
+};
+
+pub const Server = struct {
+    url: []const u8,
+    description: ?[]const u8 = null,
+    variables: ?std.StringHashMap(ServerVariable) = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Server {
+        const obj = value.object;
+        var variables_map = std.StringHashMap(ServerVariable).init(allocator);
+        if (obj.get("variables")) |vars_val| {
+            for (vars_val.object.keys()) |key| {
+                try variables_map.put(key, try ServerVariable.parse(allocator, vars_val.object.get(key).?));
+            }
+        }
+        return Server{
+            .url = obj.get("url").?.string,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .variables = if (variables_map.count() > 0) variables_map else null,
+        };
+    }
+};
+
+pub const ServerVariable = struct {
+    default: []const u8,
+    enum_values: ?[]const []const u8 = null,
+    description: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !ServerVariable {
+        const obj = value.object;
+        var enum_list = std.ArrayList([]const u8).init(allocator);
+        if (obj.get("enum")) |enum_val| {
+            for (enum_val.array.items) |item| {
+                try enum_list.append(item.string);
+            }
+        }
+        return ServerVariable{
+            .default = obj.get("default").?.string,
+            .enum_values = if (enum_list.items.len > 0) enum_list.toOwnedSlice() else null,
+            .description = if (obj.get("description")) |val| val.string else null,
+        };
+    }
+};
+
+pub const Components = struct {
+    schemas: ?std.StringHashMap(SchemaOrReference) = null,
+    responses: ?std.StringHashMap(ResponseOrReference) = null,
+    parameters: ?std.StringHashMap(ParameterOrReference) = null,
+    examples: ?std.StringHashMap(ExampleOrReference) = null,
+    requestBodies: ?std.StringHashMap(RequestBodyOrReference) = null,
+    headers: ?std.StringHashMap(HeaderOrReference) = null,
+    securitySchemes: ?std.StringHashMap(SecuritySchemeOrReference) = null,
+    links: ?std.StringHashMap(LinkOrReference) = null,
+    callbacks: ?std.StringHashMap(CallbackOrReference) = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Components {
+        const obj = value.object;
+        var schemas_map = std.StringHashMap(SchemaOrReference).init(allocator);
+        if (obj.get("schemas")) |schemas_val| {
+            for (schemas_val.object.keys()) |key| {
+                try schemas_map.put(key, try SchemaOrReference.parse(allocator, schemas_val.object.get(key).?));
+            }
+        }
+        var responses_map = std.StringHashMap(ResponseOrReference).init(allocator);
+        if (obj.get("responses")) |responses_val| {
+            for (responses_val.object.keys()) |key| {
+                try responses_map.put(key, try ResponseOrReference.parse(allocator, responses_val.object.get(key).?));
+            }
+        }
+        var parameters_map = std.StringHashMap(ParameterOrReference).init(allocator);
+        if (obj.get("parameters")) |parameters_val| {
+            for (parameters_val.object.keys()) |key| {
+                try parameters_map.put(key, try ParameterOrReference.parse(allocator, parameters_val.object.get(key).?));
+            }
+        }
+        var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
+        if (obj.get("examples")) |examples_val| {
+            for (examples_val.object.keys()) |key| {
+                try examples_map.put(key, try ExampleOrReference.parse(allocator, examples_val.object.get(key).?));
+            }
+        }
+        var request_bodies_map = std.StringHashMap(RequestBodyOrReference).init(allocator);
+        if (obj.get("requestBodies")) |request_bodies_val| {
+            for (request_bodies_val.object.keys()) |key| {
+                try request_bodies_map.put(key, try RequestBodyOrReference.parse(allocator, request_bodies_val.object.get(key).?));
+            }
+        }
+        var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
+        if (obj.get("headers")) |headers_val| {
+            for (headers_val.object.keys()) |key| {
+                try headers_map.put(key, try HeaderOrReference.parse(allocator, headers_val.object.get(key).?));
+            }
+        }
+        var security_schemes_map = std.StringHashMap(SecuritySchemeOrReference).init(allocator);
+        if (obj.get("securitySchemes")) |security_schemes_val| {
+            for (security_schemes_val.object.keys()) |key| {
+                try security_schemes_map.put(key, try SecuritySchemeOrReference.parse(allocator, security_schemes_val.object.get(key).?));
+            }
+        }
+        var links_map = std.StringHashMap(LinkOrReference).init(allocator);
+        if (obj.get("links")) |links_val| {
+            for (links_val.object.keys()) |key| {
+                try links_map.put(key, try LinkOrReference.parse(allocator, links_val.object.get(key).?));
+            }
+        }
+        var callbacks_map = std.StringHashMap(CallbackOrReference).init(allocator);
+        if (obj.get("callbacks")) |callbacks_val| {
+            for (callbacks_val.object.keys()) |key| {
+                try callbacks_map.put(key, try CallbackOrReference.parse(allocator, callbacks_val.object.get(key).?));
+            }
+        }
+
+        return Components{
+            .schemas = if (schemas_map.count() > 0) schemas_map else null,
+            .responses = if (responses_map.count() > 0) responses_map else null,
+            .parameters = if (parameters_map.count() > 0) parameters_map else null,
+            .examples = if (examples_map.count() > 0) examples_map else null,
+            .requestBodies = if (request_bodies_map.count() > 0) request_bodies_map else null,
+            .headers = if (headers_map.count() > 0) headers_map else null,
+            .securitySchemes = if (security_schemes_map.count() > 0) security_schemes_map else null,
+            .links = if (links_map.count() > 0) links_map else null,
+            .callbacks = if (callbacks_map.count() > 0) callbacks_map else null,
+        };
+    }
+};
+
+pub const Paths = struct {
+    path_items: std.StringHashMap(PathItem),
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Paths {
+        var path_items_map = std.StringHashMap(PathItem).init(allocator);
+        const obj = value.object;
+        for (obj.keys()) |key| {
+            if (key[0] == '/') { // Path items start with '/'
+                try path_items_map.put(key, try PathItem.parse(allocator, obj.get(key).?));
+            }
+        }
+        return Paths{ .path_items = path_items_map };
+    }
+};
+
+pub const PathItem = struct {
+    ref: ?[]const u8 = null,
+    summary: ?[]const u8 = null,
+    description: ?[]const u8 = null,
+    get: ?Operation = null,
+    put: ?Operation = null,
+    post: ?Operation = null,
+    delete: ?Operation = null,
+    options: ?Operation = null,
+    head: ?Operation = null,
+    patch: ?Operation = null,
+    trace: ?Operation = null,
+    servers: ?[]const Server = null,
+    parameters: ?[]const ParameterOrReference = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !PathItem {
+        const obj = value.object;
+        var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
+        if (obj.get("parameters")) |params_val| {
+            for (params_val.array.items) |item| {
+                try parameters_list.append(try ParameterOrReference.parse(allocator, item));
+            }
+        }
+        var servers_list = std.ArrayList(Server).init(allocator);
+        if (obj.get("servers")) |servers_val| {
+            for (servers_val.array.items) |item| {
+                try servers_list.append(try Server.parse(allocator, item));
+            }
+        }
+
+        return PathItem{
+            .ref = if (obj.get("$ref")) |val| val.string else null,
+            .summary = if (obj.get("summary")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .get = if (obj.get("get")) |val| try Operation.parse(allocator, val) else null,
+            .put = if (obj.get("put")) |val| try Operation.parse(allocator, val) else null,
+            .post = if (obj.get("post")) |val| try Operation.parse(allocator, val) else null,
+            .delete = if (obj.get("delete")) |val| try Operation.parse(allocator, val) else null,
+            .options = if (obj.get("options")) |val| try Operation.parse(allocator, val) else null,
+            .head = if (obj.get("head")) |val| try Operation.parse(allocator, val) else null,
+            .patch = if (obj.get("patch")) |val| try Operation.parse(allocator, val) else null,
+            .trace = if (obj.get("trace")) |val| try Operation.parse(allocator, val) else null,
+            .servers = if (servers_list.items.len > 0) servers_list.toOwnedSlice() else null,
+            .parameters = if (parameters_list.items.len > 0) parameters_list.toOwnedSlice() else null,
+        };
+    }
+};
+
+pub const Operation = struct {
+    responses: Responses,
+    tags: ?[]const []const u8 = null,
+    summary: ?[]const u8 = null,
+    description: ?[]const u8 = null,
+    externalDocs: ?ExternalDocumentation = null,
+    operationId: ?[]const u8 = null,
+    parameters: ?[]const ParameterOrReference = null,
+    requestBody: ?RequestBodyOrReference = null,
+    callbacks: ?std.StringHashMap(CallbackOrReference) = null,
+    deprecated: ?bool = null,
+    security: ?[]const SecurityRequirement = null,
+    servers: ?[]const Server = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Operation {
+        const obj = value.object;
+        var tags_list = std.ArrayList([]const u8).init(allocator);
+        if (obj.get("tags")) |tags_val| {
+            for (tags_val.array.items) |item| {
+                try tags_list.append(item.string);
+            }
+        }
+        var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
+        if (obj.get("parameters")) |params_val| {
+            for (params_val.array.items) |item| {
+                try parameters_list.append(try ParameterOrReference.parse(allocator, item));
+            }
+        }
+        var callbacks_map = std.StringHashMap(CallbackOrReference).init(allocator);
+        if (obj.get("callbacks")) |callbacks_val| {
+            for (callbacks_val.object.keys()) |key| {
+                try callbacks_map.put(key, try CallbackOrReference.parse(allocator, callbacks_val.object.get(key).?));
+            }
+        }
+        var security_list = std.ArrayList(SecurityRequirement).init(allocator);
+        if (obj.get("security")) |security_val| {
+            for (security_val.array.items) |item| {
+                try security_list.append(try SecurityRequirement.parse(allocator, item));
+            }
+        }
+        var servers_list = std.ArrayList(Server).init(allocator);
+        if (obj.get("servers")) |servers_val| {
+            for (servers_val.array.items) |item| {
+                try servers_list.append(try Server.parse(allocator, item));
+            }
+        }
+
+        return Operation{
+            .responses = try Responses.parse(allocator, obj.get("responses").?),
+            .tags = if (tags_list.items.len > 0) tags_list.toOwnedSlice() else null,
+            .summary = if (obj.get("summary")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
+            .operationId = if (obj.get("operationId")) |val| val.string else null,
+            .parameters = if (parameters_list.items.len > 0) parameters_list.toOwnedSlice() else null,
+            .requestBody = if (obj.get("requestBody")) |val| try RequestBodyOrReference.parse(allocator, val) else null,
+            .callbacks = if (callbacks_map.count() > 0) callbacks_map else null,
+            .deprecated = if (obj.get("deprecated")) |val| val.boolean else null,
+            .security = if (security_list.items.len > 0) security_list.toOwnedSlice() else null,
+            .servers = if (servers_list.items.len > 0) servers_list.toOwnedSlice() else null,
+        };
+    }
+};
+
+pub const Responses = struct {
+    default: ?ResponseOrReference = null,
+    status_codes: std.StringHashMap(ResponseOrReference),
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Responses {
+        var status_codes_map = std.StringHashMap(ResponseOrReference).init(allocator);
+        const obj = value.object;
+        for (obj.keys()) |key| {
+            if (std.ascii.isDigit(key[0])) { // Status codes are numeric
+                try status_codes_map.put(key, try ResponseOrReference.parse(allocator, obj.get(key).?));
+            }
+        }
+        return Responses{
+            .default = if (obj.get("default")) |val| try ResponseOrReference.parse(allocator, val) else null,
+            .status_codes = status_codes_map,
+        };
+    }
+};
+
+pub const SecurityRequirement = struct {
+    schemes: std.StringHashMap([]const []const u8),
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !SecurityRequirement {
+        var schemes_map = std.StringHashMap([]const []const u8).init(allocator);
+        const obj = value.object;
+        for (obj.keys()) |key| {
+            var scopes_list = std.ArrayList([]const u8).init(allocator);
+            for (obj.get(key).?.array.items) |item| {
+                try scopes_list.append(item.string);
+            }
+            try schemes_map.put(key, scopes_list.toOwnedSlice());
+        }
+        return SecurityRequirement{ .schemes = schemes_map };
+    }
+};
+
+pub const Tag = struct {
+    name: []const u8,
+    description: ?[]const u8 = null,
+    externalDocs: ?ExternalDocumentation = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Tag {
+        const obj = value.object;
+        return Tag{
+            .name = obj.get("name").?.string,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
+        };
+    }
+};
+
+pub const ExternalDocumentation = struct {
+    url: []const u8,
+    description: ?[]const u8 = null,
+
+    pub fn parse(value: json.Value) !ExternalDocumentation {
+        const obj = value.object;
+        return ExternalDocumentation{
+            .url = obj.get("url").?.string,
+            .description = if (obj.get("description")) |val| val.string else null,
+        };
+    };
+};
+
+// Union types for $ref
+pub const SchemaOrReference = union(enum) {
+    schema: Schema,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !SchemaOrReference {
+        if (value.object.get("$ref")) {
+            return SchemaOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return SchemaOrReference{ .schema = try Schema.parse(allocator, value) };
+        }
+    }
+};
+
+pub const ResponseOrReference = union(enum) {
+    response: Response,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !ResponseOrReference {
+        if (value.object.get("$ref")) {
+            return ResponseOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return ResponseOrReference{ .response = try Response.parse(allocator, value) };
+        }
+    }
+};
+
+pub const ParameterOrReference = union(enum) {
+    parameter: Parameter,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !ParameterOrReference {
+        if (value.object.get("$ref")) {
+            return ParameterOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return ParameterOrReference{ .parameter = try Parameter.parse(allocator, value) };
+        }
+    }
+};
+
+pub const ExampleOrReference = union(enum) {
+    example: Example,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !ExampleOrReference {
+        if (value.object.get("$ref")) {
+            return ExampleOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return ExampleOrReference{ .example = try Example.parse(allocator, value) };
+        }
+    }
+};
+
+pub const RequestBodyOrReference = union(enum) {
+    request_body: RequestBody,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !RequestBodyOrReference {
+        if (value.object.get("$ref")) {
+            return RequestBodyOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return RequestBodyOrReference{ .request_body = try RequestBody.parse(allocator, value) };
+        }
+    }
+};
+
+pub const HeaderOrReference = union(enum) {
+    header: Header,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !HeaderOrReference {
+        if (value.object.get("$ref")) {
+            return HeaderOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return HeaderOrReference{ .header = try Header.parse(allocator, value) };
+        }
+    }
+};
+
+pub const SecuritySchemeOrReference = union(enum) {
+    security_scheme: SecurityScheme,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !SecuritySchemeOrReference {
+        if (value.object.get("$ref")) {
+            return SecuritySchemeOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return SecuritySchemeOrReference{ .security_scheme = try SecurityScheme.parse(allocator, value) };
+        }
+    }
+};
+
+pub const LinkOrReference = union(enum) {
+    link: Link,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !LinkOrReference {
+        if (value.object.get("$ref")) {
+            return LinkOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return LinkOrReference{ .link = try Link.parse(allocator, value) };
+        }
+    }
+};
+
+pub const CallbackOrReference = union(enum) {
+    callback: Callback,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !CallbackOrReference {
+        if (value.object.get("$ref")) {
+            return CallbackOrReference{ .reference = try Callback.parse(value) };
+        } else {
+            return CallbackOrReference{ .callback = try Callback.parse(allocator, value) };
+        }
+    }
+};
+
+pub const Reference = struct {
+    ref: []const u8,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Reference {
+        const obj = value.object;
+        return Reference{ .ref = obj.get("$ref").?.string };
+    }
+};
+
+pub const Schema = struct {
+    title: ?[]const u8 = null,
+    multipleOf: ?f64 = null,
+    maximum: ?f64 = null,
+    exclusiveMaximum: ?bool = null,
+    minimum: ?f64 = null,
+    exclusiveMinimum: ?bool = null,
+    maxLength: ?u64 = null,
+    minLength: ?u64 = null,
+    pattern: ?[]const u8 = null,
+    maxItems: ?u64 = null,
+    minItems: ?u64 = null,
+    uniqueItems: ?bool = null,
+    maxProperties: ?u64 = null,
+    minProperties: ?u64 = null,
+    required: ?[]const []const u8 = null,
+    enum_values: ?[]const json.Value = null, // Can be any type
+    type: ?[]const u8 = null, // "array", "boolean", "integer", "number", "object", "string"
+    not: ?SchemaOrReference = null,
+    allOf: ?[]const SchemaOrReference = null,
+    oneOf: ?[]const SchemaOrReference = null,
+    anyOf: ?[]const SchemaOrReference = null,
+    items: ?SchemaOrReference = null,
+    properties: ?std.StringHashMap(SchemaOrReference) = null,
+    additionalProperties: ?AdditionalProperties = null,
+    description: ?[]const u8 = null,
+    format: ?[]const u8 = null,
+    default: ?json.Value = null,
+    nullable: ?bool = null,
+    discriminator: ?Discriminator = null,
+    readOnly: ?bool = null,
+    writeOnly: ?bool = null,
+    example: ?json.Value = null,
+    externalDocs: ?ExternalDocumentation = null,
+    deprecated: ?bool = null,
+    xml: ?XML = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Schema {
+        const obj = value.object;
+        var required_list = std.ArrayList([]const u8).init(allocator);
+        if (obj.get("required")) |req_val| {
+            for (req_val.array.items) |item| {
+                try required_list.append(item.string);
+            }
+        }
+        var enum_list = std.ArrayList(json.Value).init(allocator);
+        if (obj.get("enum")) |enum_val| {
+            for (enum_val.array.items) |item| {
+                try enum_list.append(item);
+            }
+        }
+        var all_of_list = std.ArrayList(SchemaOrReference).init(allocator);
+        if (obj.get("allOf")) |all_of_val| {
+            for (all_of_val.array.items) |item| {
+                try all_of_list.append(try SchemaOrReference.parse(allocator, item));
+            }
+        }
+        var one_of_list = std.ArrayList(SchemaOrReference).init(allocator);
+        if (obj.get("oneOf")) |one_of_val| {
+            for (one_of_val.array.items) |item| {
+                try one_of_list.append(try SchemaOrReference.parse(allocator, item));
+            }
+        }
+        var any_of_list = std.ArrayList(SchemaOrReference).init(allocator);
+        if (obj.get("anyOf")) |any_of_val| {
+            for (any_of_val.array.items) |item| {
+                try any_of_list.append(try SchemaOrReference.parse(allocator, item));
+            }
+        }
+        var properties_map = std.StringHashMap(SchemaOrReference).init(allocator);
+        if (obj.get("properties")) |props_val| {
+            for (props_val.object.keys()) |key| {
+                try properties_map.put(key, try SchemaOrReference.parse(allocator, props_val.object.get(key).?));
+            }
+        }
+
+        return Schema{
+            .title = if (obj.get("title")) |val| val.string else null,
+            .multipleOf = if (obj.get("multipleOf")) |val| val.float else null,
+            .maximum = if (obj.get("maximum")) |val| val.float else null,
+            .exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| val.boolean else null,
+            .minimum = if (obj.get("minimum")) |val| val.float else null,
+            .exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| val.boolean else null,
+            .maxLength = if (obj.get("maxLength")) |val| val.integer else null,
+            .minLength = if (obj.get("minLength")) |val| val.integer else null,
+            .pattern = if (obj.get("pattern")) |val| val.string else null,
+            .maxItems = if (obj.get("maxItems")) |val| val.integer else null,
+            .minItems = if (obj.get("minItems")) |val| val.integer else null,
+            .uniqueItems = if (obj.get("uniqueItems")) |val| val.boolean else null,
+            .maxProperties = if (obj.get("maxProperties")) |val| val.integer else null,
+            .minProperties = if (obj.get("minProperties")) |val| val.integer else null,
+            .required = if (required_list.items.len > 0) required_list.toOwnedSlice() else null,
+            .enum_values = if (enum_list.items.len > 0) enum_list.toOwnedSlice() else null,
+            .type = if (obj.get("type")) |val| val.string else null,
+            .not = if (obj.get("not")) |val| try SchemaOrReference.parse(allocator, val) else null,
+            .allOf = if (all_of_list.items.len > 0) all_of_list.toOwnedSlice() else null,
+            .oneOf = if (one_of_list.items.len > 0) one_of_list.toOwnedSlice() else null,
+            .anyOf = if (any_of_list.items.len > 0) any_of_list.toOwnedSlice() else null,
+            .items = if (obj.get("items")) |val| try SchemaOrReference.parse(allocator, val) else null,
+            .properties = if (properties_map.count() > 0) properties_map else null,
+            .additionalProperties = if (obj.get("additionalProperties")) |val| try AdditionalProperties.parse(allocator, val) else null,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .format = if (obj.get("format")) |val| val.string else null,
+            .default = if (obj.get("default")) |val| val else null,
+            .nullable = if (obj.get("nullable")) |val| val.boolean else null,
+            .discriminator = if (obj.get("discriminator")) |val| try Discriminator.parse(allocator, val) else null,
+            .readOnly = if (obj.get("readOnly")) |val| val.boolean else null,
+            .writeOnly = if (obj.get("writeOnly")) |val| val.boolean else null,
+            .example = if (obj.get("example")) |val| val else null,
+            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
+            .deprecated = if (obj.get("deprecated")) |val| val.boolean else null,
+            .xml = if (obj.get("xml")) |val| try XML.parse(val) else null,
+        };
+    }
+};
+
+pub const AdditionalProperties = union(enum) {
+    schema_or_reference: SchemaOrReference,
+    boolean: bool,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !AdditionalProperties {
+        if (value.isBool()) {
+            return AdditionalProperties{ .boolean = value.boolean };
+        } else {
+            return AdditionalProperties{ .schema_or_reference = try SchemaOrReference.parse(allocator, value) };
+        }
+    }
+};
+
+pub const Discriminator = struct {
+    propertyName: []const u8,
+    mapping: ?std.StringHashMap([]const u8) = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Discriminator {
+        const obj = value.object;
+        var mapping_map = std.StringHashMap([]const u8).init(allocator);
+        if (obj.get("mapping")) |map_val| {
+            for (map_val.object.keys()) |key| {
+                try mapping_map.put(key, map_val.object.get(key).?.string);
+            }
+        }
+        return Discriminator{
+            .propertyName = obj.get("propertyName").?.string,
+            .mapping = if (mapping_map.count() > 0) mapping_map else null,
+        };
+    }
+};
+
+pub const XML = struct {
+    name: ?[]const u8 = null,
+    namespace: ?[]const u8 = null,
+    prefix: ?[]const u8 = null,
+    attribute: ?bool = null,
+    wrapped: ?bool = null,
+
+    pub fn parse(value: json.Value) !XML {
+        const obj = value.object;
+        return XML{
+            .name = if (obj.get("name")) |val| val.string else null,
+            .namespace = if (obj.get("namespace")) |val| val.string else null,
+            .prefix = if (obj.get("prefix")) |val| val.string else null,
+            .attribute = if (obj.get("attribute")) |val| val.boolean else null,
+            .wrapped = if (obj.get("wrapped")) |val| val.boolean else null,
+        };
+    }
+};
+
+pub const Response = struct {
+    description: []const u8,
+    headers: ?std.StringHashMap(HeaderOrReference) = null,
+    content: ?std.StringHashMap(MediaType) = null,
+    links: ?std.StringHashMap(LinkOrReference) = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Response {
+        const obj = value.object;
+        var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
+        if (obj.get("headers")) |headers_val| {
+            for (headers_val.object.keys()) |key| {
+                try headers_map.put(key, try HeaderOrReference.parse(allocator, headers_val.object.get(key).?));
+            }
+        }
+        var content_map = std.StringHashMap(MediaType).init(allocator);
+        if (obj.get("content")) |content_val| {
+            for (content_val.object.keys()) |key| {
+                try content_map.put(key, try MediaType.parse(allocator, content_val.object.get(key).?));
+            }
+        }
+        var links_map = std.StringHashMap(LinkOrReference).init(allocator);
+        if (obj.get("links")) |links_val| {
+            for (links_val.object.keys()) |key| {
+                try links_map.put(key, try LinkOrReference.parse(allocator, links_val.object.get(key).?));
+            }
+        }
+
+        return Response{
+            .description = obj.get("description").?.string,
+            .headers = if (headers_map.count() > 0) headers_map else null,
+            .content = if (content_map.count() > 0) content_map else null,
+            .links = if (links_map.count() > 0) links_map else null,
+        };
+    }
+};
+
+pub const MediaType = struct {
+    schema: ?SchemaOrReference = null,
+    example: ?json.Value = null,
+    examples: ?std.StringHashMap(ExampleOrReference) = null,
+    encoding: ?std.StringHashMap(Encoding) = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !MediaType {
+        const obj = value.object;
+        var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
+        if (obj.get("examples")) |examples_val| {
+            for (examples_val.object.keys()) |key| {
+                try examples_map.put(key, try ExampleOrReference.parse(allocator, examples_val.object.get(key).?));
+            }
+        }
+        var encoding_map = std.StringHashMap(Encoding).init(allocator);
+        if (obj.get("encoding")) |encoding_val| {
+            for (encoding_val.object.keys()) |key| {
+                try encoding_map.put(key, try Encoding.parse(allocator, encoding_val.object.get(key).?));
+            }
+        }
+
+        return MediaType{
+            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parse(allocator, val) else null,
+            .example = if (obj.get("example")) |val| val else null,
+            .examples = if (examples_map.count() > 0) examples_map else null,
+            .encoding = if (encoding_map.count() > 0) encoding_map else null,
+        };
+    }
+};
+
+pub const Example = struct {
+    summary: ?[]const u8 = null,
+    description: ?[]const u8 = null,
+    value: ?json.Value = null,
+    externalValue: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Example {
+        const obj = value.object;
+        return Example{
+            .summary = if (obj.get("summary")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .value = if (obj.get("value")) |val| val else null,
+            .externalValue = if (obj.get("externalValue")) |val| val.string else null,
+        };
+    }
+};
+
+pub const Header = struct {
+    description: ?[]const u8 = null,
+    required: ?bool = null,
+    deprecated: ?bool = null,
+    allowEmptyValue: ?bool = null,
+    style: ?[]const u8 = null, // "simple"
+    explode: ?bool = null,
+    allowReserved: ?bool = null,
+    schema: ?SchemaOrReference = null,
+    content: ?std.StringHashMap(MediaType) = null,
+    example: ?json.Value = null,
+    examples: ?std.StringHashMap(ExampleOrReference) = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Header {
+        const obj = value.object;
+        var content_map = std.StringHashMap(MediaType).init(allocator);
+        if (obj.get("content")) |content_val| {
+            for (content_val.object.keys()) |key| {
+                try content_map.put(key, try MediaType.parse(allocator, content_val.object.get(key).?));
+            }
+        }
+        var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
+        if (obj.get("examples")) |examples_val| {
+            for (examples_val.object.keys()) |key| {
+                try examples_map.put(key, try ExampleOrReference.parse(allocator, examples_val.object.get(key).?));
+            }
+        }
+
+        return Header{
+            .description = if (obj.get("description")) |val| val.string else null,
+            .required = if (obj.get("required")) |val| val.boolean else null,
+            .deprecated = if (obj.get("deprecated")) |val| val.boolean else null,
+            .allowEmptyValue = if (obj.get("allowEmptyValue")) |val| val.boolean else null,
+            .style = if (obj.get("style")) |val| val.string else null,
+            .explode = if (obj.get("explode")) |val| val.boolean else null,
+            .allowReserved = if (obj.get("allowReserved")) |val| val.boolean else null,
+            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parse(allocator, val) else null,
+            .content = if (content_map.count() > 0) content_map else null,
+            .example = if (obj.get("example")) |val| val else null,
+            .examples = if (examples_map.count() > 0) examples_map else null,
+        };
+    }
+};
+
+pub const Parameter = struct {
+    name: []const u8,
+    in_field: []const u8, // Renamed 'in' to 'in_field' to avoid keyword conflict
+    description: ?[]const u8 = null,
+    required: ?bool = null,
+    deprecated: ?bool = null,
+    allowEmptyValue: ?bool = null,
+    style: ?[]const u8 = null,
+    explode: ?bool = null,
+    allowReserved: ?bool = null,
+    schema: ?SchemaOrReference = null,
+    content: ?std.StringHashMap(MediaType) = null,
+    example: ?json.Value = null,
+    examples: ?std.StringHashMap(ExampleOrReference) = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Parameter {
+        const obj = value.object;
+        var content_map = std.StringHashMap(MediaType).init(allocator);
+        if (obj.get("content")) |content_val| {
+            for (content_val.object.keys()) |key| {
+                try content_map.put(key, try MediaType.parse(allocator, content_val.object.get(key).?));
+            }
+        }
+        var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
+        if (obj.get("examples")) |examples_val| {
+            for (examples_val.object.keys()) |key| {
+                try examples_map.put(key, try ExampleOrReference.parse(allocator, examples_val.object.get(key).?));
+            }
+        }
+
+        return Parameter{
+            .name = obj.get("name").?.string,
+            .in_field = obj.get("in").?.string,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .required = if (obj.get("required")) |val| val.boolean else null,
+            .deprecated = if (obj.get("deprecated")) |val| val.boolean else null,
+            .allowEmptyValue = if (obj.get("allowEmptyValue")) |val| val.boolean else null,
+            .style = if (obj.get("style")) |val| val.string else null,
+            .explode = if (obj.get("explode")) |val| val.boolean else null,
+            .allowReserved = if (obj.get("allowReserved")) |val| val.boolean else null,
+            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parse(allocator, val) else null,
+            .content = if (content_map.count() > 0) content_map else null,
+            .example = if (obj.get("example")) |val| val else null,
+            .examples = if (examples_map.count() > 0) examples_map else null,
+        };
+    }
+};
+
+pub const RequestBody = struct {
+    content: std.StringHashMap(MediaType),
+    description: ?[]const u8 = null,
+    required: ?bool = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !RequestBody {
+        const obj = value.object;
+        var content_map = std.StringHashMap(MediaType).init(allocator);
+        if (obj.get("content")) |content_val| {
+            for (content_val.object.keys()) |key| {
+                try content_map.put(key, try MediaType.parse(allocator, content_val.object.get(key).?));
+            }
+        }
+        return RequestBody{
+            .content = content_map,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .required = if (obj.get("required")) |val| val.boolean else null,
+        };
+    }
+};
+
+pub const SecurityScheme = union(enum) {
+    api_key: APIKeySecurityScheme,
+    http: HTTPSecurityScheme,
+    oauth2: OAuth2SecurityScheme,
+    openIdConnect: OpenIdConnectSecurityScheme,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !SecurityScheme {
+        const obj = value.object;
+        const type_str = obj.get("type").?.string;
+        if (std.mem.eql(u8, type_str, "apiKey")) {
+            return SecurityScheme{ .api_key = try APIKeySecurityScheme.parse(allocator, value) };
+        } else if (std.mem.eql(u8, type_str, "http")) {
+            return SecurityScheme{ .http = try HTTPSecurityScheme.parse(allocator, value) };
+        } else if (std.mem.eql(u8, type_str, "oauth2")) {
+            return SecurityScheme{ .oauth2 = try OAuth2SecurityScheme.parse(value) };
+        } else if (std.mem.eql(u8, type_str, "openIdConnect")) {
+            return SecurityScheme{ .openIdConnect = try OpenIdConnectSecurityScheme.parse(value) };
+        } else {
+            return error.UnknownSecuritySchemeType;
+        }
+    }
+};
+
+pub const APIKeySecurityScheme = struct {
+    type: []const u8, // "apiKey"
+    name: []const u8,
+    in_field: []const u8, // "header", "query", "cookie"
+    description: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !APIKeySecurityScheme {
+        const obj = value.object;
+        return APIKeySecurityScheme{
+            .type = obj.get("type").?.string,
+            .name = obj.get("name").?.string,
+            .in_field = obj.get("in").?.string,
+            .description = if (obj.get("description")) |val| val.string else null,
+        };
+    }
+};
+
+pub const HTTPSecurityScheme = struct {
+    scheme: []const u8,
+    type: []const u8, // "http"
+    bearerFormat: ?[]const u8 = null,
+    description: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !HTTPSecurityScheme {
+        const obj = value.object;
+        return HTTPSecurityScheme{
+            .scheme = obj.get("scheme").?.string,
+            .type = obj.get("type").?.string,
+            .bearerFormat = if (obj.get("bearerFormat")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| val.string else null,
+        };
+    }
+};
+
+pub const OAuth2SecurityScheme = struct {
+    type: []const u8, // "oauth2"
+    flows: OAuthFlows,
+    description: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !OAuth2SecurityScheme {
+        const obj = value.object;
+        return OAuth2SecurityScheme{
+            .type = obj.get("type").?.string,
+            .flows = try OAuthFlows.parse(allocator, obj.get("flows").?),
+            .description = if (obj.get("description")) |val| val.string else null,
+        };
+    }
+};
+
+pub const OpenIdConnectSecurityScheme = struct {
+    type: []const u8, // "openIdConnect"
+    openIdConnectUrl: []const u8,
+    description: ?[]const u8 = null,
+
+    pub fn parse(value: json.Value) !OpenIdConnectSecurityScheme {
+        const obj = value.object;
+        return OpenIdConnectSecurityScheme{
+            .type = obj.get("type").?.string,
+            .openIdConnectUrl = obj.get("openIdConnectUrl").?.string,
+            .description = if (obj.get("description")) |val| val.string else null,
+        };
+    }
+};
+
+pub const OAuthFlows = struct {
+    implicit: ?ImplicitOAuthFlow = null,
+    password: ?PasswordOAuthFlow = null,
+    clientCredentials: ?ClientCredentialsFlow = null,
+    authorizationCode: ?AuthorizationCodeOAuthFlow = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !OAuthFlows {
+        const obj = value.object;
+        return OAuthFlows{
+            .implicit = if (obj.get("implicit")) |val| try ImplicitOAuthFlow.parse(allocator, val) else null,
+            .password = if (obj.get("password")) |val| try PasswordOAuthFlow.parse(allocator, val) else null,
+            .clientCredentials = if (obj.get("clientCredentials")) |val| try ClientCredentialsFlow.parse(allocator, val) else null,
+            .authorizationCode = if (obj.get("authorizationCode")) |val| try AuthorizationCodeOAuthFlow.parse(allocator, val) else null,
+        };
+    }
+};
+
+pub const ImplicitOAuthFlow = struct {
+    authorizationUrl: []const u8,
+    scopes: std.StringHashMap([]const u8),
+    refreshUrl: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !ImplicitOAuthFlow {
+        const obj = value.object;
+        var scopes_map = std.StringHashMap([]const u8).init(allocator);
+        if (obj.get("scopes")) |scopes_val| {
+            for (scopes_val.object.keys()) |key| {
+                try scopes_map.put(key, scopes_val.object.get(key).?.string);
+            }
+        }
+        return ImplicitOAuthFlow{
+            .authorizationUrl = obj.get("authorizationUrl").?.string,
+            .scopes = scopes_map,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| val.string else null,
+        };
+    }
+};
+
+pub const PasswordOAuthFlow = struct {
+    tokenUrl: []const u8,
+    scopes: std.StringHashMap([]const u8),
+    refreshUrl: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !PasswordOAuthFlow {
+        const obj = value.object;
+        var scopes_map = std.StringHashMap([]const u8).init(allocator);
+        if (obj.get("scopes")) |scopes_val| {
+            for (scopes_val.object.keys()) |key| {
+                try scopes_map.put(key, scopes_val.object.get(key).?.string);
+            }
+        }
+        return PasswordOAuthFlow{
+            .tokenUrl = obj.get("tokenUrl").?.string,
+            .scopes = scopes_map,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| val.string else null,
+        };
+    }
+};
+
+pub const ClientCredentialsFlow = struct {
+    tokenUrl: []const u8,
+    scopes: std.StringHashMap([]const u8),
+    refreshUrl: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !ClientCredentialsFlow {
+        const obj = value.object;
+        var scopes_map = std.StringHashMap([]const u8).init(allocator);
+        if (obj.get("scopes")) |scopes_val| {
+            for (scopes_val.object.keys()) |key| {
+                try scopes_map.put(key, scopes_val.object.get(key).?.string);
+            }
+        }
+        return ClientCredentialsFlow{
+            .tokenUrl = obj.get("tokenUrl").?.string,
+            .scopes = scopes_map,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| val.string else null,
+        };
+    }
+};
+
+pub const AuthorizationCodeOAuthFlow = struct {
+    authorizationUrl: []const u8,
+    tokenUrl: []const u8,
+    scopes: std.StringHashMap([]const u8),
+    refreshUrl: ?[]const u8 = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !AuthorizationCodeOAuthFlow {
+        const obj = value.object;
+        var scopes_map = std.StringHashMap([]const u8).init(allocator);
+        if (obj.get("scopes")) |scopes_val| {
+            for (scopes_val.object.keys()) |key| {
+                try scopes_map.put(key, scopes_val.object.get(key).?.string);
+            }
+        }
+        return AuthorizationCodeOAuthFlow{
+            .authorizationUrl = obj.get("authorizationUrl").?.string,
+            .tokenUrl = obj.get("tokenUrl").?.string,
+            .scopes = scopes_map,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| val.string else null,
+        };
+    }
+};
+
+pub const Link = struct {
+    operationId: ?[]const u8 = null,
+    operationRef: ?[]const u8 = null,
+    parameters: ?std.StringHashMap(json.Value) = null, // Can be any type
+    requestBody: ?json.Value = null, // Can be any type
+    description: ?[]const u8 = null,
+    server: ?Server = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Link {
+        const obj = value.object;
+        var parameters_map = std.StringHashMap(json.Value).init(allocator);
+        if (obj.get("parameters")) |params_val| {
+            for (params_val.object.keys()) |key| {
+                try parameters_map.put(key, params_val.object.get(key).?);
+            }
+        }
+        return Link{
+            .operationId = if (obj.get("operationId")) |val| val.string else null,
+            .operationRef = if (obj.get("operationRef")) |val| val.string else null,
+            .parameters = if (parameters_map.count() > 0) parameters_map else null,
+            .requestBody = if (obj.get("requestBody")) |val| val else null,
+            .description = if (obj.get("description")) |val| val.string else null,
+            .server = if (obj.get("server")) |val| try Server.parse(allocator, val) else null,
+        };
+    }
+};
+
+pub const Callback = struct {
+    path_items: std.StringHashMap(PathItem),
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Callback {
+        var path_items_map = std.StringHashMap(PathItem).init(allocator);
+        const obj = value.object;
+        for (obj.keys()) |key| {
+            // Assuming keys are path items, e.g., "$request.body#/url"
+            try path_items_map.put(key, try PathItem.parse(allocator, obj.get(key).?));
+        }
+        return Callback{ .path_items = path_items_map };
+    }
+};
+
+pub const Encoding = struct {
+    contentType: ?[]const u8 = null,
+    headers: ?std.StringHashMap(HeaderOrReference) = null,
+    style: ?[]const u8 = null, // "form", "spaceDelimited", "pipeDelimited", "deepObject"
+    explode: ?bool = null,
+    allowReserved: ?bool = null,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Encoding {
+        const obj = value.object;
+        var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
+        if (obj.get("headers")) |headers_val| {
+            for (headers_val.object.keys()) |key| {
+                try headers_map.put(key, try HeaderOrReference.parse(allocator, headers_val.object.get(key).?));
+            }
+        }
+        return Encoding{
+            .contentType = if (obj.get("contentType")) |val| val.string else null,
+            .headers = if (headers_map.count() > 0) headers_map else null,
+            .style = if (obj.get("style")) |val| val.string else null,
+            .explode = if (obj.get("explode")) |val| val.boolean else null,
+            .allowReserved = if (obj.get("allowReserved")) |val| val.boolean else null,
+        };
+    }
+};

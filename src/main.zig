@@ -1,4 +1,4 @@
-const OpenApiDocument = @import("models/document.zig").OpenApiDocument;
+const models = @import("models.zig");
 
 pub fn main() !void {
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
