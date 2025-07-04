@@ -1,0 +1,17 @@
+# Zig build artifacts
+zig-cache/
+zig-out/
+
+# Optional: VS Code settings
+.vscode/
+
+# Mac/Linux files
+.DS_Store
+
+# Windows files
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Logs
+*.log
