@@ -74,6 +74,10 @@ pub const Operation = struct {
     security: ?[]SecurityRequirement = null,
 };
 
+pub const Callback = struct {
+    name: PathItem,
+};
+
 pub const Tag = struct {
     name: []const u8,
     description: ?[]const u8 = null,
@@ -119,6 +123,7 @@ pub const ParameterStyle = enum {
 
 pub const Schema = struct {
     type: ?SchemaType = null,
+    properties: ?std.AutoHashMap([]const u8, Schema) = null,
     format: ?[]const u8 = null,
     title: ?[]const u8 = null,
     description: ?[]const u8 = null,
@@ -203,13 +208,48 @@ pub const Components = struct {
     callbacks: ?std.AutoHashMap([]const u8, Callback) = null,
 };
 
-pub const Schema = struct {
-    key: []const u8,
-    value: std.ArrayHashMap([]const u8, std.ArrayHashMap(
-        []const u8,
-    )),
-};
-
 pub const Security = struct {
     items: std.AutoHashMap([]const u8, [][]const u8),
+};
+
+pub const Response = struct {
+    description: []const u8,
+    headers: ?std.AutoHashMap([]const u8, Header) = null,
+    content: ?std.AutoHashMap([]const u8, MediaType) = null,
+    links: ?std.AutoHashMap([]const u8, Link) = null,
+};
+
+pub const SecurityScheme = struct {
+    type: []const u8,
+    description: ?[]const u8 = null,
+    name: ?[]const u8 = null,
+    in: ?SecurityIn = null,
+    scheme: ?[]const u8 = null,
+    bearerFormat: ?[]const u8 = null,
+    flows: ?OAuthFlows = null,
+    openIdConnectUrl: ?[]const u8 = null,
+};
+
+pub const SecurityIn = enum {
+    query,
+    header,
+    cookie,
+};
+
+pub const OAuthFlows = struct {
+    implicit: ?OAuthFlow = null,
+    password: ?OAuthFlow = null,
+    clientCredentials: ?OAuthFlow = null,
+    authorizationCode: ?OAuthFlow = null,
+};
+
+pub const OAuthFlow = struct {
+    authorizationUrl: ?[]const u8 = null,
+    tokenUrl: ?[]const u8 = null,
+    refreshUrl: ?[]const u8 = null,
+    scopes: std.AutoHashMap([]const u8, []const u8),
+};
+
+pub const Responses = struct {
+    default: std.AutoHashMap([]const u8, Response),
 };
