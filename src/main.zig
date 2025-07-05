@@ -1,5 +1,7 @@
 const models = @import("models.zig");
 
+const std = @import("std");
+
 pub fn main() !void {
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
     const stdout_file = std.io.getStdOut().writer();
@@ -17,10 +19,6 @@ test "simple test" {
     try std.testing.expectEqual(@as(i32, 42), list.pop());
 }
 
-test "use other module" {
-    try std.testing.expectEqual(@as(i32, 150), lib.add(100, 50));
-}
-
 test "fuzz example" {
     const Context = struct {
         fn testOne(context: @This(), input: []const u8) anyerror!void {
@@ -31,6 +29,3 @@ test "fuzz example" {
     };
     try std.testing.fuzz(Context{}, Context.testOne, .{});
 }
-
-const std = @import("std");
-const lib = @import("models.zig");
