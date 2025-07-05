@@ -16,17 +16,21 @@ pub const OpenApiDocument = struct {
         defer arena.deinit();
         const gpa = arena.allocator();
 
-        var parsed = try json.parseFromSlice(json.Value, gpa, json_string, .{});
+        var parsed = try json.parseFromSlice(json.Value, gpa, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
 
         const root = parsed.value;
+        const info = try Info.parse(root.object.get("info").?);
+        const paths = try Paths.parse(gpa, root.object.get("paths").?);
+        const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parse(val) else null;
+        const servers = if (root.object.get("servers")) |val| try parseServers(gpa, val) else null;
 
         return OpenApiDocument{
             .openapi = root.object.get("openapi").?.string,
-            .info = try Info.parse(root.object.get("info").?),
-            .paths = try Paths.parse(gpa, root.object.get("paths").?),
-            .externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parse(val) else null,
-            .servers = if (root.object.get("servers")) |val| try parseServers(gpa, val) else null,
+            .info = info,
+            .paths = paths,
+            .externalDocs = externalDocs,
+            .servers = servers,
             .security = if (root.object.get("security")) |val| try parseSecurityRequirements(gpa, val) else null,
             .tags = if (root.object.get("tags")) |val| try parseTags(gpa, val) else null,
             .components = if (root.object.get("components")) |val| try Components.parse(gpa, val) else null,
@@ -34,10 +38,12 @@ pub const OpenApiDocument = struct {
     }
 
     fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Server {
+        std.debug.print("parsing servers\n", .{}); // Debugging line
         var array_list = std.ArrayList(Server).init(allocator);
         for (value.array.items) |item| {
             try array_list.append(try Server.parse(allocator, item));
         }
+        std.debug.print("parsed servers\n", .{}); // Debugging line
         return array_list.items;
     }
 
@@ -67,6 +73,7 @@ pub const Info = struct {
     license: ?License = null,
 
     pub fn parse(value: json.Value) anyerror!Info {
+        std.debug.print("parsing info\n", .{}); // Debugging line
         const obj = value.object;
         return Info{
             .title = obj.get("title").?.string,
@@ -236,6 +243,7 @@ pub const Paths = struct {
     path_items: std.StringHashMap(PathItem),
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Paths {
+        std.debug.print("parsing paths\n", .{}); // Debugging line
         var path_items_map = std.StringHashMap(PathItem).init(allocator);
         const obj = value.object;
         for (obj.keys()) |key| {
@@ -243,6 +251,7 @@ pub const Paths = struct {
                 try path_items_map.put(key, try PathItem.parse(allocator, obj.get(key).?));
             }
         }
+        std.debug.print("parsed paths successfully\n", .{}); // Debugging line
         return Paths{ .path_items = path_items_map };
     }
 };
@@ -415,6 +424,7 @@ pub const ExternalDocumentation = struct {
     description: ?[]const u8 = null,
 
     pub fn parse(value: json.Value) anyerror!ExternalDocumentation {
+        std.debug.print("parsed externalDocs\n", .{});
         const obj = value.object;
         return ExternalDocumentation{
             .url = obj.get("url").?.string,
@@ -672,14 +682,9 @@ pub const Schema = struct {
 
 pub const AdditionalProperties = union(enum) {
     schema_or_reference: SchemaOrReference,
-    boolean: bool,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!AdditionalProperties {
-        if (value.bool) {
-            return AdditionalProperties{ .boolean = value.bool };
-        } else {
-            return AdditionalProperties{ .schema_or_reference = try SchemaOrReference.parse(allocator, value) };
-        }
+        return AdditionalProperties{ .schema_or_reference = try SchemaOrReference.parse(allocator, value) };
     }
 };
 
