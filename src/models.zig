@@ -24,6 +24,9 @@ pub const OpenApiDocument = struct {
         const paths = try Paths.parse(gpa, root.object.get("paths").?);
         const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parse(val) else null;
         const servers = if (root.object.get("servers")) |val| try parseServers(gpa, val) else null;
+        const security = if (root.object.get("security")) |val| try parseSecurityRequirements(gpa, val) else null;
+        const tags = if (root.object.get("tags")) |val| try parseTags(gpa, val) else null;
+        const components = if (root.object.get("components")) |val| try Components.parse(gpa, val) else null;
 
         return OpenApiDocument{
             .openapi = root.object.get("openapi").?.string,
@@ -31,9 +34,9 @@ pub const OpenApiDocument = struct {
             .paths = paths,
             .externalDocs = externalDocs,
             .servers = servers,
-            .security = if (root.object.get("security")) |val| try parseSecurityRequirements(gpa, val) else null,
-            .tags = if (root.object.get("tags")) |val| try parseTags(gpa, val) else null,
-            .components = if (root.object.get("components")) |val| try Components.parse(gpa, val) else null,
+            .security = security,
+            .tags = tags,
+            .components = components,
         };
     }
 
@@ -48,18 +51,22 @@ pub const OpenApiDocument = struct {
     }
 
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]const SecurityRequirement {
+        std.debug.print("parsing security requirements\n", .{}); // Debugging line
         var array_list = std.ArrayList(SecurityRequirement).init(allocator);
         for (value.array.items) |item| {
             try array_list.append(try SecurityRequirement.parse(allocator, item));
         }
+        std.debug.print("parsed security requirements\n", .{}); // Debugging line
         return array_list.items;
     }
 
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Tag {
+        std.debug.print("parsing tags\n", .{}); // Debugging line
         var array_list = std.ArrayList(Tag).init(allocator);
         for (value.array.items) |item| {
             try array_list.append(try Tag.parse(item));
         }
+        std.debug.print("parsed tags\n", .{}); // Debugging line
         return array_list.items;
     }
 };
@@ -169,6 +176,7 @@ pub const Components = struct {
     callbacks: ?std.StringHashMap(CallbackOrReference) = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Components {
+        std.debug.print("parsing components\n", .{}); // Debugging line
         const obj = value.object;
         var schemas_map = std.StringHashMap(SchemaOrReference).init(allocator);
         if (obj.get("schemas")) |schemas_val| {
@@ -225,6 +233,7 @@ pub const Components = struct {
             }
         }
 
+        std.debug.print("parsed components successfully\n", .{}); // Debugging line
         return Components{
             .schemas = if (schemas_map.count() > 0) schemas_map else null,
             .responses = if (responses_map.count() > 0) responses_map else null,
