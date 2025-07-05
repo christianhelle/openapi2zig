@@ -84,7 +84,7 @@ pub const Contact = struct {
     url: ?[]const u8 = null,
     email: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Contact {
+    pub fn parse(value: json.Value) !Contact {
         const obj = value.object;
         return Contact{
             .name = if (obj.get("name")) |val| val.string else null,
@@ -98,7 +98,7 @@ pub const License = struct {
     name: []const u8,
     url: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !License {
+    pub fn parse(value: json.Value) !License {
         const obj = value.object;
         return License{
             .name = obj.get("name").?.string,
@@ -419,7 +419,7 @@ pub const ExternalDocumentation = struct {
             .url = obj.get("url").?.string,
             .description = if (obj.get("description")) |val| val.string else null,
         };
-    };
+    }
 };
 
 // Union types for $ref
@@ -544,6 +544,7 @@ pub const Reference = struct {
     ref: []const u8,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Reference {
+        _ = allocator; // autofix
         const obj = value.object;
         return Reference{ .ref = obj.get("$ref").?.string };
     }
@@ -789,6 +790,7 @@ pub const Example = struct {
     externalValue: ?[]const u8 = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) !Example {
+        _ = allocator; // autofix
         const obj = value.object;
         return Example{
             .summary = if (obj.get("summary")) |val| val.string else null,
@@ -942,6 +944,7 @@ pub const APIKeySecurityScheme = struct {
     description: ?[]const u8 = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) !APIKeySecurityScheme {
+        _ = allocator; // autofix
         const obj = value.object;
         return APIKeySecurityScheme{
             .type = obj.get("type").?.string,
@@ -959,6 +962,7 @@ pub const HTTPSecurityScheme = struct {
     description: ?[]const u8 = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) !HTTPSecurityScheme {
+        _ = allocator; // autofix
         const obj = value.object;
         return HTTPSecurityScheme{
             .scheme = obj.get("scheme").?.string,
