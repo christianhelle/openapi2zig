@@ -12,20 +12,41 @@ pub fn main() !void {
     try bw.flush(); // Don't forget to flush!
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+const OpenAPI = struct {
+    openapi: []const u8,
+};
+
+test "can deserialize openapi version" {
+    const allocator = std.testing.allocator;
+    const parsed = try std.json.parseFromSlice(OpenAPI, allocator,
+        \\{ "openapi": "3.0.0" }
+    , .{});
+    defer parsed.deinit();
+    try std.testing.expectEqualStrings("3.0.0", parsed.value.openapi);
 }
 
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
-    };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
+test "can deserialize petstore.json" {
+    const allocator = std.testing.allocator;
+    const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
+    defer file.close();
+    try file.seekBy(0);
+    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(file_contents);
+
+    const parsed = try std.json.parseFromSlice(OpenAPI, allocator, file_contents, .{ .ignore_unknown_fields = true });
+    defer parsed.deinit();
+
+    try std.testing.expectEqualStrings("3.0.2", parsed.value.openapi);
+}
+
+test "can deserialize petstore into OpenApiDocument" {
+    const allocator = std.testing.allocator;
+    const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
+    defer file.close();
+    try file.seekBy(0);
+    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(file_contents);
+
+    const parsed = try models.OpenApiDocument.parse(allocator, file_contents);
+    try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
 }
