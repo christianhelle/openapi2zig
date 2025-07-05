@@ -1,7 +1,7 @@
 const std = @import("std");
 const json = std.json;
 
-pub const OpenAPI = struct {
+pub const OpenApiDocument = struct {
     openapi: []const u8,
     info: Info,
     paths: Paths,
@@ -11,7 +11,7 @@ pub const OpenAPI = struct {
     tags: ?[]const Tag = null,
     components: ?Components = null,
 
-    pub fn parse(allocator: std.mem.Allocator, json_string: []const u8) !OpenAPI {
+    pub fn parse(allocator: std.mem.Allocator, json_string: []const u8) !OpenApiDocument {
         var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const gpa = arena.allocator();
@@ -21,7 +21,7 @@ pub const OpenAPI = struct {
 
         const root = parsed.value;
 
-        return OpenAPI{
+        return OpenApiDocument{
             .openapi = root.object.get("openapi").?.string,
             .info = try Info.parse(gpa, root.object.get("info").?),
             .paths = try Paths.parse(gpa, root.object.get("paths").?),
