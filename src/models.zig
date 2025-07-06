@@ -190,6 +190,7 @@ pub const Server = struct {
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Server {
         const obj = value.object;
         var variables_map = std.StringHashMap(ServerVariable).init(allocator);
+        errdefer variables_map.deinit();
         if (obj.get("variables")) |vars_val| {
             for (vars_val.object.keys()) |key| {
                 try variables_map.put(try allocator.dupe(u8, key), try ServerVariable.parse(allocator, vars_val.object.get(key).?));
@@ -264,54 +265,63 @@ pub const Components = struct {
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Components {
         const obj = value.object;
         var schemas_map = std.StringHashMap(SchemaOrReference).init(allocator);
+        errdefer schemas_map.deinit();
         if (obj.get("schemas")) |schemas_val| {
             for (schemas_val.object.keys()) |key| {
                 try schemas_map.put(try allocator.dupe(u8, key), try SchemaOrReference.parse(allocator, schemas_val.object.get(key).?));
             }
         }
         var responses_map = std.StringHashMap(ResponseOrReference).init(allocator);
+        errdefer responses_map.deinit();
         if (obj.get("responses")) |responses_val| {
             for (responses_val.object.keys()) |key| {
                 try responses_map.put(try allocator.dupe(u8, key), try ResponseOrReference.parse(allocator, responses_val.object.get(key).?));
             }
         }
         var parameters_map = std.StringHashMap(ParameterOrReference).init(allocator);
+        errdefer parameters_map.deinit();
         if (obj.get("parameters")) |parameters_val| {
             for (parameters_val.object.keys()) |key| {
                 try parameters_map.put(try allocator.dupe(u8, key), try ParameterOrReference.parse(allocator, parameters_val.object.get(key).?));
             }
         }
         var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
+        errdefer examples_map.deinit();
         if (obj.get("examples")) |examples_val| {
             for (examples_val.object.keys()) |key| {
                 try examples_map.put(key, try ExampleOrReference.parse(allocator, examples_val.object.get(key).?));
             }
         }
         var request_bodies_map = std.StringHashMap(RequestBodyOrReference).init(allocator);
+        errdefer request_bodies_map.deinit();
         if (obj.get("requestBodies")) |request_bodies_val| {
             for (request_bodies_val.object.keys()) |key| {
                 try request_bodies_map.put(try allocator.dupe(u8, key), try RequestBodyOrReference.parse(allocator, request_bodies_val.object.get(key).?));
             }
         }
         var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
+        errdefer headers_map.deinit();
         if (obj.get("headers")) |headers_val| {
             for (headers_val.object.keys()) |key| {
                 try headers_map.put(key, try HeaderOrReference.parse(allocator, headers_val.object.get(key).?));
             }
         }
         var security_schemes_map = std.StringHashMap(SecuritySchemeOrReference).init(allocator);
+        errdefer security_schemes_map.deinit();
         if (obj.get("securitySchemes")) |security_schemes_val| {
             for (security_schemes_val.object.keys()) |key| {
                 try security_schemes_map.put(try allocator.dupe(u8, key), try SecuritySchemeOrReference.parse(allocator, security_schemes_val.object.get(key).?));
             }
         }
         var links_map = std.StringHashMap(LinkOrReference).init(allocator);
+        errdefer links_map.deinit();
         if (obj.get("links")) |links_val| {
             for (links_val.object.keys()) |key| {
                 try links_map.put(key, try LinkOrReference.parse(allocator, links_val.object.get(key).?));
             }
         }
         var callbacks_map = std.StringHashMap(CallbackOrReference).init(allocator);
+        errdefer callbacks_map.deinit();
         if (obj.get("callbacks")) |callbacks_val| {
             for (callbacks_val.object.keys()) |key| {
                 try callbacks_map.put(key, try CallbackOrReference.parse(allocator, callbacks_val.object.get(key).?));
@@ -368,6 +378,7 @@ pub const Paths = struct {
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Paths {
         var path_items_map = std.StringHashMap(PathItem).init(allocator);
+        errdefer path_items_map.deinit();
         const obj = value.object;
         for (obj.keys()) |key| {
             if (key[0] == '/') { // Path items start with '/'
