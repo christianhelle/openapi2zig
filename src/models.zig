@@ -22,7 +22,7 @@ pub const OpenApiDocument = struct {
         self.paths.deinit(allocator);
         
         // Free external docs if present
-        if (self.externalDocs) |*external_docs| {
+        if (self.externalDocs) |external_docs| {
             external_docs.deinit(allocator);
         }
         
@@ -87,6 +87,7 @@ pub const OpenApiDocument = struct {
 
     fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]Server {
         var array_list = std.ArrayList(Server).init(allocator);
+        errdefer array_list.deinit();
         for (value.array.items) |item| {
             try array_list.append(try Server.parse(allocator, item));
         }
@@ -95,6 +96,7 @@ pub const OpenApiDocument = struct {
 
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
         var array_list = std.ArrayList(SecurityRequirement).init(allocator);
+        errdefer array_list.deinit();
         for (value.array.items) |item| {
             try array_list.append(try SecurityRequirement.parse(allocator, item));
         }
@@ -103,6 +105,7 @@ pub const OpenApiDocument = struct {
 
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Tag {
         var array_list = std.ArrayList(Tag).init(allocator);
+        errdefer array_list.deinit();
         for (value.array.items) |item| {
             try array_list.append(try Tag.parse(allocator, item));
         }
@@ -221,6 +224,7 @@ pub const ServerVariable = struct {
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ServerVariable {
         const obj = value.object;
         var enum_list = std.ArrayList([]const u8).init(allocator);
+        errdefer enum_list.deinit();
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
                 try enum_list.append(try allocator.dupe(u8, item.string));
@@ -401,12 +405,14 @@ pub const PathItem = struct {
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!PathItem {
         const obj = value.object;
         var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
+        errdefer parameters_list.deinit();
         if (obj.get("parameters")) |params_val| {
             for (params_val.array.items) |item| {
                 try parameters_list.append(try ParameterOrReference.parse(allocator, item));
             }
         }
         var servers_list = std.ArrayList(Server).init(allocator);
+        errdefer servers_list.deinit();
         if (obj.get("servers")) |servers_val| {
             for (servers_val.array.items) |item| {
                 try servers_list.append(try Server.parse(allocator, item));
@@ -455,30 +461,35 @@ pub const Operation = struct {
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Operation {
         const obj = value.object;
         var tags_list = std.ArrayList([]const u8).init(allocator);
+        errdefer tags_list.deinit();
         if (obj.get("tags")) |tags_val| {
             for (tags_val.array.items) |item| {
                 try tags_list.append(try allocator.dupe(u8, item.string));
             }
         }
         var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
+        errdefer parameters_list.deinit();
         if (obj.get("parameters")) |params_val| {
             for (params_val.array.items) |item| {
                 try parameters_list.append(try ParameterOrReference.parse(allocator, item));
             }
         }
         var callbacks_map = std.StringHashMap(CallbackOrReference).init(allocator);
+        errdefer callbacks_map.deinit();
         if (obj.get("callbacks")) |callbacks_val| {
             for (callbacks_val.object.keys()) |key| {
                 try callbacks_map.put(key, try CallbackOrReference.parse(allocator, callbacks_val.object.get(key).?));
             }
         }
         var security_list = std.ArrayList(SecurityRequirement).init(allocator);
+        errdefer security_list.deinit();
         if (obj.get("security")) |security_val| {
             for (security_val.array.items) |item| {
                 try security_list.append(try SecurityRequirement.parse(allocator, item));
             }
         }
         var servers_list = std.ArrayList(Server).init(allocator);
+        errdefer servers_list.deinit();
         if (obj.get("servers")) |servers_val| {
             for (servers_val.array.items) |item| {
                 try servers_list.append(try Server.parse(allocator, item));
@@ -526,9 +537,11 @@ pub const SecurityRequirement = struct {
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityRequirement {
         var schemes_map = std.StringHashMap([]const []const u8).init(allocator);
+        errdefer schemes_map.deinit();
         const obj = value.object;
         for (obj.keys()) |key| {
             var scopes_list = std.ArrayList([]const u8).init(allocator);
+            errdefer scopes_list.deinit();
             for (obj.get(key).?.array.items) |item| {
                 try scopes_list.append(try allocator.dupe(u8, item.string));
             }
@@ -759,36 +772,42 @@ pub const Schema = struct {
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Schema {
         const obj = value.object;
         var required_list = std.ArrayList([]const u8).init(allocator);
+        errdefer required_list.deinit();
         if (obj.get("required")) |req_val| {
             for (req_val.array.items) |item| {
                 try required_list.append(try allocator.dupe(u8, item.string));
             }
         }
         var enum_list = std.ArrayList(json.Value).init(allocator);
+        errdefer enum_list.deinit();
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
                 try enum_list.append(item);
             }
         }
         var all_of_list = std.ArrayList(SchemaOrReference).init(allocator);
+        errdefer all_of_list.deinit();
         if (obj.get("allOf")) |all_of_val| {
             for (all_of_val.array.items) |item| {
                 try all_of_list.append(try SchemaOrReference.parse(allocator, item));
             }
         }
         var one_of_list = std.ArrayList(SchemaOrReference).init(allocator);
+        errdefer one_of_list.deinit();
         if (obj.get("oneOf")) |one_of_val| {
             for (one_of_val.array.items) |item| {
                 try one_of_list.append(try SchemaOrReference.parse(allocator, item));
             }
         }
         var any_of_list = std.ArrayList(SchemaOrReference).init(allocator);
+        errdefer any_of_list.deinit();
         if (obj.get("anyOf")) |any_of_val| {
             for (any_of_val.array.items) |item| {
                 try any_of_list.append(try SchemaOrReference.parse(allocator, item));
             }
         }
         var properties_map = std.StringHashMap(SchemaOrReference).init(allocator);
+        errdefer properties_map.deinit();
         if (obj.get("properties")) |props_val| {
             for (props_val.object.keys()) |key| {
                 try properties_map.put(key, try SchemaOrReference.parse(allocator, props_val.object.get(key).?));
@@ -850,6 +869,7 @@ pub const Discriminator = struct {
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Discriminator {
         const obj = value.object;
         var mapping_map = std.StringHashMap([]const u8).init(allocator);
+        errdefer mapping_map.deinit();
         if (obj.get("mapping")) |map_val| {
             for (map_val.object.keys()) |key| {
                 try mapping_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, map_val.object.get(key).?.string));
