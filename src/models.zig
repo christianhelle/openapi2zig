@@ -6,8 +6,8 @@ pub const OpenApiDocument = struct {
     info: Info,
     paths: Paths,
     externalDocs: ?ExternalDocumentation = null,
-    servers: ?[]const Server = null,
-    security: ?[]const SecurityRequirement = null,
+    servers: ?[]Server = null,
+    security: ?[]SecurityRequirement = null,
     tags: ?[]const Tag = null,
     components: ?Components = null,
 
@@ -85,7 +85,7 @@ pub const OpenApiDocument = struct {
         };
     }
 
-    fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Server {
+    fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]Server {
         var array_list = std.ArrayList(Server).init(allocator);
         for (value.array.items) |item| {
             try array_list.append(try Server.parse(allocator, item));
@@ -93,7 +93,7 @@ pub const OpenApiDocument = struct {
         return array_list.items;
     }
 
-    fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]const SecurityRequirement {
+    fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
         var array_list = std.ArrayList(SecurityRequirement).init(allocator);
         for (value.array.items) |item| {
             try array_list.append(try SecurityRequirement.parse(allocator, item));
