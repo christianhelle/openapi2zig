@@ -11,7 +11,7 @@ pub const OpenApiDocument = struct {
     tags: ?[]const Tag = null,
     components: ?Components = null,
 
-    pub fn deinit(self: OpenApiDocument, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *OpenApiDocument, allocator: std.mem.Allocator) void {
         // Free the openapi string
         allocator.free(self.openapi);
         
@@ -22,13 +22,13 @@ pub const OpenApiDocument = struct {
         self.paths.deinit(allocator);
         
         // Free external docs if present
-        if (self.externalDocs) |external_docs| {
+        if (self.externalDocs) |*external_docs| {
             external_docs.deinit(allocator);
         }
         
         // Free servers if present
         if (self.servers) |servers| {
-            for (servers) |server| {
+            for (servers) |*server| {
                 server.deinit(allocator);
             }
             allocator.free(servers);
@@ -36,7 +36,7 @@ pub const OpenApiDocument = struct {
         
         // Free security requirements if present
         if (self.security) |security| {
-            for (security) |security_req| {
+            for (security) |*security_req| {
                 security_req.deinit(allocator);
             }
             allocator.free(security);
@@ -51,7 +51,7 @@ pub const OpenApiDocument = struct {
         }
         
         // Free components if present
-        if (self.components) |components| {
+        if (self.components) |*components| {
             components.deinit(allocator);
         }
     }
@@ -199,10 +199,10 @@ pub const Server = struct {
         };
     }
 
-    pub fn deinit(self: Server, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Server, allocator: std.mem.Allocator) void {
         allocator.free(self.url);
         if (self.description) |desc| allocator.free(desc);
-        if (self.variables) |vars| {
+        if (self.variables) |*vars| {
             var iterator = vars.iterator();
             while (iterator.next()) |entry| {
                 allocator.free(entry.key_ptr.*);
@@ -327,35 +327,35 @@ pub const Components = struct {
         };
     }
 
-    pub fn deinit(self: Components, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Components, allocator: std.mem.Allocator) void {
         // For now, just basic cleanup of HashMaps - proper cleanup would need to deinit each value
-        if (self.schemas) |schemas| {
+        if (self.schemas) |*schemas| {
             var iterator = schemas.iterator();
             while (iterator.next()) |entry| {
                 allocator.free(entry.key_ptr.*);
             }
             schemas.deinit();
         }
-        if (self.responses) |responses| responses.deinit();
-        if (self.parameters) |parameters| parameters.deinit();
-        if (self.examples) |examples| examples.deinit();
-        if (self.requestBodies) |request_bodies| {
+        if (self.responses) |*responses| responses.deinit();
+        if (self.parameters) |*parameters| parameters.deinit();
+        if (self.examples) |*examples| examples.deinit();
+        if (self.requestBodies) |*request_bodies| {
             var iterator = request_bodies.iterator();
             while (iterator.next()) |entry| {
                 allocator.free(entry.key_ptr.*);
             }
             request_bodies.deinit();
         }
-        if (self.headers) |headers| headers.deinit();
-        if (self.securitySchemes) |security_schemes| {
+        if (self.headers) |*headers| headers.deinit();
+        if (self.securitySchemes) |*security_schemes| {
             var iterator = security_schemes.iterator();
             while (iterator.next()) |entry| {
                 allocator.free(entry.key_ptr.*);
             }
             security_schemes.deinit();
         }
-        if (self.links) |links| links.deinit();
-        if (self.callbacks) |callbacks| callbacks.deinit();
+        if (self.links) |*links| links.deinit();
+        if (self.callbacks) |*callbacks| callbacks.deinit();
     }
 };
 
@@ -373,7 +373,7 @@ pub const Paths = struct {
         return Paths{ .path_items = path_items_map };
     }
 
-    pub fn deinit(self: Paths, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *Paths, allocator: std.mem.Allocator) void {
         var iterator = self.path_items.iterator();
         while (iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*);
@@ -435,7 +435,6 @@ pub const PathItem = struct {
         if (self.summary) |summary| allocator.free(summary);
         if (self.description) |description| allocator.free(description);
         // TODO: Add proper deinit for operations, servers, and parameters when needed
-        _ = allocator; // Suppress unused variable warning for now
     }
 };
 
@@ -538,7 +537,7 @@ pub const SecurityRequirement = struct {
         return SecurityRequirement{ .schemes = schemes_map };
     }
 
-    pub fn deinit(self: SecurityRequirement, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *SecurityRequirement, allocator: std.mem.Allocator) void {
         var iterator = self.schemes.iterator();
         while (iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*);
