@@ -11,6 +11,51 @@ pub const OpenApiDocument = struct {
     tags: ?[]const Tag = null,
     components: ?Components = null,
 
+    pub fn deinit(self: OpenApiDocument, allocator: std.mem.Allocator) void {
+        // Free the openapi string
+        allocator.free(self.openapi);
+        
+        // Free the info struct
+        self.info.deinit(allocator);
+        
+        // Free the paths
+        self.paths.deinit(allocator);
+        
+        // Free external docs if present
+        if (self.externalDocs) |external_docs| {
+            external_docs.deinit(allocator);
+        }
+        
+        // Free servers if present
+        if (self.servers) |servers| {
+            for (servers) |server| {
+                server.deinit(allocator);
+            }
+            allocator.free(servers);
+        }
+        
+        // Free security requirements if present
+        if (self.security) |security| {
+            for (security) |security_req| {
+                security_req.deinit(allocator);
+            }
+            allocator.free(security);
+        }
+        
+        // Free tags if present
+        if (self.tags) |tags| {
+            for (tags) |tag| {
+                tag.deinit(allocator);
+            }
+            allocator.free(tags);
+        }
+        
+        // Free components if present
+        if (self.components) |components| {
+            components.deinit(allocator);
+        }
+    }
+
     pub fn parse(allocator: std.mem.Allocator, json_string: []const u8) anyerror!OpenApiDocument {
         var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
@@ -41,32 +86,26 @@ pub const OpenApiDocument = struct {
     }
 
     fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Server {
-        std.debug.print("parsing servers\n", .{}); // Debugging line
         var array_list = std.ArrayList(Server).init(allocator);
         for (value.array.items) |item| {
             try array_list.append(try Server.parse(allocator, item));
         }
-        std.debug.print("parsed servers\n", .{}); // Debugging line
         return array_list.items;
     }
 
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]const SecurityRequirement {
-        std.debug.print("parsing security requirements\n", .{}); // Debugging line
         var array_list = std.ArrayList(SecurityRequirement).init(allocator);
         for (value.array.items) |item| {
             try array_list.append(try SecurityRequirement.parse(allocator, item));
         }
-        std.debug.print("parsed security requirements\n", .{}); // Debugging line
         return array_list.items;
     }
 
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Tag {
-        std.debug.print("parsing tags\n", .{}); // Debugging line
         var array_list = std.ArrayList(Tag).init(allocator);
         for (value.array.items) |item| {
             try array_list.append(try Tag.parse(allocator, item));
         }
-        std.debug.print("parsed tags\n", .{}); // Debugging line
         return array_list.items;
     }
 };
@@ -80,7 +119,6 @@ pub const Info = struct {
     license: ?License = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Info {
-        std.debug.print("parsing info\n", .{}); // Debugging line
         const obj = value.object;
         return Info{
             .title = try allocator.dupe(u8, obj.get("title").?.string),
@@ -90,6 +128,15 @@ pub const Info = struct {
             .contact = if (obj.get("contact")) |val| try Contact.parse(allocator, val) else null,
             .license = if (obj.get("license")) |val| try License.parse(allocator, val) else null,
         };
+    }
+
+    pub fn deinit(self: Info, allocator: std.mem.Allocator) void {
+        allocator.free(self.title);
+        allocator.free(self.version);
+        if (self.description) |desc| allocator.free(desc);
+        if (self.termsOfService) |terms| allocator.free(terms);
+        if (self.contact) |contact| contact.deinit(allocator);
+        if (self.license) |license| license.deinit(allocator);
     }
 };
 
@@ -106,6 +153,12 @@ pub const Contact = struct {
             .email = if (obj.get("email")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
+    pub fn deinit(self: Contact, allocator: std.mem.Allocator) void {
+        if (self.name) |name| allocator.free(name);
+        if (self.url) |url| allocator.free(url);
+        if (self.email) |email| allocator.free(email);
+    }
 };
 
 pub const License = struct {
@@ -118,6 +171,11 @@ pub const License = struct {
             .name = try allocator.dupe(u8, obj.get("name").?.string),
             .url = if (obj.get("url")) |val| try allocator.dupe(u8, val.string) else null,
         };
+    }
+
+    pub fn deinit(self: License, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+        if (self.url) |url| allocator.free(url);
     }
 };
 
@@ -139,6 +197,19 @@ pub const Server = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .variables = if (variables_map.count() > 0) variables_map else null,
         };
+    }
+
+    pub fn deinit(self: Server, allocator: std.mem.Allocator) void {
+        allocator.free(self.url);
+        if (self.description) |desc| allocator.free(desc);
+        if (self.variables) |vars| {
+            var iterator = vars.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(allocator);
+            }
+            vars.deinit();
+        }
     }
 };
 
@@ -162,6 +233,17 @@ pub const ServerVariable = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
+    pub fn deinit(self: ServerVariable, allocator: std.mem.Allocator) void {
+        allocator.free(self.default);
+        if (self.description) |desc| allocator.free(desc);
+        if (self.enum_values) |enum_vals| {
+            for (enum_vals) |val| {
+                allocator.free(val);
+            }
+            allocator.free(enum_vals);
+        }
+    }
 };
 
 pub const Components = struct {
@@ -176,7 +258,6 @@ pub const Components = struct {
     callbacks: ?std.StringHashMap(CallbackOrReference) = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Components {
-        std.debug.print("parsing components\n", .{}); // Debugging line
         const obj = value.object;
         var schemas_map = std.StringHashMap(SchemaOrReference).init(allocator);
         if (obj.get("schemas")) |schemas_val| {
@@ -233,7 +314,6 @@ pub const Components = struct {
             }
         }
 
-        std.debug.print("parsed components successfully\n", .{}); // Debugging line
         return Components{
             .schemas = if (schemas_map.count() > 0) schemas_map else null,
             .responses = if (responses_map.count() > 0) responses_map else null,
@@ -246,13 +326,43 @@ pub const Components = struct {
             .callbacks = if (callbacks_map.count() > 0) callbacks_map else null,
         };
     }
+
+    pub fn deinit(self: Components, allocator: std.mem.Allocator) void {
+        // For now, just basic cleanup of HashMaps - proper cleanup would need to deinit each value
+        if (self.schemas) |schemas| {
+            var iterator = schemas.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+            }
+            schemas.deinit();
+        }
+        if (self.responses) |responses| responses.deinit();
+        if (self.parameters) |parameters| parameters.deinit();
+        if (self.examples) |examples| examples.deinit();
+        if (self.requestBodies) |request_bodies| {
+            var iterator = request_bodies.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+            }
+            request_bodies.deinit();
+        }
+        if (self.headers) |headers| headers.deinit();
+        if (self.securitySchemes) |security_schemes| {
+            var iterator = security_schemes.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+            }
+            security_schemes.deinit();
+        }
+        if (self.links) |links| links.deinit();
+        if (self.callbacks) |callbacks| callbacks.deinit();
+    }
 };
 
 pub const Paths = struct {
     path_items: std.StringHashMap(PathItem),
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Paths {
-        std.debug.print("parsing paths\n", .{}); // Debugging line
         var path_items_map = std.StringHashMap(PathItem).init(allocator);
         const obj = value.object;
         for (obj.keys()) |key| {
@@ -260,8 +370,16 @@ pub const Paths = struct {
                 try path_items_map.put(try allocator.dupe(u8, key), try PathItem.parse(allocator, obj.get(key).?));
             }
         }
-        std.debug.print("parsed paths successfully\n", .{}); // Debugging line
         return Paths{ .path_items = path_items_map };
+    }
+
+    pub fn deinit(self: Paths, allocator: std.mem.Allocator) void {
+        var iterator = self.path_items.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            entry.value_ptr.deinit(allocator);
+        }
+        self.path_items.deinit();
     }
 };
 
@@ -310,6 +428,14 @@ pub const PathItem = struct {
             .servers = if (servers_list.items.len > 0) servers_list.items else null,
             .parameters = if (parameters_list.items.len > 0) parameters_list.items else null,
         };
+    }
+
+    pub fn deinit(self: PathItem, allocator: std.mem.Allocator) void {
+        if (self.ref) |ref| allocator.free(ref);
+        if (self.summary) |summary| allocator.free(summary);
+        if (self.description) |description| allocator.free(description);
+        // TODO: Add proper deinit for operations, servers, and parameters when needed
+        _ = allocator; // Suppress unused variable warning for now
     }
 };
 
@@ -411,6 +537,18 @@ pub const SecurityRequirement = struct {
         }
         return SecurityRequirement{ .schemes = schemes_map };
     }
+
+    pub fn deinit(self: SecurityRequirement, allocator: std.mem.Allocator) void {
+        var iterator = self.schemes.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            for (entry.value_ptr.*) |scope| {
+                allocator.free(scope);
+            }
+            allocator.free(entry.value_ptr.*);
+        }
+        self.schemes.deinit();
+    }
 };
 
 pub const Tag = struct {
@@ -426,6 +564,12 @@ pub const Tag = struct {
             .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
         };
     }
+
+    pub fn deinit(self: Tag, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+        if (self.description) |desc| allocator.free(desc);
+        if (self.externalDocs) |docs| docs.deinit(allocator);
+    }
 };
 
 pub const ExternalDocumentation = struct {
@@ -433,12 +577,16 @@ pub const ExternalDocumentation = struct {
     description: ?[]const u8 = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ExternalDocumentation {
-        std.debug.print("parsed externalDocs\n", .{});
         const obj = value.object;
         return ExternalDocumentation{
             .url = try allocator.dupe(u8, obj.get("url").?.string),
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
+    }
+
+    pub fn deinit(self: ExternalDocumentation, allocator: std.mem.Allocator) void {
+        allocator.free(self.url);
+        if (self.description) |desc| allocator.free(desc);
     }
 };
 
