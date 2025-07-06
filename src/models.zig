@@ -296,9 +296,9 @@ pub const PathItem = struct {
         }
 
         return PathItem{
-            .ref = if (obj.get("$ref")) |val| val.string else null,
-            .summary = if (obj.get("summary")) |val| val.string else null,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .ref = if (obj.get("$ref")) |val| try allocator.dupe(u8, val.string) else null,
+            .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .get = if (obj.get("get")) |val| try Operation.parse(allocator, val) else null,
             .put = if (obj.get("put")) |val| try Operation.parse(allocator, val) else null,
             .post = if (obj.get("post")) |val| try Operation.parse(allocator, val) else null,
@@ -363,10 +363,10 @@ pub const Operation = struct {
         return Operation{
             .responses = try Responses.parse(allocator, obj.get("responses").?),
             .tags = if (tags_list.items.len > 0) tags_list.items else null,
-            .summary = if (obj.get("summary")) |val| val.string else null,
-            .description = if (obj.get("description")) |val| val.string else null,
-            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(val) else null,
-            .operationId = if (obj.get("operationId")) |val| val.string else null,
+            .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
+            .operationId = if (obj.get("operationId")) |val| try allocator.dupe(u8, val.string) else null,
             .parameters = if (parameters_list.items.len > 0) parameters_list.items else null,
             .requestBody = if (obj.get("requestBody")) |val| try RequestBodyOrReference.parse(allocator, val) else null,
             .callbacks = if (callbacks_map.count() > 0) callbacks_map else null,
@@ -567,9 +567,8 @@ pub const Reference = struct {
     ref: []const u8,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Reference {
-        _ = allocator; // autofix
         const obj = value.object;
-        return Reference{ .ref = obj.get("$ref").?.string };
+        return Reference{ .ref = try allocator.dupe(u8, obj.get("$ref").?.string) };
     }
 };
 
@@ -615,7 +614,7 @@ pub const Schema = struct {
         var required_list = std.ArrayList([]const u8).init(allocator);
         if (obj.get("required")) |req_val| {
             for (req_val.array.items) |item| {
-                try required_list.append(item.string);
+                try required_list.append(try allocator.dupe(u8, item.string));
             }
         }
         var enum_list = std.ArrayList(json.Value).init(allocator);
@@ -650,7 +649,7 @@ pub const Schema = struct {
         }
 
         return Schema{
-            .title = if (obj.get("title")) |val| val.string else null,
+            .title = if (obj.get("title")) |val| try allocator.dupe(u8, val.string) else null,
             .multipleOf = if (obj.get("multipleOf")) |val| val.float else null,
             .maximum = if (obj.get("maximum")) |val| val.float else null,
             .exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| val.bool else null,
@@ -658,7 +657,7 @@ pub const Schema = struct {
             .exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| val.bool else null,
             .maxLength = if (obj.get("maxLength")) |val| val.integer else null,
             .minLength = if (obj.get("minLength")) |val| val.integer else null,
-            .pattern = if (obj.get("pattern")) |val| val.string else null,
+            .pattern = if (obj.get("pattern")) |val| try allocator.dupe(u8, val.string) else null,
             .maxItems = if (obj.get("maxItems")) |val| val.integer else null,
             .minItems = if (obj.get("minItems")) |val| val.integer else null,
             .uniqueItems = if (obj.get("uniqueItems")) |val| val.bool else null,
@@ -666,7 +665,7 @@ pub const Schema = struct {
             .minProperties = if (obj.get("minProperties")) |val| val.integer else null,
             .required = if (required_list.items.len > 0) required_list.items else null,
             .enum_values = if (enum_list.items.len > 0) enum_list.items else null,
-            .type = if (obj.get("type")) |val| val.string else null,
+            .type = if (obj.get("type")) |val| try allocator.dupe(u8, val.string) else null,
             .not = if (obj.get("not")) |val| try SchemaOrReference.parse(allocator, val) else null,
             .allOf = if (all_of_list.items.len > 0) all_of_list.items else null,
             .oneOf = if (one_of_list.items.len > 0) one_of_list.items else null,
@@ -674,17 +673,17 @@ pub const Schema = struct {
             .items = if (obj.get("items")) |val| try SchemaOrReference.parse(allocator, val) else null,
             .properties = if (properties_map.count() > 0) properties_map else null,
             .additionalProperties = if (obj.get("additionalProperties")) |val| try AdditionalProperties.parse(allocator, val) else null,
-            .description = if (obj.get("description")) |val| val.string else null,
-            .format = if (obj.get("format")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .format = if (obj.get("format")) |val| try allocator.dupe(u8, val.string) else null,
             .default = if (obj.get("default")) |val| val else null,
             .nullable = if (obj.get("nullable")) |val| val.bool else null,
             .discriminator = if (obj.get("discriminator")) |val| try Discriminator.parse(allocator, val) else null,
             .readOnly = if (obj.get("readOnly")) |val| val.bool else null,
             .writeOnly = if (obj.get("writeOnly")) |val| val.bool else null,
             .example = if (obj.get("example")) |val| val else null,
-            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(val) else null,
+            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
             .deprecated = if (obj.get("deprecated")) |val| val.bool else null,
-            .xml = if (obj.get("xml")) |val| try XML.parse(val) else null,
+            .xml = if (obj.get("xml")) |val| try XML.parse(allocator, val) else null,
         };
     }
 };
@@ -706,11 +705,11 @@ pub const Discriminator = struct {
         var mapping_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("mapping")) |map_val| {
             for (map_val.object.keys()) |key| {
-                try mapping_map.put(key, map_val.object.get(key).?.string);
+                try mapping_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, map_val.object.get(key).?.string));
             }
         }
         return Discriminator{
-            .propertyName = obj.get("propertyName").?.string,
+            .propertyName = try allocator.dupe(u8, obj.get("propertyName").?.string),
             .mapping = if (mapping_map.count() > 0) mapping_map else null,
         };
     }
@@ -723,12 +722,12 @@ pub const XML = struct {
     attribute: ?bool = null,
     wrapped: ?bool = null,
 
-    pub fn parse(value: json.Value) anyerror!XML {
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!XML {
         const obj = value.object;
         return XML{
-            .name = if (obj.get("name")) |val| val.string else null,
-            .namespace = if (obj.get("namespace")) |val| val.string else null,
-            .prefix = if (obj.get("prefix")) |val| val.string else null,
+            .name = if (obj.get("name")) |val| try allocator.dupe(u8, val.string) else null,
+            .namespace = if (obj.get("namespace")) |val| try allocator.dupe(u8, val.string) else null,
+            .prefix = if (obj.get("prefix")) |val| try allocator.dupe(u8, val.string) else null,
             .attribute = if (obj.get("attribute")) |val| val.bool else null,
             .wrapped = if (obj.get("wrapped")) |val| val.bool else null,
         };
@@ -763,7 +762,7 @@ pub const Response = struct {
         }
 
         return Response{
-            .description = obj.get("description").?.string,
+            .description = try allocator.dupe(u8, obj.get("description").?.string),
             .headers = if (headers_map.count() > 0) headers_map else null,
             .content = if (content_map.count() > 0) content_map else null,
             .links = if (links_map.count() > 0) links_map else null,
@@ -808,13 +807,12 @@ pub const Example = struct {
     externalValue: ?[]const u8 = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Example {
-        _ = allocator; // autofix
         const obj = value.object;
         return Example{
-            .summary = if (obj.get("summary")) |val| val.string else null,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .value = if (obj.get("value")) |val| val else null,
-            .externalValue = if (obj.get("externalValue")) |val| val.string else null,
+            .externalValue = if (obj.get("externalValue")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -848,11 +846,11 @@ pub const Header = struct {
         }
 
         return Header{
-            .description = if (obj.get("description")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .required = if (obj.get("required")) |val| val.bool else null,
             .deprecated = if (obj.get("deprecated")) |val| val.bool else null,
             .allowEmptyValue = if (obj.get("allowEmptyValue")) |val| val.bool else null,
-            .style = if (obj.get("style")) |val| val.string else null,
+            .style = if (obj.get("style")) |val| try allocator.dupe(u8, val.string) else null,
             .explode = if (obj.get("explode")) |val| val.bool else null,
             .allowReserved = if (obj.get("allowReserved")) |val| val.bool else null,
             .schema = if (obj.get("schema")) |val| try SchemaOrReference.parse(allocator, val) else null,
@@ -894,13 +892,13 @@ pub const Parameter = struct {
         }
 
         return Parameter{
-            .name = obj.get("name").?.string,
-            .in_field = obj.get("in").?.string,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .name = try allocator.dupe(u8, obj.get("name").?.string),
+            .in_field = try allocator.dupe(u8, obj.get("in").?.string),
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .required = if (obj.get("required")) |val| val.bool else null,
             .deprecated = if (obj.get("deprecated")) |val| val.bool else null,
             .allowEmptyValue = if (obj.get("allowEmptyValue")) |val| val.bool else null,
-            .style = if (obj.get("style")) |val| val.string else null,
+            .style = if (obj.get("style")) |val| try allocator.dupe(u8, val.string) else null,
             .explode = if (obj.get("explode")) |val| val.bool else null,
             .allowReserved = if (obj.get("allowReserved")) |val| val.bool else null,
             .schema = if (obj.get("schema")) |val| try SchemaOrReference.parse(allocator, val) else null,
@@ -926,7 +924,7 @@ pub const RequestBody = struct {
         }
         return RequestBody{
             .content = content_map,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .required = if (obj.get("required")) |val| val.bool else null,
         };
     }
@@ -1046,13 +1044,13 @@ pub const ImplicitOAuthFlow = struct {
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
             for (scopes_val.object.keys()) |key| {
-                try scopes_map.put(key, scopes_val.object.get(key).?.string);
+                try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
             }
         }
         return ImplicitOAuthFlow{
-            .authorizationUrl = obj.get("authorizationUrl").?.string,
+            .authorizationUrl = try allocator.dupe(u8, obj.get("authorizationUrl").?.string),
             .scopes = scopes_map,
-            .refreshUrl = if (obj.get("refreshUrl")) |val| val.string else null,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -1067,13 +1065,13 @@ pub const PasswordOAuthFlow = struct {
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
             for (scopes_val.object.keys()) |key| {
-                try scopes_map.put(key, scopes_val.object.get(key).?.string);
+                try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
             }
         }
         return PasswordOAuthFlow{
-            .tokenUrl = obj.get("tokenUrl").?.string,
+            .tokenUrl = try allocator.dupe(u8, obj.get("tokenUrl").?.string),
             .scopes = scopes_map,
-            .refreshUrl = if (obj.get("refreshUrl")) |val| val.string else null,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -1088,13 +1086,13 @@ pub const ClientCredentialsFlow = struct {
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
             for (scopes_val.object.keys()) |key| {
-                try scopes_map.put(key, scopes_val.object.get(key).?.string);
+                try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
             }
         }
         return ClientCredentialsFlow{
-            .tokenUrl = obj.get("tokenUrl").?.string,
+            .tokenUrl = try allocator.dupe(u8, obj.get("tokenUrl").?.string),
             .scopes = scopes_map,
-            .refreshUrl = if (obj.get("refreshUrl")) |val| val.string else null,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -1110,14 +1108,14 @@ pub const AuthorizationCodeOAuthFlow = struct {
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
             for (scopes_val.object.keys()) |key| {
-                try scopes_map.put(key, scopes_val.object.get(key).?.string);
+                try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
             }
         }
         return AuthorizationCodeOAuthFlow{
-            .authorizationUrl = obj.get("authorizationUrl").?.string,
-            .tokenUrl = obj.get("token").?.string,
+            .authorizationUrl = try allocator.dupe(u8, obj.get("authorizationUrl").?.string),
+            .tokenUrl = try allocator.dupe(u8, obj.get("token").?.string),
             .scopes = scopes_map,
-            .refreshUrl = if (obj.get("refreshUrl")) |val| val.string else null,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -1139,11 +1137,11 @@ pub const Link = struct {
             }
         }
         return Link{
-            .operationId = if (obj.get("operationId")) |val| val.string else null,
-            .operationRef = if (obj.get("operationRef")) |val| val.string else null,
+            .operationId = if (obj.get("operationId")) |val| try allocator.dupe(u8, val.string) else null,
+            .operationRef = if (obj.get("operationRef")) |val| try allocator.dupe(u8, val.string) else null,
             .parameters = if (parameters_map.count() > 0) parameters_map else null,
             .requestBody = if (obj.get("requestBody")) |val| val else null,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .server = if (obj.get("server")) |val| try Server.parse(allocator, val) else null,
         };
     }
@@ -1179,9 +1177,9 @@ pub const Encoding = struct {
             }
         }
         return Encoding{
-            .contentType = if (obj.get("contentType")) |val| val.string else null,
+            .contentType = if (obj.get("contentType")) |val| try allocator.dupe(u8, val.string) else null,
             .headers = if (headers_map.count() > 0) headers_map else null,
-            .style = if (obj.get("style")) |val| val.string else null,
+            .style = if (obj.get("style")) |val| try allocator.dupe(u8, val.string) else null,
             .explode = if (obj.get("explode")) |val| val.bool else null,
             .allowReserved = if (obj.get("allowReserved")) |val| val.bool else null,
         };
