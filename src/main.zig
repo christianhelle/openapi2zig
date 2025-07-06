@@ -48,6 +48,8 @@ test "can deserialize petstore into OpenApiDocument" {
     defer allocator.free(file_contents);
 
     const parsed = try models.OpenApiDocument.parse(allocator, file_contents);
+    defer parsed.deinit(allocator);
+    
     try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
     try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
 }
