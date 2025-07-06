@@ -12,24 +12,24 @@ pub const OpenApiDocument = struct {
     components: ?Components = null,
 
     pub fn parse(allocator: std.mem.Allocator, json_string: []const u8) anyerror!OpenApiDocument {
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        defer arena.deinit();
-        const gpa = arena.allocator();
-
-        var parsed = try json.parseFromSlice(json.Value, gpa, json_string, .{ .ignore_unknown_fields = true });
+        var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
 
         const root = parsed.value;
-        const info = try Info.parse(root.object.get("info").?);
-        const paths = try Paths.parse(gpa, root.object.get("paths").?);
-        const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parse(val) else null;
-        const servers = if (root.object.get("servers")) |val| try parseServers(gpa, val) else null;
-        const security = if (root.object.get("security")) |val| try parseSecurityRequirements(gpa, val) else null;
-        const tags = if (root.object.get("tags")) |val| try parseTags(gpa, val) else null;
-        const components = if (root.object.get("components")) |val| try Components.parse(gpa, val) else null;
+        
+        // Allocate persistent copies of strings
+        const openapi_str = try allocator.dupe(u8, root.object.get("openapi").?.string);
+        
+        const info = try Info.parse(allocator, root.object.get("info").?);
+        const paths = try Paths.parse(allocator, root.object.get("paths").?);
+        const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null;
+        const servers = if (root.object.get("servers")) |val| try parseServers(allocator, val) else null;
+        const security = if (root.object.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
+        const tags = if (root.object.get("tags")) |val| try parseTags(allocator, val) else null;
+        const components = if (root.object.get("components")) |val| try Components.parse(allocator, val) else null;
 
         return OpenApiDocument{
-            .openapi = root.object.get("openapi").?.string,
+            .openapi = openapi_str,
             .info = info,
             .paths = paths,
             .externalDocs = externalDocs,
@@ -64,7 +64,7 @@ pub const OpenApiDocument = struct {
         std.debug.print("parsing tags\n", .{}); // Debugging line
         var array_list = std.ArrayList(Tag).init(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try Tag.parse(item));
+            try array_list.append(try Tag.parse(allocator, item));
         }
         std.debug.print("parsed tags\n", .{}); // Debugging line
         return array_list.items;
@@ -79,16 +79,16 @@ pub const Info = struct {
     contact: ?Contact = null,
     license: ?License = null,
 
-    pub fn parse(value: json.Value) anyerror!Info {
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Info {
         std.debug.print("parsing info\n", .{}); // Debugging line
         const obj = value.object;
         return Info{
-            .title = obj.get("title").?.string,
-            .version = obj.get("version").?.string,
-            .description = if (obj.get("description")) |val| val.string else null,
-            .termsOfService = if (obj.get("termsOfService")) |val| val.string else null,
-            .contact = if (obj.get("contact")) |val| try Contact.parse(val) else null,
-            .license = if (obj.get("license")) |val| try License.parse(val) else null,
+            .title = try allocator.dupe(u8, obj.get("title").?.string),
+            .version = try allocator.dupe(u8, obj.get("version").?.string),
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .termsOfService = if (obj.get("termsOfService")) |val| try allocator.dupe(u8, val.string) else null,
+            .contact = if (obj.get("contact")) |val| try Contact.parse(allocator, val) else null,
+            .license = if (obj.get("license")) |val| try License.parse(allocator, val) else null,
         };
     }
 };
@@ -98,12 +98,12 @@ pub const Contact = struct {
     url: ?[]const u8 = null,
     email: ?[]const u8 = null,
 
-    pub fn parse(value: json.Value) anyerror!Contact {
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Contact {
         const obj = value.object;
         return Contact{
-            .name = if (obj.get("name")) |val| val.string else null,
-            .url = if (obj.get("url")) |val| val.string else null,
-            .email = if (obj.get("email")) |val| val.string else null,
+            .name = if (obj.get("name")) |val| try allocator.dupe(u8, val.string) else null,
+            .url = if (obj.get("url")) |val| try allocator.dupe(u8, val.string) else null,
+            .email = if (obj.get("email")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -112,11 +112,11 @@ pub const License = struct {
     name: []const u8,
     url: ?[]const u8 = null,
 
-    pub fn parse(value: json.Value) anyerror!License {
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!License {
         const obj = value.object;
         return License{
-            .name = obj.get("name").?.string,
-            .url = if (obj.get("url")) |val| val.string else null,
+            .name = try allocator.dupe(u8, obj.get("name").?.string),
+            .url = if (obj.get("url")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -131,12 +131,12 @@ pub const Server = struct {
         var variables_map = std.StringHashMap(ServerVariable).init(allocator);
         if (obj.get("variables")) |vars_val| {
             for (vars_val.object.keys()) |key| {
-                try variables_map.put(key, try ServerVariable.parse(allocator, vars_val.object.get(key).?));
+                try variables_map.put(try allocator.dupe(u8, key), try ServerVariable.parse(allocator, vars_val.object.get(key).?));
             }
         }
         return Server{
-            .url = obj.get("url").?.string,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .url = try allocator.dupe(u8, obj.get("url").?.string),
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .variables = if (variables_map.count() > 0) variables_map else null,
         };
     }
@@ -152,14 +152,14 @@ pub const ServerVariable = struct {
         var enum_list = std.ArrayList([]const u8).init(allocator);
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
-                try enum_list.append(item.string);
+                try enum_list.append(try allocator.dupe(u8, item.string));
             }
         }
 
         return ServerVariable{
-            .default = obj.get("default").?.string,
+            .default = try allocator.dupe(u8, obj.get("default").?.string),
             .enum_values = if (enum_list.items.len > 0) enum_list.items else null,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -332,7 +332,7 @@ pub const Operation = struct {
         var tags_list = std.ArrayList([]const u8).init(allocator);
         if (obj.get("tags")) |tags_val| {
             for (tags_val.array.items) |item| {
-                try tags_list.append(item.string);
+                try tags_list.append(try allocator.dupe(u8, item.string));
             }
         }
         var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
@@ -405,9 +405,9 @@ pub const SecurityRequirement = struct {
         for (obj.keys()) |key| {
             var scopes_list = std.ArrayList([]const u8).init(allocator);
             for (obj.get(key).?.array.items) |item| {
-                try scopes_list.append(item.string);
+                try scopes_list.append(try allocator.dupe(u8, item.string));
             }
-            try schemes_map.put(key, scopes_list.items);
+            try schemes_map.put(try allocator.dupe(u8, key), scopes_list.items);
         }
         return SecurityRequirement{ .schemes = schemes_map };
     }
@@ -418,12 +418,12 @@ pub const Tag = struct {
     description: ?[]const u8 = null,
     externalDocs: ?ExternalDocumentation = null,
 
-    pub fn parse(value: json.Value) anyerror!Tag {
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Tag {
         const obj = value.object;
         return Tag{
-            .name = obj.get("name").?.string,
-            .description = if (obj.get("description")) |val| val.string else null,
-            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(val) else null,
+            .name = try allocator.dupe(u8, obj.get("name").?.string),
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
         };
     }
 };
@@ -432,12 +432,12 @@ pub const ExternalDocumentation = struct {
     url: []const u8,
     description: ?[]const u8 = null,
 
-    pub fn parse(value: json.Value) anyerror!ExternalDocumentation {
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ExternalDocumentation {
         std.debug.print("parsed externalDocs\n", .{});
         const obj = value.object;
         return ExternalDocumentation{
-            .url = obj.get("url").?.string,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .url = try allocator.dupe(u8, obj.get("url").?.string),
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -948,7 +948,7 @@ pub const SecurityScheme = union(enum) {
         } else if (std.mem.eql(u8, type_str, "oauth2")) {
             return SecurityScheme{ .oauth2 = try OAuth2SecurityScheme.parse(allocator, value) };
         } else if (std.mem.eql(u8, type_str, "openIdConnect")) {
-            return SecurityScheme{ .openIdConnect = try OpenIdConnectSecurityScheme.parse(value) };
+            return SecurityScheme{ .openIdConnect = try OpenIdConnectSecurityScheme.parse(allocator, value) };
         } else {
             return error.UnknownSecuritySchemeType;
         }
@@ -962,13 +962,12 @@ pub const APIKeySecurityScheme = struct {
     description: ?[]const u8 = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!APIKeySecurityScheme {
-        _ = allocator; // autofix
         const obj = value.object;
         return APIKeySecurityScheme{
-            .type = obj.get("type").?.string,
-            .name = obj.get("name").?.string,
-            .in_field = obj.get("in").?.string,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .type = try allocator.dupe(u8, obj.get("type").?.string),
+            .name = try allocator.dupe(u8, obj.get("name").?.string),
+            .in_field = try allocator.dupe(u8, obj.get("in").?.string),
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -980,13 +979,12 @@ pub const HTTPSecurityScheme = struct {
     description: ?[]const u8 = null,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!HTTPSecurityScheme {
-        _ = allocator; // autofix
         const obj = value.object;
         return HTTPSecurityScheme{
-            .scheme = obj.get("scheme").?.string,
-            .type = obj.get("type").?.string,
-            .bearerFormat = if (obj.get("bearerFormat")) |val| val.string else null,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .scheme = try allocator.dupe(u8, obj.get("scheme").?.string),
+            .type = try allocator.dupe(u8, obj.get("type").?.string),
+            .bearerFormat = if (obj.get("bearerFormat")) |val| try allocator.dupe(u8, val.string) else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -999,9 +997,9 @@ pub const OAuth2SecurityScheme = struct {
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuth2SecurityScheme {
         const obj = value.object;
         return OAuth2SecurityScheme{
-            .type = obj.get("type").?.string,
+            .type = try allocator.dupe(u8, obj.get("type").?.string),
             .flows = try OAuthFlows.parse(allocator, obj.get("flows").?),
-            .description = if (obj.get("description")) |val| val.string else null,
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
@@ -1011,12 +1009,12 @@ pub const OpenIdConnectSecurityScheme = struct {
     openIdConnectUrl: []const u8,
     description: ?[]const u8 = null,
 
-    pub fn parse(value: json.Value) anyerror!OpenIdConnectSecurityScheme {
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!OpenIdConnectSecurityScheme {
         const obj = value.object;
         return OpenIdConnectSecurityScheme{
-            .type = obj.get("type").?.string,
-            .openIdConnectUrl = obj.get("openIdConnectUrl").?.string,
-            .description = if (obj.get("description")) |val| val.string else null,
+            .type = try allocator.dupe(u8, obj.get("type").?.string),
+            .openIdConnectUrl = try allocator.dupe(u8, obj.get("openIdConnectUrl").?.string),
+            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
 };
