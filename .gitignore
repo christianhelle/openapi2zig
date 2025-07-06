@@ -2,6 +2,9 @@
 .zig-cache/
 zig-out/
 
+# GitHub Actions artifacts (local testing)
+.github-actions/
+
 # Optional: VS Code settings
 .vscode/
 
