@@ -90,7 +90,7 @@ pub const OpenApiDocument = struct {
         for (value.array.items) |item| {
             try array_list.append(try Server.parse(allocator, item));
         }
-        return array_list.items;
+        return array_list.toOwnedSlice();
     }
 
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
@@ -98,7 +98,7 @@ pub const OpenApiDocument = struct {
         for (value.array.items) |item| {
             try array_list.append(try SecurityRequirement.parse(allocator, item));
         }
-        return array_list.items;
+        return array_list.toOwnedSlice();
     }
 
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Tag {
@@ -106,7 +106,7 @@ pub const OpenApiDocument = struct {
         for (value.array.items) |item| {
             try array_list.append(try Tag.parse(allocator, item));
         }
-        return array_list.items;
+        return array_list.toOwnedSlice();
     }
 };
 
@@ -229,7 +229,7 @@ pub const ServerVariable = struct {
 
         return ServerVariable{
             .default = try allocator.dupe(u8, obj.get("default").?.string),
-            .enum_values = if (enum_list.items.len > 0) enum_list.items else null,
+            .enum_values = if (enum_list.items.len > 0) try enum_list.toOwnedSlice() else null,
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
@@ -425,8 +425,8 @@ pub const PathItem = struct {
             .head = if (obj.get("head")) |val| try Operation.parse(allocator, val) else null,
             .patch = if (obj.get("patch")) |val| try Operation.parse(allocator, val) else null,
             .trace = if (obj.get("trace")) |val| try Operation.parse(allocator, val) else null,
-            .servers = if (servers_list.items.len > 0) servers_list.items else null,
-            .parameters = if (parameters_list.items.len > 0) parameters_list.items else null,
+            .servers = if (servers_list.items.len > 0) try servers_list.toOwnedSlice() else null,
+            .parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice() else null,
         };
     }
 
@@ -487,17 +487,17 @@ pub const Operation = struct {
 
         return Operation{
             .responses = try Responses.parse(allocator, obj.get("responses").?),
-            .tags = if (tags_list.items.len > 0) tags_list.items else null,
+            .tags = if (tags_list.items.len > 0) try tags_list.toOwnedSlice() else null,
             .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
             .operationId = if (obj.get("operationId")) |val| try allocator.dupe(u8, val.string) else null,
-            .parameters = if (parameters_list.items.len > 0) parameters_list.items else null,
+            .parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice() else null,
             .requestBody = if (obj.get("requestBody")) |val| try RequestBodyOrReference.parse(allocator, val) else null,
             .callbacks = if (callbacks_map.count() > 0) callbacks_map else null,
             .deprecated = if (obj.get("deprecated")) |val| val.bool else null,
-            .security = if (security_list.items.len > 0) security_list.items else null,
-            .servers = if (servers_list.items.len > 0) servers_list.items else null,
+            .security = if (security_list.items.len > 0) try security_list.toOwnedSlice() else null,
+            .servers = if (servers_list.items.len > 0) try servers_list.toOwnedSlice() else null,
         };
     }
 };
@@ -532,7 +532,7 @@ pub const SecurityRequirement = struct {
             for (obj.get(key).?.array.items) |item| {
                 try scopes_list.append(try allocator.dupe(u8, item.string));
             }
-            try schemes_map.put(try allocator.dupe(u8, key), scopes_list.items);
+            try schemes_map.put(try allocator.dupe(u8, key), try scopes_list.toOwnedSlice());
         }
         return SecurityRequirement{ .schemes = schemes_map };
     }
@@ -810,13 +810,13 @@ pub const Schema = struct {
             .uniqueItems = if (obj.get("uniqueItems")) |val| val.bool else null,
             .maxProperties = if (obj.get("maxProperties")) |val| val.integer else null,
             .minProperties = if (obj.get("minProperties")) |val| val.integer else null,
-            .required = if (required_list.items.len > 0) required_list.items else null,
-            .enum_values = if (enum_list.items.len > 0) enum_list.items else null,
+            .required = if (required_list.items.len > 0) try required_list.toOwnedSlice() else null,
+            .enum_values = if (enum_list.items.len > 0) try enum_list.toOwnedSlice() else null,
             .type = if (obj.get("type")) |val| try allocator.dupe(u8, val.string) else null,
             .not = if (obj.get("not")) |val| try SchemaOrReference.parse(allocator, val) else null,
-            .allOf = if (all_of_list.items.len > 0) all_of_list.items else null,
-            .oneOf = if (one_of_list.items.len > 0) one_of_list.items else null,
-            .anyOf = if (any_of_list.items.len > 0) any_of_list.items else null,
+            .allOf = if (all_of_list.items.len > 0) try all_of_list.toOwnedSlice() else null,
+            .oneOf = if (one_of_list.items.len > 0) try one_of_list.toOwnedSlice() else null,
+            .anyOf = if (any_of_list.items.len > 0) try any_of_list.toOwnedSlice() else null,
             .items = if (obj.get("items")) |val| try SchemaOrReference.parse(allocator, val) else null,
             .properties = if (properties_map.count() > 0) properties_map else null,
             .additionalProperties = if (obj.get("additionalProperties")) |val| try AdditionalProperties.parse(allocator, val) else null,
