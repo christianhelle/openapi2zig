@@ -1,5 +1,4 @@
-const models = @import("models.zig");
-
+const models = @import("openapi.zig");
 const std = @import("std");
 
 pub fn main() !void {
@@ -12,15 +11,10 @@ pub fn main() !void {
     try bw.flush(); // Don't forget to flush!
 }
 
-const OpenAPI = struct {
-    openapi: []const u8,
-};
-
 test "can deserialize openapi version" {
     const allocator = std.testing.allocator;
-    const parsed = try std.json.parseFromSlice(OpenAPI, allocator,
-        \\{ "openapi": "3.0.0" }
-    , .{});
+    const json_data = "{ \"openapi\": \"3.0.0\", \"info\": { \"title\": \"test\", \"version\": \"1.0.0\" }, \"paths\": {} }";
+    const parsed = try std.json.parseFromSlice(models.OpenApiDocument, allocator, json_data, .{ .ignore_unknown_fields = true });
     defer parsed.deinit();
     try std.testing.expectEqualStrings("3.0.0", parsed.value.openapi);
 }
@@ -29,27 +23,26 @@ test "can deserialize petstore.json" {
     const allocator = std.testing.allocator;
     const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
     defer file.close();
-    try file.seekBy(0);
     const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_contents);
 
-    const parsed = try std.json.parseFromSlice(OpenAPI, allocator, file_contents, .{ .ignore_unknown_fields = true });
+    const parsed = try std.json.parseFromSlice(models.OpenApiDocument, allocator, file_contents, .{ .ignore_unknown_fields = true });
     defer parsed.deinit();
 
     try std.testing.expectEqualStrings("3.0.2", parsed.value.openapi);
 }
 
-test "can deserialize petstore into OpenApiDocument" {
+test "can deserialize petstore into OpenAPI" {
     const allocator = std.testing.allocator;
     const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
     defer file.close();
-    try file.seekBy(0);
     const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_contents);
 
-    var parsed = try models.OpenApiDocument.parse(allocator, file_contents);
-    defer parsed.deinit(allocator);
-    
-    try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
-    try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
+    const parsed = try std.json.parseFromSlice(models.OpenApiDocument, allocator, file_contents, .{ .ignore_unknown_fields = true });
+    defer parsed.deinit();
+
+    try std.testing.expectEqualStrings("3.0.2", parsed.value.openapi);
+    try std.testing.expectEqualStrings("Swagger Petstore", parsed.value.info.title);
 }
+
