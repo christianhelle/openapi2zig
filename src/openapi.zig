@@ -673,6 +673,21 @@ pub const SchemaOrReference = union(enum) {
     }
 };
 
+/// Additional Properties
+/// Can be either a boolean or a schema.
+pub const AdditionalProperties = union(enum) {
+    boolean: bool,
+    schema: SchemaOrReference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !AdditionalProperties {
+        switch (value) {
+            .bool => |bool_val| return AdditionalProperties{ .boolean = bool_val },
+            .object => return AdditionalProperties{ .schema = try SchemaOrReference.parse(allocator, value) },
+            else => return error.InvalidAdditionalProperties,
+        }
+    }
+};
+
 /// Schema Object
 /// The Schema Object allows the definition of input and output data types.
 pub const Schema = struct {
@@ -948,21 +963,6 @@ pub const XML = struct {
             .attribute = if (obj.get("attribute")) |val| val.bool else null,
             .wrapped = if (obj.get("wrapped")) |val| val.bool else null,
         };
-    }
-};
-
-/// Additional Properties
-/// Can be either a boolean or a schema.
-pub const AdditionalProperties = union(enum) {
-    boolean: bool,
-    schema: SchemaOrReference,
-
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !AdditionalProperties {
-        switch (value) {
-            .bool => |bool_val| return AdditionalProperties{ .boolean = bool_val },
-            .object => return AdditionalProperties{ .schema = try SchemaOrReference.parse(allocator, value) },
-            else => return error.InvalidAdditionalProperties,
-        }
     }
 };
 
