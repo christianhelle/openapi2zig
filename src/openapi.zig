@@ -659,6 +659,20 @@ pub const Components = struct {
     }
 };
 
+/// Schema or Reference union type
+pub const SchemaOrReference = union(enum) {
+    schema: Schema,
+    reference: Reference,
+
+    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !SchemaOrReference {
+        if (value.object.get("$ref") != null) {
+            return SchemaOrReference{ .reference = try Reference.parse(allocator, value) };
+        } else {
+            return SchemaOrReference{ .schema = try Schema.parse(allocator, value) };
+        }
+    }
+};
+
 /// Schema Object
 /// The Schema Object allows the definition of input and output data types.
 pub const Schema = struct {
@@ -1606,20 +1620,6 @@ pub const Callback = struct {
 };
 
 // Union types for references
-
-/// Schema or Reference union type
-pub const SchemaOrReference = union(enum) {
-    schema: Schema,
-    reference: Reference,
-
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) !SchemaOrReference {
-        if (value.object.get("$ref") != null) {
-            return SchemaOrReference{ .reference = try Reference.parse(allocator, value) };
-        } else {
-            return SchemaOrReference{ .schema = try Schema.parse(allocator, value) };
-        }
-    }
-};
 
 /// Response or Reference union type
 pub const ResponseOrReference = union(enum) {
