@@ -1,4 +1,5 @@
 const models = @import("models.zig");
+const openapi = @import("openapi.zig");
 
 const std = @import("std");
 
@@ -52,4 +53,28 @@ test "can deserialize petstore into OpenApiDocument" {
     
     try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
     try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
+}
+
+test "can deserialize petstore with new openapi.zig implementation" {
+    const allocator = std.testing.allocator;
+    const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
+    defer file.close();
+    try file.seekBy(0);
+    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(file_contents);
+
+    var parsed = try openapi.OpenAPI.parse(allocator, file_contents);
+    defer parsed.deinit(allocator);
+    
+    try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
+    try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
+    try std.testing.expectEqualStrings("1.0.5", parsed.info.version);
+    
+    // Test that optional fields are properly parsed
+    try std.testing.expect(parsed.info.description != null);
+    try std.testing.expect(parsed.info.contact != null);
+    try std.testing.expect(parsed.info.license != null);
+    try std.testing.expect(parsed.externalDocs != null);
+    try std.testing.expect(parsed.tags != null);
+    try std.testing.expect(parsed.tags.?.len == 3); // pet, store, user
 }

@@ -1,5 +1,28 @@
 // OpenAPI v3.0 Data Structures
 // Based on the official OpenAPI Specification v3.0 JSON Schema
+//
+// This module provides comprehensive data structures for parsing and representing
+// OpenAPI v3.0 specifications. All structures faithfully implement the OpenAPI 3.0
+// specification as defined in the official JSON schema.
+//
+// Features:
+// - Complete type definitions for all OpenAPI v3.0 objects
+// - Memory-safe parsing with proper cleanup via deinit methods
+// - Support for all optional fields and extension points
+// - Union types for polymorphic objects (Schema|Reference, etc.)
+// - Comprehensive test coverage for parsing functionality
+//
+// Usage:
+//   const openapi_doc = try OpenAPI.parse(allocator, json_string);
+//   defer openapi_doc.deinit(allocator);
+//
+// The implementation includes:
+// - Core objects: OpenAPI, Info, Contact, License, Server, ServerVariable
+// - Components: Schema, Response, Parameter, Example, RequestBody, Header, etc.
+// - Path definitions: Paths, PathItem, Operation, Responses
+// - Security: SecurityScheme, SecurityRequirement, OAuth flows
+// - Metadata: Tag, ExternalDocumentation
+// - Supporting types: Reference, Discriminator, XML, MediaType, etc.
 
 const std = @import("std");
 const json = std.json;
@@ -1376,4 +1399,76 @@ test "can parse basic OpenAPI document" {
     try std.testing.expectEqualStrings("3.0.0", parsed.openapi);
     try std.testing.expectEqualStrings("Test API", parsed.info.title);
     try std.testing.expectEqualStrings("1.0.0", parsed.info.version);
+}
+
+test "can parse OpenAPI document with additional info fields" {
+    const allocator = std.testing.allocator;
+    
+    const openapi_with_info =
+        \\{
+        \\  "openapi": "3.0.2",
+        \\  "info": {
+        \\    "title": "Swagger Petstore",
+        \\    "description": "This is a sample Pet Store Server",
+        \\    "termsOfService": "http://swagger.io/terms/",
+        \\    "contact": {
+        \\      "email": "apiteam@swagger.io"
+        \\    },
+        \\    "license": {
+        \\      "name": "Apache 2.0",
+        \\      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        \\    },
+        \\    "version": "1.0.5"
+        \\  },
+        \\  "paths": {}
+        \\}
+    ;
+    
+    var parsed = try OpenAPI.parse(allocator, openapi_with_info);
+    defer parsed.deinit(allocator);
+    
+    try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
+    try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
+    try std.testing.expectEqualStrings("1.0.5", parsed.info.version);
+    try std.testing.expect(parsed.info.description != null);
+    try std.testing.expectEqualStrings("This is a sample Pet Store Server", parsed.info.description.?);
+    try std.testing.expect(parsed.info.contact != null);
+    try std.testing.expectEqualStrings("apiteam@swagger.io", parsed.info.contact.?.email.?);
+    try std.testing.expect(parsed.info.license != null);
+    try std.testing.expectEqualStrings("Apache 2.0", parsed.info.license.?.name);
+}
+
+test "can parse OpenAPI document with external docs and tags" {
+    const allocator = std.testing.allocator;
+    
+    const openapi_with_extras =
+        \\{
+        \\  "openapi": "3.0.2",
+        \\  "info": {
+        \\    "title": "Test API",
+        \\    "version": "1.0.0"
+        \\  },
+        \\  "externalDocs": {
+        \\    "description": "Find out more about Swagger",
+        \\    "url": "http://swagger.io"
+        \\  },
+        \\  "tags": [
+        \\    {
+        \\      "name": "pet",
+        \\      "description": "Everything about your Pets"
+        \\    }
+        \\  ],
+        \\  "paths": {}
+        \\}
+    ;
+    
+    var parsed = try OpenAPI.parse(allocator, openapi_with_extras);
+    defer parsed.deinit(allocator);
+    
+    try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
+    try std.testing.expect(parsed.externalDocs != null);
+    try std.testing.expectEqualStrings("http://swagger.io", parsed.externalDocs.?.url);
+    try std.testing.expect(parsed.tags != null);
+    try std.testing.expect(parsed.tags.?.len == 1);
+    try std.testing.expectEqualStrings("pet", parsed.tags.?[0].name);
 }
