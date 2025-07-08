@@ -32,7 +32,7 @@ test "can deserialize petstore.json" {
     try std.testing.expectEqualStrings("3.0.2", parsed.value.openapi);
 }
 
-test "can deserialize petstore into OpenAPI" {
+test "can deserialize petstore into OpenApiDocument" {
     const allocator = std.testing.allocator;
     const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
     defer file.close();
@@ -44,5 +44,35 @@ test "can deserialize petstore into OpenAPI" {
 
     try std.testing.expectEqualStrings("3.0.2", parsed.value.openapi);
     try std.testing.expectEqualStrings("Swagger Petstore", parsed.value.info.title);
+}
+
+test "can deserialize petstore paths" {
+    const allocator = std.testing.allocator;
+    const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
+    defer file.close();
+    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(file_contents);
+
+    const parsed = try std.json.parseFromSlice(models.OpenApiDocument, allocator, file_contents, .{ .ignore_unknown_fields = true });
+    defer parsed.deinit();
+
+    std.debug.print("\nParsed OpenAPI Document: \n{any}\n", .{parsed.value});
+    std.debug.print("\n\nPaths: \n{any}\n", .{parsed.value.paths});
+
+    //var path_items_map = std.StringHashMap(models.PathItem).init(allocator);
+    //errdefer path_items_map.deinit();
+    //const obj = parsed.value.paths.object;
+    //for (obj.keys()) |key| {
+    //    if (key[0] == '/') { // Path items start with '/'
+    //        const item = models.PathItem{
+    //            .ref = obj.get("$ref").?.value.?.string orelse null,
+    //            .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
+    //            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+    //        };
+    //        try path_items_map.put(key, item);
+    //    }
+    //}
+
+    //try std.testing.expect(path_items_map.count() > 0);
 }
 

@@ -10,7 +10,7 @@ pub fn OrRef(comptime T: type) type {
 pub const OpenApiDocument = struct {
     openapi: []const u8,
     info: Info,
-    paths: std.json.Value,
+    paths: std.json.Value, // This can be a map of path items
     externalDocs: ?ExternalDocumentation = null,
     servers: ?[]Server = null,
     security: ?[]SecurityRequirement = null,
@@ -62,37 +62,40 @@ pub const Components = struct {
     callbacks: ?std.json.Value = null,
 };
 
-pub const Paths = std.json.Value;
+pub const Paths = struct {
+    path: []const u8,
+    get: ?std.json.Value = null,
+};
 
 pub const PathItem = struct {
     ref: ?[]const u8 = null,
     summary: ?[]const u8 = null,
     description: ?[]const u8 = null,
-    get: ?Operation = null,
-    put: ?Operation = null,
-    post: ?Operation = null,
-    delete: ?Operation = null,
-    options: ?Operation = null,
-    head: ?Operation = null,
-    patch: ?Operation = null,
-    trace: ?Operation = null,
-    servers: ?[]Server = null,
-    parameters: ?[]OrRef(Parameter) = null,
+    //get: ?Operation = null,
+    //put: ?Operation = null,
+    //post: ?Operation = null,
+    //delete: ?Operation = null,
+    //options: ?Operation = null,
+    //head: ?Operation = null,
+    //patch: ?Operation = null,
+    //trace: ?Operation = null,
+    //servers: ?[]Server = null,
+    //parameters: ?[]OrRef(Parameter) = null,
 };
 
 pub const Operation = struct {
     tags: ?[]const []const u8 = null,
     summary: ?[]const u8 = null,
     description: ?[]const u8 = null,
-    externalDocs: ?ExternalDocumentation = null,
-    operationId: ?[]const u8 = null,
-    parameters: ?[]OrRef(Parameter) = null,
-    requestBody: ?OrRef(RequestBody) = null,
-    responses: Responses,
-    callbacks: ?std.json.Value = null,
-    deprecated: bool = false,
-    security: ?[]SecurityRequirement = null,
-    servers: ?[]Server = null,
+    //externalDocs: ?ExternalDocumentation = null,
+    OpenApiDocumenterationId: ?[]const u8 = null,
+    //parameters: ?[]OrRef(Parameter) = null,
+    //requestBody: ?OrRef(RequestBody) = null,
+    //responses: Responses,
+    //callbacks: ?std.json.Value = null,
+    //deprecated: bool = false,
+    //security: ?[]SecurityRequirement = null,
+    //servers: ?[]Server = null,
 };
 
 pub const Responses = struct {
