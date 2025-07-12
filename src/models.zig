@@ -14,18 +14,18 @@ pub const OpenApiDocument = struct {
     pub fn deinit(self: *OpenApiDocument, allocator: std.mem.Allocator) void {
         // Free the openapi string
         allocator.free(self.openapi);
-        
+
         // Free the info struct
         self.info.deinit(allocator);
-        
+
         // Free the paths
         self.paths.deinit(allocator);
-        
+
         // Free external docs if present
         if (self.externalDocs) |external_docs| {
             external_docs.deinit(allocator);
         }
-        
+
         // Free servers if present
         if (self.servers) |servers| {
             for (servers) |*server| {
@@ -33,7 +33,7 @@ pub const OpenApiDocument = struct {
             }
             allocator.free(servers);
         }
-        
+
         // Free security requirements if present
         if (self.security) |security| {
             for (security) |*security_req| {
@@ -41,7 +41,7 @@ pub const OpenApiDocument = struct {
             }
             allocator.free(security);
         }
-        
+
         // Free tags if present
         if (self.tags) |tags| {
             for (tags) |tag| {
@@ -49,7 +49,7 @@ pub const OpenApiDocument = struct {
             }
             allocator.free(tags);
         }
-        
+
         // Free components if present
         if (self.components) |*components| {
             components.deinit(allocator);
@@ -61,10 +61,10 @@ pub const OpenApiDocument = struct {
         defer parsed.deinit();
 
         const root = parsed.value;
-        
+
         // Allocate persistent copies of strings
         const openapi_str = try allocator.dupe(u8, root.object.get("openapi").?.string);
-        
+
         const info = try Info.parse(allocator, root.object.get("info").?);
         const paths = try Paths.parse(allocator, root.object.get("paths").?);
         const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null;
