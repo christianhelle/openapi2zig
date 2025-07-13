@@ -1,6 +1,6 @@
 const std = @import("std");
 const json = std.json;
-const ExternalDocumentation = @import("documentation.zig").ExternalDocumentation;
+const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
 
 pub const Tag = struct {
     name: []const u8,

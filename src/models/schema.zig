@@ -98,7 +98,7 @@ pub const Schema = struct {
     readOnly: ?bool = null,
     writeOnly: ?bool = null,
     example: ?json.Value = null,
-    externalDocs: ?@import("documentation.zig").ExternalDocumentation = null,
+    externalDocs: ?@import("externaldocs.zig").ExternalDocumentation = null,
     deprecated: ?bool = null,
     xml: ?XML = null,
 
@@ -180,7 +180,7 @@ pub const Schema = struct {
             .readOnly = if (obj.get("readOnly")) |val| val.bool else null,
             .writeOnly = if (obj.get("writeOnly")) |val| val.bool else null,
             .example = if (obj.get("example")) |val| val else null,
-            .externalDocs = if (obj.get("externalDocs")) |val| try @import("documentation.zig").ExternalDocumentation.parse(allocator, val) else null,
+            .externalDocs = if (obj.get("externalDocs")) |val| try @import("externaldocs.zig").ExternalDocumentation.parse(allocator, val) else null,
             .deprecated = if (obj.get("deprecated")) |val| val.bool else null,
             .xml = if (obj.get("xml")) |val| try XML.parse(allocator, val) else null,
         };

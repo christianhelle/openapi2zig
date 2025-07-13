@@ -3,10 +3,10 @@ const json = std.json;
 const Server = @import("server.zig").Server;
 const ParameterOrReference = @import("parameter.zig").ParameterOrReference;
 const Responses = @import("response.zig").Responses;
-const RequestBodyOrReference = @import("request_body.zig").RequestBodyOrReference;
+const RequestBodyOrReference = @import("requestbody.zig").RequestBodyOrReference;
 const CallbackOrReference = @import("callback.zig").CallbackOrReference;
 const SecurityRequirement = @import("security.zig").SecurityRequirement;
-const ExternalDocumentation = @import("documentation.zig").ExternalDocumentation;
+const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
 
 pub const Operation = struct {
     responses: Responses,

@@ -4,7 +4,7 @@ pub const OpenApiDocument = @import("models/openapi.zig").OpenApiDocument;
 // Basic types
 pub usingnamespace @import("models/info.zig");
 pub usingnamespace @import("models/server.zig");
-pub usingnamespace @import("models/documentation.zig");
+pub usingnamespace @import("models/externaldocs.zig");
 pub usingnamespace @import("models/tag.zig");
 pub usingnamespace @import("models/reference.zig");
 
@@ -18,7 +18,7 @@ pub usingnamespace @import("models/media.zig");
 pub usingnamespace @import("models/parameter.zig");
 
 // Request/Response
-pub usingnamespace @import("models/request_body.zig");
+pub usingnamespace @import("models/requestbody.zig");
 pub usingnamespace @import("models/response.zig");
 
 // Paths and operations
