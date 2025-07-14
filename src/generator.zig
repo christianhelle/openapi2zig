@@ -65,10 +65,8 @@ pub const ModelCodeGenerator = struct {
         const name = try self.allocator.dupe(u8, field_name);
         switch (field_schema_or_ref.*) {
             .schema => |field_schema_ptr| {
-                const field_schema = field_schema_ptr.*;
-                _ = field_schema; // Unused for now
+                const field_schema = field_schema_ptr.type.?; // Unwrap the optional, as it can never be null
 
-                // Check if field is required
                 const is_required = if (required_fields) |req_fields| blk: {
                     for (req_fields) |req_field| {
                         if (std.mem.eql(u8, req_field, field_name)) {
@@ -78,11 +76,25 @@ pub const ModelCodeGenerator = struct {
                     break :blk false;
                 } else false;
 
-                // For simplicity, map all types to string for now
+                var data_type: []const u8 = "[]const u8";
+                if (std.mem.eql(u8, field_schema, "string")) {
+                    data_type = "[]const u8";
+                } else if (std.mem.eql(u8, field_schema, "integer")) {
+                    data_type = "i64";
+                } else if (std.mem.eql(u8, field_schema, "number")) {
+                    data_type = "f64";
+                } else if (std.mem.eql(u8, field_schema, "boolean")) {
+                    data_type = "bool";
+                } else if (std.mem.eql(u8, field_schema, "array")) {
+                    data_type = "[]const u8"; // TODO: handle array items type
+                } else if (std.mem.eql(u8, field_schema, "object")) {
+                    data_type = "std.json.Value"; // or a generated struct if possible
+                }
+
                 if (is_required) {
-                    try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: []const u8,\n", .{name}));
+                    try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: {s},\n", .{ name, data_type }));
                 } else {
-                    try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: ?[]const u8 = null,\n", .{name}));
+                    try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: ?{s} = null,\n", .{ name, data_type }));
                 }
             },
             .reference => |_| {
