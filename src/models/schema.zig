@@ -1,6 +1,7 @@
 const std = @import("std");
 const json = std.json;
 const Reference = @import("reference.zig").Reference;
+const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
 
 pub const XML = struct {
     name: ?[]const u8 = null,
@@ -98,7 +99,7 @@ pub const Schema = struct {
     readOnly: ?bool = null,
     writeOnly: ?bool = null,
     example: ?json.Value = null,
-    externalDocs: ?@import("externaldocs.zig").ExternalDocumentation = null,
+    externalDocs: ?ExternalDocumentation = null,
     deprecated: ?bool = null,
     xml: ?XML = null,
 
