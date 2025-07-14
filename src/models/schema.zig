@@ -144,7 +144,7 @@ pub const Schema = struct {
         errdefer properties_map.deinit();
         if (obj.get("properties")) |props_val| {
             for (props_val.object.keys()) |key| {
-                try properties_map.put(key, try SchemaOrReference.parse(allocator, props_val.object.get(key).?));
+                try properties_map.put(try allocator.dupe(u8, key), try SchemaOrReference.parse(allocator, props_val.object.get(key).?));
             }
         }
 
