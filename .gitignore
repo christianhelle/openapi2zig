@@ -19,3 +19,4 @@ desktop.ini
 # Logs
 *.log
 .idea
+**/generated_models.zig
