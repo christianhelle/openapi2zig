@@ -112,7 +112,7 @@ This project follows standard Zig formatting. Use `zig fmt` to format your code 
 
 This project is in early development. Current capabilities include:
 
-- OpenAPI 3.x specification parsing
+- OpenAPI v3.0 specification parsing
 - Basic data model structures for OpenAPI components
 - Comprehensive test suite for parsing functionality
 
@@ -130,4 +130,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 If you encounter any issues or have questions, please [open an issue](https://github.com/christianhelle/openapi2zig/issues) on GitHub.
-
