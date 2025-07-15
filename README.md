@@ -10,7 +10,7 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 
 ## Features
 
-- Parse OpenAPI 3.x specifications (JSON format)
+- Parse OpenAPI v3.0 specifications (JSON format)
 - Generate type-safe Zig client code
 - Support for complex OpenAPI schemas and operations
 - Cross-platform support (Linux, macOS, Windows)
@@ -24,17 +24,20 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 ### Building from Source
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/christianhelle/openapi2zig.git
    cd openapi2zig
    ```
 
 2. Build the project:
+
    ```bash
    zig build
    ```
 
 3. Run tests to verify everything works:
+
    ```bash
    zig build test
    ```
@@ -44,16 +47,19 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 ### Development
 
 For development builds with debug information:
+
 ```bash
 zig build -Doptimize=Debug
 ```
 
 To run tests during development:
+
 ```bash
 zig build test
 ```
 
 To check code formatting:
+
 ```bash
 zig fmt --check src/
 zig fmt --check build.zig
@@ -62,6 +68,7 @@ zig fmt --check build.zig
 ### Cross-compilation
 
 Build for different targets:
+
 ```bash
 # Windows
 zig build -Dtarget=x86_64-windows
@@ -78,6 +85,7 @@ zig build -Dtarget=aarch64-linux
 > **Note**: The CLI interface is currently under development. The tool currently includes OpenAPI parsing functionality and will be extended with code generation capabilities.
 
 Basic usage (planned):
+
 ```bash
 # Generate Zig client code from OpenAPI specification
 openapi2zig generate -i api-spec.json -o generated/
@@ -103,11 +111,13 @@ This project follows standard Zig formatting. Use `zig fmt` to format your code 
 🚧 **Under Active Development** 🚧
 
 This project is in early development. Current capabilities include:
+
 - OpenAPI 3.x specification parsing
 - Basic data model structures for OpenAPI components
 - Comprehensive test suite for parsing functionality
 
 Planned features:
+
 - CLI interface for code generation
 - Zig client code generation
 - Support for various OpenAPI features (authentication, complex schemas, etc.)
@@ -120,3 +130,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 If you encounter any issues or have questions, please [open an issue](https://github.com/christianhelle/openapi2zig/issues) on GitHub.
+
