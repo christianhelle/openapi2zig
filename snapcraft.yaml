@@ -1,0 +1,43 @@
+name: openapi2zig
+base: core22
+version: git
+summary: A tool for generating clients and contracts in Zig from OpenAPI specifications
+description: |
+  A CLI tool written in Zig that generates API client code in Zig from OpenAPI specifications.
+
+  Features
+  - Parse OpenAPI v3.0 specifications (JSON format)
+  - Generate type-safe Zig client code
+  - Support for complex OpenAPI schemas and operations
+  - Cross-platform support (Linux, macOS, Windows)
+
+grade: stable
+confinement: strict
+
+apps:
+  openapi2zig:
+    command: bin/openapi2zig
+    plugs:
+      - network
+      - home
+
+parts:
+  zig:
+    plugin: nil
+    build-packages:
+      - curl
+      - xz-utils
+    override-build: |
+      snap install zig --classic --beta
+
+  openapi2zig:
+    after: [zig]
+    plugin: nil
+    source: .
+    override-build: |
+      export PATH="$SNAPCRAFT_STAGE/zig:$PATH"
+      zig build -Doptimize=ReleaseFast
+      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
+      cp zig-out/bin/openapi2zig $SNAPCRAFT_PART_INSTALL/bin/
+    stage-packages:
+      - libc6
