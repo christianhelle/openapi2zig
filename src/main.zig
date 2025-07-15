@@ -5,22 +5,57 @@ const std = @import("std");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    //defer _ = gpa.deinit(); // Not needed here, as we will deinit the allocator at the end of the program
     const allocator = gpa.allocator();
 
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    if (args.len < 2) {
-        std.debug.print("\nUsage: openapi2zig <path_to_openapi_json> <output_path (optional)>\n\n", .{});
+    if (args.len < 4) {
+        printUsage();
         return;
     }
 
-    const output_path = if (args.len > 2) args[2] else null;
-    generator.generateCode(allocator, args[1], output_path) catch |err| {
+    if (!std.mem.eql(u8, args[1], "generate")) {
+        printUsage();
+        return;
+    }
+
+    var input_path: ?[]const u8 = null;
+    var output_path: ?[]const u8 = null;
+
+    var i: usize = 2;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (std.mem.eql(u8, arg, "-i")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                return;
+            }
+            input_path = args[i];
+        } else if (std.mem.eql(u8, arg, "-o")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                return;
+            }
+            output_path = args[i];
+        }
+    }
+
+    if (input_path == null) {
+        printUsage();
+        return;
+    }
+
+    generator.generateCode(allocator, input_path.?, output_path) catch |err| {
         std.debug.print("Error generating OpenAPI code: {any}\n", .{err});
         return err;
     };
+}
+
+fn printUsage() void {
+    std.debug.print("\nUsage: openapi2zig generate -i <path_to_openapi_json> -o <output_path (optional)>\n\n", .{});
 }
 
 test "can deserialize petstore into OpenApiDocument" {
