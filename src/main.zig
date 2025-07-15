@@ -27,7 +27,7 @@ test "can deserialize petstore into OpenApiDocument" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
+    const file = try std.fs.cwd().openFile("openapi/v3.0/petstore.json", .{});
     defer file.close();
     try file.seekBy(0);
     const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
@@ -52,7 +52,7 @@ test "can generate data structures from petstore OpenAPI specification" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    const file = try std.fs.cwd().openFile("openapi/petstore.json", .{});
+    const file = try std.fs.cwd().openFile("openapi/v3.0/petstore.json", .{});
     defer file.close();
     try file.seekBy(0);
     const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
