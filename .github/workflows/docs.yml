@@ -1,0 +1,104 @@
+name: Deploy Documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Build job
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Copy install scripts to docs directory
+        run: |
+          cp install.sh docs/install
+          cp install.ps1 docs/install.ps1
+
+      - name: Generate documentation metadata
+        run: |
+          # Create a build info file with timestamp and commit info
+          echo "Built on: $(date)" > docs/build-info.txt
+          echo "Commit: ${{ github.sha }}" >> docs/build-info.txt
+          echo "Branch: ${{ github.ref_name }}" >> docs/build-info.txt
+
+      - name: Validate HTML
+        run: |
+          # Install HTML validator (optional but recommended)
+          sudo apt-get update
+          sudo apt-get install -y tidy
+          # Validate the HTML (non-blocking)
+          tidy -q -e docs/index.html || echo "HTML validation completed with warnings"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
+  # Deployment job
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Link checker job (optional but recommended)
+  link-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install link checker
+        run: npm install -g markdown-link-check
+
+      - name: Check links in documentation
+        run: |
+          # Check links in HTML files (convert to basic check)
+          echo "Checking documentation links..."
+          # You can add more sophisticated link checking here
+          grep -o 'href="[^"]*"' docs/index.html | sed 's/href="//;s/"//' | grep -E '^https?://' > links.txt || true
+          if [ -s links.txt ]; then
+            echo "Found external links to check:"
+            cat links.txt
+          else
+            echo "No external links found to check"
+          fi
