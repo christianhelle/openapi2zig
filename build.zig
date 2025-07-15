@@ -18,7 +18,6 @@ pub fn build(b: *std.Build) void {
     // This creates a "module", which represents a collection of source files alongside
     // some compilation options, such as optimization mode and linked system libraries.
     // Every executable or library we compile will be based on one or more modules.
-    
 
     // We will also create a module for our other entry point, 'main.zig'.
     const exe_mod = b.createModule(.{
@@ -34,12 +33,10 @@ pub fn build(b: *std.Build) void {
     // Modules can depend on one another using the `std.Build.Module.addImport` function.
     // This is what allows Zig source code to use `@import("foo")` where 'foo' is not a
     // file path. In this case, we set up `exe_mod` to import `lib_mod`.
-    
 
     // Now, we will create a static library based on the module we created above.
     // This creates a `std.Build.Step.Compile`, which is the build step responsible
     // for actually invoking the compiler.
-    
 
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
@@ -76,9 +73,19 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
+    const run_generate_cmd = b.addRunArtifact(exe);
+    run_generate_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "test/generated_models.zig",
+    });
+    const run_generate_step = b.step("run-generate", "Run the app with generate command");
+    run_generate_step.dependOn(&run_generate_cmd.step);
+
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
-    
 
     const exe_unit_tests = b.addTest(.{
         .root_module = exe_mod,
