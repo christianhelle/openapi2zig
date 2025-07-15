@@ -1,5 +1,6 @@
-const models = @import("models.zig");
+const cli = @import("cli.zig");
 const generator = @import("generator.zig");
+const models = @import("models.zig");
 
 const std = @import("std");
 
@@ -7,55 +8,15 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
-
-    if (args.len < 4) {
-        printUsage();
+    const parsed_args = cli.parse(allocator) catch {
         return;
-    }
+    };
+    defer std.process.argsFree(allocator, parsed_args.raw[0..]);
 
-    if (!std.mem.eql(u8, args[1], "generate")) {
-        printUsage();
-        return;
-    }
-
-    var input_path: ?[]const u8 = null;
-    var output_path: ?[]const u8 = null;
-
-    var i: usize = 2;
-    while (i < args.len) : (i += 1) {
-        const arg = args[i];
-        if (std.mem.eql(u8, arg, "-i")) {
-            i += 1;
-            if (i >= args.len) {
-                printUsage();
-                return;
-            }
-            input_path = args[i];
-        } else if (std.mem.eql(u8, arg, "-o")) {
-            i += 1;
-            if (i >= args.len) {
-                printUsage();
-                return;
-            }
-            output_path = args[i];
-        }
-    }
-
-    if (input_path == null) {
-        printUsage();
-        return;
-    }
-
-    generator.generateCode(allocator, input_path.?, output_path) catch |err| {
+    generator.generateCode(allocator, parsed_args.args.input_path, parsed_args.args.output_path) catch |err| {
         std.debug.print("Error generating OpenAPI code: {any}\n", .{err});
         return err;
     };
-}
-
-fn printUsage() void {
-    std.debug.print("\nUsage: openapi2zig generate -i <path_to_openapi_json> -o <output_path (optional)>\n\n", .{});
 }
 
 test "can deserialize petstore into OpenApiDocument" {
