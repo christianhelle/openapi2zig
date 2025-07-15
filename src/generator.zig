@@ -1,6 +1,41 @@
 const std = @import("std");
 const models = @import("models.zig");
 
+const default_output_file: []const u8 = "generated_models.zig";
+
+pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, output_file_path: ?[]const u8) !void {
+    const openapi_file = try std.fs.cwd().openFile(input_file_path, .{});
+    defer openapi_file.close();
+
+    try openapi_file.seekBy(0);
+    const file_contents = try openapi_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(file_contents);
+
+    var openapi = try models.OpenApiDocument.parse(allocator, file_contents);
+    defer openapi.deinit(allocator);
+
+    var model_generator = ModelCodeGenerator.init(allocator);
+    defer model_generator.deinit();
+
+    const generated_code = try model_generator.generate(openapi);
+    defer allocator.free(generated_code);
+
+    if (output_file_path) |output_path| {
+        if (std.fs.path.dirname(output_path)) |dir_path| {
+            try std.fs.cwd().makePath(dir_path);
+        }
+        const output_file = try std.fs.cwd().createFile(output_path, .{ .read = true });
+        defer output_file.close();
+        try output_file.writeAll(generated_code);
+        std.debug.print("Models generated successfully and written to '{s}'.\n", .{output_path});
+    } else {
+        const output_file = try std.fs.cwd().createFile(default_output_file, .{ .read = true });
+        defer output_file.close();
+        try output_file.writeAll(generated_code);
+        std.debug.print("Models generated successfully and written to 'generated_models.zig'.\n", .{});
+    }
+}
+
 pub const ModelCodeGenerator = struct {
     allocator: std.mem.Allocator,
 
