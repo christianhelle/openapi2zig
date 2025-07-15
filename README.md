@@ -19,6 +19,75 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 
 - [Zig](https://ziglang.org/download/) 0.14.1 or later
 
+## Installation
+
+### Option 1: Quick Install Script (Recommended)
+
+**Linux/macOS:**
+
+```bash
+curl -fsSL https://christianhelle.com/openapi2zig/install | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://christianhelle.com/openapi2zig/install.ps1 | iex
+```
+
+The install scripts will:
+
+- Automatically detect your platform and architecture
+- Download the latest release from GitHub
+- Install the binary to an appropriate location
+- Add it to your PATH (if desired)
+
+**Custom installation directory:**
+
+```bash
+# Linux/macOS
+INSTALL_DIR=$HOME/.local/bin curl -fsSL https://christianhelle.com/openapi2zig/install | bash
+
+# Windows
+irm https://christianhelle.com/openapi2zig/install.ps1 | iex -InstallDir "C:\Tools"
+```
+
+### Option 2: Manual Download
+
+Download the latest release for your platform from the [GitHub Releases page](https://github.com/christianhelle/openapi2zig/releases/latest):
+
+- **Linux x86_64:** `openapi2zig-linux-x86_64.tar.gz`
+- **macOS x86_64:** `openapi2zig-macos-x86_64.tar.gz`
+- **macOS ARM64:** `openapi2zig-macos-aarch64.tar.gz`
+- **Windows x86_64:** `openapi2zig-windows-x86_64.zip`
+
+Extract the archive and add the binary to your PATH.
+
+### Option 3: Install from Snap Store
+
+```bash
+sudo snap install openapi2zig
+```
+
+### Option 4: Build from Source
+
+Make sure you have Zig installed (version 0.14 or later).
+
+```bash
+git clone https://github.com/christianhelle/openapi2zig.git
+cd openapi2zig
+zig build
+```
+
+### Option 5: Use Docker
+
+The openapi2zig is available as a Docker image on Docker Hub at `christianhelle/openapi2zig`.
+
+```bash
+# Pull the latest image
+docker pull christianhelle/openapi2zig
+```
+
 ## Quick Start
 
 ### Building from Source
