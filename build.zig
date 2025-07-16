@@ -86,9 +86,21 @@ pub fn build(b: *std.Build) void {
 
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
+    //
+    //
+    // We will also create a module for our other entry point, 'main.zig'.
+    const tests_mod = b.createModule(.{
+        // `root_source_file` is the Zig "entry point" of the module. If a module
+        // only contains e.g. external object files, you can make this `null`.
+        // In this case the main source file is merely a path, however, in more
+        // complicated build scripts, this could be a generated file.
+        .root_source_file = b.path("src/tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe_unit_tests = b.addTest(.{
-        .root_module = exe_mod,
+        .root_module = tests_mod,
     });
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
