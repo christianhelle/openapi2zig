@@ -91,6 +91,17 @@ pub const ApiCodeGenerator = struct {
                 try parts.append("\n");
                 try parts.append("}\n\n");
             }
+
+            if (path_item.put) |op| {
+                const name = op.operationId orelse try std.fmt.allocPrint(self.allocator, "put_{s}", .{path});
+                const line = try std.fmt.allocPrint(self.allocator, "pub fn {s}(self: *const Self) !void", .{name});
+                try parts.append(line);
+                try parts.append("  {\n");
+                try parts.append("    // Implement PUT ");
+                try parts.append(path);
+                try parts.append("\n");
+                try parts.append("}\n\n");
+            }
         }
 
         return try std.mem.join(self.allocator, "", parts.items);
