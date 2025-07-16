@@ -128,7 +128,7 @@ pub const AuthorizationCodeOAuthFlow = struct {
         }
         return AuthorizationCodeOAuthFlow{
             .authorizationUrl = try allocator.dupe(u8, obj.get("authorizationUrl").?.string),
-            .tokenUrl = try allocator.dupe(u8, obj.get("token").?.string),
+            .tokenUrl = try allocator.dupe(u8, obj.get("tokenUrl").?.string),
             .scopes = scopes_map,
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
