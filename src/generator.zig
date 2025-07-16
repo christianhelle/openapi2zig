@@ -71,45 +71,55 @@ pub const ApiCodeGenerator = struct {
             const path_item = entry.value_ptr.*;
 
             if (path_item.get) |op| {
-                try parts.append("pub fn ");
-                try parts.append(op.operationId orelse path);
-                try parts.append("() !void {\n");
-                try parts.append("    // Implement GET ");
-                try parts.append(path);
-                try parts.append("\n");
-                try parts.append("}\n\n");
+                try parts.append(try self.generateMethod(op, path, "GET"));
             }
 
             if (path_item.post) |op| {
-                try parts.append("pub fn ");
-                try parts.append(op.operationId orelse path);
-                try parts.append("() !void {\n");
-                try parts.append("    // Implement POST ");
-                try parts.append(path);
-                try parts.append("\n");
-                try parts.append("}\n\n");
+                try parts.append(try self.generateMethod(op, path, "POST"));
             }
 
             if (path_item.put) |op| {
-                try parts.append("pub fn ");
-                try parts.append(op.operationId orelse path);
-                try parts.append("() !void {\n");
-                try parts.append("    // Implement PUT ");
-                try parts.append(path);
-                try parts.append("\n");
-                try parts.append("}\n\n");
+                try parts.append(try self.generateMethod(op, path, "PUT"));
             }
 
             if (path_item.delete) |op| {
-                try parts.append("pub fn ");
-                try parts.append(op.operationId orelse path);
-                try parts.append("() !void {\n");
-                try parts.append("    // Implement DELETE ");
-                try parts.append(path);
-                try parts.append("\n");
-                try parts.append("}\n\n");
+                try parts.append(try self.generateMethod(op, path, "DELETE"));
             }
         }
+
+        return try std.mem.join(self.allocator, "", parts.items);
+    }
+
+    pub fn generateMethod(self: *ApiCodeGenerator, op: models.Operation, path: []const u8, method: []const u8) ![]const u8 {
+        var parts = std.ArrayList([]const u8).init(self.allocator);
+        defer parts.deinit();
+
+        if (op.summary != null or op.description != null) {
+            try parts.append("/////////////////");
+            try parts.append("\n");
+        }
+        if (op.summary) |summary| {
+            try parts.append("// Summary:\n");
+            try parts.append("// ");
+            try parts.append(summary);
+            try parts.append("\n//\n");
+        }
+        if (op.description) |description| {
+            try parts.append("// Description:\n");
+            try parts.append("// ");
+            try parts.append(description);
+            try parts.append("\n//\n");
+        }
+        try parts.append("pub fn ");
+        try parts.append(op.operationId orelse path);
+        try parts.append("(");
+        try parts.append(") !void {\n");
+        try parts.append("    // Implement ");
+        try parts.append(method);
+        try parts.append(" ");
+        try parts.append(path);
+        try parts.append("\n");
+        try parts.append("}\n\n");
 
         return try std.mem.join(self.allocator, "", parts.items);
     }
