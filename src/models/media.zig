@@ -9,7 +9,7 @@ pub const Example = struct {
     value: ?json.Value = null,
     externalValue: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Example {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Example {
         const obj = value.object;
         return Example{
             .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
@@ -24,11 +24,11 @@ pub const ExampleOrReference = union(enum) {
     example: Example,
     reference: Reference,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ExampleOrReference {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ExampleOrReference {
         if (value.object.get("$ref") != null) {
-            return ExampleOrReference{ .reference = try Reference.parse(allocator, value) };
+            return ExampleOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
-            return ExampleOrReference{ .example = try Example.parse(allocator, value) };
+            return ExampleOrReference{ .example = try Example.parseFromJson(allocator, value) };
         }
     }
 };
@@ -37,11 +37,11 @@ pub const HeaderOrReference = union(enum) {
     header: Header,
     reference: Reference,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!HeaderOrReference {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!HeaderOrReference {
         if (value.object.get("$ref") != null) {
-            return HeaderOrReference{ .reference = try Reference.parse(allocator, value) };
+            return HeaderOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
-            return HeaderOrReference{ .header = try Header.parse(allocator, value) };
+            return HeaderOrReference{ .header = try Header.parseFromJson(allocator, value) };
         }
     }
 };
@@ -53,12 +53,12 @@ pub const Encoding = struct {
     explode: ?bool = null,
     allowReserved: ?bool = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Encoding {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Encoding {
         const obj = value.object;
         var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
         if (obj.get("headers")) |headers_val| {
             for (headers_val.object.keys()) |key| {
-                try headers_map.put(key, try HeaderOrReference.parse(allocator, headers_val.object.get(key).?));
+                try headers_map.put(key, try HeaderOrReference.parseFromJson(allocator, headers_val.object.get(key).?));
             }
         }
         return Encoding{
@@ -77,23 +77,23 @@ pub const MediaType = struct {
     examples: ?std.StringHashMap(ExampleOrReference) = null,
     encoding: ?std.StringHashMap(Encoding) = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!MediaType {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!MediaType {
         const obj = value.object;
         var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
         if (obj.get("examples")) |examples_val| {
             for (examples_val.object.keys()) |key| {
-                try examples_map.put(key, try ExampleOrReference.parse(allocator, examples_val.object.get(key).?));
+                try examples_map.put(key, try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
             }
         }
         var encoding_map = std.StringHashMap(Encoding).init(allocator);
         if (obj.get("encoding")) |encoding_val| {
             for (encoding_val.object.keys()) |key| {
-                try encoding_map.put(key, try Encoding.parse(allocator, encoding_val.object.get(key).?));
+                try encoding_map.put(key, try Encoding.parseFromJson(allocator, encoding_val.object.get(key).?));
             }
         }
 
         return MediaType{
-            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parse(allocator, val) else null,
+            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parseFromJson(allocator, val) else null,
             .example = if (obj.get("example")) |val| val else null,
             .examples = if (examples_map.count() > 0) examples_map else null,
             .encoding = if (encoding_map.count() > 0) encoding_map else null,
@@ -114,18 +114,18 @@ pub const Header = struct {
     example: ?json.Value = null,
     examples: ?std.StringHashMap(ExampleOrReference) = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Header {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Header {
         const obj = value.object;
         var content_map = std.StringHashMap(MediaType).init(allocator);
         if (obj.get("content")) |content_val| {
             for (content_val.object.keys()) |key| {
-                try content_map.put(key, try MediaType.parse(allocator, content_val.object.get(key).?));
+                try content_map.put(key, try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
             }
         }
         var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
         if (obj.get("examples")) |examples_val| {
             for (examples_val.object.keys()) |key| {
-                try examples_map.put(key, try ExampleOrReference.parse(allocator, examples_val.object.get(key).?));
+                try examples_map.put(key, try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
             }
         }
 
@@ -137,7 +137,7 @@ pub const Header = struct {
             .style = if (obj.get("style")) |val| try allocator.dupe(u8, val.string) else null,
             .explode = if (obj.get("explode")) |val| val.bool else null,
             .allowReserved = if (obj.get("allowReserved")) |val| val.bool else null,
-            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parse(allocator, val) else null,
+            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parseFromJson(allocator, val) else null,
             .content = if (content_map.count() > 0) content_map else null,
             .example = if (obj.get("example")) |val| val else null,
             .examples = if (examples_map.count() > 0) examples_map else null,

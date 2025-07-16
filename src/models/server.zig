@@ -6,7 +6,7 @@ pub const ServerVariable = struct {
     enum_values: ?[]const []const u8 = null,
     description: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ServerVariable {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ServerVariable {
         const obj = value.object;
         var enum_list = std.ArrayList([]const u8).init(allocator);
         errdefer enum_list.deinit();
@@ -40,13 +40,13 @@ pub const Server = struct {
     description: ?[]const u8 = null,
     variables: ?std.StringHashMap(ServerVariable) = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Server {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Server {
         const obj = value.object;
         var variables_map = std.StringHashMap(ServerVariable).init(allocator);
         errdefer variables_map.deinit();
         if (obj.get("variables")) |vars_val| {
             for (vars_val.object.keys()) |key| {
-                try variables_map.put(try allocator.dupe(u8, key), try ServerVariable.parse(allocator, vars_val.object.get(key).?));
+                try variables_map.put(try allocator.dupe(u8, key), try ServerVariable.parseFromJson(allocator, vars_val.object.get(key).?));
             }
         }
         return Server{

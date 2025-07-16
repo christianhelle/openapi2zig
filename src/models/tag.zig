@@ -7,12 +7,12 @@ pub const Tag = struct {
     description: ?[]const u8 = null,
     externalDocs: ?ExternalDocumentation = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Tag {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Tag {
         const obj = value.object;
         return Tag{
             .name = try allocator.dupe(u8, obj.get("name").?.string),
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
-            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null,
+            .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null,
         };
     }
 

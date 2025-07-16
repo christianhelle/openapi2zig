@@ -11,7 +11,7 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
     const file_contents = try openapi_file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_contents);
 
-    var openapi = try models.OpenApiDocument.parse(allocator, file_contents);
+    var openapi = try models.OpenApiDocument.parseFromJson(allocator, file_contents);
     defer openapi.deinit(allocator);
 
     var model_generator = ModelCodeGenerator.init(allocator);

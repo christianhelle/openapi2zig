@@ -10,7 +10,7 @@ fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !mod
     const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_contents);
 
-    return try models.OpenApiDocument.parse(allocator, file_contents);
+    return try models.OpenApiDocument.parseFromJson(allocator, file_contents);
 }
 
 // Helper function to test if an OpenAPI document can be parsed successfully

@@ -20,18 +20,18 @@ pub const Parameter = struct {
     example: ?json.Value = null,
     examples: ?std.StringHashMap(ExampleOrReference) = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Parameter {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Parameter {
         const obj = value.object;
         var content_map = std.StringHashMap(MediaType).init(allocator);
         if (obj.get("content")) |content_val| {
             for (content_val.object.keys()) |key| {
-                try content_map.put(key, try MediaType.parse(allocator, content_val.object.get(key).?));
+                try content_map.put(key, try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
             }
         }
         var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
         if (obj.get("examples")) |examples_val| {
             for (examples_val.object.keys()) |key| {
-                try examples_map.put(key, try ExampleOrReference.parse(allocator, examples_val.object.get(key).?));
+                try examples_map.put(key, try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
             }
         }
 
@@ -45,7 +45,7 @@ pub const Parameter = struct {
             .style = if (obj.get("style")) |val| try allocator.dupe(u8, val.string) else null,
             .explode = if (obj.get("explode")) |val| val.bool else null,
             .allowReserved = if (obj.get("allowReserved")) |val| val.bool else null,
-            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parse(allocator, val) else null,
+            .schema = if (obj.get("schema")) |val| try SchemaOrReference.parseFromJson(allocator, val) else null,
             .content = if (content_map.count() > 0) content_map else null,
             .example = if (obj.get("example")) |val| val else null,
             .examples = if (examples_map.count() > 0) examples_map else null,
@@ -57,11 +57,11 @@ pub const ParameterOrReference = union(enum) {
     parameter: Parameter,
     reference: Reference,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ParameterOrReference {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ParameterOrReference {
         if (value.object.get("$ref") != null) {
-            return ParameterOrReference{ .reference = try Reference.parse(allocator, value) };
+            return ParameterOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
-            return ParameterOrReference{ .parameter = try Parameter.parse(allocator, value) };
+            return ParameterOrReference{ .parameter = try Parameter.parseFromJson(allocator, value) };
         }
     }
 };

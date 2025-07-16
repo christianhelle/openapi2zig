@@ -8,12 +8,12 @@ pub const RequestBody = struct {
     description: ?[]const u8 = null,
     required: ?bool = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!RequestBody {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!RequestBody {
         const obj = value.object;
         var content_map = std.StringHashMap(MediaType).init(allocator);
         if (obj.get("content")) |content_val| {
             for (content_val.object.keys()) |key| {
-                try content_map.put(key, try MediaType.parse(allocator, content_val.object.get(key).?));
+                try content_map.put(key, try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
             }
         }
         return RequestBody{
@@ -28,11 +28,11 @@ pub const RequestBodyOrReference = union(enum) {
     request_body: RequestBody,
     reference: Reference,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!RequestBodyOrReference {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!RequestBodyOrReference {
         if (value.object.get("$ref") != null) {
-            return RequestBodyOrReference{ .reference = try Reference.parse(allocator, value) };
+            return RequestBodyOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
-            return RequestBodyOrReference{ .request_body = try RequestBody.parse(allocator, value) };
+            return RequestBodyOrReference{ .request_body = try RequestBody.parseFromJson(allocator, value) };
         }
     }
 };

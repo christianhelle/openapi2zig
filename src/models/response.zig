@@ -11,24 +11,24 @@ pub const Response = struct {
     content: ?std.StringHashMap(MediaType) = null,
     links: ?std.StringHashMap(LinkOrReference) = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Response {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Response {
         const obj = value.object;
         var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
         if (obj.get("headers")) |headers_val| {
             for (headers_val.object.keys()) |key| {
-                try headers_map.put(key, try HeaderOrReference.parse(allocator, headers_val.object.get(key).?));
+                try headers_map.put(key, try HeaderOrReference.parseFromJson(allocator, headers_val.object.get(key).?));
             }
         }
         var content_map = std.StringHashMap(MediaType).init(allocator);
         if (obj.get("content")) |content_val| {
             for (content_val.object.keys()) |key| {
-                try content_map.put(key, try MediaType.parse(allocator, content_val.object.get(key).?));
+                try content_map.put(key, try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
             }
         }
         var links_map = std.StringHashMap(LinkOrReference).init(allocator);
         if (obj.get("links")) |links_val| {
             for (links_val.object.keys()) |key| {
-                try links_map.put(key, try LinkOrReference.parse(allocator, links_val.object.get(key).?));
+                try links_map.put(key, try LinkOrReference.parseFromJson(allocator, links_val.object.get(key).?));
             }
         }
 
@@ -45,11 +45,11 @@ pub const ResponseOrReference = union(enum) {
     response: Response,
     reference: Reference,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ResponseOrReference {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ResponseOrReference {
         if (value.object.get("$ref") != null) {
-            return ResponseOrReference{ .reference = try Reference.parse(allocator, value) };
+            return ResponseOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
-            return ResponseOrReference{ .response = try Response.parse(allocator, value) };
+            return ResponseOrReference{ .response = try Response.parseFromJson(allocator, value) };
         }
     }
 };
@@ -58,16 +58,16 @@ pub const Responses = struct {
     default: ?ResponseOrReference = null,
     status_codes: std.StringHashMap(ResponseOrReference),
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Responses {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Responses {
         var status_codes_map = std.StringHashMap(ResponseOrReference).init(allocator);
         const obj = value.object;
         for (obj.keys()) |key| {
             if (std.ascii.isDigit(key[0])) { // Status codes are numeric
-                try status_codes_map.put(key, try ResponseOrReference.parse(allocator, obj.get(key).?));
+                try status_codes_map.put(key, try ResponseOrReference.parseFromJson(allocator, obj.get(key).?));
             }
         }
         return Responses{
-            .default = if (obj.get("default")) |val| try ResponseOrReference.parse(allocator, val) else null,
+            .default = if (obj.get("default")) |val| try ResponseOrReference.parseFromJson(allocator, val) else null,
             .status_codes = status_codes_map,
         };
     }

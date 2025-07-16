@@ -11,7 +11,7 @@ pub const Link = struct {
     description: ?[]const u8 = null,
     server: ?Server = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!Link {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Link {
         const obj = value.object;
         var parameters_map = std.StringHashMap(json.Value).init(allocator);
         if (obj.get("parameters")) |params_val| {
@@ -25,7 +25,7 @@ pub const Link = struct {
             .parameters = if (parameters_map.count() > 0) parameters_map else null,
             .requestBody = if (obj.get("requestBody")) |val| val else null,
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
-            .server = if (obj.get("server")) |val| try Server.parse(allocator, val) else null,
+            .server = if (obj.get("server")) |val| try Server.parseFromJson(allocator, val) else null,
         };
     }
 };
@@ -34,11 +34,11 @@ pub const LinkOrReference = union(enum) {
     link: Link,
     reference: Reference,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!LinkOrReference {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!LinkOrReference {
         if (value.object.get("$ref") != null) {
-            return LinkOrReference{ .reference = try Reference.parse(allocator, value) };
+            return LinkOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
-            return LinkOrReference{ .link = try Link.parse(allocator, value) };
+            return LinkOrReference{ .link = try Link.parseFromJson(allocator, value) };
         }
     }
 };

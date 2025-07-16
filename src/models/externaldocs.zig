@@ -5,7 +5,7 @@ pub const ExternalDocumentation = struct {
     url: []const u8,
     description: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ExternalDocumentation {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ExternalDocumentation {
         const obj = value.object;
         return ExternalDocumentation{
             .url = try allocator.dupe(u8, obj.get("url").?.string),

@@ -53,7 +53,7 @@ pub const OpenApiDocument = struct {
         }
     }
 
-    pub fn parse(allocator: std.mem.Allocator, json_string: []const u8) anyerror!OpenApiDocument {
+    pub fn parseFromJson(allocator: std.mem.Allocator, json_string: []const u8) anyerror!OpenApiDocument {
         var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
 
@@ -62,13 +62,13 @@ pub const OpenApiDocument = struct {
         // Allocate persistent copies of strings
         const openapi_str = try allocator.dupe(u8, root.object.get("openapi").?.string);
 
-        const info = try Info.parse(allocator, root.object.get("info").?);
-        const paths = try Paths.parse(allocator, root.object.get("paths").?);
-        const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parse(allocator, val) else null;
+        const info = try Info.parseFromJson(allocator, root.object.get("info").?);
+        const paths = try Paths.parseFromJson(allocator, root.object.get("paths").?);
+        const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
         const servers = if (root.object.get("servers")) |val| try parseServers(allocator, val) else null;
         const security = if (root.object.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
         const tags = if (root.object.get("tags")) |val| try parseTags(allocator, val) else null;
-        const components = if (root.object.get("components")) |val| try Components.parse(allocator, val) else null;
+        const components = if (root.object.get("components")) |val| try Components.parseFromJson(allocator, val) else null;
 
         return OpenApiDocument{
             .openapi = openapi_str,
@@ -86,7 +86,7 @@ pub const OpenApiDocument = struct {
         var array_list = std.ArrayList(Server).init(allocator);
         errdefer array_list.deinit();
         for (value.array.items) |item| {
-            try array_list.append(try Server.parse(allocator, item));
+            try array_list.append(try Server.parseFromJson(allocator, item));
         }
         return array_list.toOwnedSlice();
     }
@@ -95,7 +95,7 @@ pub const OpenApiDocument = struct {
         var array_list = std.ArrayList(SecurityRequirement).init(allocator);
         errdefer array_list.deinit();
         for (value.array.items) |item| {
-            try array_list.append(try SecurityRequirement.parse(allocator, item));
+            try array_list.append(try SecurityRequirement.parseFromJson(allocator, item));
         }
         return array_list.toOwnedSlice();
     }
@@ -104,7 +104,7 @@ pub const OpenApiDocument = struct {
         var array_list = std.ArrayList(Tag).init(allocator);
         errdefer array_list.deinit();
         for (value.array.items) |item| {
-            try array_list.append(try Tag.parse(allocator, item));
+            try array_list.append(try Tag.parseFromJson(allocator, item));
         }
         return array_list.toOwnedSlice();
     }

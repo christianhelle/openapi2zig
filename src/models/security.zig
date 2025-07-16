@@ -4,7 +4,7 @@ const json = std.json;
 pub const SecurityRequirement = struct {
     schemes: std.StringHashMap([]const []const u8),
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityRequirement {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityRequirement {
         var schemes_map = std.StringHashMap([]const []const u8).init(allocator);
         errdefer schemes_map.deinit();
         const obj = value.object;
@@ -38,13 +38,13 @@ pub const OAuthFlows = struct {
     clientCredentials: ?ClientCredentialsFlow = null,
     authorizationCode: ?AuthorizationCodeOAuthFlow = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuthFlows {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuthFlows {
         const obj = value.object;
         return OAuthFlows{
-            .implicit = if (obj.get("implicit")) |val| try ImplicitOAuthFlow.parse(allocator, val) else null,
-            .password = if (obj.get("password")) |val| try PasswordOAuthFlow.parse(allocator, val) else null,
-            .clientCredentials = if (obj.get("clientCredentials")) |val| try ClientCredentialsFlow.parse(allocator, val) else null,
-            .authorizationCode = if (obj.get("authorizationCode")) |val| try AuthorizationCodeOAuthFlow.parse(allocator, val) else null,
+            .implicit = if (obj.get("implicit")) |val| try ImplicitOAuthFlow.parseFromJson(allocator, val) else null,
+            .password = if (obj.get("password")) |val| try PasswordOAuthFlow.parseFromJson(allocator, val) else null,
+            .clientCredentials = if (obj.get("clientCredentials")) |val| try ClientCredentialsFlow.parseFromJson(allocator, val) else null,
+            .authorizationCode = if (obj.get("authorizationCode")) |val| try AuthorizationCodeOAuthFlow.parseFromJson(allocator, val) else null,
         };
     }
 };
@@ -54,7 +54,7 @@ pub const ImplicitOAuthFlow = struct {
     scopes: std.StringHashMap([]const u8),
     refreshUrl: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ImplicitOAuthFlow {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ImplicitOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
@@ -75,7 +75,7 @@ pub const PasswordOAuthFlow = struct {
     scopes: std.StringHashMap([]const u8),
     refreshUrl: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!PasswordOAuthFlow {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PasswordOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
@@ -96,7 +96,7 @@ pub const ClientCredentialsFlow = struct {
     scopes: std.StringHashMap([]const u8),
     refreshUrl: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!ClientCredentialsFlow {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ClientCredentialsFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
@@ -118,7 +118,7 @@ pub const AuthorizationCodeOAuthFlow = struct {
     scopes: std.StringHashMap([]const u8),
     refreshUrl: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!AuthorizationCodeOAuthFlow {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!AuthorizationCodeOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
@@ -141,7 +141,7 @@ pub const APIKeySecurityScheme = struct {
     in_field: []const u8, // "header", "query", "cookie"
     description: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!APIKeySecurityScheme {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!APIKeySecurityScheme {
         const obj = value.object;
         return APIKeySecurityScheme{
             .type = try allocator.dupe(u8, obj.get("type").?.string),
@@ -158,7 +158,7 @@ pub const HTTPSecurityScheme = struct {
     bearerFormat: ?[]const u8 = null,
     description: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!HTTPSecurityScheme {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!HTTPSecurityScheme {
         const obj = value.object;
         return HTTPSecurityScheme{
             .scheme = try allocator.dupe(u8, obj.get("scheme").?.string),
@@ -174,11 +174,11 @@ pub const OAuth2SecurityScheme = struct {
     flows: OAuthFlows,
     description: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuth2SecurityScheme {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuth2SecurityScheme {
         const obj = value.object;
         return OAuth2SecurityScheme{
             .type = try allocator.dupe(u8, obj.get("type").?.string),
-            .flows = try OAuthFlows.parse(allocator, obj.get("flows").?),
+            .flows = try OAuthFlows.parseFromJson(allocator, obj.get("flows").?),
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
@@ -189,7 +189,7 @@ pub const OpenIdConnectSecurityScheme = struct {
     openIdConnectUrl: []const u8,
     description: ?[]const u8 = null,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!OpenIdConnectSecurityScheme {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OpenIdConnectSecurityScheme {
         const obj = value.object;
         return OpenIdConnectSecurityScheme{
             .type = try allocator.dupe(u8, obj.get("type").?.string),
@@ -205,17 +205,17 @@ pub const SecurityScheme = union(enum) {
     oauth2: OAuth2SecurityScheme,
     openIdConnect: OpenIdConnectSecurityScheme,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityScheme {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityScheme {
         const obj = value.object;
         const type_str = obj.get("type").?.string;
         if (std.mem.eql(u8, type_str, "apiKey")) {
-            return SecurityScheme{ .api_key = try APIKeySecurityScheme.parse(allocator, value) };
+            return SecurityScheme{ .api_key = try APIKeySecurityScheme.parseFromJson(allocator, value) };
         } else if (std.mem.eql(u8, type_str, "http")) {
-            return SecurityScheme{ .http = try HTTPSecurityScheme.parse(allocator, value) };
+            return SecurityScheme{ .http = try HTTPSecurityScheme.parseFromJson(allocator, value) };
         } else if (std.mem.eql(u8, type_str, "oauth2")) {
-            return SecurityScheme{ .oauth2 = try OAuth2SecurityScheme.parse(allocator, value) };
+            return SecurityScheme{ .oauth2 = try OAuth2SecurityScheme.parseFromJson(allocator, value) };
         } else if (std.mem.eql(u8, type_str, "openIdConnect")) {
-            return SecurityScheme{ .openIdConnect = try OpenIdConnectSecurityScheme.parse(allocator, value) };
+            return SecurityScheme{ .openIdConnect = try OpenIdConnectSecurityScheme.parseFromJson(allocator, value) };
         } else {
             return error.UnknownSecuritySchemeType;
         }
@@ -226,11 +226,11 @@ pub const SecuritySchemeOrReference = union(enum) {
     security_scheme: SecurityScheme,
     reference: @import("reference.zig").Reference,
 
-    pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!SecuritySchemeOrReference {
+    pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecuritySchemeOrReference {
         if (value.object.get("$ref") != null) {
-            return SecuritySchemeOrReference{ .reference = try @import("reference.zig").Reference.parse(allocator, value) };
+            return SecuritySchemeOrReference{ .reference = try @import("reference.zig").Reference.parseFromJson(allocator, value) };
         } else {
-            return SecuritySchemeOrReference{ .security_scheme = try SecurityScheme.parse(allocator, value) };
+            return SecuritySchemeOrReference{ .security_scheme = try SecurityScheme.parseFromJson(allocator, value) };
         }
     }
 };
