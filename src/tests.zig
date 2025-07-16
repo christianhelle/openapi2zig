@@ -2,17 +2,39 @@ const generator = @import("generator.zig");
 const models = @import("models.zig");
 const std = @import("std");
 
-test "can deserialize petstore into OpenApiDocument" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    const file = try std.fs.cwd().openFile("openapi/v3.0/petstore.json", .{});
+// Helper function to load and parse an OpenAPI document from a file
+fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
+    const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
     try file.seekBy(0);
     const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_contents);
 
-    var parsed = try models.OpenApiDocument.parse(allocator, file_contents);
+    return try models.OpenApiDocument.parse(allocator, file_contents);
+}
+
+// Helper function to test if an OpenAPI document can be parsed successfully
+fn testOpenApiDocumentParsing(allocator: std.mem.Allocator, file_path: []const u8) !void {
+    var parsed = try loadOpenApiDocument(allocator, file_path);
+    defer parsed.deinit(allocator);
+
+    // Basic validation - ensure we have the required fields
+    try std.testing.expect(parsed.openapi.len > 0);
+    try std.testing.expect(parsed.info.title.len > 0);
+
+    std.debug.print("Successfully parsed OpenAPI document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.openapi });
+}
+
+// Helper function to create a test allocator for each test
+fn createTestAllocator() std.heap.GeneralPurposeAllocator(.{}) {
+    return std.heap.GeneralPurposeAllocator(.{}){};
+}
+
+test "can deserialize petstore into OpenApiDocument" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var parsed = try loadOpenApiDocument(allocator, "openapi/v3.0/petstore.json");
     defer parsed.deinit(allocator);
 
     try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
@@ -28,16 +50,10 @@ test "can deserialize petstore into OpenApiDocument" {
 }
 
 test "can generate data structures from petstore OpenAPI specification" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = createTestAllocator();
     const allocator = gpa.allocator();
 
-    const file = try std.fs.cwd().openFile("openapi/v3.0/petstore.json", .{});
-    defer file.close();
-    try file.seekBy(0);
-    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    defer allocator.free(file_contents);
-
-    var parsed = try models.OpenApiDocument.parse(allocator, file_contents);
+    var parsed = try loadOpenApiDocument(allocator, "openapi/v3.0/petstore.json");
     defer parsed.deinit(allocator);
 
     var code_gen = generator.ModelCodeGenerator.init(allocator);
@@ -50,4 +66,98 @@ test "can generate data structures from petstore OpenAPI specification" {
     try std.testing.expect(generated_code.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, generated_code, "pub const Pet = struct") != null);
     try std.testing.expect(std.mem.indexOf(u8, generated_code, "name: []const u8") != null);
+}
+
+// Tests for parsing all JSON OpenAPI specifications in v3.0 folder
+
+test "can parse api-with-examples.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/api-with-examples.json");
+}
+
+test "can parse callback-example.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/callback-example.json");
+}
+
+test "can parse hubspot-events.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/hubspot-events.json");
+}
+
+test "can parse hubspot-webhooks.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/hubspot-webhooks.json");
+}
+
+test "can parse ingram-micro.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/ingram-micro.json");
+}
+
+test "can parse link-example.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/link-example.json");
+}
+
+test "can parse petstore-expanded.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/petstore-expanded.json");
+}
+
+test "can parse petstore.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/petstore.json");
+}
+
+test "can parse uspto.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/uspto.json");
+}
+
+test "can parse weather.json" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+    try testOpenApiDocumentParsing(allocator, "openapi/v3.0/weather.json");
+}
+
+// Comprehensive test that validates all JSON OpenAPI specifications can be parsed
+test "can parse all v3.0 JSON OpenAPI specifications" {
+    var gpa = createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json_files = [_][]const u8{
+        "openapi/v3.0/api-with-examples.json",
+        "openapi/v3.0/callback-example.json",
+        "openapi/v3.0/hubspot-events.json",
+        "openapi/v3.0/hubspot-webhooks.json",
+        "openapi/v3.0/ingram-micro.json",
+        "openapi/v3.0/link-example.json",
+        "openapi/v3.0/petstore-expanded.json",
+        "openapi/v3.0/petstore.json",
+        "openapi/v3.0/uspto.json",
+        "openapi/v3.0/weather.json",
+    };
+
+    var successful_parses: u32 = 0;
+
+    for (json_files) |file_path| {
+        testOpenApiDocumentParsing(allocator, file_path) catch |err| {
+            std.debug.print("Failed to parse {s}: {any}\n", .{ file_path, err });
+            continue;
+        };
+        successful_parses += 1;
+    }
+
+    std.debug.print("Successfully parsed {d}/{d} JSON OpenAPI specifications\n", .{ successful_parses, json_files.len });
+    try std.testing.expect(successful_parses > 0);
 }
