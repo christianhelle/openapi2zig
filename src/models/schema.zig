@@ -43,10 +43,15 @@ pub const Discriminator = struct {
 };
 
 pub const AdditionalProperties = union(enum) {
+    boolean: bool,
     schema_or_reference: SchemaOrReference,
 
     pub fn parse(allocator: std.mem.Allocator, value: json.Value) anyerror!AdditionalProperties {
-        return AdditionalProperties{ .schema_or_reference = try SchemaOrReference.parse(allocator, value) };
+        switch (value) {
+            .bool => |bool_val| return AdditionalProperties{ .boolean = bool_val },
+            .object => return AdditionalProperties{ .schema_or_reference = try SchemaOrReference.parse(allocator, value) },
+            else => return error.InvalidAdditionalPropertiesType,
+        }
     }
 };
 
