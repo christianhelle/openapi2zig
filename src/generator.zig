@@ -71,19 +71,19 @@ pub const ApiCodeGenerator = struct {
             const path_item = entry.value_ptr.*;
 
             if (path_item.get) |op| {
-                try parts.append(try self.generateMethod(op, path, "GET"));
+                try parts.append(try self.generateMethod(op, path, "get"));
             }
 
             if (path_item.post) |op| {
-                try parts.append(try self.generateMethod(op, path, "POST"));
+                try parts.append(try self.generateMethod(op, path, "post"));
             }
 
             if (path_item.put) |op| {
-                try parts.append(try self.generateMethod(op, path, "PUT"));
+                try parts.append(try self.generateMethod(op, path, "put"));
             }
 
             if (path_item.delete) |op| {
-                try parts.append(try self.generateMethod(op, path, "DELETE"));
+                try parts.append(try self.generateMethod(op, path, "delete"));
             }
         }
 
