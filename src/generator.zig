@@ -44,6 +44,27 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
     }
 }
 
+pub const ApiCodeGenerator = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) ApiCodeGenerator {
+        return ApiCodeGenerator{
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *ApiCodeGenerator) void {
+        _ = self;
+    }
+
+    pub fn generate(self: *ApiCodeGenerator, document: models.OpenApiDocument) ![]const u8 {
+        var parts = std.ArrayList([]const u8).init(self.allocator);
+        defer parts.deinit();
+
+        try parts.append("///////////////////////////////////////////\n");
+        try parts.append("// Generated Zig API client from OpenAPI\n");
+        try parts.append("///////////////////////////////////////////\n\n");
+
         var path_iterator = document.paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
             const path = entry.key_ptr.*;
@@ -60,6 +81,10 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
                 try parts.append("}\n\n");
             }
         }
+
+        return try std.mem.join(self.allocator, "", parts.items);
+    }
+};
 
 pub const ModelCodeGenerator = struct {
     allocator: std.mem.Allocator,
