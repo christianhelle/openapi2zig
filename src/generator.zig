@@ -71,10 +71,10 @@ pub const ApiCodeGenerator = struct {
             const path_item = entry.value_ptr.*;
 
             if (path_item.get) |op| {
-                const name = op.operationId orelse try std.fmt.allocPrint(self.allocator, "get_{s}", .{path});
-                const line = try std.fmt.allocPrint(self.allocator, "pub fn {s}(self: *const Self) !void", .{name});
-                try parts.append(line);
-                try parts.append("  {\n");
+                const name = op.operationId orelse path;
+                try parts.append("pub fn ");
+                try parts.append(name);
+                try parts.append("() !void {\n");
                 try parts.append("    // Implement GET ");
                 try parts.append(path);
                 try parts.append("\n");
@@ -83,7 +83,8 @@ pub const ApiCodeGenerator = struct {
 
             if (path_item.post) |op| {
                 const name = op.operationId orelse try std.fmt.allocPrint(self.allocator, "post_{s}", .{path});
-                const line = try std.fmt.allocPrint(self.allocator, "pub fn {s}(self: *const Self) !void", .{name});
+                const fmt = "pub fn {s}() !void";
+                const line = try std.fmt.allocPrint(self.allocator, fmt, .{name});
                 try parts.append(line);
                 try parts.append("  {\n");
                 try parts.append("    // Implement POST ");
@@ -94,7 +95,7 @@ pub const ApiCodeGenerator = struct {
 
             if (path_item.put) |op| {
                 const name = op.operationId orelse try std.fmt.allocPrint(self.allocator, "put_{s}", .{path});
-                const line = try std.fmt.allocPrint(self.allocator, "pub fn {s}(self: *const Self) !void", .{name});
+                const line = try std.fmt.allocPrint(self.allocator, "pub fn {s}() !void", .{name});
                 try parts.append(line);
                 try parts.append("  {\n");
                 try parts.append("    // Implement PUT ");
@@ -105,7 +106,7 @@ pub const ApiCodeGenerator = struct {
 
             if (path_item.delete) |op| {
                 const name = op.operationId orelse try std.fmt.allocPrint(self.allocator, "delete_{s}", .{path});
-                const line = try std.fmt.allocPrint(self.allocator, "pub fn {s}(self: *const Self) !void", .{name});
+                const line = try std.fmt.allocPrint(self.allocator, "pub fn {s}() !void", .{name});
                 try parts.append(line);
                 try parts.append("  {\n");
                 try parts.append("    // Implement DELETE ");
