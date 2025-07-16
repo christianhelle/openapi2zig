@@ -113,6 +113,40 @@ pub const ApiCodeGenerator = struct {
         try parts.append("pub fn ");
         try parts.append(op.operationId orelse path);
         try parts.append("(");
+
+        if (op.parameters) |params| {
+            var first = true;
+            for (params) |param| {
+                if (!first) try parts.append(", ");
+                first = false;
+
+                switch (param) {
+                    .parameter => |p| {
+                        try parts.append(p.name);
+                        try parts.append(": ");
+                        var data_type = p.schema.?.schema.type orelse "[]const u8"; // Default to string type if not specified
+                        if (std.mem.eql(u8, data_type, "string")) {
+                            data_type = "[]const u8";
+                        } else if (std.mem.eql(u8, data_type, "integer")) {
+                            data_type = "i64";
+                        } else if (std.mem.eql(u8, data_type, "number")) {
+                            data_type = "f64";
+                        } else if (std.mem.eql(u8, data_type, "boolean")) {
+                            data_type = "bool";
+                        } else if (std.mem.eql(u8, data_type, "array")) {
+                            data_type = "[]const u8"; // TODO: handle array items type
+                        } else if (std.mem.eql(u8, data_type, "object")) {
+                            data_type = "std.json.Value"; // or a generated struct if possible
+                        }
+                        try parts.append(data_type); // Unwrap the optional, as it can never be null
+                    },
+                    .reference => |_| {
+                        try parts.append("[]const u8"); // Assume string type for references
+                    },
+                }
+            }
+        }
+
         try parts.append(") !void {\n");
         try parts.append("    // Implement ");
         try parts.append(method);
