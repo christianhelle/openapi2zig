@@ -17,8 +17,16 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
     var model_generator = ModelCodeGenerator.init(allocator);
     defer model_generator.deinit();
 
-    const generated_code = try model_generator.generate(openapi);
-    defer allocator.free(generated_code);
+    const generated_models = try model_generator.generate(openapi);
+    defer allocator.free(generated_models);
+
+    var api_generator = ApiCodeGenerator.init(allocator);
+    defer api_generator.deinit();
+
+    const generated_api = try api_generator.generate(openapi);
+    defer allocator.free(generated_api);
+
+    const generated_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
 
     if (output_file_path) |output_path| {
         if (std.fs.path.dirname(output_path)) |dir_path| {
@@ -35,6 +43,23 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
         std.debug.print("Models generated successfully and written to 'generated_models.zig'.\n", .{});
     }
 }
+
+        var path_iterator = document.paths.path_items.iterator();
+        while (path_iterator.next()) |entry| {
+            const path = entry.key_ptr.*;
+            const path_item = entry.value_ptr.*;
+
+            if (path_item.get) |op| {
+                const name = op.operationId orelse try std.fmt.allocPrint(self.allocator, "get_{s}", .{path});
+                const line = try std.fmt.allocPrint(self.allocator, "pub fn {s}(self: *const Self) !void", .{name});
+                try parts.append(line);
+                try parts.append("  {\n");
+                try parts.append("    // Implement GET ");
+                try parts.append(path);
+                try parts.append("\n");
+                try parts.append("}\n\n");
+            }
+        }
 
 pub const ModelCodeGenerator = struct {
     allocator: std.mem.Allocator,
@@ -53,7 +78,9 @@ pub const ModelCodeGenerator = struct {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
 
-        try parts.append("// Generated Zig structures from OpenAPI\n\n");
+        try parts.append("///////////////////////////////////////////\n");
+        try parts.append("// Generated Zig structures from OpenAPI\n");
+        try parts.append("///////////////////////////////////////////\n\n");
 
         if (document.components) |components| {
             if (components.schemas) |schemas| {
