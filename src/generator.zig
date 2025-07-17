@@ -45,22 +45,21 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
 }
 
 fn getDataType(field_schema: []const u8) ![]const u8 {
-    var data_type: []const u8 = "[]const u8";
     if (std.mem.eql(u8, field_schema, "string")) {
-        data_type = "[]const u8";
+        return "[]const u8";
     } else if (std.mem.eql(u8, field_schema, "integer")) {
-        data_type = "i64";
+        return "i64";
     } else if (std.mem.eql(u8, field_schema, "number")) {
-        data_type = "f64";
+        return "f64";
     } else if (std.mem.eql(u8, field_schema, "boolean")) {
-        data_type = "bool";
+        return "bool";
     } else if (std.mem.eql(u8, field_schema, "array")) {
-        data_type = "[]const u8"; // TODO: handle array items type
+        return "[]const u8"; // TODO: handle array items type
     } else if (std.mem.eql(u8, field_schema, "object")) {
-        data_type = "std.json.Value"; // or a generated struct if possible
+        return "std.json.Value"; // or a generated struct if possible
+    } else {
+        return "[]const u8";
     }
-
-    return data_type;
 }
 
 pub const ApiCodeGenerator = struct {
@@ -144,7 +143,7 @@ pub const ApiCodeGenerator = struct {
                         try parts.append(p.name);
                         try parts.append(": ");
 
-                        const field_name = p.schema.?.schema.type orelse "[]const u8"; // Default to string type if not specified
+                        const field_name = p.schema.?.schema.type orelse "[]const u8";
                         const data_type = try getDataType(field_name);
                         try parts.append(data_type); // Unwrap the optional, as it can never be null
                     },
