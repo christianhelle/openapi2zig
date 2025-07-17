@@ -124,6 +124,7 @@ pub const ApiCodeGenerator = struct {
                     .parameter => |p| {
                         try parts.append(p.name);
                         try parts.append(": ");
+
                         var data_type = p.schema.?.schema.type orelse "[]const u8"; // Default to string type if not specified
                         if (std.mem.eql(u8, data_type, "string")) {
                             data_type = "[]const u8";
@@ -138,6 +139,7 @@ pub const ApiCodeGenerator = struct {
                         } else if (std.mem.eql(u8, data_type, "object")) {
                             data_type = "std.json.Value"; // or a generated struct if possible
                         }
+
                         try parts.append(data_type); // Unwrap the optional, as it can never be null
                     },
                     .reference => |_| {
@@ -145,6 +147,41 @@ pub const ApiCodeGenerator = struct {
                     },
                 }
             }
+        }
+
+        if (op.requestBody) |request_body| {
+            if (op.parameters) |params| {
+                if (params.len > 0) try parts.append(", ");
+            }
+            try parts.append("requestBody: ");
+            var data_type: []const u8 = "std.json.Value";
+
+            // Try to get application/json content directly using get method
+            // This avoids iterating over the hashmap which causes memory issues
+            if (request_body.request_body.content.count() > 0) {
+                // For now, just check if we can find any content type that might have a schema
+                // We'll improve this later when the memory issues are resolved
+                var content_iterator = request_body.request_body.content.iterator();
+                if (content_iterator.next()) |first_entry| {
+                    const media_type = first_entry.value_ptr.*;
+                    if (media_type.schema) |schema_or_ref| {
+                        switch (schema_or_ref) {
+                            .schema => |schema_ptr| {
+                                if (schema_ptr.type) |schemaName| {
+                                    data_type = schemaName;
+                                }
+                            },
+                            .reference => |ref| {
+                                if (self.extractTypeFromReference(ref.ref)) |type_name| {
+                                    data_type = type_name;
+                                }
+                            },
+                        }
+                    }
+                }
+            }
+
+            try parts.append(data_type);
         }
 
         try parts.append(") !void {\n");
@@ -156,6 +193,17 @@ pub const ApiCodeGenerator = struct {
         try parts.append("}\n\n");
 
         return try std.mem.join(self.allocator, "", parts.items);
+    }
+
+    fn extractTypeFromReference(self: *ApiCodeGenerator, ref: []const u8) ?[]const u8 {
+        _ = self;
+        // Extract type name from reference like "#/components/schemas/Pet" -> "Pet"
+        if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash_index| {
+            if (last_slash_index + 1 < ref.len) {
+                return ref[last_slash_index + 1 ..];
+            }
+        }
+        return null;
     }
 };
 
