@@ -3,7 +3,7 @@ const models = @import("models.zig");
 
 const default_output_file: []const u8 = "generated_models.zig";
 
-const Extension = enum{
+const Extension = enum {
     YAML,
     JSON,
 };
@@ -12,9 +12,10 @@ const GeneratorErrors = error{UnsupportedExtension};
 
 pub fn validateExtension(input_file_path: []const u8) !Extension {
     var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const lowercase = std.ascii.lowerString(&buf,input_file_path);
+    const lowercase = std.ascii.lowerString(&buf, input_file_path);
     if (std.mem.endsWith(u8, lowercase, ".yaml") or
-        std.mem.endsWith(u8, lowercase, ".yml")) {
+        std.mem.endsWith(u8, lowercase, ".yml"))
+    {
         return Extension.YAML;
     }
     if (std.mem.endsWith(u8, lowercase, ".json")) {
@@ -37,16 +38,17 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
     const file_contents = try openapi_file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_contents);
 
-    var openapi : models.OpenApiDocument = undefined;
+    var openapi: models.OpenApiDocument = undefined;
 
     switch (extension) {
         .YAML => {
             std.debug.print("YAML support is not yet implemented\n", .{});
             return GeneratorErrors.UnsupportedExtension;
         },
-        .JSON => {openapi = try models.OpenApiDocument.parseFromJson(allocator, file_contents);},
+        .JSON => {
+            openapi = try models.OpenApiDocument.parseFromJson(allocator, file_contents);
+        },
     }
-
 
     defer openapi.deinit(allocator);
 
