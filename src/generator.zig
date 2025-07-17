@@ -82,6 +82,7 @@ pub const ApiCodeGenerator = struct {
         try parts.append("///////////////////////////////////////////\n");
         try parts.append("// Generated Zig API client from OpenAPI\n");
         try parts.append("///////////////////////////////////////////\n\n");
+        try parts.append("const std = @import(\"std\");\n\n");
 
         var path_iterator = document.paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
@@ -89,19 +90,19 @@ pub const ApiCodeGenerator = struct {
             const path_item = entry.value_ptr.*;
 
             if (path_item.get) |op| {
-                try parts.append(try self.generateMethod(op, path, "get"));
+                try parts.append(try self.generateMethod(op, path, "GET"));
             }
 
             if (path_item.post) |op| {
-                try parts.append(try self.generateMethod(op, path, "post"));
+                try parts.append(try self.generateMethod(op, path, "POST"));
             }
 
             if (path_item.put) |op| {
-                try parts.append(try self.generateMethod(op, path, "put"));
+                try parts.append(try self.generateMethod(op, path, "PUT"));
             }
 
             if (path_item.delete) |op| {
-                try parts.append(try self.generateMethod(op, path, "delete"));
+                try parts.append(try self.generateMethod(op, path, "DELETE"));
             }
         }
 
@@ -117,6 +118,7 @@ pub const ApiCodeGenerator = struct {
         try parts.append(op.operationId orelse path);
         try parts.append("(allocator: std.mem.Allocator");
 
+        var parameters = std.ArrayList([]const u8).init(self.allocator);
         if (op.parameters) |params| {
             if (params.len > 0) try parts.append(", ");
             var first = true;
@@ -126,6 +128,7 @@ pub const ApiCodeGenerator = struct {
 
                 switch (param) {
                     .parameter => |p| {
+                        try parameters.append(p.name);
                         try parts.append(p.name);
                         try parts.append(": ");
 
@@ -142,7 +145,7 @@ pub const ApiCodeGenerator = struct {
 
         if (op.requestBody) |request_body| {
             try parts.append(", requestBody: ");
-            var data_type: []const u8 = "std.json.Value";
+            var data_type: []const u8 = "[]const u8"; // Default to string type
 
             // Try to get application/json content directly using get method
             // This avoids iterating over the hashmap which causes memory issues
@@ -156,7 +159,7 @@ pub const ApiCodeGenerator = struct {
                         switch (schema_or_ref) {
                             .schema => |schema_ptr| {
                                 if (schema_ptr.type) |schemaName| {
-                                    data_type = schemaName;
+                                    data_type = try getDataType(schemaName);
                                 }
                             },
                             .reference => |ref| {
@@ -170,16 +173,40 @@ pub const ApiCodeGenerator = struct {
             }
 
             try parts.append(data_type);
+            try parameters.append("requestBody");
         }
 
         try parts.append(") !void {\n");
-        try parts.append("    // Implement ");
-        try parts.append(method);
-        try parts.append(" ");
 
-        // TODO: Implement the actual API call logic here
+        try parts.append("    // Avoid warnings about unused parameters\n");
+        for (parameters.items) |param| {
+            try parts.append("    _ = ");
+            try parts.append(param);
+            try parts.append(";\n");
+        }
+        try parts.append("\n");
 
+        try parts.append("    var client = std.http.Client.init(allocator);\n");
+        try parts.append("    defer client.deinit();\n\n");
+        try parts.append("    const uri = try std.Uri.parse(\"");
         try parts.append(path);
+        try parts.append("\");\n");
+        try parts.append(
+            \\    const buf = try allocator.alloc(u8, 1024 * 8);
+            \\    defer allocator.free(buf);
+        );
+        try parts.append("   var req = try client.open(.");
+        try parts.append(method);
+        try parts.append(", uri, .{\n");
+        try parts.append(
+            \\        .server_header_buffer = buf,
+            \\    });
+            \\    defer req.deinit();
+            \\
+            \\    try req.send();
+            \\    try req.finish();
+            \\    try req.wait();
+        );
         try parts.append("\n");
         try parts.append("}\n\n");
 
