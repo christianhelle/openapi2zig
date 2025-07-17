@@ -160,6 +160,65 @@ Basic usage (planned):
 openapi2zig generate -i api-spec.json -o generated/
 ```
 
+## Example Generated Code
+
+Below is an example of the Zig code generated from an OpenAPI specification.
+
+### Models
+
+```zig
+///////////////////////////////////////////
+// Generated Zig structures from OpenAPI
+///////////////////////////////////////////
+
+pub const Order = struct {
+    status: ?[]const u8 = null,
+    petId: ?i64 = null,
+    complete: ?bool = null,
+    id: ?i64 = null,
+    quantity: ?i64 = null,
+    shipDate: ?[]const u8 = null,
+};
+```
+
+### API Client
+
+```zig
+///////////////////////////////////////////
+// Generated Zig API client from OpenAPI
+///////////////////////////////////////////
+
+const std = @import("std");
+
+/////////////////
+// Summary:
+// Place an order for a pet
+//
+// Description:
+// Place a new order in the store
+//
+pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
+    // Avoid warnings about unused parameters
+    _ = requestBody;
+
+    var client = std.http.Client.init(allocator);
+    defer client.deinit();
+
+    const uri = try std.Uri.parse("/store/order");
+    const buf = try allocator.alloc(u8, 1024 * 8);
+    defer allocator.free(buf);   var req = try client.open(.POST, uri, .{
+        .server_header_buffer = buf,
+    });
+    defer req.deinit();
+
+    // TODO: Set request body and headers
+
+    try req.send();
+    try req.finish();
+    try req.wait();
+}
+```
+
 ## Contributing
 
 1. Fork the repository
