@@ -130,9 +130,10 @@ pub const ApiCodeGenerator = struct {
         }
         try parts.append("pub fn ");
         try parts.append(op.operationId orelse path);
-        try parts.append("(");
+        try parts.append("(allocator: std.mem.Allocator");
 
         if (op.parameters) |params| {
+            if (params.len > 0) try parts.append(", ");
             var first = true;
             for (params) |param| {
                 if (!first) try parts.append(", ");
@@ -193,6 +194,9 @@ pub const ApiCodeGenerator = struct {
         try parts.append("    // Implement ");
         try parts.append(method);
         try parts.append(" ");
+
+        // TODO: Implement the actual API call logic here
+
         try parts.append(path);
         try parts.append("\n");
         try parts.append("}\n\n");
