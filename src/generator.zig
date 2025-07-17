@@ -194,8 +194,9 @@ pub const ApiCodeGenerator = struct {
         try parts.append(
             \\    const buf = try allocator.alloc(u8, 1024 * 8);
             \\    defer allocator.free(buf);
+            \\
         );
-        try parts.append("   var req = try client.open(.");
+        try parts.append("    var req = try client.open(.");
         try parts.append(method);
         try parts.append(", uri, .{\n");
         try parts.append(
@@ -206,8 +207,8 @@ pub const ApiCodeGenerator = struct {
             \\    try req.send();
             \\    try req.finish();
             \\    try req.wait();
+            \\
         );
-        try parts.append("\n");
         try parts.append("}\n\n");
 
         return try std.mem.join(self.allocator, "", parts.items);
