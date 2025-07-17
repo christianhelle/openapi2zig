@@ -112,22 +112,7 @@ pub const ApiCodeGenerator = struct {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
 
-        if (op.summary != null or op.description != null) {
-            try parts.append("/////////////////");
-            try parts.append("\n");
-        }
-        if (op.summary) |summary| {
-            try parts.append("// Summary:\n");
-            try parts.append("// ");
-            try parts.append(summary);
-            try parts.append("\n//\n");
-        }
-        if (op.description) |description| {
-            try parts.append("// Description:\n");
-            try parts.append("// ");
-            try parts.append(description);
-            try parts.append("\n//\n");
-        }
+        try parts.append(try generateMethodDocs(self.allocator, op));
         try parts.append("pub fn ");
         try parts.append(op.operationId orelse path);
         try parts.append("(allocator: std.mem.Allocator");
@@ -210,6 +195,30 @@ pub const ApiCodeGenerator = struct {
             }
         }
         return null;
+    }
+
+    fn generateMethodDocs(allocator: std.mem.Allocator, op: models.Operation) ![]const u8 {
+        var parts = std.ArrayList([]const u8).init(allocator);
+        defer parts.deinit();
+
+        if (op.summary != null or op.description != null) {
+            try parts.append("/////////////////");
+            try parts.append("\n");
+        }
+        if (op.summary) |summary| {
+            try parts.append("// Summary:\n");
+            try parts.append("// ");
+            try parts.append(summary);
+            try parts.append("\n//\n");
+        }
+        if (op.description) |description| {
+            try parts.append("// Description:\n");
+            try parts.append("// ");
+            try parts.append(description);
+            try parts.append("\n//\n");
+        }
+
+        return try std.mem.join(allocator, "", parts.items);
     }
 };
 
