@@ -233,16 +233,20 @@ pub const ApiCodeGenerator = struct {
             try parts.append("\n");
         }
         if (op.summary) |summary| {
-            try parts.append("// Summary:\n");
-            try parts.append("// ");
-            try parts.append(summary);
-            try parts.append("\n//\n");
+            if (summary.len > 0) {
+                try parts.append("// Summary:\n");
+                try parts.append("// ");
+                try parts.append(summary);
+                try parts.append("\n//\n");
+            }
         }
         if (op.description) |description| {
-            try parts.append("// Description:\n");
-            try parts.append("// ");
-            try parts.append(description);
-            try parts.append("\n//\n");
+            if (description.len > 0) {
+                try parts.append("// Description:\n");
+                try parts.append("// ");
+                try parts.append(description);
+                try parts.append("\n//\n");
+            }
         }
 
         return try std.mem.join(allocator, "", parts.items);
