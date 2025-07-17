@@ -156,10 +156,7 @@ pub const ApiCodeGenerator = struct {
         }
 
         if (op.requestBody) |request_body| {
-            if (op.parameters) |params| {
-                if (params.len > 0) try parts.append(", ");
-            }
-            try parts.append("requestBody: ");
+            try parts.append(", requestBody: ");
             var data_type: []const u8 = "std.json.Value";
 
             // Try to get application/json content directly using get method
