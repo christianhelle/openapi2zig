@@ -216,8 +216,18 @@ pub const ApiCodeGenerator = struct {
 
         try parts.append(") !void {\n");
 
+        const method_body = try generateImplementation(self.allocator, path, method, parameters.items);
+        try parts.append(method_body);
+
+        try parts.append("}\n\n");
+
+        return try std.mem.join(self.allocator, "", parts.items);
+    }
+
+    fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, parameters: [][]const u8) ![]const u8 {
+        var parts = std.ArrayList([]const u8).init(allocator);
         try parts.append("    // Avoid warnings about unused parameters\n");
-        for (parameters.items) |param| {
+        for (parameters) |param| {
             try parts.append("    _ = ");
             try parts.append(param);
             try parts.append(";\n");
@@ -247,9 +257,8 @@ pub const ApiCodeGenerator = struct {
             \\    try req.wait();
             \\
         );
-        try parts.append("}\n\n");
 
-        return try std.mem.join(self.allocator, "", parts.items);
+        return try std.mem.join(allocator, "", parts.items);
     }
 
     fn extractTypeFromReference(self: *ApiCodeGenerator, ref: []const u8) ?[]const u8 {
