@@ -65,8 +65,10 @@ Extract the archive and add the binary to your PATH.
 
 ### Option 3: Install from Snap Store
 
+Install the latest build for Linux from the Snap Store:
+
 ```bash
-sudo snap install openapi2zig
+sudo snap install --edge openapi2zig
 ```
 
 ### Option 4: Build from Source
