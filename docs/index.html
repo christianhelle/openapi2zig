@@ -23,6 +23,9 @@
                     <a href="#usage" class="nav-link">Usage</a>
                 </li>
                 <li class="nav-item">
+                    <a href="#example-generated-code" class="nav-link">Examples</a>
+                </li>
+                <li class="nav-item">
                     <a href="#contributing" class="nav-link">Contributing</a>
                 </li>
                 <li class="nav-item">
@@ -186,6 +189,117 @@ zig build</code></pre>
             </div>
         </section>
 
+        <section id="example-generated-code" class="usage">
+            <div class="container">
+                <h2>Example Generated Code</h2>
+                <p>Below is an example of the Zig code generated from an OpenAPI specification.</p>
+                
+                <h3>Models</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-title">Zig</span>
+                        <button class="copy-btn" data-code="///////////////////////////////////////////
+// Generated Zig structures from OpenAPI
+///////////////////////////////////////////
+
+pub const Order = struct {
+    status: ?[]const u8 = null,
+    petId: ?i64 = null,
+    complete: ?bool = null,
+    id: ?i64 = null,
+    quantity: ?i64 = null,
+    shipDate: ?[]const u8 = null,
+};">📋</button>
+                    </div>
+                    <pre><code>///////////////////////////////////////////
+// Generated Zig structures from OpenAPI
+///////////////////////////////////////////
+
+pub const Order = struct {
+    status: ?[]const u8 = null,
+    petId: ?i64 = null,
+    complete: ?bool = null,
+    id: ?i64 = null,
+    quantity: ?i64 = null,
+    shipDate: ?[]const u8 = null,
+};</code></pre>
+                </div>
+
+                <h3>API Client</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-title">Zig</span>
+                        <button class="copy-btn" data-code="///////////////////////////////////////////
+// Generated Zig API client from OpenAPI
+///////////////////////////////////////////
+
+const std = @import('''std''');
+
+/////////////////
+// Summary:
+// Place an order for a pet
+//
+// Description:
+// Place a new order in the store
+//
+pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
+    // Avoid warnings about unused parameters
+    _ = requestBody;
+
+    var client = std.http.Client.init(allocator);
+    defer client.deinit();
+
+    const uri = try std.Uri.parse('''/store/order''');
+    const buf = try allocator.alloc(u8, 1024 * 8);
+    defer allocator.free(buf);   var req = try client.open(.POST, uri, .{
+        .server_header_buffer = buf,
+    });
+    defer req.deinit();
+
+    // TODO: Set request body and headers
+
+    try req.send();
+    try req.finish();
+    try req.wait();
+}">📋</button>
+                    </div>
+                    <pre><code>///////////////////////////////////////////
+// Generated Zig API client from OpenAPI
+///////////////////////////////////////////
+
+const std = @import("std");
+
+/////////////////
+// Summary:
+// Place an order for a pet
+//
+// Description:
+// Place a new order in the store
+//
+pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
+    // Avoid warnings about unused parameters
+    _ = requestBody;
+
+    var client = std.http.Client.init(allocator);
+    defer client.deinit();
+
+    const uri = try std.Uri.parse("/store/order");
+    const buf = try allocator.alloc(u8, 1024 * 8);
+    defer allocator.free(buf);   var req = try client.open(.POST, uri, .{
+        .server_header_buffer = buf,
+    });
+    defer req.deinit();
+
+    // TODO: Set request body and headers
+
+    try req.send();
+    try req.finish();
+    try req.wait();
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
         <section id="contributing" class="contributing">
             <div class="container">
                 <h2>Contributing</h2>
@@ -258,6 +372,7 @@ zig fmt --check build.zig</code></pre>
                     <ul>
                         <li><a href="#installation">Installation</a></li>
                         <li><a href="#usage">Usage</a></li>
+                        <li><a href="#example-generated-code">Examples</a></li>
                         <li><a href="#contributing">Contributing</a></li>
                         <li><a href="https://github.com/christianhelle/openapi2zig">GitHub Repository</a></li>
                         <li><a href="https://github.com/christianhelle/openapi2zig/releases">Releases</a></li>
