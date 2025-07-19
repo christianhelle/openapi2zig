@@ -80,6 +80,8 @@ pub fn build(b: *std.Build) void {
         "openapi/v3.0/petstore.json",
         "-o",
         "test/generated.zig",
+        "--base-url",
+        "https://petstore.swagger.io/api/v3",
     });
     const run_generate_step = b.step("run-generate", "Run the app with generate command");
     run_generate_step.dependOn(&run_generate_cmd.step);
