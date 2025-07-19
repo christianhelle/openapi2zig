@@ -59,7 +59,7 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
     const generated_models = try model_generator.generate(openapi);
     defer allocator.free(generated_models);
 
-    var api_generator = ApiCodeGenerator.init(allocator);
+    var api_generator = ApiCodeGenerator.init(allocator, args);
     defer api_generator.deinit();
 
     const generated_api = try api_generator.generate(openapi);
@@ -103,10 +103,12 @@ fn getDataType(field_schema: []const u8) ![]const u8 {
 
 pub const ApiCodeGenerator = struct {
     allocator: std.mem.Allocator,
+    args: cli.CliArgs,
 
-    pub fn init(allocator: std.mem.Allocator) ApiCodeGenerator {
+    pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) ApiCodeGenerator {
         return ApiCodeGenerator{
             .allocator = allocator,
+            .args = args,
         };
     }
 
@@ -125,8 +127,9 @@ pub const ApiCodeGenerator = struct {
 
         var path_iterator = document.paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
-            const path = entry.key_ptr.*;
+            const key = entry.key_ptr.*;
             const path_item = entry.value_ptr.*;
+            const path = if (self.args.base_url) |base_url| try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ base_url, key }) else key;
 
             if (path_item.get) |op| {
                 try parts.append(try self.generateMethod(op, path, "GET"));
