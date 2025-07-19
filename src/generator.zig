@@ -130,6 +130,7 @@ pub const ApiCodeGenerator = struct {
             const key = entry.key_ptr.*;
             const path_item = entry.value_ptr.*;
             const path = if (self.args.base_url) |base_url| try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ base_url, key }) else key;
+            defer self.allocator.free(path);
 
             if (path_item.get) |op| {
                 try parts.append(try self.generateMethod(op, path, "GET"));
