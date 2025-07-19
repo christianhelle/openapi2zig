@@ -160,34 +160,39 @@ zig build</code></pre>
                 </div>
                 
                 <div class="usage-example">
-                    <h3>Basic Usage (Planned)</h3>
+                    <h3>Command-line Interface</h3>
                     <div class="code-block">
                         <div class="code-header">
-                            <span class="code-title">Command Line</span>
-                            <button class="copy-btn" data-code="openapi2zig generate -i api-spec.json -o test/generated_models.zig --base-url https://my-api.com">📋</button>
+                            <span class="code-title">Shell</span>
+                            <button class="copy-btn" data-code="openapi2zig generate [options]">📋</button>
                         </div>
-                        <pre><code>openapi2zig generate -i api-spec.json -o test/generated_models.zig/ --base-url https://my-api.com</code></pre>
+                        <pre><code>openapi2zig generate [options]</code></pre>
                     </div>
                 </div>
 
-                <h3>Example Output</h3>
-                
-                <p>Running the following command:</p>
-                
-                <div class="code-block">
-                    <div class="code-header">
-                        <span class="code-title">Example</span>
-                        <button class="copy-btn" data-code="openapi2zig generate -i api-spec.json -o test/generated_models.zig">📋</button>
-                    </div>
-                    <pre><code>openapi2zig generate -i api-spec.json -o test/generated_models.zig</code></pre>
-                </div>
-                
-                <p>Will generate the following Zig client files:</p>
-                
-                <div class="code-block">
-                    <pre><code>-rw-r--r-- 1 user 197121  1243 Dec 10 10:44 generated_models.zig
--rw-r--r-- 1 user 197121   423 Dec 10 10:44 main.zig</code></pre>
-                </div>
+                <h3>Options</h3>
+                <table class="usage-table">
+                    <thead>
+                        <tr>
+                            <th>Flag</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>-i, --input &lt;path&gt;</code></td>
+                            <td>Path to the OpenAPI Specification file (JSON or YAML).</td>
+                        </tr>
+                        <tr>
+                            <td><code>-o, --output &lt;path&gt;</code></td>
+                            <td>Path to the output directory for the generated Zig code (default: current directory).</td>
+                        </tr>
+                        <tr>
+                            <td><code>--base-url &lt;url&gt;</code></td>
+                            <td>Base URL for the API client (default: server URL from OpenAPI Specification).</td>
+                        </tr>
+                    </tbody>
+                </table>
 
                 <h3>Current Capabilities</h3>
                 <ul>

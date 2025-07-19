@@ -155,12 +155,17 @@ zig build -Dtarget=aarch64-linux
 
 > **Note**: The CLI interface is currently under development. The tool currently includes OpenAPI parsing functionality and will be extended with code generation capabilities.
 
-Basic usage (planned):
-
 ```bash
-# Generate Zig client code from OpenAPI specification
-openapi2zig generate -i api-spec.json -o generated/ --base-url https://my-api.com
+openapi2zig generate [options]
 ```
+
+### Options
+
+| Flag | Description |
+| :--- | :--- |
+| `-i`, `--input <path>` | Path to the OpenAPI Specification file (JSON or YAML). |
+| `-o`, `--output <path>`| Path to the output directory for the generated Zig code (default: current directory). |
+| `--base-url <url>` | Base URL for the API client (default: server URL from OpenAPI Specification). |
 
 ## Example Generated Code
 
