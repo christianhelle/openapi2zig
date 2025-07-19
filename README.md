@@ -217,7 +217,7 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     var client = std.http.Client.init(allocator);
     defer client.deinit();
 
-    const uri = try std.Uri.parse("/store/order");
+    const uri = try std.Uri.parse("https://petstore.swagger.io/api/v3/store/order");
     const buf = try allocator.alloc(u8, 1024 * 8);
     defer allocator.free(buf);
 
@@ -252,7 +252,7 @@ pub fn getPetById(allocator: std.mem.Allocator, petId: i64) !void {
     var client = std.http.Client.init(allocator);
     defer client.deinit();
 
-    const uri_str = try std.mem.allocPrint("/pet/{s}", .{petId});
+    const uri = try std.Uri.parse("https://petstore.swagger.io/api/v3/pet");
     const uri = try std.Uri.parse(uri_str);
     const buf = try allocator.alloc(u8, 1024 * 8);
     defer allocator.free(buf);
