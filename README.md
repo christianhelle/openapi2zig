@@ -179,6 +179,15 @@ pub const Order = struct {
     quantity: ?i64 = null,
     shipDate: ?[]const u8 = null,
 };
+
+pub const Pet = struct {
+    status: ?[]const u8 = null,
+    tags: ?[]const u8 = null,
+    category: ?[]const u8 = null,
+    id: ?i64 = null,
+    name: []const u8,
+    photoUrls: []const u8,
+};
 ```
 
 ### API Client
@@ -221,6 +230,32 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     req.transfer_encoding = .{ .content_length = body.len };
     try req.writeAll(body);
 
+    try req.finish();
+    try req.wait();
+}
+
+/////////////////
+// Summary:
+// Find pet by ID
+//
+// Description:
+// Returns a single pet
+//
+pub fn getPetById(allocator: std.mem.Allocator, petId: i64) !void {
+    var client = std.http.Client.init(allocator);
+    defer client.deinit();
+
+    const uri_str = try std.mem.allocPrint("/pet/{s}", .{petId});
+    const uri = try std.Uri.parse(uri_str);
+    const buf = try allocator.alloc(u8, 1024 * 8);
+    defer allocator.free(buf);
+
+    var req = try client.open(.GET, uri, .{
+        .server_header_buffer = buf,
+    });
+    defer req.deinit();
+
+    try req.send();
     try req.finish();
     try req.wait();
 }
