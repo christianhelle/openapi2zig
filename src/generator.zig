@@ -127,9 +127,9 @@ pub const ApiCodeGenerator = struct {
 
         var path_iterator = document.paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
-            const key = entry.key_ptr.*;
+            const path_key = entry.key_ptr.*;
             const path_item = entry.value_ptr.*;
-            const path = if (self.args.base_url) |base_url| try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ base_url, key }) else key;
+            const path = if (self.args.base_url) |base_url| try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ base_url, path_key }) else path_key;
             defer self.allocator.free(path);
 
             if (path_item.get) |op| {
