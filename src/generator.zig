@@ -1,7 +1,7 @@
 const std = @import("std");
 const models = @import("models.zig");
 
-const default_output_file: []const u8 = "generated_models.zig";
+const default_output_file: []const u8 = "generated.zig";
 
 const Extension = enum {
     YAML,

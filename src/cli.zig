@@ -83,8 +83,8 @@ fn printUsage() void {
         \\
         \\ Options:
         \\   -i, --input <path>      Path to the OpenAPI Specification file (JSON or YAML)
-        \\   -o, --output <path>     Path to the output directory for the generated Zig code
-        \\                           (default: current directory)
+        \\   -o, --output <path>     Path to the output file path for the generated Zig code
+        \\                           (default: generated.zig)
         \\   --base-url <url>        Base URL for the API client.
         \\                           (default: server URL from OpenAPI Specification)
         \\
