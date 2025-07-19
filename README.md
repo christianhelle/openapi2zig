@@ -159,7 +159,7 @@ Basic usage (planned):
 
 ```bash
 # Generate Zig client code from OpenAPI specification
-openapi2zig generate -i api-spec.json -o generated/
+openapi2zig generate -i api-spec.json -o generated/ --base-url https://my-api.com
 ```
 
 ## Example Generated Code
