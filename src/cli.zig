@@ -77,5 +77,17 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
 }
 
 fn printUsage() void {
-    std.debug.print("Usage: openapi2zig generate -i <path_to_openapi_json> -o <output_path (optional)> --base-url <base_url (optional)>\n\n", .{});
+    std.debug.print(
+        \\
+        \\ Usage: openapi2zig generate [options]
+        \\
+        \\ Options:
+        \\   -i, --input <path>      Path to the OpenAPI Specification file (JSON or YAML)
+        \\   -o, --output <path>     Path to the output directory for the generated Zig code
+        \\                           (default: current directory)
+        \\   --base-url <url>        Base URL for the API client.
+        \\                           (default: server URL from OpenAPI Specification)
+        \\
+        \\
+    , .{});
 }
