@@ -79,7 +79,7 @@ pub fn build(b: *std.Build) void {
         "-i",
         "openapi/v3.0/petstore.json",
         "-o",
-        "test/generated_models.zig",
+        "test/generated.zig",
     });
     const run_generate_step = b.step("run-generate", "Run the app with generate command");
     run_generate_step.dependOn(&run_generate_cmd.step);
