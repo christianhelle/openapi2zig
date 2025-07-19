@@ -200,22 +200,29 @@ const std = @import("std");
 // Place a new order in the store
 //
 pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
-    // Avoid warnings about unused parameters
-    _ = requestBody;
-
     var client = std.http.Client.init(allocator);
     defer client.deinit();
 
     const uri = try std.Uri.parse("/store/order");
     const buf = try allocator.alloc(u8, 1024 * 8);
-    defer allocator.free(buf);   var req = try client.open(.POST, uri, .{
+    defer allocator.free(buf);
+
+    var req = try client.open(.POST, uri, .{
         .server_header_buffer = buf,
     });
     defer req.deinit();
 
-    // TODO: Set request body and headers
-
     try req.send();
+
+    var str = std.ArrayList(u8).init(allocator());
+    defer str.deinit();
+
+    try std.json.stringify(requestBody, .{}, str.writer());
+    const body = try std.mem.join(allocator, "", str.items);
+
+    req.transfer_encoding = .{ .content_length = body.len };
+    try req.writeAll(body);
+
     try req.finish();
     try req.wait();
 }
