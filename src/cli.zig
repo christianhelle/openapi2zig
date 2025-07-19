@@ -33,7 +33,7 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
-        if (std.mem.eql(u8, arg, "-i")) {
+        if (std.mem.eql(u8, arg, "-i") or std.mem.eql(u8, arg, "--input")) {
             i += 1;
             if (i >= args.len) {
                 std.process.argsFree(allocator, args[0..]);
@@ -41,7 +41,7 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
                 return error.InvalidArguments;
             }
             input_path = args[i];
-        } else if (std.mem.eql(u8, arg, "-o")) {
+        } else if (std.mem.eql(u8, arg, "-o") or std.mem.eql(u8, arg, "--output")) {
             i += 1;
             if (i >= args.len) {
                 std.process.argsFree(allocator, args[0..]);
