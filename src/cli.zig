@@ -3,6 +3,7 @@ const std = @import("std");
 pub const CliArgs = struct {
     input_path: []const u8,
     output_path: ?[]const u8 = null,
+    base_url: ?[]const u8 = null,
 };
 
 pub const ParsedArgs = struct {
@@ -27,11 +28,12 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
 
     var input_path: ?[]const u8 = null;
     var output_path: ?[]const u8 = null;
+    var base_url: ?[]const u8 = null;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
-        if (std.mem.eql(u8, arg, "-i")) {
+        if (std.mem.eql(u8, arg, "-i") or std.mem.eql(u8, arg, "--input")) {
             i += 1;
             if (i >= args.len) {
                 std.process.argsFree(allocator, args[0..]);
@@ -39,7 +41,7 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
                 return error.InvalidArguments;
             }
             input_path = args[i];
-        } else if (std.mem.eql(u8, arg, "-o")) {
+        } else if (std.mem.eql(u8, arg, "-o") or std.mem.eql(u8, arg, "--output")) {
             i += 1;
             if (i >= args.len) {
                 std.process.argsFree(allocator, args[0..]);
@@ -47,6 +49,14 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
                 return error.InvalidArguments;
             }
             output_path = args[i];
+        } else if (std.mem.eql(u8, arg, "--base-url")) {
+            i += 1;
+            if (i >= args.len) {
+                std.process.argsFree(allocator, args[0..]);
+                printUsage();
+                return error.InvalidArguments;
+            }
+            base_url = args[i];
         }
     }
 
@@ -60,11 +70,24 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
         .args = CliArgs{
             .input_path = input_path.?,
             .output_path = output_path,
+            .base_url = base_url,
         },
         .raw = args,
     };
 }
 
 fn printUsage() void {
-    std.debug.print("\nUsage: openapi2zig generate -i <path_to_openapi_json> -o <output_path (optional)>\n\n", .{});
+    std.debug.print(
+        \\
+        \\ Usage: openapi2zig generate [options]
+        \\
+        \\ Options:
+        \\   -i, --input <path>      Path to the OpenAPI Specification file (JSON or YAML)
+        \\   -o, --output <path>     Path to the output file path for the generated Zig code
+        \\                           (default: generated.zig)
+        \\   --base-url <url>        Base URL for the API client.
+        \\                           (default: server URL from OpenAPI Specification)
+        \\
+        \\
+    , .{});
 }

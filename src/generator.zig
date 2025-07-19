@@ -1,7 +1,8 @@
 const std = @import("std");
 const models = @import("models.zig");
+const cli = @import("cli.zig");
 
-const default_output_file: []const u8 = "generated_models.zig";
+const default_output_file: []const u8 = "generated.zig";
 
 const Extension = enum {
     YAML,
@@ -26,12 +27,12 @@ pub fn validateExtension(input_file_path: []const u8) !Extension {
     return GeneratorErrors.UnsupportedExtension;
 }
 
-pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, output_file_path: ?[]const u8) !void {
+pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
 
     // Verify extension
-    const extension = try validateExtension(input_file_path);
+    const extension = try validateExtension(args.input_path);
 
-    const openapi_file = try std.fs.cwd().openFile(input_file_path, .{});
+    const openapi_file = try std.fs.cwd().openFile(args.input_path, .{});
     defer openapi_file.close();
 
     try openapi_file.seekBy(0);
@@ -58,7 +59,7 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
     const generated_models = try model_generator.generate(openapi);
     defer allocator.free(generated_models);
 
-    var api_generator = ApiCodeGenerator.init(allocator);
+    var api_generator = ApiCodeGenerator.init(allocator, args);
     defer api_generator.deinit();
 
     const generated_api = try api_generator.generate(openapi);
@@ -66,7 +67,7 @@ pub fn generateCode(allocator: std.mem.Allocator, input_file_path: []const u8, o
 
     const generated_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
 
-    if (output_file_path) |output_path| {
+    if (args.output_path) |output_path| {
         if (std.fs.path.dirname(output_path)) |dir_path| {
             try std.fs.cwd().makePath(dir_path);
         }
@@ -102,10 +103,12 @@ fn getDataType(field_schema: []const u8) ![]const u8 {
 
 pub const ApiCodeGenerator = struct {
     allocator: std.mem.Allocator,
+    args: cli.CliArgs,
 
-    pub fn init(allocator: std.mem.Allocator) ApiCodeGenerator {
+    pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) ApiCodeGenerator {
         return ApiCodeGenerator{
             .allocator = allocator,
+            .args = args,
         };
     }
 
@@ -124,8 +127,9 @@ pub const ApiCodeGenerator = struct {
 
         var path_iterator = document.paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
-            const path = entry.key_ptr.*;
+            const key = entry.key_ptr.*;
             const path_item = entry.value_ptr.*;
+            const path = if (self.args.base_url) |base_url| try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ base_url, key }) else key;
 
             if (path_item.get) |op| {
                 try parts.append(try self.generateMethod(op, path, "GET"));
