@@ -225,6 +225,7 @@ pub const ApiCodeGenerator = struct {
 
     fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, parameters: [][]const u8, has_request_body: bool) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(allocator);
+        defer parts.deinit();
 
         if (parameters.len > 0) {
             try parts.append("    // Avoid warnings about unused parameters\n");
