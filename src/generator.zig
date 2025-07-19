@@ -211,12 +211,11 @@ pub const ApiCodeGenerator = struct {
             }
 
             try parts.append(data_type);
-            try parameters.append("requestBody");
         }
 
         try parts.append(") !void {\n");
 
-        const method_body = try generateImplementation(self.allocator, path, method, parameters.items);
+        const method_body = try generateImplementation(self.allocator, path, method, parameters.items, op.requestBody != null);
         try parts.append(method_body);
 
         try parts.append("}\n\n");
@@ -224,15 +223,18 @@ pub const ApiCodeGenerator = struct {
         return try std.mem.join(self.allocator, "", parts.items);
     }
 
-    fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, parameters: [][]const u8) ![]const u8 {
+    fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, parameters: [][]const u8, has_request_body: bool) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(allocator);
-        try parts.append("    // Avoid warnings about unused parameters\n");
-        for (parameters) |param| {
-            try parts.append("    _ = ");
-            try parts.append(param);
-            try parts.append(";\n");
+
+        if (parameters.len > 0) {
+            try parts.append("    // Avoid warnings about unused parameters\n");
+            for (parameters) |param| {
+                try parts.append("    _ = ");
+                try parts.append(param);
+                try parts.append(";\n");
+            }
+            try parts.append("\n");
         }
-        try parts.append("\n");
 
         try parts.append("    var client = std.http.Client.init(allocator);\n");
         try parts.append("    defer client.deinit();\n\n");
@@ -242,8 +244,8 @@ pub const ApiCodeGenerator = struct {
         try parts.append(
             \\    const buf = try allocator.alloc(u8, 1024 * 8);
             \\    defer allocator.free(buf);
-            \\
         );
+        try parts.append("\n\n");
         try parts.append("    var req = try client.open(.");
         try parts.append(method);
         try parts.append(", uri, .{\n");
@@ -253,6 +255,22 @@ pub const ApiCodeGenerator = struct {
             \\    defer req.deinit();
             \\
             \\    try req.send();
+        );
+
+        // We assume that the request body is a JSON object
+        if (has_request_body) {
+            try parts.append("\n\n");
+            try parts.append("    var str = std.ArrayList(u8).init(allocator());\n");
+            try parts.append("    defer str.deinit();\n\n");
+            try parts.append("    try std.json.stringify(requestBody, .{}, str.writer());\n");
+            try parts.append("    const body = try std.mem.join(allocator, \"\", str.items);\n\n");
+            try parts.append("    req.transfer_encoding = .{ .content_length = body.len };\n");
+            try parts.append("    try req.writeAll(body);\n\n");
+        } else {
+            try parts.append("\n");
+        }
+
+        try parts.append(
             \\    try req.finish();
             \\    try req.wait();
             \\
