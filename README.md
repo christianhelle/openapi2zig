@@ -228,7 +228,7 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
 
     try req.send();
 
-    var str = std.ArrayList(u8).init(allocator());
+    var str = std.ArrayList(u8).init(allocator);
     defer str.deinit();
 
     try std.json.stringify(requestBody, .{}, str.writer());
