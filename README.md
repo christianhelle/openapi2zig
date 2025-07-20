@@ -18,6 +18,7 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 ## Prerequisites
 
 - [Zig](https://ziglang.org/download/) 0.14.1 or later
+- [PowerShell Core](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell) 7.x or later. It is used by the build script to generate `version_info.zig`.
 
 ## Installation
 
