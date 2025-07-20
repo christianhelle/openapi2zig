@@ -66,7 +66,7 @@ BEGIN
             VALUE "FileVersion", "$Version ($gitTag)"
             VALUE "InternalName", "openapi2zig"
             VALUE "OriginalFilename", "openapi2zig.exe"
-            VALUE "ProductName", "HTTP Runner"
+            VALUE "ProductName", "openapi2zig"
             VALUE "ProductVersion", "$Version"
             VALUE "LegalCopyright", "Copyright (C) Christian Helle 2025"
         END
