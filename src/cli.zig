@@ -1,4 +1,5 @@
 const std = @import("std");
+const version_info = @import("version_info.zig");
 
 pub const CliArgs = struct {
     input_path: []const u8,
@@ -80,6 +81,7 @@ fn printUsage() void {
     std.debug.print(
         \\
         \\ Usage: openapi2zig generate [options]
+        \\ Version: {s} ({s})
         \\
         \\ Options:
         \\   -i, --input <path>      Path to the OpenAPI Specification file (JSON or YAML)
@@ -89,5 +91,5 @@ fn printUsage() void {
         \\                           (default: server URL from OpenAPI Specification)
         \\
         \\
-    , .{});
+    , .{version_info.VERSION, version_info.GIT_COMMIT});
 }
