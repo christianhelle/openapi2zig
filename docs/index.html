@@ -226,7 +226,17 @@ pub const Order = struct {
     id: ?i64 = null,
     quantity: ?i64 = null,
     shipDate: ?[]const u8 = null,
-};">📋</button>
+};
+
+pub const Pet = struct {
+    status: ?[]const u8 = null,
+    tags: ?[]const u8 = null,
+    category: ?[]const u8 = null,
+    id: ?i64 = null,
+    name: []const u8,
+    photoUrls: []const u8,
+};
+">📋</button>
                     </div>
                     <pre><code>///////////////////////////////////////////
 // Generated Zig structures from OpenAPI
@@ -239,7 +249,17 @@ pub const Order = struct {
     id: ?i64 = null,
     quantity: ?i64 = null,
     shipDate: ?[]const u8 = null,
-};</code></pre>
+}
+
+pub const Pet = struct {
+    status: ?[]const u8 = null,
+    tags: ?[]const u8 = null,
+    category: ?[]const u8 = null,
+    id: ?i64 = null,
+    name: []const u8,
+    photoUrls: []const u8,
+};
+</code></pre>
                 </div>
 
                 <h3>API Client</h3>
@@ -266,7 +286,7 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     var client = std.http.Client.init(allocator);
     defer client.deinit();
 
-    const uri = try std.Uri.parse('''/store/order''');
+    const uri = try std.Uri.parse('''https://petstore.swagger.io/api/v3/store/order''');
     const buf = try allocator.alloc(u8, 1024 * 8);
     defer allocator.free(buf);   var req = try client.open(.POST, uri, .{
         .server_header_buffer = buf,
@@ -276,6 +296,41 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     // TODO: Set request body and headers
 
     try req.send();
+    try req.finish();
+    try req.wait();
+}
+
+/////////////////
+// Summary:
+// Add a new pet to the store
+//
+// Description:
+// Add a new pet to the store
+//
+pub fn addPet(allocator: std.mem.Allocator, requestBody: Pet) !void {
+    var client = std.http.Client.init(allocator);
+    defer client.deinit();
+
+    const uri = try std.Uri.parse('''https://petstore.swagger.io/api/v3/pet''');
+    const buf = try allocator.alloc(u8, 1024 * 8);
+    defer allocator.free(buf);
+
+    var req = try client.open(.POST, uri, .{
+        .server_header_buffer = buf,
+    });
+    defer req.deinit();
+
+    try req.send();
+
+    var str = std.ArrayList(u8).init(allocator());
+    defer str.deinit();
+
+    try std.json.stringify(requestBody, .{}, str.writer());
+    const body = try std.mem.join(allocator, '''''', str.items);
+
+    req.transfer_encoding = .{ .content_length = body.len };
+    try req.writeAll(body);
+
     try req.finish();
     try req.wait();
 }">📋</button>
@@ -310,6 +365,41 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     // TODO: Set request body and headers
 
     try req.send();
+    try req.finish();
+    try req.wait();
+}
+
+/////////////////
+// Summary:
+// Add a new pet to the store
+//
+// Description:
+// Add a new pet to the store
+//
+pub fn addPet(allocator: std.mem.Allocator, requestBody: Pet) !void {
+    var client = std.http.Client.init(allocator);
+    defer client.deinit();
+
+    const uri = try std.Uri.parse('''https://petstore.swagger.io/api/v3/pet''');
+    const buf = try allocator.alloc(u8, 1024 * 8);
+    defer allocator.free(buf);
+
+    var req = try client.open(.POST, uri, .{
+        .server_header_buffer = buf,
+    });
+    defer req.deinit();
+
+    try req.send();
+
+    var str = std.ArrayList(u8).init(allocator());
+    defer str.deinit();
+
+    try std.json.stringify(requestBody, .{}, str.writer());
+    const body = try std.mem.join(allocator, '''''', str.items);
+
+    req.transfer_encoding = .{ .content_length = body.len };
+    try req.writeAll(body);
+
     try req.finish();
     try req.wait();
 }</code></pre>
