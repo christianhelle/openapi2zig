@@ -29,6 +29,7 @@ parts:
       - xz-utils
     override-build: |
       snap install zig --classic --beta
+      snap install powershell --classic
 
   openapi2zig:
     after: [zig]
