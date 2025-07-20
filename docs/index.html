@@ -1,221 +1,310 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>openapi2zig - OpenAPI to Zig Code Generator</title>
-    <meta name="description" content="A CLI tool written in Zig that generates API client code in Zig from OpenAPI specifications.">
-    <link rel="stylesheet" href="./styles.css">
-    <link rel="icon" type="image/png" href="icon.png">
-</head>
-<body>
+    <meta
+      name="description"
+      content="A CLI tool written in Zig that generates API client code in Zig from OpenAPI specifications."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" type="image/png" href="icon.png" />
+  </head>
+  <body>
     <nav class="navbar">
-        <div class="nav-container">
-            <a href="#home" class="nav-logo">
-                <img src="icon.png" alt="openapi2zig" class="logo-img">
-                <span class="logo-text">openapi2zig</span>
-            </a>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a href="#installation" class="nav-link">Installation</a>
-                </li>
-                <li class="nav-item">
-                    <a href="#usage" class="nav-link">Usage</a>
-                </li>
-                <li class="nav-item">
-                    <a href="#example-generated-code" class="nav-link">Examples</a>
-                </li>
-                <li class="nav-item">
-                    <a href="#contributing" class="nav-link">Contributing</a>
-                </li>
-                <li class="nav-item">
-                    <a href="https://github.com/christianhelle/openapi2zig" class="nav-link" target="_blank">GitHub</a>
-                </li>
-                <li class="nav-item">
-                    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
-                        <span class="theme-toggle-icon">🌙</span>
-                    </button>
-                </li>
-            </ul>
-            <div class="hamburger">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-            </div>
+      <div class="nav-container">
+        <a href="#home" class="nav-logo">
+          <img src="icon.png" alt="openapi2zig" class="logo-img" />
+          <span class="logo-text">openapi2zig</span>
+        </a>
+        <ul class="nav-menu">
+          <li class="nav-item">
+            <a href="#installation" class="nav-link">Installation</a>
+          </li>
+          <li class="nav-item">
+            <a href="#usage" class="nav-link">Usage</a>
+          </li>
+          <li class="nav-item">
+            <a href="#example-generated-code" class="nav-link">Examples</a>
+          </li>
+          <li class="nav-item">
+            <a href="#contributing" class="nav-link">Contributing</a>
+          </li>
+          <li class="nav-item">
+            <a
+              href="https://github.com/christianhelle/openapi2zig"
+              class="nav-link"
+              target="_blank"
+              >GitHub</a
+            >
+          </li>
+          <li class="nav-item">
+            <button
+              class="theme-toggle"
+              id="theme-toggle"
+              aria-label="Toggle dark mode"
+            >
+              <span class="theme-toggle-icon">🌙</span>
+            </button>
+          </li>
+        </ul>
+        <div class="hamburger">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
         </div>
+      </div>
     </nav>
 
     <main>
-        <section id="home" class="hero">
-            <div class="hero-content">
-                <h1>openapi2zig</h1>
-                <p class="hero-subtitle">Generate type-safe Zig client code from OpenAPI specifications</p>
-                <p class="hero-description">
-                    A CLI tool written in Zig that generates API client code in Zig from OpenAPI specifications.
-                    Parse OpenAPI v3.0 specifications and generate idiomatic, type-safe Zig client code for your APIs.
-                </p>
-                <div class="hero-buttons">
-                    <a href="#installation" class="btn btn-primary">Get Started</a>
-                    <a href="https://github.com/christianhelle/openapi2zig" class="btn btn-secondary" target="_blank">View on GitHub</a>
+      <section id="home" class="hero">
+        <div class="hero-content">
+          <h1>openapi2zig</h1>
+          <p class="hero-subtitle">
+            Generate type-safe Zig client code from OpenAPI specifications
+          </p>
+          <p class="hero-description">
+            A CLI tool written in Zig that generates API client code in Zig from
+            OpenAPI specifications. Parse OpenAPI v3.0 specifications and
+            generate idiomatic, type-safe Zig client code for your APIs.
+          </p>
+          <div class="hero-buttons">
+            <a href="#installation" class="btn btn-primary">Get Started</a>
+            <a
+              href="https://github.com/christianhelle/openapi2zig"
+              class="btn btn-secondary"
+              target="_blank"
+              >View on GitHub</a
+            >
+          </div>
+          <div class="badges">
+            <img
+              src="https://github.com/christianhelle/openapi2zig/actions/workflows/ci.yml/badge.svg"
+              alt="CI Status"
+            />
+            <img
+              src="https://img.shields.io/badge/zig-0.14.1-orange.svg"
+              alt="Zig Version"
+            />
+            <img
+              src="https://img.shields.io/badge/License-MIT-yellow.svg"
+              alt="License"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section id="installation" class="installation">
+        <div class="container">
+          <h2>Installation</h2>
+
+          <p>
+            This tool is distributed as a compiled binary for multiple
+            platforms.
+          </p>
+
+          <div class="install-options">
+            <div class="install-option">
+              <h3>Quick Install Script (Recommended)</h3>
+              <p>The easiest way to install openapi2zig on your system.</p>
+
+              <div class="install-tabs">
+                <div class="tab-buttons">
+                  <button class="tab-button active" data-tab="linux-macos">
+                    Linux/macOS
+                  </button>
+                  <button class="tab-button" data-tab="windows">Windows</button>
                 </div>
-                <div class="badges">
-                    <img src="https://github.com/christianhelle/openapi2zig/actions/workflows/ci.yml/badge.svg" alt="CI Status">
-                    <img src="https://img.shields.io/badge/zig-0.14.1-orange.svg" alt="Zig Version">
-                    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
+
+                <div class="tab-content">
+                  <div id="linux-macos" class="tab-pane active">
+                    <div class="code-block">
+                      <div class="code-header">
+                        <span class="code-title">Bash</span>
+                        <button
+                          class="copy-btn"
+                          data-code="curl -fsSL https://christianhelle.com/openapi2zig/install | bash"
+                        >
+                          📋
+                        </button>
+                      </div>
+                      <pre><code>curl -fsSL https://christianhelle.com/openapi2zig/install | bash</code></pre>
+                    </div>
+                  </div>
+                  <div id="windows" class="tab-pane">
+                    <div class="code-block">
+                      <div class="code-header">
+                        <span class="code-title">PowerShell</span>
+                        <button
+                          class="copy-btn"
+                          data-code="irm https://christianhelle.com/openapi2zig/install.ps1 | iex"
+                        >
+                          📋
+                        </button>
+                      </div>
+                      <pre><code>irm https://christianhelle.com/openapi2zig/install.ps1 | iex</code></pre>
+                    </div>
+                  </div>
                 </div>
+              </div>
             </div>
-        </section>
 
-        <section id="installation" class="installation">
-            <div class="container">
-                <h2>Installation</h2>
-                
-                <p>This tool is distributed as a compiled binary for multiple platforms.</p>
-                
-                <div class="install-options">
-                    <div class="install-option">
-                        <h3>Quick Install Script (Recommended)</h3>
-                        <p>The easiest way to install openapi2zig on your system.</p>
-                        
-                        <div class="install-tabs">
-                            <div class="tab-buttons">
-                                <button class="tab-button active" data-tab="linux-macos">Linux/macOS</button>
-                                <button class="tab-button" data-tab="windows">Windows</button>
-                            </div>
-                            
-                            <div class="tab-content">
-                                <div id="linux-macos" class="tab-pane active">
-                                    <div class="code-block">
-                                        <div class="code-header">
-                                            <span class="code-title">Bash</span>
-                                            <button class="copy-btn" data-code="curl -fsSL https://christianhelle.com/openapi2zig/install | bash">📋</button>
-                                        </div>
-                                        <pre><code>curl -fsSL https://christianhelle.com/openapi2zig/install | bash</code></pre>
-                                    </div>
-                                </div>
-                                <div id="windows" class="tab-pane">
-                                    <div class="code-block">
-                                        <div class="code-header">
-                                            <span class="code-title">PowerShell</span>
-                                            <button class="copy-btn" data-code="irm https://christianhelle.com/openapi2zig/install.ps1 | iex">📋</button>
-                                        </div>
-                                        <pre><code>irm https://christianhelle.com/openapi2zig/install.ps1 | iex</code></pre>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="install-option">
+              <h3>Manual Download</h3>
+              <p>Download the latest release for your platform:</p>
+              <ul>
+                <li>
+                  <strong>Linux x86_64:</strong>
+                  <code>openapi2zig-linux-x86_64.tar.gz</code>
+                </li>
+                <li>
+                  <strong>macOS x86_64:</strong>
+                  <code>openapi2zig-macos-x86_64.tar.gz</code>
+                </li>
+                <li>
+                  <strong>macOS ARM64:</strong>
+                  <code>openapi2zig-macos-aarch64.tar.gz</code>
+                </li>
+                <li>
+                  <strong>Windows x86_64:</strong>
+                  <code>openapi2zig-windows-x86_64.zip</code>
+                </li>
+              </ul>
+              <a
+                href="https://github.com/christianhelle/openapi2zig/releases/latest"
+                class="btn btn-outline"
+                target="_blank"
+              >
+                Download Latest Release
+              </a>
+            </div>
 
-                    <div class="install-option">
-                        <h3>Manual Download</h3>
-                        <p>Download the latest release for your platform:</p>
-                        <ul>
-                            <li><strong>Linux x86_64:</strong> <code>openapi2zig-linux-x86_64.tar.gz</code></li>
-                            <li><strong>macOS x86_64:</strong> <code>openapi2zig-macos-x86_64.tar.gz</code></li>
-                            <li><strong>macOS ARM64:</strong> <code>openapi2zig-macos-aarch64.tar.gz</code></li>
-                            <li><strong>Windows x86_64:</strong> <code>openapi2zig-windows-x86_64.zip</code></li>
-                        </ul>
-                        <a href="https://github.com/christianhelle/openapi2zig/releases/latest" class="btn btn-outline" target="_blank">
-                            Download Latest Release
-                        </a>
-                    </div>
+            <div class="install-option">
+              <h3>Install from Snap Store</h3>
+              <p>Install the latest build for Linux from the Snap Store:</p>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-title">Bash</span>
+                  <button
+                    class="copy-btn"
+                    data-code="snap install --edge openapi2zig"
+                  >
+                    📋
+                  </button>
+                </div>
+                <pre><code>snap install --edge openapi2zig</code></pre>
+              </div>
+            </div>
 
-                    <div class="install-option">
-                        <h3>Install from Snap Store</h3>
-                        <p>Install the latest build for Linux from the Snap Store:</p>
-                        <div class="code-block">
-                            <div class="code-header">
-                                <span class="code-title">Bash</span>
-                                <button class="copy-btn" data-code="sudo snap install --edge openapi2zig">📋</button>
-                            </div>
-                            <pre><code>sudo snap install --edge openapi2zig</code></pre>
-                        </div>
-                    </div>
-
-                    <div class="install-option">
-                        <h3>Build from Source</h3>
-                        <p>For developers who want to build from source:</p>
-                        <div class="code-block">
-                            <div class="code-header">
-                                <span class="code-title">Build Commands</span>
-                                <button class="copy-btn" data-code="git clone https://github.com/christianhelle/openapi2zig.git
+            <div class="install-option">
+              <h3>Build from Source</h3>
+              <p>For developers who want to build from source:</p>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-title">Build Commands</span>
+                  <button
+                    class="copy-btn"
+                    data-code="git clone https://github.com/christianhelle/openapi2zig.git
 cd openapi2zig
-zig build">📋</button>
-                            </div>
-                            <pre><code>git clone https://github.com/christianhelle/openapi2zig.git
+zig build"
+                  >
+                    📋
+                  </button>
+                </div>
+                <pre><code>git clone https://github.com/christianhelle/openapi2zig.git
 cd openapi2zig
 zig build</code></pre>
-                        </div>
-                    </div>
-                </div>
+              </div>
             </div>
-        </section>
+          </div>
+        </div>
+      </section>
 
-        <section id="usage" class="usage">
-            <div class="container">
-                <h2>Usage</h2>
-                
-                <div class="status-note">
-                    <strong>Note:</strong> The CLI interface is currently under development. The tool currently includes OpenAPI parsing functionality and will be extended with code generation capabilities.
-                </div>
-                
-                <div class="usage-example">
-                    <h3>Command-line Interface</h3>
-                    <div class="code-block">
-                        <div class="code-header">
-                            <span class="code-title">Shell</span>
-                            <button class="copy-btn" data-code="openapi2zig generate [options]">📋</button>
-                        </div>
-                        <pre><code>openapi2zig generate [options]</code></pre>
-                    </div>
-                </div>
+      <section id="usage" class="usage">
+        <div class="container">
+          <h2>Usage</h2>
 
-                <h3>Options</h3>
-                <table class="usage-table">
-                    <thead>
-                        <tr>
-                            <th>Flag</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>-i, --input &lt;path&gt;</code></td>
-                            <td>Path to the OpenAPI Specification file (JSON or YAML).</td>
-                        </tr>
-                        <tr>
-                            <td><code>-o, --output &lt;path&gt;</code></td>
-                            <td>Path to the output directory for the generated Zig code (default: current directory).</td>
-                        </tr>
-                        <tr>
-                            <td><code>--base-url &lt;url&gt;</code></td>
-                            <td>Base URL for the API client (default: server URL from OpenAPI Specification).</td>
-                        </tr>
-                    </tbody>
-                </table>
+          <div class="status-note">
+            <strong>Note:</strong> The CLI interface is currently under
+            development. The tool currently includes OpenAPI parsing
+            functionality and will be extended with code generation
+            capabilities.
+          </div>
 
-                <h3>Current Capabilities</h3>
-                <ul>
-                    <li>✅ OpenAPI v3.0 specification parsing</li>
-                    <li>✅ Basic data model structures for OpenAPI components</li>
-                    <li>✅ Comprehensive test suite for parsing functionality</li>
-                    <li>🚧 CLI interface for code generation</li>
-                    <li>🚧 Zig client code generation</li>
-                    <li>🚧 Support for authentication and complex schemas</li>
-                </ul>
+          <div class="usage-example">
+            <h3>Command-line Interface</h3>
+            <div class="code-block">
+              <div class="code-header">
+                <span class="code-title">Shell</span>
+                <button
+                  class="copy-btn"
+                  data-code="openapi2zig generate [options]"
+                >
+                  📋
+                </button>
+              </div>
+              <pre><code>openapi2zig generate [options]</code></pre>
             </div>
-        </section>
+          </div>
 
-        <section id="example-generated-code" class="usage">
-            <div class="container">
-                <h2>Example Generated Code</h2>
-                <p>Below is an example of the Zig code generated from an OpenAPI specification.</p>
-                
-                <h3>Models</h3>
-                <div class="code-block">
-                    <div class="code-header">
-                        <span class="code-title">Zig</span>
-                        <button class="copy-btn" data-code="///////////////////////////////////////////
+          <h3>Options</h3>
+          <table class="usage-table">
+            <thead>
+              <tr>
+                <th>Flag</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>-i, --input &lt;path&gt;</code></td>
+                <td>Path to the OpenAPI Specification file (JSON or YAML).</td>
+              </tr>
+              <tr>
+                <td><code>-o, --output &lt;path&gt;</code></td>
+                <td>
+                  Path to the output directory for the generated Zig code
+                  (default: current directory).
+                </td>
+              </tr>
+              <tr>
+                <td><code>--base-url &lt;url&gt;</code></td>
+                <td>
+                  Base URL for the API client (default: server URL from OpenAPI
+                  Specification).
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Current Capabilities</h3>
+          <ul>
+            <li>✅ OpenAPI v3.0 specification parsing</li>
+            <li>✅ Basic data model structures for OpenAPI components</li>
+            <li>✅ Comprehensive test suite for parsing functionality</li>
+            <li>🚧 CLI interface for code generation</li>
+            <li>🚧 Zig client code generation</li>
+            <li>🚧 Support for authentication and complex schemas</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="example-generated-code" class="usage">
+        <div class="container">
+          <h2>Example Generated Code</h2>
+          <p>
+            Below is an example of the Zig code generated from an OpenAPI
+            specification.
+          </p>
+
+          <h3>Models</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-title">Zig</span>
+              <button
+                class="copy-btn"
+                data-code="///////////////////////////////////////////
 // Generated Zig structures from OpenAPI
 ///////////////////////////////////////////
 
@@ -226,9 +315,22 @@ pub const Order = struct {
     id: ?i64 = null,
     quantity: ?i64 = null,
     shipDate: ?[]const u8 = null,
-};">📋</button>
-                    </div>
-                    <pre><code>///////////////////////////////////////////
+};
+
+pub const Pet = struct {
+    status: ?[]const u8 = null,
+    tags: ?[]const u8 = null,
+    category: ?[]const u8 = null,
+    id: ?i64 = null,
+    name: []const u8,
+    photoUrls: []const u8,
+};
+"
+              >
+                📋
+              </button>
+            </div>
+            <pre><code>///////////////////////////////////////////
 // Generated Zig structures from OpenAPI
 ///////////////////////////////////////////
 
@@ -239,14 +341,26 @@ pub const Order = struct {
     id: ?i64 = null,
     quantity: ?i64 = null,
     shipDate: ?[]const u8 = null,
-};</code></pre>
-                </div>
+}
 
-                <h3>API Client</h3>
-                <div class="code-block">
-                    <div class="code-header">
-                        <span class="code-title">Zig</span>
-                        <button class="copy-btn" data-code="///////////////////////////////////////////
+pub const Pet = struct {
+    status: ?[]const u8 = null,
+    tags: ?[]const u8 = null,
+    category: ?[]const u8 = null,
+    id: ?i64 = null,
+    name: []const u8,
+    photoUrls: []const u8,
+};
+</code></pre>
+          </div>
+
+          <h3>API Client</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-title">Zig</span>
+              <button
+                class="copy-btn"
+                data-code="///////////////////////////////////////////
 // Generated Zig API client from OpenAPI
 ///////////////////////////////////////////
 
@@ -266,7 +380,7 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     var client = std.http.Client.init(allocator);
     defer client.deinit();
 
-    const uri = try std.Uri.parse('''/store/order''');
+    const uri = try std.Uri.parse('''https://petstore.swagger.io/api/v3/store/order''');
     const buf = try allocator.alloc(u8, 1024 * 8);
     defer allocator.free(buf);   var req = try client.open(.POST, uri, .{
         .server_header_buffer = buf,
@@ -278,9 +392,47 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     try req.send();
     try req.finish();
     try req.wait();
-}">📋</button>
-                    </div>
-                    <pre><code>///////////////////////////////////////////
+}
+
+/////////////////
+// Summary:
+// Add a new pet to the store
+//
+// Description:
+// Add a new pet to the store
+//
+pub fn addPet(allocator: std.mem.Allocator, requestBody: Pet) !void {
+    var client = std.http.Client.init(allocator);
+    defer client.deinit();
+
+    const uri = try std.Uri.parse('''https://petstore.swagger.io/api/v3/pet''');
+    const buf = try allocator.alloc(u8, 1024 * 8);
+    defer allocator.free(buf);
+
+    var req = try client.open(.POST, uri, .{
+        .server_header_buffer = buf,
+    });
+    defer req.deinit();
+
+    try req.send();
+
+    var str = std.ArrayList(u8).init(allocator());
+    defer str.deinit();
+
+    try std.json.stringify(requestBody, .{}, str.writer());
+    const body = try std.mem.join(allocator, '''''', str.items);
+
+    req.transfer_encoding = .{ .content_length = body.len };
+    try req.writeAll(body);
+
+    try req.finish();
+    try req.wait();
+}"
+              >
+                📋
+              </button>
+            </div>
+            <pre><code>///////////////////////////////////////////
 // Generated Zig API client from OpenAPI
 ///////////////////////////////////////////
 
@@ -312,101 +464,171 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     try req.send();
     try req.finish();
     try req.wait();
+}
+
+/////////////////
+// Summary:
+// Add a new pet to the store
+//
+// Description:
+// Add a new pet to the store
+//
+pub fn addPet(allocator: std.mem.Allocator, requestBody: Pet) !void {
+    var client = std.http.Client.init(allocator);
+    defer client.deinit();
+
+    const uri = try std.Uri.parse('''https://petstore.swagger.io/api/v3/pet''');
+    const buf = try allocator.alloc(u8, 1024 * 8);
+    defer allocator.free(buf);
+
+    var req = try client.open(.POST, uri, .{
+        .server_header_buffer = buf,
+    });
+    defer req.deinit();
+
+    try req.send();
+
+    var str = std.ArrayList(u8).init(allocator);
+    defer str.deinit();
+
+    try std.json.stringify(requestBody, .{}, str.writer());
+    const body = try std.mem.join(allocator, '''''', str.items);
+
+    req.transfer_encoding = .{ .content_length = body.len };
+    try req.writeAll(body);
+
+    try req.finish();
+    try req.wait();
 }</code></pre>
-                </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="contributing" class="contributing">
+        <div class="container">
+          <h2>Contributing</h2>
+          <p>
+            We welcome contributions to openapi2zig! Here's how you can help:
+          </p>
+
+          <div class="contrib-steps">
+            <div class="contrib-step">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h3>Fork the Repository</h3>
+                <p>
+                  Create your own fork of the openapi2zig repository on GitHub.
+                </p>
+              </div>
             </div>
-        </section>
-
-        <section id="contributing" class="contributing">
-            <div class="container">
-                <h2>Contributing</h2>
-                <p>We welcome contributions to openapi2zig! Here's how you can help:</p>
-                
-                <div class="contrib-steps">
-                    <div class="contrib-step">
-                        <div class="step-number">1</div>
-                        <div class="step-content">
-                            <h3>Fork the Repository</h3>
-                            <p>Create your own fork of the openapi2zig repository on GitHub.</p>
-                        </div>
-                    </div>
-                    <div class="contrib-step">
-                        <div class="step-number">2</div>
-                        <div class="step-content">
-                            <h3>Create a Feature Branch</h3>
-                            <p>Create a new branch for your feature or bug fix.</p>
-                            <div class="code-inline">
-                                <code>git checkout -b feature/amazing-feature</code>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="contrib-step">
-                        <div class="step-number">3</div>
-                        <div class="step-content">
-                            <h3>Make Your Changes</h3>
-                            <p>Implement your feature or fix, ensuring you follow the coding standards.</p>
-                        </div>
-                    </div>
-                    <div class="contrib-step">
-                        <div class="step-number">4</div>
-                        <div class="step-content">
-                            <h3>Test Your Changes</h3>
-                            <p>Run the test suite and ensure all tests pass.</p>
-                            <div class="code-inline">
-                                <code>zig build test</code>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="contrib-step">
-                        <div class="step-number">5</div>
-                        <div class="step-content">
-                            <h3>Submit a Pull Request</h3>
-                            <p>Push your changes and create a pull request for review.</p>
-                        </div>
-                    </div>
+            <div class="contrib-step">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h3>Create a Feature Branch</h3>
+                <p>Create a new branch for your feature or bug fix.</p>
+                <div class="code-inline">
+                  <code>git checkout -b feature/amazing-feature</code>
                 </div>
+              </div>
+            </div>
+            <div class="contrib-step">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h3>Make Your Changes</h3>
+                <p>
+                  Implement your feature or fix, ensuring you follow the coding
+                  standards.
+                </p>
+              </div>
+            </div>
+            <div class="contrib-step">
+              <div class="step-number">4</div>
+              <div class="step-content">
+                <h3>Test Your Changes</h3>
+                <p>Run the test suite and ensure all tests pass.</p>
+                <div class="code-inline">
+                  <code>zig build test</code>
+                </div>
+              </div>
+            </div>
+            <div class="contrib-step">
+              <div class="step-number">5</div>
+              <div class="step-content">
+                <h3>Submit a Pull Request</h3>
+                <p>Push your changes and create a pull request for review.</p>
+              </div>
+            </div>
+          </div>
 
-                <h3>Code Style</h3>
-                <p>This project follows standard Zig formatting. Use <code>zig fmt</code> to format your code before committing.</p>
-                <div class="code-block">
-                    <div class="code-header">
-                        <span class="code-title">Format Check</span>
-                        <button class="copy-btn" data-code="zig fmt --check src/
-zig fmt --check build.zig">📋</button>
-                    </div>
-                    <pre><code>zig fmt --check src/
+          <h3>Code Style</h3>
+          <p>
+            This project follows standard Zig formatting. Use
+            <code>zig fmt</code> to format your code before committing.
+          </p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-title">Format Check</span>
+              <button
+                class="copy-btn"
+                data-code="zig fmt --check src/
+zig fmt --check build.zig"
+              >
+                📋
+              </button>
+            </div>
+            <pre><code>zig fmt --check src/
 zig fmt --check build.zig</code></pre>
-                </div>
-            </div>
-        </section>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>Additional Links</h3>
-                    <ul>
-                        <li><a href="#installation">Installation</a></li>
-                        <li><a href="#usage">Usage</a></li>
-                        <li><a href="#example-generated-code">Examples</a></li>
-                        <li><a href="#contributing">Contributing</a></li>
-                        <li><a href="https://github.com/christianhelle/openapi2zig">GitHub Repository</a></li>
-                        <li><a href="https://github.com/christianhelle/openapi2zig/releases">Releases</a></li>
-                        <li><a href="https://github.com/christianhelle/openapi2zig/issues">Report Issues</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <p>For tips and tricks on software development, check out <a href="https://christianhelle.com/">my blog</a></p>
-                    <p>If you find this useful and feel a bit generous then feel free to <a href="https://www.buymeacoffee.com/christianhelle">buy me a coffee ☕</a></p>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2025 Christian Helle. Licensed under the MIT License.</p>
-            </div>
+      <div class="container">
+        <div class="footer-content">
+          <div class="footer-section">
+            <h3>Additional Links</h3>
+            <ul>
+              <li><a href="#installation">Installation</a></li>
+              <li><a href="#usage">Usage</a></li>
+              <li><a href="#example-generated-code">Examples</a></li>
+              <li><a href="#contributing">Contributing</a></li>
+              <li>
+                <a href="https://github.com/christianhelle/openapi2zig"
+                  >GitHub Repository</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/christianhelle/openapi2zig/releases"
+                  >Releases</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/christianhelle/openapi2zig/issues"
+                  >Report Issues</a
+                >
+              </li>
+            </ul>
+          </div>
+          <div class="footer-section">
+            <p>
+              For tips and tricks on software development, check out
+              <a href="https://christianhelle.com/">my blog</a>
+            </p>
+            <p>
+              If you find this useful and feel a bit generous then feel free to
+              <a href="https://www.buymeacoffee.com/christianhelle"
+                >buy me a coffee ☕</a
+              >
+            </p>
+          </div>
         </div>
+        <div class="footer-bottom">
+          <p>&copy; 2025 Christian Helle. Licensed under the MIT License.</p>
+        </div>
+      </div>
     </footer>
 
     <script src="./script.js"></script>
-</body>
+  </body>
 </html>

@@ -68,7 +68,7 @@ Extract the archive and add the binary to your PATH.
 Install the latest build for Linux from the Snap Store:
 
 ```bash
-sudo snap install --edge openapi2zig
+snap install --edge openapi2zig
 ```
 
 ### Option 4: Build from Source
@@ -228,7 +228,7 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
 
     try req.send();
 
-    var str = std.ArrayList(u8).init(allocator());
+    var str = std.ArrayList(u8).init(allocator);
     defer str.deinit();
 
     try std.json.stringify(requestBody, .{}, str.writer());
