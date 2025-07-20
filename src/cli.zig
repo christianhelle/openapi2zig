@@ -91,5 +91,5 @@ fn printUsage() void {
         \\                           (default: server URL from OpenAPI Specification)
         \\
         \\
-    , .{version_info.VERSION, version_info.GIT_COMMIT});
+    , .{ version_info.VERSION, version_info.GIT_COMMIT });
 }
