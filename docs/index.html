@@ -488,7 +488,7 @@ pub fn addPet(allocator: std.mem.Allocator, requestBody: Pet) !void {
 
     try req.send();
 
-    var str = std.ArrayList(u8).init(allocator());
+    var str = std.ArrayList(u8).init(allocator);
     defer str.deinit();
 
     try std.json.stringify(requestBody, .{}, str.writer());
