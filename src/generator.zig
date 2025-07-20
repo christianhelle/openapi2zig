@@ -280,7 +280,7 @@ pub const ApiCodeGenerator = struct {
         // We assume that the request body is a JSON object
         if (has_request_body) {
             try parts.append("\n\n");
-            try parts.append("    var str = std.ArrayList(u8).init(allocator());\n");
+            try parts.append("    var str = std.ArrayList(u8).init(allocator);\n");
             try parts.append("    defer str.deinit();\n\n");
             try parts.append("    try std.json.stringify(requestBody, .{}, str.writer());\n");
             try parts.append("    const body = try std.mem.join(allocator, \"\", str.items);\n\n");
