@@ -136,27 +136,16 @@ fn makeVersionInfo(step: *std.Build.Step, options: std.Build.Step.MakeOptions) !
     else
         git_tag;
 
-    // Get current timestamp and format it nicely
+    // Get current timestamp and format it accurately using std.time
     const timestamp = std.time.timestamp();
-    const seconds_since_epoch = @as(u64, @intCast(timestamp));
-
-    // Format date as close to the original as possible
-    const days_since_epoch = seconds_since_epoch / (24 * 3600);
-    const seconds_today = seconds_since_epoch % (24 * 3600);
-
-    // Approximate date calculation (good enough for build timestamps)
-    const years_since_1970 = days_since_epoch / 365;
-    const year = 1970 + years_since_1970;
-    const day_of_year = days_since_epoch % 365;
-    const month = 1 + (day_of_year / 30); // Rough approximation
-    const day = 1 + (day_of_year % 30);
-
-    const hour = seconds_today / 3600;
-    const minute = (seconds_today % 3600) / 60;
-    const second = seconds_today % 60;
+    const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = @as(u64, @intCast(timestamp)) };
+    const epoch_day = epoch_seconds.getEpochDay();
+    const day_seconds = epoch_seconds.getDaySeconds();
+    const year_day = epoch_day.calculateYearDay();
+    const month_day = year_day.calculateMonthDay();
 
     var date_buf: [64]u8 = undefined;
-    const build_date = std.fmt.bufPrint(&date_buf, "{d}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{d:0>2} UTC", .{ year, month, day, hour, minute, second }) catch "unknown";
+    const build_date = std.fmt.bufPrint(&date_buf, "{d}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{d:0>2} UTC", .{ year_day.year, month_day.month.numeric(), month_day.day_index + 1, day_seconds.getHoursIntoDay(), day_seconds.getMinutesIntoHour(), day_seconds.getSecondsIntoMinute() }) catch "unknown";
 
     // Generate version_info.zig content
     const content = std.fmt.allocPrint(allocator,
