@@ -17,7 +17,7 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 
 ## Prerequisites
 
-- [Zig](https://ziglang.org/download/) 0.14.1 or later
+- [Zig](https://ziglang.org/download/) v0.14.1
 
 ## Installation
 
