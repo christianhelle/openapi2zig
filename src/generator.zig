@@ -1,6 +1,7 @@
 const std = @import("std");
-const models = @import("models.zig").v3;
+const models = @import("models.zig");
 const cli = @import("cli.zig");
+const detector = @import("detector.zig");
 
 const default_output_file: []const u8 = "generated.zig";
 
@@ -28,8 +29,6 @@ pub fn validateExtension(input_file_path: []const u8) !Extension {
 }
 
 pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
-
-    // Verify extension
     const extension = try validateExtension(args.input_path);
 
     const openapi_file = try std.fs.cwd().openFile(args.input_path, .{});
@@ -39,20 +38,40 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
     const file_contents = try openapi_file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_contents);
 
-    var openapi: models.OpenApiDocument = undefined;
-
     switch (extension) {
         .YAML => {
             std.debug.print("YAML support is not yet implemented\n", .{});
             return GeneratorErrors.UnsupportedExtension;
         },
         .JSON => {
-            openapi = try models.OpenApiDocument.parseFromJson(allocator, file_contents);
+            const version = detector.getOpenApiVersion(allocator, file_contents) catch |err| {
+                std.debug.print("Failed to parse OpenAPI version: {any}\n", .{err});
+                return err;
+            };
+            std.debug.print("Detected OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
+            switch (version) {
+                .v2_0 => {
+                    var swagger = try models.SwaggerDocument.parseFromJson(allocator, file_contents);
+                    defer swagger.deinit(allocator);
+                    std.debug.print("Successfully parsed Swagger v2.0 document\n", .{});
+                    std.debug.print("Swagger v2.0 support is not yet fully implemented\n", .{});
+                },
+                .v3_0 => {
+                    var openapi = try models.OpenApiDocument.parseFromJson(allocator, file_contents);
+                    defer openapi.deinit(allocator);
+                    std.debug.print("Successfully parsed OpenAPI v3.0 document\n", .{});
+                    try generateCodeFromOpenApiDocument(allocator, openapi, args);
+                },
+                else => {
+                    std.debug.print("Unsupported OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
+                    return GeneratorErrors.UnsupportedExtension;
+                },
+            }
         },
     }
+}
 
-    defer openapi.deinit(allocator);
-
+fn generateCodeFromOpenApiDocument(allocator: std.mem.Allocator, openapi: models.OpenApiDocument, args: cli.CliArgs) !void {
     var model_generator = ModelCodeGenerator.init(allocator);
     defer model_generator.deinit();
 
@@ -152,7 +171,7 @@ pub const ApiCodeGenerator = struct {
         return try std.mem.join(self.allocator, "", parts.items);
     }
 
-    pub fn generateMethod(self: *ApiCodeGenerator, op: models.Operation, path: []const u8, method: []const u8) ![]const u8 {
+    pub fn generateMethod(self: *ApiCodeGenerator, op: models.v3.Operation, path: []const u8, method: []const u8) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
 
@@ -310,7 +329,7 @@ pub const ApiCodeGenerator = struct {
         return null;
     }
 
-    fn generateMethodDocs(allocator: std.mem.Allocator, op: models.Operation) ![]const u8 {
+    fn generateMethodDocs(allocator: std.mem.Allocator, op: models.v3.Operation) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(allocator);
         defer parts.deinit();
 
@@ -369,7 +388,7 @@ pub const ModelCodeGenerator = struct {
         return try std.mem.join(self.allocator, "", parts.items);
     }
 
-    fn generateSchemas(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), schemas: std.HashMap([]const u8, models.SchemaOrReference, std.hash_map.StringContext, 80)) !void {
+    fn generateSchemas(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), schemas: std.HashMap([]const u8, models.v3.SchemaOrReference, std.hash_map.StringContext, 80)) !void {
         var iterator = schemas.iterator();
         while (iterator.next()) |entry| {
             const schema_name = entry.key_ptr.*;
@@ -386,7 +405,7 @@ pub const ModelCodeGenerator = struct {
         }
     }
 
-    fn generateSchema(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), name: []const u8, schema: models.Schema) !void {
+    fn generateSchema(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), name: []const u8, schema: models.v3.Schema) !void {
         try parts.append(try std.fmt.allocPrint(self.allocator, "pub const {s} = struct {{\n", .{name}));
 
         if (schema.properties) |properties| {
@@ -401,7 +420,7 @@ pub const ModelCodeGenerator = struct {
         try parts.append("};\n\n");
     }
 
-    fn generateField(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), field_name: []const u8, field_schema_or_ref: *models.SchemaOrReference, required_fields: ?[]const []const u8) !void {
+    fn generateField(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), field_name: []const u8, field_schema_or_ref: *models.v3.SchemaOrReference, required_fields: ?[]const []const u8) !void {
         const name = try self.allocator.dupe(u8, field_name);
         switch (field_schema_or_ref.*) {
             .schema => |field_schema_ptr| {
