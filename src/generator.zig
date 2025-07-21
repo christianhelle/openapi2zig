@@ -1,5 +1,5 @@
 const std = @import("std");
-const models = @import("models.zig");
+const models = @import("models.zig").v3;
 const cli = @import("cli.zig");
 
 const default_output_file: []const u8 = "generated.zig";
