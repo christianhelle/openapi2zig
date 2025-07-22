@@ -68,7 +68,7 @@ pub fn build(b: *std.Build) void {
         "-i",
         "openapi/v3.0/petstore.json",
         "-o",
-        "test/generated.zig",
+        "generated/generated.zig",
         "--base-url",
         "https://petstore.swagger.io/api/v3",
     });
