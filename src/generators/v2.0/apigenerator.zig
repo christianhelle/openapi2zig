@@ -110,7 +110,6 @@ pub const ApiCodeGenerator = struct {
                 var name: []const u8 = param.name;
 
                 if (param.in == .body) {
-                    std.debug.print("request body", .{});
                     has_body_param = true;
                     name = "requestBody";
                     if (param.schema.?.ref) |ref| {
