@@ -62,18 +62,35 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const run_generate_cmd = b.addRunArtifact(exe);
-    run_generate_cmd.addArgs(&.{
+    const run_generate_v3_cmd = b.addRunArtifact(exe);
+    run_generate_v3_cmd.addArgs(&.{
         "generate",
         "-i",
         "openapi/v3.0/petstore.json",
         "-o",
-        "generated/generated.zig",
+        "generated/generated_v3.zig",
         "--base-url",
         "https://petstore.swagger.io/api/v3",
     });
-    const run_generate_step = b.step("run-generate", "Run the app with generate command");
-    run_generate_step.dependOn(&run_generate_cmd.step);
+    const run_generate_v3_step = b.step("run-generate-v3", "Run the app with generate command");
+    run_generate_v3_step.dependOn(&run_generate_v3_cmd.step);
+
+    const run_generate_v2_cmd = b.addRunArtifact(exe);
+    run_generate_v2_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v2.0/petstore.json",
+        "-o",
+        "generated/generated_v2.zig",
+        "--base-url",
+        "https://petstore.swagger.io/api/v2",
+    });
+    const run_generate_v2_step = b.step("run-generate-v2", "Run the app with generate command");
+    run_generate_v2_step.dependOn(&run_generate_v2_cmd.step);
+
+    const run_generate = b.step("run-generate", "Run the app with generate commands");
+    run_generate.dependOn(&run_generate_v3_cmd.step);
+    run_generate.dependOn(&run_generate_v2_cmd.step);
 
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
