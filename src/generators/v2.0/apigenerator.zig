@@ -105,20 +105,26 @@ pub const ApiCodeGenerator = struct {
                 if (!first) try parts.append(", ");
                 first = false;
 
-                try parameters.append(param.name);
-                try parts.append(param.name);
-                try parts.append(": ");
-
                 // Determine parameter type based on Swagger v2.0 parameter
                 var data_type: []const u8 = "[]const u8"; // Default to string
+                var name: []const u8 = param.name;
 
                 if (param.in == .body) {
+                    std.debug.print("request body", .{});
                     has_body_param = true;
-                    data_type = "[]const u8"; // For body parameters, assume JSON string
+                    name = "requestBody";
+                    if (param.schema.?.ref) |ref| {
+                        if (self.extractTypeFromReference(ref)) |type_name| {
+                            data_type = type_name;
+                        }
+                    }
                 } else if (param.type) |param_type| {
                     data_type = try converter.getDataType(@tagName(param_type));
                 }
 
+                try parameters.append(name);
+                try parts.append(name);
+                try parts.append(": ");
                 try parts.append(data_type);
             }
         }
@@ -173,58 +179,63 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
     if (parameters.len > 0) {
         var new_path = path;
         for (parameters) |param| {
-            // Replace path parameters (assuming they're in curly braces like {id})
-            const param_placeholder = try std.fmt.allocPrint(allocator, "{{{s}}}", .{param});
-            defer allocator.free(param_placeholder);
-
-            const size = std.mem.replacementSize(u8, new_path, param_placeholder, "{s}");
-            if (size != new_path.len) {
-                const output = try allocator.alloc(u8, size);
-                _ = std.mem.replace(u8, new_path, param_placeholder, "{s}", output);
-                new_path = output;
-            }
+            const size = std.mem.replacementSize(u8, new_path, param, "s");
+            const output = try allocator.alloc(u8, size);
+            _ = std.mem.replace(u8, new_path, param, "s", output);
+            new_path = output;
         }
-
-        try parts.append("    const url = try std.fmt.allocPrint(allocator, \"");
+        try parts.append("    const uri_str = try std.mem.allocPrint(\"");
         try parts.append(new_path);
-        try parts.append("\"");
-
-        // Add parameter formatting
-        if (parameters.len > 0) {
-            try parts.append(", .{");
-            for (parameters, 0..) |param, i| {
-                if (i > 0) try parts.append(", ");
-                try parts.append(param);
-            }
-            try parts.append("}");
+        try parts.append("\", .{");
+        var pos: i32 = 0;
+        for (parameters) |param| {
+            try parts.append(param);
+            pos += 1;
+            if (pos < parameters.len)
+                try parts.append(", ");
         }
-        try parts.append(");\n");
-        try parts.append("    defer allocator.free(url);\n\n");
+        try parts.append("});\n");
+        try parts.append("    const uri = try std.Uri.parse(uri_str);\n");
     } else {
-        try parts.append("    const url = \"");
+        try parts.append("    const uri = try std.Uri.parse(\"");
         try parts.append(path);
-        try parts.append("\";\n\n");
+        try parts.append("\");\n");
     }
 
-    try parts.append("    var uri = try std.Uri.parse(url);\n");
-    try parts.append("    var request = try client.request(std.http.Method.");
+    try parts.append(
+        \\    const buf = try allocator.alloc(u8, 1024 * 8);
+        \\    defer allocator.free(buf);
+    );
+    try parts.append("\n\n");
+    try parts.append("    var req = try client.open(.");
     try parts.append(method);
-    try parts.append(", uri, .{}, .{});\n");
-    try parts.append("    defer request.deinit();\n\n");
+    try parts.append(", uri, .{\n");
+    try parts.append(
+        \\        .server_header_buffer = buf,
+        \\    });
+        \\    defer req.deinit();
+        \\
+        \\    try req.send();
+    );
 
+    // We assume that the request body is a JSON object
     if (has_request_body) {
-        try parts.append("    request.headers.content_type = std.http.Header.ContentType{ .override = \"application/json\" };\n");
-        try parts.append("    request.headers.content_length = requestBody.len;\n");
-        try parts.append("    try request.send(.{});\n");
-        try parts.append("    try request.writer().writeAll(requestBody);\n");
+        try parts.append("\n\n");
+        try parts.append("    var str = std.ArrayList(u8).init(allocator);\n");
+        try parts.append("    defer str.deinit();\n\n");
+        try parts.append("    try std.json.stringify(requestBody, .{}, str.writer());\n");
+        try parts.append("    const body = try std.mem.join(allocator, \"\", str.items);\n\n");
+        try parts.append("    req.transfer_encoding = .{ .content_length = body.len };\n");
+        try parts.append("    try req.writeAll(body);\n\n");
     } else {
-        try parts.append("    try request.send(.{});\n");
+        try parts.append("\n");
     }
 
-    try parts.append("    try request.finish();\n");
-    try parts.append("    try request.wait();\n\n");
-    try parts.append("    // Handle response\n");
-    try parts.append("    // TODO: Process response based on status code and content\n");
+    try parts.append(
+        \\    try req.finish();
+        \\    try req.wait();
+        \\
+    );
 
     return try std.mem.join(allocator, "", parts.items);
 }
