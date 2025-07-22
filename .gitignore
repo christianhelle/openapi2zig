@@ -27,3 +27,5 @@ generated/generated.zig
 generated/openapi-petstore.zig
 generated/swagger-petstore-expanded.zig
 generated/swagger-petstore.zig
+generated/generated_v2.zig
+generated/generated_v3.zig
