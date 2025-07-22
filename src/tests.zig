@@ -40,13 +40,13 @@ test "can deserialize petstore into OpenApiDocument" {
     try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
     try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
 
-    std.debug.print("Parsed OpenAPI document: {any}\n", .{parsed});
+    // std.debug.print("Parsed OpenAPI document: {any}\n", .{parsed});
 
-    var iterator = parsed.paths.path_items.iterator();
-    while (iterator.next()) |path| {
-        std.debug.print("Path: {s}\n", .{path.key_ptr.*});
-        std.debug.print("{any}\n\n", .{path.value_ptr.*});
-    }
+    // var iterator = parsed.paths.path_items.iterator();
+    // while (iterator.next()) |path| {
+    //     // std.debug.print("Path: {s}\n", .{path.key_ptr.*});
+    //     // std.debug.print("{any}\n\n", .{path.value_ptr.*});
+    // }
 }
 
 test "can generate data structures from petstore OpenAPI specification" {
@@ -62,7 +62,7 @@ test "can generate data structures from petstore OpenAPI specification" {
     const generated_code = try code_gen.generate(parsed);
     defer allocator.free(generated_code);
 
-    std.debug.print("Generated code:\n{s}\n", .{generated_code});
+    // std.debug.print("Generated code:\n{s}\n", .{generated_code});
     try std.testing.expect(generated_code.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, generated_code, "pub const Pet = struct") != null);
     try std.testing.expect(std.mem.indexOf(u8, generated_code, "name: []const u8") != null);
@@ -199,13 +199,13 @@ test "can deserialize v2.0 petstore into SwaggerDocument" {
     try std.testing.expectEqualStrings("2.0", parsed.swagger);
     try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
 
-    std.debug.print("Parsed Swagger document: {any}\n", .{parsed});
+    // std.debug.print("Parsed Swagger document: {any}\n", .{parsed});
 
-    var iterator = parsed.paths.path_items.iterator();
-    while (iterator.next()) |path| {
-        std.debug.print("Path: {s}\n", .{path.key_ptr.*});
-        std.debug.print("{any}\n\n", .{path.value_ptr.*});
-    }
+    // var iterator = parsed.paths.path_items.iterator();
+    // while (iterator.next()) |path| {
+    // std.debug.print("Path: {s}\n", .{path.key_ptr.*});
+    // std.debug.print("{any}\n\n", .{path.value_ptr.*});
+    // }
 }
 
 // Tests for parsing all JSON Swagger v2.0 specifications in v2.0 folder
