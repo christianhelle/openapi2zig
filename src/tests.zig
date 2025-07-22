@@ -1,4 +1,4 @@
-const generator = @import("generator.zig");
+const ModelCodeGenerator = @import("generators/v3.0/modelgenerator.zig").ModelCodeGenerator;
 const models = @import("models.zig");
 const std = @import("std");
 
@@ -56,7 +56,7 @@ test "can generate data structures from petstore OpenAPI specification" {
     var parsed = try loadOpenApiDocument(allocator, "openapi/v3.0/petstore.json");
     defer parsed.deinit(allocator);
 
-    var code_gen = generator.ModelCodeGenerator.init(allocator);
+    var code_gen = ModelCodeGenerator.init(allocator);
     defer code_gen.deinit();
 
     const generated_code = try code_gen.generate(parsed);
