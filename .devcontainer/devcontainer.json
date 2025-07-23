@@ -1,0 +1,14 @@
+{
+	"name": "Zig",
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+	"features": {
+		"ghcr.io/devcontainers/features/zig:1": {}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ziglang.vscode-zig"
+			]
+		}
+	}
+}
