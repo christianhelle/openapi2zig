@@ -59,8 +59,6 @@ pub const ModelCodeGenerator = struct {
     }
 
     fn generateField(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), field_name: []const u8, field_schema: models.v2.Schema, required_fields: ?[]const []const u8) !void {
-        const name = try self.allocator.dupe(u8, field_name);
-
         const is_required = if (required_fields) |req_fields| blk: {
             for (req_fields) |req_field| {
                 if (std.mem.eql(u8, req_field, field_name)) {
@@ -82,9 +80,9 @@ pub const ModelCodeGenerator = struct {
         }
 
         if (is_required) {
-            try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: {s},\n", .{ name, data_type }));
+            try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: {s},\n", .{ field_name, data_type }));
         } else {
-            try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: ?{s} = null,\n", .{ name, data_type }));
+            try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: ?{s} = null,\n", .{ field_name, data_type }));
         }
     }
 };
