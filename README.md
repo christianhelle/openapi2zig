@@ -20,6 +20,32 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 
 - [Zig](https://ziglang.org/download/) v0.14.1
 
+## Development Environment
+
+### Option 1: GitHub Codespaces (Recommended for Contributors)
+
+The fastest way to get started with development is using GitHub Codespaces, which provides a pre-configured development environment with Zig, ZLS (Zig Language Server), and all necessary VS Code extensions.
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/christianhelle/openapi2zig)
+
+1. Click the badge above or navigate to the repository on GitHub
+2. Click "Code" → "Codespaces" → "Create codespace"
+3. Wait for the environment to set up (2-3 minutes)
+4. Start coding! Everything is pre-configured.
+
+### Option 2: VS Code Dev Containers (Local)
+
+If you prefer local development with Docker:
+
+1. Install [VS Code](https://code.visualstudio.com/) and the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. Clone the repository and open it in VS Code
+3. When prompted, click "Reopen in Container"
+4. VS Code will build and configure the development environment automatically
+
+### Option 3: Manual Setup
+
+Install Zig locally following the official [installation guide](https://ziglang.org/download/).
+
 ## Installation
 
 ### Option 1: Quick Install Script (Recommended)
