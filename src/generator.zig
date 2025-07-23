@@ -90,6 +90,7 @@ fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, swagger: models
     defer allocator.free(generated_api);
 
     const generated_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
+    defer allocator.free(generated_code);
 
     if (args.output_path) |output_path| {
         if (std.fs.path.dirname(output_path)) |dir_path| {
