@@ -28,37 +28,40 @@ pub const ModelCodeGenerator = struct {
         try parts.append("///////////////////////////////////////////\n\n");
 
         if (document.definitions) |definitions| {
-            try self.generateSchemas(&parts, definitions);
+            try generateSchemas(&parts, definitions);
         }
 
-        return try std.mem.join(self.allocator, "", parts.items);
+        const code = try std.mem.join(self.allocator, "", parts.items);
+        return code;
     }
 
-    fn generateSchemas(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), schemas: std.StringHashMap(models.v2.Schema)) !void {
+    fn generateSchemas(parts: *std.ArrayList([]const u8), schemas: std.StringHashMap(models.v2.Schema)) !void {
         var iterator = schemas.iterator();
         while (iterator.next()) |entry| {
             const schema_name = entry.key_ptr.*;
             const schema = entry.value_ptr.*;
-            try self.generateSchema(parts, schema_name, schema);
+            try generateSchema(parts, schema_name, schema);
         }
     }
 
-    fn generateSchema(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), name: []const u8, schema: models.v2.Schema) !void {
-        try parts.append(try std.fmt.allocPrint(self.allocator, "pub const {s} = struct {{\n", .{name}));
+    fn generateSchema(parts: *std.ArrayList([]const u8), name: []const u8, schema: models.v2.Schema) !void {
+        try parts.append("pub const ");
+        try parts.append(name);
+        try parts.append(" = struct {\n");
 
         if (schema.properties) |properties| {
             var property_iterator = properties.iterator();
             while (property_iterator.next()) |property| {
                 const field_name = property.key_ptr.*;
                 const field_schema = property.value_ptr.*;
-                try self.generateField(parts, field_name, field_schema, schema.required);
+                try generateField(parts, field_name, field_schema, schema.required);
             }
         }
 
         try parts.append("};\n\n");
     }
 
-    fn generateField(self: *ModelCodeGenerator, parts: *std.ArrayList([]const u8), field_name: []const u8, field_schema: models.v2.Schema, required_fields: ?[]const []const u8) !void {
+    fn generateField(parts: *std.ArrayList([]const u8), field_name: []const u8, field_schema: models.v2.Schema, required_fields: ?[]const []const u8) !void {
         const is_required = if (required_fields) |req_fields| blk: {
             for (req_fields) |req_field| {
                 if (std.mem.eql(u8, req_field, field_name)) {
@@ -79,10 +82,17 @@ pub const ModelCodeGenerator = struct {
             data_type = "[]const u8";
         }
 
+        try parts.append("    ");
+        try parts.append(field_name);
+        try parts.append(": ");
+
         if (is_required) {
-            try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: {s},\n", .{ field_name, data_type }));
+            try parts.append(data_type);
+            try parts.append(",\n");
         } else {
-            try parts.append(try std.fmt.allocPrint(self.allocator, "    {s}: ?{s} = null,\n", .{ field_name, data_type }));
+            try parts.append("?");
+            try parts.append(data_type);
+            try parts.append(" = null,\n");
         }
     }
 };
