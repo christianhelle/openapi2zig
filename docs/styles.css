@@ -442,6 +442,194 @@ p {
   display: block;
 }
 
+/* Development Section */
+.development {
+  background: var(--bg-primary);
+}
+
+.dev-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.dev-option {
+  background: var(--bg-secondary);
+  padding: 1.5rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.dev-option:hover {
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 12px var(--shadow-light);
+}
+
+.dev-option.featured {
+  border: 2px solid var(--accent-primary);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.dev-option.featured::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+}
+
+.dev-option-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.dev-option-header h3 {
+  font-size: 1.3rem;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.recommended {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+}
+
+.codespaces-features ul {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.codespaces-features li {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.codespaces-cta {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.btn-large {
+  padding: 0.875rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.btn-icon {
+  font-size: 1.2rem;
+}
+
+.quick-steps {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border-left: 4px solid var(--accent-primary);
+}
+
+.quick-steps h4 {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.quick-steps ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.quick-steps li {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.dev-steps ol {
+  padding-left: 1.25rem;
+  margin: 1rem 0;
+}
+
+.dev-steps li {
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.dev-steps a {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.dev-steps a:hover {
+  text-decoration: underline;
+}
+
+.manual-setup-note {
+  background: var(--bg-tertiary);
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.dev-workflow {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-primary);
+}
+
+.workflow-commands {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.command-group h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+@media (min-width: 768px) {
+  .workflow-commands {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  
+  .dev-options {
+    gap: 1.5rem;
+  }
+}
+
 /* Usage Section */
 .status-note {
   background: #fff3cd;
@@ -648,8 +836,28 @@ p {
 
   .install-option,
   .feature-card,
-  .contrib-step {
+  .contrib-step,
+  .dev-option {
     padding: 1rem;
+  }
+
+  .dev-option-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .dev-option-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .btn-large {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .workflow-commands {
+    grid-template-columns: 1fr;
   }
 
   .code-block pre {
