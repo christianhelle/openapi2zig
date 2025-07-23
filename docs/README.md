@@ -34,8 +34,22 @@ To preview the documentation locally:
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 - **Modern UI**: Clean, professional design with smooth animations
 - **Interactive Elements**: Tabbed installation instructions, copy-to-clipboard functionality
+- **Development Environment Section**: Comprehensive guide for GitHub Codespaces and dev containers
+- **Dark/Light Mode**: Toggle between light and dark themes
 - **Accessibility**: Keyboard navigation support and proper ARIA labels
 - **Performance Optimized**: Minimal dependencies, optimized images and code
+
+## Recent Updates
+
+### Development Environment Integration
+
+Added a dedicated "Development" section to the website that mirrors the new dev container configuration:
+
+- **GitHub Codespaces Integration**: Featured prominently with direct launch link
+- **One-click Development Setup**: Clear instructions for cloud-based development
+- **VS Code Dev Containers**: Local development option with Docker
+- **Development Workflow**: Build, test, and run commands clearly documented
+- **Visual Hierarchy**: GitHub Codespaces positioned as the recommended option for contributors
 
 ## Deployment
 

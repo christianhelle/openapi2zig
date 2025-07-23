@@ -23,6 +23,9 @@
             <a href="#installation" class="nav-link">Installation</a>
           </li>
           <li class="nav-item">
+            <a href="#development" class="nav-link">Development</a>
+          </li>
+          <li class="nav-item">
             <a href="#usage" class="nav-link">Usage</a>
           </li>
           <li class="nav-item">
@@ -72,6 +75,7 @@
           </p>
           <div class="hero-buttons">
             <a href="#installation" class="btn btn-primary">Get Started</a>
+            <a href="#development" class="btn btn-secondary">Development Setup</a>
             <a
               href="https://github.com/christianhelle/openapi2zig"
               class="btn btn-secondary"
@@ -216,6 +220,130 @@ zig build"
                 <pre><code>git clone https://github.com/christianhelle/openapi2zig.git
 cd openapi2zig
 zig build</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="development" class="development">
+        <div class="container">
+          <h2>Development Environment</h2>
+          <p>
+            Get started with contributing to openapi2zig quickly using our 
+            pre-configured development environments.
+          </p>
+
+          <div class="dev-options">
+            <div class="dev-option featured">
+              <div class="dev-option-header">
+                <h3>🚀 GitHub Codespaces</h3>
+                <span class="badge recommended">Recommended for Contributors</span>
+              </div>
+              <p>
+                The fastest way to get started with development. GitHub Codespaces 
+                provides a pre-configured cloud development environment with Zig, 
+                ZLS (Zig Language Server), and all necessary VS Code extensions.
+              </p>
+              
+              <div class="codespaces-features">
+                <ul>
+                  <li>✅ Zig 0.14.1 pre-installed</li>
+                  <li>✅ ZLS Language Server for IntelliSense</li>
+                  <li>✅ VS Code extensions optimized for Zig</li>
+                  <li>✅ Zero setup time - ready in 2-3 minutes</li>
+                  <li>✅ Consistent environment across all contributors</li>
+                </ul>
+              </div>
+
+              <div class="codespaces-cta">
+                <a 
+                  href="https://codespaces.new/christianhelle/openapi2zig" 
+                  class="btn btn-primary btn-large"
+                  target="_blank"
+                >
+                  <span class="btn-icon">🚀</span>
+                  Open in GitHub Codespaces
+                </a>
+              </div>
+
+              <div class="quick-steps">
+                <h4>Quick Start:</h4>
+                <ol>
+                  <li>Click the button above or navigate to the repository on GitHub</li>
+                  <li>Click "Code" → "Codespaces" → "Create codespace"</li>
+                  <li>Wait for the environment to set up (2-3 minutes)</li>
+                  <li>Start coding! Everything is pre-configured.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="dev-option">
+              <h3>🐳 VS Code Dev Containers (Local)</h3>
+              <p>
+                If you prefer local development with Docker, use our dev container 
+                configuration for a consistent development environment.
+              </p>
+              
+              <div class="dev-steps">
+                <ol>
+                  <li>Install <a href="https://code.visualstudio.com/" target="_blank">VS Code</a> and the <a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers" target="_blank">Dev Containers extension</a></li>
+                  <li>Clone the repository and open it in VS Code</li>
+                  <li>When prompted, click "Reopen in Container"</li>
+                  <li>VS Code will build and configure the development environment automatically</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="dev-option">
+              <h3>⚙️ Manual Setup</h3>
+              <p>
+                For traditional local development, install Zig following the 
+                official <a href="https://ziglang.org/download/" target="_blank">installation guide</a>.
+              </p>
+              
+              <div class="manual-setup-note">
+                <strong>Prerequisites:</strong> Zig v0.14.1 or later
+              </div>
+            </div>
+          </div>
+
+          <div class="dev-workflow">
+            <h3>Development Workflow</h3>
+            <p>Once your development environment is ready:</p>
+            
+            <div class="workflow-commands">
+              <div class="command-group">
+                <h4>Build the project:</h4>
+                <div class="code-block">
+                  <div class="code-header">
+                    <span class="code-title">Shell</span>
+                    <button class="copy-btn" data-code="zig build">📋</button>
+                  </div>
+                  <pre><code>zig build</code></pre>
+                </div>
+              </div>
+
+              <div class="command-group">
+                <h4>Run tests:</h4>
+                <div class="code-block">
+                  <div class="code-header">
+                    <span class="code-title">Shell</span>
+                    <button class="copy-btn" data-code="zig build test">📋</button>
+                  </div>
+                  <pre><code>zig build test</code></pre>
+                </div>
+              </div>
+
+              <div class="command-group">
+                <h4>Run the application:</h4>
+                <div class="code-block">
+                  <div class="code-header">
+                    <span class="code-title">Shell</span>
+                    <button class="copy-btn" data-code="zig build run">📋</button>
+                  </div>
+                  <pre><code>zig build run</code></pre>
+                </div>
               </div>
             </div>
           </div>
@@ -592,6 +720,7 @@ zig fmt --check build.zig</code></pre>
             <h3>Additional Links</h3>
             <ul>
               <li><a href="#installation">Installation</a></li>
+              <li><a href="#development">Development</a></li>
               <li><a href="#usage">Usage</a></li>
               <li><a href="#example-generated-code">Examples</a></li>
               <li><a href="#contributing">Contributing</a></li>
