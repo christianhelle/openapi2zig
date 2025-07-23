@@ -1,48 +1,19 @@
 {
-  "name": "Zig Development Environment",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
-  
+  "name": "Zig Dev Environment",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": true,
-      "configureZshAsDefaultShell": true,
-      "installOhMyZsh": true,
-      "upgradePackages": true
-    },
-    "ghcr.io/devcontainers/features/git:1": {
-      "version": "latest",
-      "ppa": true
+    "ghcr.io/devcontainers-contrib/features/zig:1": {
+      "version": "0.14.1"
     }
   },
-
-  "postCreateCommand": ".devcontainer/setup.sh",
-
   "customizations": {
     "vscode": {
       "extensions": [
-        "ziglang.vscode-zig",
-        "ms-vscode.vscode-json",
-        "redhat.vscode-yaml",
-        "GitHub.copilot",
-        "GitHub.copilot-chat"
-      ],
-      "settings": {
-        "zig.path": "/usr/local/bin/zig",
-        "zig.zls.enabled": "on",
-        "zig.initialSetupDone": true,
-        "files.associations": {
-          "*.zig": "zig"
-        },
-        "terminal.integrated.defaultProfile.linux": "zsh"
-      }
+        "ziglang.vscode-zig"
+      ]
     }
   },
-
+  "postCreateCommand": "zig version && echo 'Dev container setup complete!'",
   "forwardPorts": [],
-  
-  "postAttachCommand": {
-    "server": "echo 'Zig development environment ready!'"
-  },
-
-  "remoteUser": "vscode"
+  "remoteUser": "codespace"
 }
