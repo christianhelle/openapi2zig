@@ -25,6 +25,9 @@ pub const ApiCodeGenerator = struct {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
 
+        var methods = std.ArrayList([]const u8).init(self.allocator);
+        defer methods.deinit();
+
         try parts.append("///////////////////////////////////////////\n");
         try parts.append("// Generated Zig API client from Swagger v2.0\n");
         try parts.append("///////////////////////////////////////////\n\n");
@@ -53,48 +56,58 @@ pub const ApiCodeGenerator = struct {
             defer if (base_url.len > 0) self.allocator.free(path);
 
             if (path_item.get) |op| {
-                try parts.append(try self.generateMethod(op, path, "GET"));
+                try methods.append(try self.generateMethod(op, path, "GET"));
             }
 
             if (path_item.post) |op| {
-                try parts.append(try self.generateMethod(op, path, "POST"));
+                try methods.append(try self.generateMethod(op, path, "POST"));
             }
 
             if (path_item.put) |op| {
-                try parts.append(try self.generateMethod(op, path, "PUT"));
+                try methods.append(try self.generateMethod(op, path, "PUT"));
             }
 
             if (path_item.delete) |op| {
-                try parts.append(try self.generateMethod(op, path, "DELETE"));
+                try methods.append(try self.generateMethod(op, path, "DELETE"));
             }
 
             if (path_item.patch) |op| {
-                try parts.append(try self.generateMethod(op, path, "PATCH"));
+                try methods.append(try self.generateMethod(op, path, "PATCH"));
             }
 
             if (path_item.head) |op| {
-                try parts.append(try self.generateMethod(op, path, "HEAD"));
+                try methods.append(try self.generateMethod(op, path, "HEAD"));
             }
 
             if (path_item.options) |op| {
-                try parts.append(try self.generateMethod(op, path, "OPTIONS"));
+                try methods.append(try self.generateMethod(op, path, "OPTIONS"));
             }
         }
 
-        return try std.mem.join(self.allocator, "", parts.items);
+        for (methods.items) |method| {
+            try parts.append(method);
+        }
+        const code = try std.mem.join(self.allocator, "", parts.items);
+        for (methods.items) |method| {
+            self.allocator.free(method);
+        }
+        return code;
     }
 
     pub fn generateMethod(self: *ApiCodeGenerator, op: models.v2.Operation, path: []const u8, method: []const u8) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
 
-        try parts.append(try generateMethodDocs(self.allocator, op));
+        const comments = try generateMethodDocs(self.allocator, op);
+        defer self.allocator.free(comments);
+        try parts.append(comments);
+
         try parts.append("pub fn ");
         try parts.append(op.operationId orelse path);
         try parts.append("(allocator: std.mem.Allocator");
 
-        var parameters = std.ArrayList([]const u8).init(self.allocator);
-        defer parameters.deinit();
+        var path_parameters = std.ArrayList([]const u8).init(self.allocator);
+        defer path_parameters.deinit();
 
         var has_body_param = false;
 
@@ -113,15 +126,18 @@ pub const ApiCodeGenerator = struct {
                     has_body_param = true;
                     name = "requestBody";
                     if (param.schema.?.ref) |ref| {
-                        if (self.extractTypeFromReference(ref)) |type_name| {
+                        if (extractTypeFromReference(ref)) |type_name| {
                             data_type = type_name;
                         }
                     }
-                } else if (param.type) |param_type| {
+                } else if (param.in == .path) {
+                    try path_parameters.append(name);
+                }
+
+                if (param.type) |param_type| {
                     data_type = try converter.getDataType(@tagName(param_type));
                 }
 
-                try parameters.append(name);
                 try parts.append(name);
                 try parts.append(": ");
                 try parts.append(data_type);
@@ -130,24 +146,24 @@ pub const ApiCodeGenerator = struct {
 
         try parts.append(") !void {\n");
 
-        const method_body = try generateImplementation(self.allocator, path, method, parameters.items, has_body_param);
-        try parts.append(method_body);
+        const method_body = try generateImplementation(self.allocator, path, method, op, has_body_param);
+        defer self.allocator.free(method_body);
 
+        try parts.append(method_body);
         try parts.append("}\n\n");
 
         return try std.mem.join(self.allocator, "", parts.items);
     }
-
-    fn extractTypeFromReference(self: *ApiCodeGenerator, ref: []const u8) ?[]const u8 {
-        _ = self;
-        // Extract type name from $ref like "#/definitions/Pet" -> "Pet"
-        const prefix = "#/definitions/";
-        if (std.mem.startsWith(u8, ref, prefix)) {
-            return ref[prefix.len..];
-        }
-        return null;
-    }
 };
+
+fn extractTypeFromReference(ref: []const u8) ?[]const u8 {
+    // Extract type name from $ref like "#/definitions/Pet" -> "Pet"
+    const prefix = "#/definitions/";
+    if (std.mem.startsWith(u8, ref, prefix)) {
+        return ref[prefix.len..];
+    }
+    return null;
+}
 
 fn generateMethodDocs(allocator: std.mem.Allocator, op: models.v2.Operation) ![]const u8 {
     var parts = std.ArrayList([]const u8).init(allocator);
@@ -168,37 +184,63 @@ fn generateMethodDocs(allocator: std.mem.Allocator, op: models.v2.Operation) ![]
     return try std.mem.join(allocator, "", parts.items);
 }
 
-fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, parameters: [][]const u8, has_request_body: bool) ![]const u8 {
+fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, op: models.v2.Operation, has_request_body: bool) ![]const u8 {
     var parts = std.ArrayList([]const u8).init(allocator);
     defer parts.deinit();
+
+    if (op.parameters) |parameters| {
+        if (parameters.len > 0) {
+            for (parameters) |parameter| {
+                if (parameter.in != .path and parameter.in != .body) {
+                    try parts.append("    _ = ");
+                    try parts.append(parameter.name);
+                    try parts.append(";\n");
+                }
+            }
+            if (has_request_body) {
+                try parts.append("\n");
+            }
+            try parts.append("\n");
+        }
+    }
 
     try parts.append("    var client = std.http.Client.init(allocator);\n");
     try parts.append("    defer client.deinit();\n\n");
 
-    if (parameters.len > 0) {
-        var new_path = path;
-        for (parameters) |param| {
-            const size = std.mem.replacementSize(u8, new_path, param, "s");
-            const output = try allocator.alloc(u8, size);
-            _ = std.mem.replace(u8, new_path, param, "s", output);
-            new_path = output;
+    var allocations = std.ArrayList([]const u8).init(allocator);
+    defer allocations.deinit();
+
+    if (op.parameters) |parameters| {
+        if (parameters.len > 0) {
+            var new_path = path;
+            for (parameters) |parameter| {
+                if (parameter.in != .path) continue;
+                const param = parameter.name;
+                const size = std.mem.replacementSize(u8, new_path, param, "s");
+                const output = try allocator.alloc(u8, size);
+                _ = std.mem.replace(u8, new_path, param, "s", output);
+                new_path = output;
+                try allocations.append(output);
+            }
+            try parts.append("    const uri_str = try std.mem.allocPrint(\"");
+            try parts.append(new_path);
+            try parts.append("\", .{");
+            var pos: i32 = 0;
+            for (parameters) |parameter| {
+                if (parameter.in != .path) continue;
+                const param = parameter.name;
+                try parts.append(param);
+                pos += 1;
+                if (pos < parameters.len)
+                    try parts.append(", ");
+            }
+            try parts.append("});\n");
+            try parts.append("    const uri = try std.Uri.parse(uri_str);\n");
+        } else {
+            try parts.append("    const uri = try std.Uri.parse(\"");
+            try parts.append(path);
+            try parts.append("\");\n");
         }
-        try parts.append("    const uri_str = try std.mem.allocPrint(\"");
-        try parts.append(new_path);
-        try parts.append("\", .{");
-        var pos: i32 = 0;
-        for (parameters) |param| {
-            try parts.append(param);
-            pos += 1;
-            if (pos < parameters.len)
-                try parts.append(", ");
-        }
-        try parts.append("});\n");
-        try parts.append("    const uri = try std.Uri.parse(uri_str);\n");
-    } else {
-        try parts.append("    const uri = try std.Uri.parse(\"");
-        try parts.append(path);
-        try parts.append("\");\n");
     }
 
     try parts.append(
@@ -236,5 +278,9 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
         \\
     );
 
-    return try std.mem.join(allocator, "", parts.items);
+    const code = try std.mem.join(allocator, "", parts.items);
+    for (allocations.items) |alloc| {
+        allocator.free(alloc);
+    }
+    return code;
 }
