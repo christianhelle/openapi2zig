@@ -84,12 +84,17 @@ pub const ApiCodeGenerator = struct {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
 
-        try parts.append(try generateMethodDocs(self.allocator, op));
+        const docs = try generateMethodDocs(self.allocator, op);
+        defer self.allocator.free(docs);
+
+        try parts.append(docs);
         try parts.append("pub fn ");
         try parts.append(op.operationId orelse path);
         try parts.append("(allocator: std.mem.Allocator");
 
         var parameters = std.ArrayList([]const u8).init(self.allocator);
+        defer parameters.deinit();
+
         if (op.parameters) |params| {
             if (params.len > 0) try parts.append(", ");
             var first = true;
@@ -148,37 +153,65 @@ pub const ApiCodeGenerator = struct {
 
         try parts.append(") !void {\n");
 
-        const method_body = try generateImplementation(self.allocator, path, method, parameters.items, op.requestBody != null);
+        const method_body = try generateImplementation(self.allocator, path, method, op);
+        defer self.allocator.free(method_body);
         try parts.append(method_body);
-
         try parts.append("}\n\n");
 
         return try std.mem.join(self.allocator, "", parts.items);
     }
 
-    fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, parameters: [][]const u8, has_request_body: bool) ![]const u8 {
+    fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, op: models.v3.Operation) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(allocator);
         defer parts.deinit();
+
+        const has_request_body = op.requestBody != null;
+
+        if (op.parameters) |params| {
+            if (params.len > 0) {
+                for (params) |paramOrReference| {
+                    const parameter = paramOrReference.parameter;
+                    if (!std.mem.eql(u8, parameter.in_field, "path") and !std.mem.eql(u8, parameter.in_field, "body")) {
+                        try parts.append("    _ = ");
+                        try parts.append(parameter.name);
+                        try parts.append(";\n");
+                    }
+                }
+                if (has_request_body) {
+                    try parts.append("\n");
+                }
+            }
+        }
 
         try parts.append("    var client = std.http.Client.init(allocator);\n");
         try parts.append("    defer client.deinit();\n\n");
 
-        if (parameters.len > 0) {
+        var allocations = std.ArrayList([]const u8).init(allocator);
+        defer allocations.deinit();
+
+        if (op.parameters) |params| {
             var new_path = path;
-            for (parameters) |param| {
-                const size = std.mem.replacementSize(u8, new_path, param, "s");
+            for (params) |paramOrReference| {
+                const parameter = paramOrReference.parameter;
+                if (!std.mem.eql(u8, parameter.in_field, "path")) continue;
+                const name = parameter.name;
+                const size = std.mem.replacementSize(u8, new_path, name, "s");
                 const output = try allocator.alloc(u8, size);
-                _ = std.mem.replace(u8, new_path, param, "s", output);
+                _ = std.mem.replace(u8, new_path, name, "s", output);
                 new_path = output;
+                try allocations.append(output);
             }
             try parts.append("    const uri_str = try std.mem.allocPrint(\"");
             try parts.append(new_path);
             try parts.append("\", .{");
             var pos: i32 = 0;
-            for (parameters) |param| {
-                try parts.append(param);
+            for (params) |paramOrReference| {
+                const parameter = paramOrReference.parameter;
+                if (!std.mem.eql(u8, parameter.in_field, "path")) continue;
+                const name = parameter.name;
+                try parts.append(name);
                 pos += 1;
-                if (pos < parameters.len)
+                if (pos < params.len)
                     try parts.append(", ");
             }
             try parts.append("});\n");
@@ -224,7 +257,11 @@ pub const ApiCodeGenerator = struct {
             \\
         );
 
-        return try std.mem.join(allocator, "", parts.items);
+        const code = try std.mem.join(allocator, "", parts.items);
+        for (allocations.items) |alloc| {
+            allocator.free(alloc);
+        }
+        return code;
     }
 
     fn extractTypeFromReference(self: *ApiCodeGenerator, ref: []const u8) ?[]const u8 {
