@@ -245,6 +245,7 @@ pub const ApiCodeGenerator = struct {
             try parts.append("    defer str.deinit();\n\n");
             try parts.append("    try std.json.stringify(requestBody, .{}, str.writer());\n");
             try parts.append("    const body = try std.mem.join(allocator, \"\", str.items);\n\n");
+            try parts.append("    defer allocator.free(body);\n");
             try parts.append("    req.transfer_encoding = .{ .content_length = body.len };\n");
             try parts.append("    try req.writeAll(body);\n\n");
         } else {
