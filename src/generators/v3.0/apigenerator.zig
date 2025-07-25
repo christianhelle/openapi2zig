@@ -30,6 +30,9 @@ pub const ApiCodeGenerator = struct {
         try parts.append("///////////////////////////////////////////\n\n");
         try parts.append("const std = @import(\"std\");\n\n");
 
+        var methods = std.ArrayList([]const u8).init(self.allocator);
+        defer methods.deinit();
+
         var path_iterator = document.paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
             const path_key = entry.key_ptr.*;
@@ -38,23 +41,43 @@ pub const ApiCodeGenerator = struct {
             defer self.allocator.free(path);
 
             if (path_item.get) |op| {
-                try parts.append(try self.generateMethod(op, path, "GET"));
+                try methods.append(try self.generateMethod(op, path, "GET"));
             }
 
             if (path_item.post) |op| {
-                try parts.append(try self.generateMethod(op, path, "POST"));
+                try methods.append(try self.generateMethod(op, path, "POST"));
             }
 
             if (path_item.put) |op| {
-                try parts.append(try self.generateMethod(op, path, "PUT"));
+                try methods.append(try self.generateMethod(op, path, "PUT"));
             }
 
             if (path_item.delete) |op| {
-                try parts.append(try self.generateMethod(op, path, "DELETE"));
+                try methods.append(try self.generateMethod(op, path, "DELETE"));
+            }
+
+            if (path_item.patch) |op| {
+                try methods.append(try self.generateMethod(op, path, "PATCH"));
+            }
+
+            if (path_item.head) |op| {
+                try methods.append(try self.generateMethod(op, path, "HEAD"));
+            }
+
+            if (path_item.options) |op| {
+                try methods.append(try self.generateMethod(op, path, "OPTIONS"));
             }
         }
 
-        return try std.mem.join(self.allocator, "", parts.items);
+        for (methods.items) |method| {
+            try parts.append(method);
+        }
+
+        const code = try std.mem.join(self.allocator, "", parts.items);
+        for (methods.items) |item| {
+            defer self.allocator.free(item);
+        }
+        return code;
     }
 
     pub fn generateMethod(self: *ApiCodeGenerator, op: models.v3.Operation, path: []const u8, method: []const u8) ![]const u8 {
