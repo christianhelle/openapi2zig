@@ -117,12 +117,12 @@ pub const Schema = struct {
         if (self.title) |title| allocator.free(title);
         if (self.description) |desc| allocator.free(desc);
         if (self.format) |fmt| allocator.free(fmt);
-        
+
         if (self.required) |required| {
             for (required) |req| allocator.free(req);
             allocator.free(required);
         }
-        
+
         if (self.properties) |*props| {
             var iterator = props.iterator();
             while (iterator.next()) |entry| {
@@ -131,12 +131,12 @@ pub const Schema = struct {
             }
             props.deinit();
         }
-        
+
         if (self.items) |items| {
             items.deinit(allocator);
             allocator.destroy(items);
         }
-        
+
         if (self.enum_values) |enum_vals| {
             allocator.free(enum_vals);
         }
@@ -176,7 +176,7 @@ pub const Response = struct {
     pub fn deinit(self: *Response, allocator: std.mem.Allocator) void {
         allocator.free(self.description);
         if (self.schema) |*schema| schema.deinit(allocator);
-        
+
         if (self.headers) |*headers| {
             var iterator = headers.iterator();
             while (iterator.next()) |entry| {
@@ -206,19 +206,19 @@ pub const Operation = struct {
         if (self.summary) |summary| allocator.free(summary);
         if (self.description) |desc| allocator.free(desc);
         if (self.operationId) |opId| allocator.free(opId);
-        
+
         if (self.parameters) |params| {
             for (params) |*param| param.deinit(allocator);
             allocator.free(params);
         }
-        
+
         var resp_iterator = self.responses.iterator();
         while (resp_iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*);
             entry.value_ptr.deinit(allocator);
         }
         self.responses.deinit();
-        
+
         if (self.security) |security| {
             for (security) |*sec| sec.deinit(allocator);
             allocator.free(security);
@@ -244,7 +244,7 @@ pub const PathItem = struct {
         if (self.options) |*op| op.deinit(allocator);
         if (self.head) |*op| op.deinit(allocator);
         if (self.patch) |*op| op.deinit(allocator);
-        
+
         if (self.parameters) |params| {
             for (params) |*param| param.deinit(allocator);
             allocator.free(params);
@@ -258,52 +258,52 @@ pub const UnifiedDocument = struct {
     version: []const u8, // "2.0", "3.0.2", etc.
     info: DocumentInfo,
     paths: std.StringHashMap(PathItem),
-    
+
     /// Optional fields
     servers: ?[]Server = null,
     security: ?[]SecurityRequirement = null,
     tags: ?[]Tag = null,
     externalDocs: ?ExternalDocumentation = null,
-    
+
     /// Schema definitions (definitions in v2.0, components.schemas in v3.0)
     schemas: ?std.StringHashMap(Schema) = null,
-    
+
     /// Global parameters (v2.0 only, but can be present in unified model)
     parameters: ?std.StringHashMap(Parameter) = null,
-    
+
     /// Global responses (v2.0 only, but can be present in unified model)
     responses: ?std.StringHashMap(Response) = null,
 
     pub fn deinit(self: *UnifiedDocument, allocator: std.mem.Allocator) void {
         allocator.free(self.version);
         self.info.deinit(allocator);
-        
+
         var path_iterator = self.paths.iterator();
         while (path_iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*);
             entry.value_ptr.deinit(allocator);
         }
         self.paths.deinit();
-        
+
         if (self.servers) |servers| {
             for (servers) |*server| server.deinit(allocator);
             allocator.free(servers);
         }
-        
+
         if (self.security) |security| {
             for (security) |*sec| sec.deinit(allocator);
             allocator.free(security);
         }
-        
+
         if (self.tags) |tags| {
             for (tags) |tag| tag.deinit(allocator);
             allocator.free(tags);
         }
-        
+
         if (self.externalDocs) |extDocs| {
             extDocs.deinit(allocator);
         }
-        
+
         if (self.schemas) |*schemas| {
             var schema_iterator = schemas.iterator();
             while (schema_iterator.next()) |entry| {
@@ -312,7 +312,7 @@ pub const UnifiedDocument = struct {
             }
             schemas.deinit();
         }
-        
+
         if (self.parameters) |*params| {
             var param_iterator = params.iterator();
             while (param_iterator.next()) |entry| {
@@ -321,7 +321,7 @@ pub const UnifiedDocument = struct {
             }
             params.deinit();
         }
-        
+
         if (self.responses) |*responses| {
             var resp_iterator = responses.iterator();
             while (resp_iterator.next()) |entry| {
