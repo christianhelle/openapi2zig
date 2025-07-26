@@ -47,7 +47,7 @@ pub const UnifiedApiGenerator = struct {
         while (path_iterator.next()) |entry| {
             const path = entry.key_ptr.*;
             const path_item = entry.value_ptr.*;
-            
+
             try self.generateOperations(path, path_item);
         }
     }
@@ -90,7 +90,7 @@ pub const UnifiedApiGenerator = struct {
     fn generateFunctionSignature(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
         _ = method;
         try self.buffer.appendSlice("pub fn ");
-        
+
         if (operation.operationId) |op_id| {
             try self.buffer.appendSlice(op_id);
         } else {
@@ -98,7 +98,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("operation");
             try self.buffer.appendSlice(path[1..]); // Remove leading slash
         }
-        
+
         try self.buffer.appendSlice("(allocator: std.mem.Allocator");
 
         var has_body_param = false;

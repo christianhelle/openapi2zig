@@ -71,7 +71,7 @@ pub const UnifiedModelGenerator = struct {
         while (prop_iterator.next()) |entry| {
             const field_name = entry.key_ptr.*;
             const field_schema = entry.value_ptr.*;
-            
+
             const is_required = self.isFieldRequired(field_name, required);
             try self.generateStructField(field_name, field_schema, is_required);
         }
@@ -81,17 +81,17 @@ pub const UnifiedModelGenerator = struct {
         try self.buffer.appendSlice("    ");
         try self.buffer.appendSlice(field_name);
         try self.buffer.appendSlice(": ");
-        
+
         if (!is_required) {
             try self.buffer.appendSlice("?");
         }
-        
+
         try self.buffer.appendSlice(try self.getZigType(field_schema));
-        
+
         if (!is_required) {
             try self.buffer.appendSlice(" = null");
         }
-        
+
         try self.buffer.appendSlice(",\n");
     }
 
@@ -115,9 +115,18 @@ pub const UnifiedModelGenerator = struct {
                 .array => blk: {
                     if (schema.items) |items| {
                         const item_type = try self.getZigType(items.*);
-                        const array_type = try std.fmt.allocPrint(self.allocator, "[]const {s}", .{item_type});
-                        defer self.allocator.free(array_type);
-                        break :blk try self.allocator.dupe(u8, array_type);
+                        // Use a simple concatenation to avoid memory allocation
+                        if (std.mem.eql(u8, item_type, "[]const u8")) {
+                            break :blk "[]const []const u8";
+                        } else if (std.mem.eql(u8, item_type, "i64")) {
+                            break :blk "[]const i64";
+                        } else if (std.mem.eql(u8, item_type, "f64")) {
+                            break :blk "[]const f64";
+                        } else if (std.mem.eql(u8, item_type, "bool")) {
+                            break :blk "[]const bool";
+                        } else {
+                            break :blk "[]const std.json.Value"; // fallback for complex types
+                        }
                     } else {
                         break :blk "[]const u8"; // fallback for untyped arrays
                     }
@@ -133,7 +142,7 @@ pub const UnifiedModelGenerator = struct {
     fn isFieldRequired(self: *UnifiedModelGenerator, field_name: []const u8, required: ?[][]const u8) bool {
         _ = self;
         if (required == null) return false;
-        
+
         for (required.?) |req_field| {
             if (std.mem.eql(u8, field_name, req_field)) {
                 return true;
@@ -145,7 +154,7 @@ pub const UnifiedModelGenerator = struct {
     fn capitalize(self: *UnifiedModelGenerator, input: []const u8) []const u8 {
         _ = self;
         if (input.len == 0) return input;
-        
+
         // For now, return as-is. In a real implementation, you'd want to:
         // 1. Allocate new string
         // 2. Capitalize first letter

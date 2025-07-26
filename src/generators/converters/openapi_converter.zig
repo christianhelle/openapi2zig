@@ -45,7 +45,7 @@ pub const OpenApiConverter = struct {
         const version = try self.allocator.dupe(u8, openapi.openapi);
         const info = try self.convertInfo(openapi.info);
         const paths = try self.convertPaths(openapi.paths);
-        
+
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
         const tags = if (openapi.tags) |tags_list| try self.convertTags(tags_list) else null;
@@ -71,14 +71,14 @@ pub const OpenApiConverter = struct {
         const description = if (info.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const version = try self.allocator.dupe(u8, info.version);
         const termsOfService = if (info.termsOfService) |tos| try self.allocator.dupe(u8, tos) else null;
-        
+
         const contact = if (info.contact) |contact_info| blk: {
             const name = if (contact_info.name) |n| try self.allocator.dupe(u8, n) else null;
             const url = if (contact_info.url) |u| try self.allocator.dupe(u8, u) else null;
             const email = if (contact_info.email) |e| try self.allocator.dupe(u8, e) else null;
             break :blk ContactInfo{ .name = name, .url = url, .email = email };
         } else null;
-        
+
         const license = if (info.license) |license_info| blk: {
             const name = try self.allocator.dupe(u8, license_info.name);
             const url = if (license_info.url) |u| try self.allocator.dupe(u8, u) else null;
@@ -142,7 +142,7 @@ pub const OpenApiConverter = struct {
 
     fn convertSchemas(self: *OpenApiConverter, components: Components3) !std.StringHashMap(Schema) {
         var schemas = std.StringHashMap(Schema).init(self.allocator);
-        
+
         if (components.schemas) |schemas_map| {
             var schema_iterator = schemas_map.iterator();
             while (schema_iterator.next()) |entry| {
@@ -151,7 +151,7 @@ pub const OpenApiConverter = struct {
                 try schemas.put(key, schema);
             }
         }
-        
+
         return schemas;
     }
 
@@ -172,7 +172,7 @@ pub const OpenApiConverter = struct {
         const title = if (schema.title) |title_str| try self.allocator.dupe(u8, title_str) else null;
         const description = if (schema.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const format = if (schema.format) |fmt| try self.allocator.dupe(u8, fmt) else null;
-        
+
         const required = if (schema.required) |req_list| blk: {
             const req_array = try self.allocator.alloc([]const u8, req_list.len);
             for (req_list, 0..) |req, i| {
@@ -227,14 +227,14 @@ pub const OpenApiConverter = struct {
 
     fn convertPaths(self: *OpenApiConverter, paths: Paths3) !std.StringHashMap(PathItem) {
         var converted_paths = std.StringHashMap(PathItem).init(self.allocator);
-        
+
         var path_iterator = paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
             const path = try self.allocator.dupe(u8, entry.key_ptr.*);
             const path_item = try self.convertPathItem(entry.value_ptr.*);
             try converted_paths.put(path, path_item);
         }
-        
+
         return converted_paths;
     }
 
@@ -246,7 +246,7 @@ pub const OpenApiConverter = struct {
         const options = if (pathItem.options) |op| try self.convertOperation(op) else null;
         const head = if (pathItem.head) |op| try self.convertOperation(op) else null;
         const patch = if (pathItem.patch) |op| try self.convertOperation(op) else null;
-        
+
         const parameters = if (pathItem.parameters) |params| try self.convertParameters(params) else null;
 
         return PathItem{
@@ -273,17 +273,17 @@ pub const OpenApiConverter = struct {
         const summary = if (operation.summary) |sum| try self.allocator.dupe(u8, sum) else null;
         const description = if (operation.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const operationId = if (operation.operationId) |opId| try self.allocator.dupe(u8, opId) else null;
-        
+
         const parameters = if (operation.parameters) |params| try self.convertParameters(params) else null;
-        
+
         var responses = std.StringHashMap(Response).init(self.allocator);
-        
+
         // Add default response if present
         if (operation.responses.default) |default_response| {
             const response = try self.convertResponseOrReference(default_response);
             try responses.put("default", response);
         }
-        
+
         // Add status code responses
         var resp_iterator = operation.responses.status_codes.iterator();
         while (resp_iterator.next()) |entry| {
@@ -291,7 +291,7 @@ pub const OpenApiConverter = struct {
             const response = try self.convertResponseOrReference(entry.value_ptr.*);
             try responses.put(key, response);
         }
-        
+
         const security = if (operation.security) |sec_list| try self.convertSecurityRequirements(sec_list) else null;
 
         return Operation{
@@ -337,7 +337,7 @@ pub const OpenApiConverter = struct {
         const location = self.convertParameterLocation(parameter.in_field);
         const description = if (parameter.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const required = parameter.required orelse false;
-        
+
         const schema = if (parameter.schema) |schema_ref| try self.convertSchemaOrReference(schema_ref) else null;
 
         return Parameter{

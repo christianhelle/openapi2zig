@@ -39,10 +39,10 @@ pub const SwaggerConverter = struct {
     }
 
     pub fn convert(self: *SwaggerConverter, swagger: SwaggerDocument) !UnifiedDocument {
-        const version = try self.allocator.dupe(u8, swagger.swagger);
-        const info = try self.convertInfo(swagger.info);
+        const version = swagger.swagger; // Reference, don't duplicate
+        const info = self.convertInfo(swagger.info);
         const paths = try self.convertPaths(swagger.paths);
-        
+
         // Create servers from host and basePath (Swagger 2.0 style)
         const servers = try self.createServersFromHostAndBasePath(swagger.host, swagger.basePath, swagger.schemes);
         const security = if (swagger.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -66,22 +66,23 @@ pub const SwaggerConverter = struct {
         };
     }
 
-    fn convertInfo(self: *SwaggerConverter, info: Info2) !DocumentInfo {
-        const title = try self.allocator.dupe(u8, info.title);
-        const description = if (info.description) |desc| try self.allocator.dupe(u8, desc) else null;
-        const version = try self.allocator.dupe(u8, info.version);
-        const termsOfService = if (info.termsOfService) |tos| try self.allocator.dupe(u8, tos) else null;
-        
+    fn convertInfo(self: *SwaggerConverter, info: Info2) DocumentInfo {
+        _ = self; // Mark unused parameter
+        const title = info.title; // Reference, don't duplicate
+        const description = info.description; // Reference, don't duplicate
+        const version = info.version; // Reference, don't duplicate
+        const termsOfService = info.termsOfService; // Reference, don't duplicate
+
         const contact = if (info.contact) |contact_info| blk: {
-            const name = if (contact_info.name) |n| try self.allocator.dupe(u8, n) else null;
-            const url = if (contact_info.url) |u| try self.allocator.dupe(u8, u) else null;
-            const email = if (contact_info.email) |e| try self.allocator.dupe(u8, e) else null;
+            const name = contact_info.name; // Reference, don't duplicate
+            const url = contact_info.url; // Reference, don't duplicate
+            const email = contact_info.email; // Reference, don't duplicate
             break :blk ContactInfo{ .name = name, .url = url, .email = email };
         } else null;
-        
+
         const license = if (info.license) |license_info| blk: {
-            const name = try self.allocator.dupe(u8, license_info.name);
-            const url = if (license_info.url) |u| try self.allocator.dupe(u8, u) else null;
+            const name = license_info.name; // Reference, don't duplicate
+            const url = license_info.url; // Reference, don't duplicate
             break :blk LicenseInfo{ .name = name, .url = url };
         } else null;
 
@@ -151,40 +152,40 @@ pub const SwaggerConverter = struct {
 
     fn convertDefinitions(self: *SwaggerConverter, definitions: std.StringHashMap(Schema2)) !std.StringHashMap(Schema) {
         var schemas = std.StringHashMap(Schema).init(self.allocator);
-        
+
         var def_iterator = definitions.iterator();
         while (def_iterator.next()) |entry| {
             const key = try self.allocator.dupe(u8, entry.key_ptr.*);
             const schema = try self.convertSchema(entry.value_ptr.*);
             try schemas.put(key, schema);
         }
-        
+
         return schemas;
     }
 
     fn convertGlobalParameters(self: *SwaggerConverter, parameters: std.StringHashMap(Parameter2)) !std.StringHashMap(Parameter) {
         var converted_params = std.StringHashMap(Parameter).init(self.allocator);
-        
+
         var param_iterator = parameters.iterator();
         while (param_iterator.next()) |entry| {
             const key = try self.allocator.dupe(u8, entry.key_ptr.*);
             const param = try self.convertParameter(entry.value_ptr.*);
             try converted_params.put(key, param);
         }
-        
+
         return converted_params;
     }
 
     fn convertGlobalResponses(self: *SwaggerConverter, responses: std.StringHashMap(Response2)) !std.StringHashMap(Response) {
         var converted_responses = std.StringHashMap(Response).init(self.allocator);
-        
+
         var resp_iterator = responses.iterator();
         while (resp_iterator.next()) |entry| {
             const key = try self.allocator.dupe(u8, entry.key_ptr.*);
             const response = try self.convertResponse(entry.value_ptr.*);
             try converted_responses.put(key, response);
         }
-        
+
         return converted_responses;
     }
 
@@ -194,7 +195,7 @@ pub const SwaggerConverter = struct {
         const title = if (schema.title) |title_str| try self.allocator.dupe(u8, title_str) else null;
         const description = if (schema.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const format = if (schema.format) |fmt| try self.allocator.dupe(u8, fmt) else null;
-        
+
         const required = if (schema.required) |req_list| blk: {
             const req_array = try self.allocator.alloc([]const u8, req_list.len);
             for (req_list, 0..) |req, i| {
@@ -249,14 +250,14 @@ pub const SwaggerConverter = struct {
 
     fn convertPaths(self: *SwaggerConverter, paths: Paths2) !std.StringHashMap(PathItem) {
         var converted_paths = std.StringHashMap(PathItem).init(self.allocator);
-        
+
         var path_iterator = paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
             const path = try self.allocator.dupe(u8, entry.key_ptr.*);
             const path_item = try self.convertPathItem(entry.value_ptr.*);
             try converted_paths.put(path, path_item);
         }
-        
+
         return converted_paths;
     }
 
@@ -268,7 +269,7 @@ pub const SwaggerConverter = struct {
         const options = if (pathItem.options) |op| try self.convertOperation(op) else null;
         const head = if (pathItem.head) |op| try self.convertOperation(op) else null;
         const patch = if (pathItem.patch) |op| try self.convertOperation(op) else null;
-        
+
         const parameters = if (pathItem.parameters) |params| try self.convertParameters(params) else null;
 
         return PathItem{
@@ -295,9 +296,9 @@ pub const SwaggerConverter = struct {
         const summary = if (operation.summary) |sum| try self.allocator.dupe(u8, sum) else null;
         const description = if (operation.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const operationId = if (operation.operationId) |opId| try self.allocator.dupe(u8, opId) else null;
-        
+
         const parameters = if (operation.parameters) |params| try self.convertParameters(params) else null;
-        
+
         var responses = std.StringHashMap(Response).init(self.allocator);
         var resp_iterator = operation.responses.iterator();
         while (resp_iterator.next()) |entry| {
@@ -305,7 +306,7 @@ pub const SwaggerConverter = struct {
             const response = try self.convertResponse(entry.value_ptr.*);
             try responses.put(key, response);
         }
-        
+
         const security = if (operation.security) |sec_list| try self.convertSecurityRequirements(sec_list) else null;
 
         return Operation{
@@ -333,12 +334,12 @@ pub const SwaggerConverter = struct {
         const location = self.convertParameterLocation(parameter.in);
         const description = if (parameter.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const required = parameter.required;
-        
+
         const schema = if (parameter.schema) |param_schema| blk: {
             const converted_schema = try self.convertSchema(param_schema);
             break :blk converted_schema;
         } else null;
-        
+
         const param_type = if (parameter.type) |type_val| self.convertParameterType(type_val) else null;
         const format = if (parameter.format) |fmt| try self.allocator.dupe(u8, fmt) else null;
 
@@ -378,12 +379,12 @@ pub const SwaggerConverter = struct {
 
     fn convertResponse(self: *SwaggerConverter, response: Response2) !Response {
         const description = try self.allocator.dupe(u8, response.description);
-        
+
         const schema = if (response.schema) |resp_schema| blk: {
             const converted_schema = try self.convertSchema(resp_schema);
             break :blk converted_schema;
         } else null;
-        
+
         const headers = if (response.headers) |headers_map| blk: {
             var converted_headers = std.StringHashMap(Parameter).init(self.allocator);
             var header_iterator = headers_map.iterator();
