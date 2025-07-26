@@ -8,4 +8,8 @@ pub const Reference = struct {
         const obj = value.object;
         return Reference{ .ref = try allocator.dupe(u8, obj.get("$ref").?.string) };
     }
+
+    pub fn deinit(self: *Reference, allocator: std.mem.Allocator) void {
+        allocator.free(self.ref);
+    }
 };

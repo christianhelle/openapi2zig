@@ -16,7 +16,7 @@ pub const Link = struct {
         var parameters_map = std.StringHashMap(json.Value).init(allocator);
         if (obj.get("parameters")) |params_val| {
             for (params_val.object.keys()) |key| {
-                try parameters_map.put(key, params_val.object.get(key).?);
+                try parameters_map.put(try allocator.dupe(u8, key), params_val.object.get(key).?);
             }
         }
         return Link{
@@ -27,6 +27,24 @@ pub const Link = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .server = if (obj.get("server")) |val| try Server.parseFromJson(allocator, val) else null,
         };
+    }
+
+    pub fn deinit(self: *Link, allocator: std.mem.Allocator) void {
+        if (self.operationId) |operationId| allocator.free(operationId);
+        if (self.operationRef) |operationRef| allocator.free(operationRef);
+        if (self.description) |description| allocator.free(description);
+
+        if (self.parameters) |*parameters| {
+            var iterator = parameters.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+            }
+            parameters.deinit();
+        }
+
+        if (self.server) |*server| {
+            server.deinit(allocator);
+        }
     }
 };
 
@@ -39,6 +57,13 @@ pub const LinkOrReference = union(enum) {
             return LinkOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
             return LinkOrReference{ .link = try Link.parseFromJson(allocator, value) };
+        }
+    }
+
+    pub fn deinit(self: *LinkOrReference, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .link => |*link| link.deinit(allocator),
+            .reference => |*reference| reference.deinit(allocator),
         }
     }
 };

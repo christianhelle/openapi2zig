@@ -11,9 +11,18 @@ pub const Callback = struct {
         const obj = value.object;
         for (obj.keys()) |key| {
             // Assuming keys are path items, e.g., "$request.body#/url"
-            try path_items_map.put(key, try PathItem.parseFromJson(allocator, obj.get(key).?));
+            try path_items_map.put(try allocator.dupe(u8, key), try PathItem.parseFromJson(allocator, obj.get(key).?));
         }
         return Callback{ .path_items = path_items_map };
+    }
+
+    pub fn deinit(self: *Callback, allocator: std.mem.Allocator) void {
+        var iterator = self.path_items.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            entry.value_ptr.deinit(allocator);
+        }
+        self.path_items.deinit();
     }
 };
 
@@ -26,6 +35,13 @@ pub const CallbackOrReference = union(enum) {
             return CallbackOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
             return CallbackOrReference{ .callback = try Callback.parseFromJson(allocator, value) };
+        }
+    }
+
+    pub fn deinit(self: *CallbackOrReference, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .callback => |*callback| callback.deinit(allocator),
+            .reference => |*reference| reference.deinit(allocator),
         }
     }
 };

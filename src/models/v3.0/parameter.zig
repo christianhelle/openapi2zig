@@ -25,13 +25,13 @@ pub const Parameter = struct {
         var content_map = std.StringHashMap(MediaType).init(allocator);
         if (obj.get("content")) |content_val| {
             for (content_val.object.keys()) |key| {
-                try content_map.put(key, try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
+                try content_map.put(try allocator.dupe(u8, key), try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
             }
         }
         var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
         if (obj.get("examples")) |examples_val| {
             for (examples_val.object.keys()) |key| {
-                try examples_map.put(key, try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
+                try examples_map.put(try allocator.dupe(u8, key), try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
             }
         }
 
@@ -51,6 +51,36 @@ pub const Parameter = struct {
             .examples = if (examples_map.count() > 0) examples_map else null,
         };
     }
+
+    pub fn deinit(self: *Parameter, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.in_field);
+
+        if (self.description) |description| allocator.free(description);
+        if (self.style) |style| allocator.free(style);
+
+        if (self.schema) |*schema| {
+            schema.deinit(allocator);
+        }
+
+        if (self.content) |*content| {
+            var iterator = content.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(allocator);
+            }
+            content.deinit();
+        }
+
+        if (self.examples) |*examples| {
+            var iterator = examples.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(allocator);
+            }
+            examples.deinit();
+        }
+    }
 };
 
 pub const ParameterOrReference = union(enum) {
@@ -62,6 +92,13 @@ pub const ParameterOrReference = union(enum) {
             return ParameterOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
             return ParameterOrReference{ .parameter = try Parameter.parseFromJson(allocator, value) };
+        }
+    }
+
+    pub fn deinit(self: *ParameterOrReference, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .parameter => |*param| param.deinit(allocator),
+            .reference => |*ref| ref.deinit(allocator),
         }
     }
 };
