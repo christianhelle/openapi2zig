@@ -36,7 +36,6 @@ pub const UnifiedModelGenerator = struct {
         try self.buffer.appendSlice("///////////////////////////////////////////\n");
         try self.buffer.appendSlice("// Generated Zig structures from OpenAPI\n");
         try self.buffer.appendSlice("///////////////////////////////////////////\n\n");
-        try self.buffer.appendSlice("const std = @import(\"std\");\n\n");
     }
 
     fn generateSchemas(self: *UnifiedModelGenerator, schemas: std.StringHashMap(Schema)) !void {
