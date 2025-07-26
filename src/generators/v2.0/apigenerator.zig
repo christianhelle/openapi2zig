@@ -204,7 +204,7 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
         }
     }
 
-    try parts.append("    var client = std.http.Client.init(allocator);\n");
+    try parts.append("    var client = std.http.Client { .allocator = allocator };\n");
     try parts.append("    defer client.deinit();\n\n");
 
     var allocations = std.ArrayList([]const u8).init(allocator);
@@ -216,13 +216,13 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
             for (parameters) |parameter| {
                 if (parameter.in != .path) continue;
                 const param = parameter.name;
-                const size = std.mem.replacementSize(u8, new_path, param, "s");
+                const size = std.mem.replacementSize(u8, new_path, param, "any");
                 const output = try allocator.alloc(u8, size);
-                _ = std.mem.replace(u8, new_path, param, "s", output);
+                _ = std.mem.replace(u8, new_path, param, "any", output);
                 new_path = output;
                 try allocations.append(output);
             }
-            try parts.append("    const uri_str = try std.mem.allocPrint(\"");
+            try parts.append("    const uri_str = try std.fmt.allocPrint(allocator, \"");
             try parts.append(new_path);
             try parts.append("\", .{");
             var pos: i32 = 0;
@@ -235,6 +235,7 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
                     try parts.append(", ");
             }
             try parts.append("});\n");
+            try parts.append("    defer allocator.free(uri_str);\n\n");
             try parts.append("    const uri = try std.Uri.parse(uri_str);\n");
         } else {
             try parts.append("    const uri = try std.Uri.parse(\"");

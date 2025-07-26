@@ -183,7 +183,7 @@ pub const ApiCodeGenerator = struct {
             }
         }
 
-        try parts.append("    var client = std.http.Client.init(allocator);\n");
+        try parts.append("    var client = std.http.Client { .allocator = allocator };\n");
         try parts.append("    defer client.deinit();\n\n");
 
         var allocations = std.ArrayList([]const u8).init(allocator);
@@ -195,13 +195,13 @@ pub const ApiCodeGenerator = struct {
                 const parameter = paramOrReference.parameter;
                 if (!std.mem.eql(u8, parameter.in_field, "path")) continue;
                 const name = parameter.name;
-                const size = std.mem.replacementSize(u8, new_path, name, "s");
+                const size = std.mem.replacementSize(u8, new_path, name, "any");
                 const output = try allocator.alloc(u8, size);
-                _ = std.mem.replace(u8, new_path, name, "s", output);
+                _ = std.mem.replace(u8, new_path, name, "any", output);
                 new_path = output;
                 try allocations.append(output);
             }
-            try parts.append("    const uri_str = try std.mem.allocPrint(\"");
+            try parts.append("    const uri_str = try std.fmt.allocPrint(allocator, \"");
             try parts.append(new_path);
             try parts.append("\", .{");
             var pos: i32 = 0;
@@ -215,6 +215,7 @@ pub const ApiCodeGenerator = struct {
                     try parts.append(", ");
             }
             try parts.append("});\n");
+            try parts.append("    defer allocator.free(uri_str);\n\n");
             try parts.append("    const uri = try std.Uri.parse(uri_str);\n");
         } else {
             try parts.append("    const uri = try std.Uri.parse(\"");
