@@ -45,16 +45,25 @@ pub const Tag = struct {
 pub const Server = struct {
     url: []const u8,
     description: ?[]const u8 = null,
+    _url_allocated: bool = false, // Track if URL was allocated
 
-    // No deinit needed - references original document strings
+    pub fn deinit(self: *Server, allocator: std.mem.Allocator) void {
+        if (self._url_allocated) {
+            allocator.free(self.url);
+        }
+    }
 };
 
 pub const SecurityRequirement = struct {
     schemes: std.StringHashMap([][]const u8),
 
     pub fn deinit(self: *SecurityRequirement, allocator: std.mem.Allocator) void {
-        _ = allocator; // Mark as unused since we're not freeing strings
-        // Only deinitialize the HashMap structure, not the strings it references
+        // Free all the duped keys and allocated scopes arrays before deinitializing the HashMap
+        var iterator = self.schemes.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*); // Free the duped key
+            allocator.free(entry.value_ptr.*); // Free the allocated scopes array
+        }
         self.schemes.deinit();
     }
 };
@@ -83,10 +92,16 @@ pub const Schema = struct {
     example: ?json.Value = null,
 
     pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {
-        // Only deinitialize HashMap structures, not the strings they reference
+        // Free the required array (allocated in converters)
+        if (self.required) |required| {
+            allocator.free(required);
+        }
+
+        // Free the duped keys in properties HashMap, then deinitialize structures
         if (self.properties) |*props| {
             var iterator = props.iterator();
             while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*); // Free the duped property name
                 entry.value_ptr.deinit(allocator);
             }
             props.deinit();
@@ -128,12 +143,14 @@ pub const Response = struct {
     headers: ?std.StringHashMap(Parameter) = null,
 
     pub fn deinit(self: *Response, allocator: std.mem.Allocator) void {
-        // Only deinitialize schema and hashmap structures, not the strings they reference
+        // Free schema structure
         if (self.schema) |*schema| schema.deinit(allocator);
 
+        // Free the duped keys in headers HashMap, then deinitialize structures
         if (self.headers) |*headers| {
             var iterator = headers.iterator();
             while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*); // Free the duped header name
                 entry.value_ptr.deinit(allocator);
             }
             headers.deinit();
@@ -152,18 +169,26 @@ pub const Operation = struct {
     security: ?[]SecurityRequirement = null,
 
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
-        // Only deinitialize parameters, responses, and security structures
+        // Free tags array (allocated in converters)
+        if (self.tags) |tags| {
+            allocator.free(tags);
+        }
+
+        // Free parameters array
         if (self.parameters) |params| {
             for (params) |*param| param.deinit(allocator);
             allocator.free(params);
         }
 
+        // Free the duped keys in responses HashMap, then deinitialize structures
         var resp_iterator = self.responses.iterator();
         while (resp_iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*); // Free the duped response key
             entry.value_ptr.deinit(allocator);
         }
         self.responses.deinit();
 
+        // Free security array
         if (self.security) |security| {
             for (security) |*sec| sec.deinit(allocator);
             allocator.free(security);
@@ -221,18 +246,19 @@ pub const UnifiedDocument = struct {
     responses: ?std.StringHashMap(Response) = null,
 
     pub fn deinit(self: *UnifiedDocument, allocator: std.mem.Allocator) void {
-        // Only deinitialize structures, not the strings they reference
-        // Note: info has no deinit method anymore since it doesn't own strings
+        // Note: info has no deinit method since it doesn't own strings
         _ = self.info; // Suppress unused field warning
 
+        // Free the duped keys in paths HashMap, then deinitialize structures
         var path_iterator = self.paths.iterator();
         while (path_iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*); // Free the duped path key
             entry.value_ptr.deinit(allocator);
         }
         self.paths.deinit();
 
         if (self.servers) |servers| {
-            // servers is an array, but the Server struct doesn't free strings anymore
+            for (servers) |*server| server.deinit(allocator);
             allocator.free(servers);
         }
 
@@ -242,31 +268,37 @@ pub const UnifiedDocument = struct {
         }
 
         if (self.tags) |tags| {
-            // tags is an array, but the Tag struct doesn't free strings anymore
+            // tags is an array, but the Tag struct doesn't free strings
             allocator.free(tags);
         }
 
-        // externalDocs doesn't have a deinit method anymore
+        // externalDocs doesn't have a deinit method
 
+        // Free the duped keys in schemas HashMap, then deinitialize structures
         if (self.schemas) |*schemas| {
             var schema_iterator = schemas.iterator();
             while (schema_iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*); // Free the duped schema name
                 entry.value_ptr.deinit(allocator);
             }
             schemas.deinit();
         }
 
+        // Free the duped keys in parameters HashMap, then deinitialize structures
         if (self.parameters) |*params| {
             var param_iterator = params.iterator();
             while (param_iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*); // Free the duped parameter name
                 entry.value_ptr.deinit(allocator);
             }
             params.deinit();
         }
 
+        // Free the duped keys in responses HashMap, then deinitialize structures
         if (self.responses) |*responses| {
             var resp_iterator = responses.iterator();
             while (resp_iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*); // Free the duped response name
                 entry.value_ptr.deinit(allocator);
             }
             responses.deinit();
