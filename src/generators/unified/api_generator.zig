@@ -150,30 +150,21 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateFunctionBody(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
-        // Generate parameter avoidance for unused warnings
-        if (operation.parameters) |params| {
-            for (params) |param| {
-                if (param.location == .body) {
-                    try self.buffer.appendSlice("    // Avoid warnings about unused parameters\n");
-                    try self.buffer.appendSlice("    _ = requestBody;\n");
-                } else {
-                    try self.buffer.appendSlice("    _ = ");
-                    try self.buffer.appendSlice(param.name);
-                    try self.buffer.appendSlice(";\n");
+        if (operation.parameters) |parameters| {
+            if (parameters.len > 0) {
+                for (parameters) |parameter| {
+                    if (parameter.location != .path and parameter.location != .body) {
+                        try self.buffer.appendSlice("    _ = ");
+                        try self.buffer.appendSlice(parameter.name);
+                        try self.buffer.appendSlice(";\n");
+                    }
                 }
             }
-            try self.buffer.appendSlice("\n");
         }
 
         // Generate HTTP client setup
         try self.buffer.appendSlice("    var client = std.http.Client.init(allocator);\n");
         try self.buffer.appendSlice("    defer client.deinit();\n\n");
-
-        // Generate URI creation
-        try self.buffer.appendSlice("    const uri = std.Uri.parse(\"");
-        try self.buffer.appendSlice("https://api.example.com"); // Default base URL
-        try self.buffer.appendSlice(path);
-        try self.buffer.appendSlice("\") catch unreachable;\n\n");
 
         // Generate headers
         try self.buffer.appendSlice("    var headers = std.http.Headers.init(allocator);\n");
@@ -185,6 +176,42 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("    try headers.append(\"content-type\", \"application/json\");\n");
         }
         try self.buffer.appendSlice("\n");
+
+        if (operation.parameters) |parameters| {
+            var new_path = path;
+            for (parameters) |parameter| {
+                if (parameter.location != .path) continue;
+                const param = parameter.name;
+                const size = std.mem.replacementSize(u8, new_path, param, "s");
+                const output = try self.allocator.alloc(u8, size);
+                _ = std.mem.replace(u8, new_path, param, "s", output);
+                new_path = output;
+            }
+            try self.buffer.appendSlice("    const uri_str = try std.mem.allocPrint(\"");
+            if (self.args.base_url) |base_url| {
+                try self.buffer.appendSlice(base_url);
+            }
+            try self.buffer.appendSlice(new_path);
+            try self.buffer.appendSlice("\", .{");
+            var pos: i32 = 0;
+            for (parameters) |parameter| {
+                if (parameter.location != .path) continue;
+                const param = parameter.name;
+                try self.buffer.appendSlice(param);
+                pos += 1;
+                if (pos < parameters.len)
+                    try self.buffer.appendSlice(", ");
+            }
+            try self.buffer.appendSlice("});\n");
+            try self.buffer.appendSlice("    const uri = try std.Uri.parse(uri_str);\n");
+        } else {
+            try self.buffer.appendSlice("    const uri = try std.Uri.parse(\"");
+            if (self.args.base_url) |base_url| {
+                try self.buffer.appendSlice(base_url);
+            }
+            try self.buffer.appendSlice(path);
+            try self.buffer.appendSlice("\");\n");
+        }
 
         // Generate request
         try self.buffer.appendSlice("    var req = try client.request(.{ .method = .");
