@@ -54,7 +54,7 @@ pub const UnifiedModelGenerator = struct {
         }
 
         try self.buffer.appendSlice("pub const ");
-        try self.buffer.appendSlice(self.capitalize(name));
+        try self.buffer.appendSlice(name);
         try self.buffer.appendSlice(" = struct {\n");
 
         // Generate fields from properties
@@ -100,7 +100,7 @@ pub const UnifiedModelGenerator = struct {
             // References typically look like "#/definitions/Pet" or "#/components/schemas/Pet"
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
                 const schema_name = ref[last_slash + 1 ..];
-                return self.capitalize(schema_name);
+                return schema_name;
             }
             return "[]const u8"; // fallback
         }
@@ -148,16 +148,5 @@ pub const UnifiedModelGenerator = struct {
             }
         }
         return false;
-    }
-
-    fn capitalize(self: *UnifiedModelGenerator, input: []const u8) []const u8 {
-        _ = self;
-        if (input.len == 0) return input;
-
-        // For now, return as-is. In a real implementation, you'd want to:
-        // 1. Allocate new string
-        // 2. Capitalize first letter
-        // 3. Handle camelCase to PascalCase conversion
-        return input;
     }
 };
