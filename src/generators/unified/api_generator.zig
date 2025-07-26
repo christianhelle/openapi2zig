@@ -179,15 +179,24 @@ pub const UnifiedApiGenerator = struct {
 
         if (operation.parameters) |parameters| {
             var new_path = path;
+            var allocated_paths = std.ArrayList([]u8).init(self.allocator);
+            defer {
+                for (allocated_paths.items) |allocated_path| {
+                    self.allocator.free(allocated_path);
+                }
+                allocated_paths.deinit();
+            }
+
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 const param = parameter.name;
                 const size = std.mem.replacementSize(u8, new_path, param, "s");
                 const output = try self.allocator.alloc(u8, size);
+                try allocated_paths.append(output);
                 _ = std.mem.replace(u8, new_path, param, "s", output);
                 new_path = output;
             }
-            try self.buffer.appendSlice("    const uri_str = try std.mem.allocPrint(\"");
+            try self.buffer.appendSlice("    const uri_str = try std.fmt.allocPrint(allocator, \"");
             if (self.args.base_url) |base_url| {
                 try self.buffer.appendSlice(base_url);
             }
@@ -203,6 +212,7 @@ pub const UnifiedApiGenerator = struct {
                     try self.buffer.appendSlice(", ");
             }
             try self.buffer.appendSlice("});\n");
+            try self.buffer.appendSlice("    defer allocator.free(uri_str);\n");
             try self.buffer.appendSlice("    const uri = try std.Uri.parse(uri_str);\n");
         } else {
             try self.buffer.appendSlice("    const uri = try std.Uri.parse(\"");
@@ -227,7 +237,7 @@ pub const UnifiedApiGenerator = struct {
                         try self.buffer.appendSlice("    var str = std.ArrayList(u8).init(allocator);\n");
                         try self.buffer.appendSlice("    defer str.deinit();\n\n");
                         try self.buffer.appendSlice("    try std.json.stringify(requestBody, .{}, str.writer());\n");
-                        try self.buffer.appendSlice("    const body = try std.mem.join(allocator, \"\", str.items);\n\n");
+                        try self.buffer.appendSlice("    const body = str.items;\n\n");
                         try self.buffer.appendSlice("    req.transfer_encoding = .{ .content_length = body.len };\n");
                         try self.buffer.appendSlice("    try req.writeAll(body);\n\n");
                         break;
