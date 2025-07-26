@@ -9,14 +9,7 @@ pub const DocumentInfo = struct {
     contact: ?ContactInfo = null,
     license: ?LicenseInfo = null,
 
-    pub fn deinit(self: *DocumentInfo, allocator: std.mem.Allocator) void {
-        allocator.free(self.title);
-        if (self.description) |desc| allocator.free(desc);
-        allocator.free(self.version);
-        if (self.termsOfService) |tos| allocator.free(tos);
-        if (self.contact) |*contact| contact.deinit(allocator);
-        if (self.license) |*license| license.deinit(allocator);
-    }
+    // No deinit needed - references original document strings
 };
 
 pub const ContactInfo = struct {
@@ -24,31 +17,21 @@ pub const ContactInfo = struct {
     url: ?[]const u8 = null,
     email: ?[]const u8 = null,
 
-    pub fn deinit(self: *ContactInfo, allocator: std.mem.Allocator) void {
-        if (self.name) |name| allocator.free(name);
-        if (self.url) |url| allocator.free(url);
-        if (self.email) |email| allocator.free(email);
-    }
+    // No deinit needed - references original document strings
 };
 
 pub const LicenseInfo = struct {
     name: []const u8,
     url: ?[]const u8 = null,
 
-    pub fn deinit(self: *LicenseInfo, allocator: std.mem.Allocator) void {
-        allocator.free(self.name);
-        if (self.url) |url| allocator.free(url);
-    }
+    // No deinit needed - references original document strings
 };
 
 pub const ExternalDocumentation = struct {
     url: []const u8,
     description: ?[]const u8 = null,
 
-    pub fn deinit(self: ExternalDocumentation, allocator: std.mem.Allocator) void {
-        allocator.free(self.url);
-        if (self.description) |desc| allocator.free(desc);
-    }
+    // No deinit needed - references original document strings
 };
 
 pub const Tag = struct {
@@ -56,35 +39,22 @@ pub const Tag = struct {
     description: ?[]const u8 = null,
     externalDocs: ?ExternalDocumentation = null,
 
-    pub fn deinit(self: Tag, allocator: std.mem.Allocator) void {
-        allocator.free(self.name);
-        if (self.description) |desc| allocator.free(desc);
-        if (self.externalDocs) |extDocs| extDocs.deinit(allocator);
-    }
+    // No deinit needed - references original document strings
 };
 
 pub const Server = struct {
     url: []const u8,
     description: ?[]const u8 = null,
 
-    pub fn deinit(self: *Server, allocator: std.mem.Allocator) void {
-        allocator.free(self.url);
-        if (self.description) |desc| allocator.free(desc);
-    }
+    // No deinit needed - references original document strings
 };
 
 pub const SecurityRequirement = struct {
     schemes: std.StringHashMap([][]const u8),
 
     pub fn deinit(self: *SecurityRequirement, allocator: std.mem.Allocator) void {
-        var iterator = self.schemes.iterator();
-        while (iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            for (entry.value_ptr.*) |scope| {
-                allocator.free(scope);
-            }
-            allocator.free(entry.value_ptr.*);
-        }
+        _ = allocator; // Mark as unused since we're not freeing strings
+        // Only deinitialize the HashMap structure, not the strings it references
         self.schemes.deinit();
     }
 };
@@ -113,20 +83,10 @@ pub const Schema = struct {
     example: ?json.Value = null,
 
     pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {
-        if (self.ref) |ref| allocator.free(ref);
-        if (self.title) |title| allocator.free(title);
-        if (self.description) |desc| allocator.free(desc);
-        if (self.format) |fmt| allocator.free(fmt);
-
-        if (self.required) |required| {
-            for (required) |req| allocator.free(req);
-            allocator.free(required);
-        }
-
+        // Only deinitialize HashMap structures, not the strings they reference
         if (self.properties) |*props| {
             var iterator = props.iterator();
             while (iterator.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
                 entry.value_ptr.deinit(allocator);
             }
             props.deinit();
@@ -135,10 +95,6 @@ pub const Schema = struct {
         if (self.items) |items| {
             items.deinit(allocator);
             allocator.destroy(items);
-        }
-
-        if (self.enum_values) |enum_vals| {
-            allocator.free(enum_vals);
         }
     }
 };
@@ -161,10 +117,8 @@ pub const Parameter = struct {
     format: ?[]const u8 = null,
 
     pub fn deinit(self: *Parameter, allocator: std.mem.Allocator) void {
-        allocator.free(self.name);
-        if (self.description) |desc| allocator.free(desc);
+        // Only deinitialize schema structure, not the strings they reference
         if (self.schema) |*schema| schema.deinit(allocator);
-        if (self.format) |fmt| allocator.free(fmt);
     }
 };
 
@@ -174,13 +128,12 @@ pub const Response = struct {
     headers: ?std.StringHashMap(Parameter) = null,
 
     pub fn deinit(self: *Response, allocator: std.mem.Allocator) void {
-        allocator.free(self.description);
+        // Only deinitialize schema and hashmap structures, not the strings they reference
         if (self.schema) |*schema| schema.deinit(allocator);
 
         if (self.headers) |*headers| {
             var iterator = headers.iterator();
             while (iterator.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
                 entry.value_ptr.deinit(allocator);
             }
             headers.deinit();
@@ -199,14 +152,7 @@ pub const Operation = struct {
     security: ?[]SecurityRequirement = null,
 
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
-        if (self.tags) |tags| {
-            for (tags) |tag| allocator.free(tag);
-            allocator.free(tags);
-        }
-        if (self.summary) |summary| allocator.free(summary);
-        if (self.description) |desc| allocator.free(desc);
-        if (self.operationId) |opId| allocator.free(opId);
-
+        // Only deinitialize parameters, responses, and security structures
         if (self.parameters) |params| {
             for (params) |*param| param.deinit(allocator);
             allocator.free(params);
@@ -214,7 +160,6 @@ pub const Operation = struct {
 
         var resp_iterator = self.responses.iterator();
         while (resp_iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
             entry.value_ptr.deinit(allocator);
         }
         self.responses.deinit();
@@ -237,6 +182,7 @@ pub const PathItem = struct {
     parameters: ?[]Parameter = null,
 
     pub fn deinit(self: *PathItem, allocator: std.mem.Allocator) void {
+        // Only deinitialize operation and parameter structures
         if (self.get) |*op| op.deinit(allocator);
         if (self.put) |*op| op.deinit(allocator);
         if (self.post) |*op| op.deinit(allocator);
@@ -275,18 +221,18 @@ pub const UnifiedDocument = struct {
     responses: ?std.StringHashMap(Response) = null,
 
     pub fn deinit(self: *UnifiedDocument, allocator: std.mem.Allocator) void {
-        allocator.free(self.version);
-        self.info.deinit(allocator);
+        // Only deinitialize structures, not the strings they reference
+        // Note: info has no deinit method anymore since it doesn't own strings
+        _ = self.info; // Suppress unused field warning
 
         var path_iterator = self.paths.iterator();
         while (path_iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
             entry.value_ptr.deinit(allocator);
         }
         self.paths.deinit();
 
         if (self.servers) |servers| {
-            for (servers) |*server| server.deinit(allocator);
+            // servers is an array, but the Server struct doesn't free strings anymore
             allocator.free(servers);
         }
 
@@ -296,18 +242,15 @@ pub const UnifiedDocument = struct {
         }
 
         if (self.tags) |tags| {
-            for (tags) |tag| tag.deinit(allocator);
+            // tags is an array, but the Tag struct doesn't free strings anymore
             allocator.free(tags);
         }
 
-        if (self.externalDocs) |extDocs| {
-            extDocs.deinit(allocator);
-        }
+        // externalDocs doesn't have a deinit method anymore
 
         if (self.schemas) |*schemas| {
             var schema_iterator = schemas.iterator();
             while (schema_iterator.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
                 entry.value_ptr.deinit(allocator);
             }
             schemas.deinit();
@@ -316,7 +259,6 @@ pub const UnifiedDocument = struct {
         if (self.parameters) |*params| {
             var param_iterator = params.iterator();
             while (param_iterator.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
                 entry.value_ptr.deinit(allocator);
             }
             params.deinit();
@@ -325,7 +267,6 @@ pub const UnifiedDocument = struct {
         if (self.responses) |*responses| {
             var resp_iterator = responses.iterator();
             while (resp_iterator.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
                 entry.value_ptr.deinit(allocator);
             }
             responses.deinit();
