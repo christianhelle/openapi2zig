@@ -2,10 +2,10 @@ const std = @import("std");
 const models = @import("models.zig");
 const cli = @import("cli.zig");
 const detector = @import("detector.zig");
-const ApiCodeGeneratorV2 = @import("generators/v2.0/apigenerator.zig").ApiCodeGenerator;
-const ModelCodeGeneratorV2 = @import("generators/v2.0/modelgenerator.zig").ModelCodeGenerator;
-const ApiCodeGeneratorV3 = @import("generators/v3.0/apigenerator.zig").ApiCodeGenerator;
-const ModelCodeGeneratorV3 = @import("generators/v3.0/modelgenerator.zig").ModelCodeGenerator;
+const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
+const SwaggerConverter = @import("generators/converters/swagger_converter.zig").SwaggerConverter;
+const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
+const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
 
 const default_output_file: []const u8 = "generated.zig";
 
@@ -75,18 +75,18 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
     }
 }
 
-// Swagger v2.0 code generation
-fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, swagger: models.SwaggerDocument, args: cli.CliArgs) !void {
-    var model_generator = ModelCodeGeneratorV2.init(allocator);
+// Core unified code generation that works with the unified document structure
+fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, unified_doc: @import("models/common/document.zig").UnifiedDocument, args: cli.CliArgs) !void {
+    var model_generator = UnifiedModelGenerator.init(allocator);
     defer model_generator.deinit();
 
-    const generated_models = try model_generator.generate(swagger);
+    const generated_models = try model_generator.generate(unified_doc);
     defer allocator.free(generated_models);
 
-    var api_generator = ApiCodeGeneratorV2.init(allocator, args);
+    var api_generator = UnifiedApiGenerator.init(allocator, args);
     defer api_generator.deinit();
 
-    const generated_api = try api_generator.generate(swagger);
+    const generated_api = try api_generator.generate(unified_doc);
     defer allocator.free(generated_api);
 
     const generated_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
@@ -108,35 +108,20 @@ fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, swagger: models
     }
 }
 
-// OpenAPI v3.0 code generation
+// Swagger v2.0 code generation (now using unified approach)
+fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, swagger: models.SwaggerDocument, args: cli.CliArgs) !void {
+    var swagger_converter = SwaggerConverter.init(allocator);
+    var unified_doc = try swagger_converter.convert(swagger);
+    defer unified_doc.deinit(allocator);
+    
+    try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
+}
+
+// OpenAPI v3.0 code generation (now using unified approach)
 fn generateCodeFromOpenApiDocument(allocator: std.mem.Allocator, openapi: models.OpenApiDocument, args: cli.CliArgs) !void {
-    var model_generator = ModelCodeGeneratorV3.init(allocator);
-    defer model_generator.deinit();
-
-    const generated_models = try model_generator.generate(openapi);
-    defer allocator.free(generated_models);
-
-    var api_generator = ApiCodeGeneratorV3.init(allocator, args);
-    defer api_generator.deinit();
-
-    const generated_api = try api_generator.generate(openapi);
-    defer allocator.free(generated_api);
-
-    const generated_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
-    defer allocator.free(generated_code);
-
-    if (args.output_path) |output_path| {
-        if (std.fs.path.dirname(output_path)) |dir_path| {
-            try std.fs.cwd().makePath(dir_path);
-        }
-        const output_file = try std.fs.cwd().createFile(output_path, .{ .read = true });
-        defer output_file.close();
-        try output_file.writeAll(generated_code);
-        std.debug.print("Models generated successfully and written to '{s}'.\n", .{output_path});
-    } else {
-        const output_file = try std.fs.cwd().createFile(default_output_file, .{ .read = true });
-        defer output_file.close();
-        try output_file.writeAll(generated_code);
-        std.debug.print("Models generated successfully and written to 'generated_models.zig'.\n", .{});
-    }
+    var openapi_converter = OpenApiConverter.init(allocator);
+    var unified_doc = try openapi_converter.convert(openapi);
+    defer unified_doc.deinit(allocator);
+    
+    try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
 }
