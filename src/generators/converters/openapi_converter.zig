@@ -42,8 +42,8 @@ pub const OpenApiConverter = struct {
     }
 
     pub fn convert(self: *OpenApiConverter, openapi: OpenApiDocument) !UnifiedDocument {
-        const version = try self.allocator.dupe(u8, openapi.openapi);
-        const info = try self.convertInfo(openapi.info);
+        const version = openapi.openapi; // Reference, don't duplicate
+        const info = self.convertInfo(openapi.info);
         const paths = try self.convertPaths(openapi.paths);
 
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
@@ -66,22 +66,23 @@ pub const OpenApiConverter = struct {
         };
     }
 
-    fn convertInfo(self: *OpenApiConverter, info: Info3) !DocumentInfo {
-        const title = try self.allocator.dupe(u8, info.title);
-        const description = if (info.description) |desc| try self.allocator.dupe(u8, desc) else null;
-        const version = try self.allocator.dupe(u8, info.version);
-        const termsOfService = if (info.termsOfService) |tos| try self.allocator.dupe(u8, tos) else null;
+    fn convertInfo(self: *OpenApiConverter, info: Info3) DocumentInfo {
+        _ = self; // Not needed for reference-based conversion
+        const title = info.title; // Reference, don't duplicate
+        const description = info.description; // Reference, don't duplicate
+        const version = info.version; // Reference, don't duplicate
+        const termsOfService = info.termsOfService; // Reference, don't duplicate
 
         const contact = if (info.contact) |contact_info| blk: {
-            const name = if (contact_info.name) |n| try self.allocator.dupe(u8, n) else null;
-            const url = if (contact_info.url) |u| try self.allocator.dupe(u8, u) else null;
-            const email = if (contact_info.email) |e| try self.allocator.dupe(u8, e) else null;
+            const name = contact_info.name; // Reference, don't duplicate
+            const url = contact_info.url; // Reference, don't duplicate
+            const email = contact_info.email; // Reference, don't duplicate
             break :blk ContactInfo{ .name = name, .url = url, .email = email };
         } else null;
 
         const license = if (info.license) |license_info| blk: {
-            const name = try self.allocator.dupe(u8, license_info.name);
-            const url = if (license_info.url) |u| try self.allocator.dupe(u8, u) else null;
+            const name = license_info.name; // Reference, don't duplicate
+            const url = license_info.url; // Reference, don't duplicate
             break :blk LicenseInfo{ .name = name, .url = url };
         } else null;
 
