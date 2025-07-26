@@ -1,34 +1,35 @@
 const std = @import("std");
-const UnifiedDocument = @import("../common/document.zig").UnifiedDocument;
-const DocumentInfo = @import("../common/document.zig").DocumentInfo;
-const ContactInfo = @import("../common/document.zig").ContactInfo;
-const LicenseInfo = @import("../common/document.zig").LicenseInfo;
-const ExternalDocumentation = @import("../common/document.zig").ExternalDocumentation;
-const Tag = @import("../common/document.zig").Tag;
-const Server = @import("../common/document.zig").Server;
-const SecurityRequirement = @import("../common/document.zig").SecurityRequirement;
-const Schema = @import("../common/document.zig").Schema;
-const SchemaType = @import("../common/document.zig").SchemaType;
-const Parameter = @import("../common/document.zig").Parameter;
-const ParameterLocation = @import("../common/document.zig").ParameterLocation;
-const Response = @import("../common/document.zig").Response;
-const Operation = @import("../common/document.zig").Operation;
-const PathItem = @import("../common/document.zig").PathItem;
+const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
+const DocumentInfo = @import("../../models/common/document.zig").DocumentInfo;
+const ContactInfo = @import("../../models/common/document.zig").ContactInfo;
+const LicenseInfo = @import("../../models/common/document.zig").LicenseInfo;
+const ExternalDocumentation = @import("../../models/common/document.zig").ExternalDocumentation;
+const Tag = @import("../../models/common/document.zig").Tag;
+const Server = @import("../../models/common/document.zig").Server;
+const SecurityRequirement = @import("../../models/common/document.zig").SecurityRequirement;
+const Schema = @import("../../models/common/document.zig").Schema;
+const SchemaType = @import("../../models/common/document.zig").SchemaType;
+const Parameter = @import("../../models/common/document.zig").Parameter;
+const ParameterLocation = @import("../../models/common/document.zig").ParameterLocation;
+const Response = @import("../../models/common/document.zig").Response;
+const Operation = @import("../../models/common/document.zig").Operation;
+const PathItem = @import("../../models/common/document.zig").PathItem;
 
-const SwaggerDocument = @import("../v2.0/swagger.zig").SwaggerDocument;
-const Info2 = @import("../v2.0/info.zig").Info;
-const Contact2 = @import("../v2.0/info.zig").Contact;
-const License2 = @import("../v2.0/info.zig").License;
-const ExternalDocs2 = @import("../v2.0/externaldocs.zig").ExternalDocumentation;
-const Tag2 = @import("../v2.0/tag.zig").Tag;
-const SecurityRequirement2 = @import("../v2.0/security.zig").SecurityRequirement;
-const Schema2 = @import("../v2.0/schema.zig").Schema;
-const Parameter2 = @import("../v2.0/parameter.zig").Parameter;
-const ParameterType2 = @import("../v2.0/parameter.zig").ParameterType;
-const Response2 = @import("../v2.0/response.zig").Response;
-const Operation2 = @import("../v2.0/operation.zig").Operation;
-const PathItem2 = @import("../v2.0/paths.zig").PathItem;
-const Paths2 = @import("../v2.0/paths.zig").Paths;
+const SwaggerDocument = @import("../../models/v2.0/swagger.zig").SwaggerDocument;
+const Info2 = @import("../../models/v2.0/info.zig").Info;
+const Contact2 = @import("../../models/v2.0/info.zig").Contact;
+const License2 = @import("../../models/v2.0/info.zig").License;
+const ExternalDocs2 = @import("../../models/v2.0/externaldocs.zig").ExternalDocumentation;
+const Tag2 = @import("../../models/v2.0/tag.zig").Tag;
+const SecurityRequirement2 = @import("../../models/v2.0/security.zig").SecurityRequirement;
+const Schema2 = @import("../../models/v2.0/schema.zig").Schema;
+const Parameter2 = @import("../../models/v2.0/parameter.zig").Parameter;
+const ParameterLocation2 = @import("../../models/v2.0/parameter.zig").ParameterLocation;
+const PrimitiveType2 = @import("../../models/v2.0/parameter.zig").PrimitiveType;
+const Response2 = @import("../../models/v2.0/response.zig").Response;
+const Operation2 = @import("../../models/v2.0/operation.zig").Operation;
+const PathItem2 = @import("../../models/v2.0/paths.zig").PathItem;
+const Paths2 = @import("../../models/v2.0/paths.zig").Paths;
 
 pub const SwaggerConverter = struct {
     allocator: std.mem.Allocator,
@@ -117,7 +118,7 @@ pub const SwaggerConverter = struct {
         var converted_security = try self.allocator.alloc(SecurityRequirement, security.len);
         for (security, 0..) |sec_req, i| {
             var schemes = std.StringHashMap([][]const u8).init(self.allocator);
-            var sec_iterator = sec_req.schemes.iterator();
+            var sec_iterator = sec_req.requirements.iterator();
             while (sec_iterator.next()) |entry| {
                 const key = try self.allocator.dupe(u8, entry.key_ptr.*);
                 const scopes = try self.allocator.alloc([]const u8, entry.value_ptr.*.len);
@@ -298,13 +299,11 @@ pub const SwaggerConverter = struct {
         const parameters = if (operation.parameters) |params| try self.convertParameters(params) else null;
         
         var responses = std.StringHashMap(Response).init(self.allocator);
-        if (operation.responses) |responses_map| {
-            var resp_iterator = responses_map.iterator();
-            while (resp_iterator.next()) |entry| {
-                const key = try self.allocator.dupe(u8, entry.key_ptr.*);
-                const response = try self.convertResponse(entry.value_ptr.*);
-                try responses.put(key, response);
-            }
+        var resp_iterator = operation.responses.iterator();
+        while (resp_iterator.next()) |entry| {
+            const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+            const response = try self.convertResponse(entry.value_ptr.*);
+            try responses.put(key, response);
         }
         
         const security = if (operation.security) |sec_list| try self.convertSecurityRequirements(sec_list) else null;
@@ -333,10 +332,10 @@ pub const SwaggerConverter = struct {
         const name = try self.allocator.dupe(u8, parameter.name);
         const location = self.convertParameterLocation(parameter.in);
         const description = if (parameter.description) |desc| try self.allocator.dupe(u8, desc) else null;
-        const required = parameter.required orelse false;
+        const required = parameter.required;
         
         const schema = if (parameter.schema) |param_schema| blk: {
-            const converted_schema = try self.convertSchema(param_schema.*);
+            const converted_schema = try self.convertSchema(param_schema);
             break :blk converted_schema;
         } else null;
         
@@ -354,26 +353,34 @@ pub const SwaggerConverter = struct {
         };
     }
 
-    fn convertParameterLocation(self: *SwaggerConverter, location: ParameterType2) ParameterLocation {
+    fn convertParameterLocation(self: *SwaggerConverter, location: ParameterLocation2) ParameterLocation {
         _ = self;
         return switch (location) {
             .query => .query,
             .header => .header,
             .path => .path,
             .body => .body,
-            .form => .form,
+            .formData => .form,
         };
     }
 
-    fn convertParameterType(self: *SwaggerConverter, param_type: []const u8) SchemaType {
-        return self.convertSchemaType(param_type);
+    fn convertParameterType(self: *SwaggerConverter, param_type: PrimitiveType2) SchemaType {
+        _ = self;
+        return switch (param_type) {
+            .string => .string,
+            .number => .number,
+            .integer => .integer,
+            .boolean => .boolean,
+            .array => .array,
+            .file => .string, // Map file to string
+        };
     }
 
     fn convertResponse(self: *SwaggerConverter, response: Response2) !Response {
         const description = try self.allocator.dupe(u8, response.description);
         
         const schema = if (response.schema) |resp_schema| blk: {
-            const converted_schema = try self.convertSchema(resp_schema.*);
+            const converted_schema = try self.convertSchema(resp_schema);
             break :blk converted_schema;
         } else null;
         

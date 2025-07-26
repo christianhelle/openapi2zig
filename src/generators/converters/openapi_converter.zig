@@ -1,38 +1,38 @@
 const std = @import("std");
-const UnifiedDocument = @import("../common/document.zig").UnifiedDocument;
-const DocumentInfo = @import("../common/document.zig").DocumentInfo;
-const ContactInfo = @import("../common/document.zig").ContactInfo;
-const LicenseInfo = @import("../common/document.zig").LicenseInfo;
-const ExternalDocumentation = @import("../common/document.zig").ExternalDocumentation;
-const Tag = @import("../common/document.zig").Tag;
-const Server = @import("../common/document.zig").Server;
-const SecurityRequirement = @import("../common/document.zig").SecurityRequirement;
-const Schema = @import("../common/document.zig").Schema;
-const SchemaType = @import("../common/document.zig").SchemaType;
-const Parameter = @import("../common/document.zig").Parameter;
-const ParameterLocation = @import("../common/document.zig").ParameterLocation;
-const Response = @import("../common/document.zig").Response;
-const Operation = @import("../common/document.zig").Operation;
-const PathItem = @import("../common/document.zig").PathItem;
+const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
+const DocumentInfo = @import("../../models/common/document.zig").DocumentInfo;
+const ContactInfo = @import("../../models/common/document.zig").ContactInfo;
+const LicenseInfo = @import("../../models/common/document.zig").LicenseInfo;
+const ExternalDocumentation = @import("../../models/common/document.zig").ExternalDocumentation;
+const Tag = @import("../../models/common/document.zig").Tag;
+const Server = @import("../../models/common/document.zig").Server;
+const SecurityRequirement = @import("../../models/common/document.zig").SecurityRequirement;
+const Schema = @import("../../models/common/document.zig").Schema;
+const SchemaType = @import("../../models/common/document.zig").SchemaType;
+const Parameter = @import("../../models/common/document.zig").Parameter;
+const ParameterLocation = @import("../../models/common/document.zig").ParameterLocation;
+const Response = @import("../../models/common/document.zig").Response;
+const Operation = @import("../../models/common/document.zig").Operation;
+const PathItem = @import("../../models/common/document.zig").PathItem;
 
-const OpenApiDocument = @import("../v3.0/openapi.zig").OpenApiDocument;
-const Info3 = @import("../v3.0/info.zig").Info;
-const Contact3 = @import("../v3.0/info.zig").Contact;
-const License3 = @import("../v3.0/info.zig").License;
-const ExternalDocs3 = @import("../v3.0/externaldocs.zig").ExternalDocumentation;
-const Tag3 = @import("../v3.0/tag.zig").Tag;
-const Server3 = @import("../v3.0/server.zig").Server;
-const SecurityRequirement3 = @import("../v3.0/security.zig").SecurityRequirement;
-const Components3 = @import("../v3.0/components.zig").Components;
-const SchemaOrReference3 = @import("../v3.0/schema.zig").SchemaOrReference;
-const Schema3 = @import("../v3.0/schema.zig").Schema;
-const ParameterOrReference3 = @import("../v3.0/parameter.zig").ParameterOrReference;
-const Parameter3 = @import("../v3.0/parameter.zig").Parameter;
-const ResponseOrReference3 = @import("../v3.0/response.zig").ResponseOrReference;
-const Response3 = @import("../v3.0/response.zig").Response;
-const Operation3 = @import("../v3.0/operation.zig").Operation;
-const PathItem3 = @import("../v3.0/paths.zig").PathItem;
-const Paths3 = @import("../v3.0/paths.zig").Paths;
+const OpenApiDocument = @import("../../models/v3.0/openapi.zig").OpenApiDocument;
+const Info3 = @import("../../models/v3.0/info.zig").Info;
+const Contact3 = @import("../../models/v3.0/info.zig").Contact;
+const License3 = @import("../../models/v3.0/info.zig").License;
+const ExternalDocs3 = @import("../../models/v3.0/externaldocs.zig").ExternalDocumentation;
+const Tag3 = @import("../../models/v3.0/tag.zig").Tag;
+const Server3 = @import("../../models/v3.0/server.zig").Server;
+const SecurityRequirement3 = @import("../../models/v3.0/security.zig").SecurityRequirement;
+const Components3 = @import("../../models/v3.0/components.zig").Components;
+const SchemaOrReference3 = @import("../../models/v3.0/schema.zig").SchemaOrReference;
+const Schema3 = @import("../../models/v3.0/schema.zig").Schema;
+const ParameterOrReference3 = @import("../../models/v3.0/parameter.zig").ParameterOrReference;
+const Parameter3 = @import("../../models/v3.0/parameter.zig").Parameter;
+const ResponseOrReference3 = @import("../../models/v3.0/response.zig").ResponseOrReference;
+const Response3 = @import("../../models/v3.0/response.zig").Response;
+const Operation3 = @import("../../models/v3.0/operation.zig").Operation;
+const PathItem3 = @import("../../models/v3.0/paths.zig").PathItem;
+const Paths3 = @import("../../models/v3.0/paths.zig").Paths;
 
 pub const OpenApiConverter = struct {
     allocator: std.mem.Allocator,
@@ -105,7 +105,7 @@ pub const OpenApiConverter = struct {
         return converted_servers;
     }
 
-    fn convertSecurityRequirements(self: *OpenApiConverter, security: []SecurityRequirement3) ![]SecurityRequirement {
+    fn convertSecurityRequirements(self: *OpenApiConverter, security: []const SecurityRequirement3) ![]SecurityRequirement {
         var converted_security = try self.allocator.alloc(SecurityRequirement, security.len);
         for (security, 0..) |sec_req, i| {
             var schemes = std.StringHashMap([][]const u8).init(self.allocator);
@@ -155,21 +155,20 @@ pub const OpenApiConverter = struct {
         return schemas;
     }
 
-    fn convertSchemaOrReference(self: *OpenApiConverter, schemaOrRef: SchemaOrReference3) !Schema {
+    fn convertSchemaOrReference(self: *OpenApiConverter, schemaOrRef: SchemaOrReference3) anyerror!Schema {
         switch (schemaOrRef) {
             .reference => |ref| {
                 const ref_str = try self.allocator.dupe(u8, ref.ref);
                 return Schema{ .type = .reference, .ref = ref_str };
             },
             .schema => |schema| {
-                return self.convertSchema(schema);
+                return self.convertSchema(schema.*);
             },
         }
     }
 
-    fn convertSchema(self: *OpenApiConverter, schema: Schema3) !Schema {
+    fn convertSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
-        const ref = if (schema.ref) |ref_str| try self.allocator.dupe(u8, ref_str) else null;
         const title = if (schema.title) |title_str| try self.allocator.dupe(u8, title_str) else null;
         const description = if (schema.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const format = if (schema.format) |fmt| try self.allocator.dupe(u8, fmt) else null;
@@ -194,7 +193,7 @@ pub const OpenApiConverter = struct {
         } else null;
 
         const items = if (schema.items) |items_ref| blk: {
-            const items_schema = try self.convertSchemaOrReference(items_ref.*);
+            const items_schema = try self.convertSchemaOrReference(items_ref);
             const items_ptr = try self.allocator.create(Schema);
             items_ptr.* = items_schema;
             break :blk items_ptr;
@@ -202,7 +201,7 @@ pub const OpenApiConverter = struct {
 
         return Schema{
             .type = schema_type,
-            .ref = ref,
+            .ref = null, // OpenAPI 3.0 Schema doesn't have ref, only SchemaOrReference does
             .title = title,
             .description = description,
             .format = format,
@@ -278,13 +277,19 @@ pub const OpenApiConverter = struct {
         const parameters = if (operation.parameters) |params| try self.convertParameters(params) else null;
         
         var responses = std.StringHashMap(Response).init(self.allocator);
-        if (operation.responses) |responses_map| {
-            var resp_iterator = responses_map.iterator();
-            while (resp_iterator.next()) |entry| {
-                const key = try self.allocator.dupe(u8, entry.key_ptr.*);
-                const response = try self.convertResponseOrReference(entry.value_ptr.*);
-                try responses.put(key, response);
-            }
+        
+        // Add default response if present
+        if (operation.responses.default) |default_response| {
+            const response = try self.convertResponseOrReference(default_response);
+            try responses.put("default", response);
+        }
+        
+        // Add status code responses
+        var resp_iterator = operation.responses.status_codes.iterator();
+        while (resp_iterator.next()) |entry| {
+            const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+            const response = try self.convertResponseOrReference(entry.value_ptr.*);
+            try responses.put(key, response);
         }
         
         const security = if (operation.security) |sec_list| try self.convertSecurityRequirements(sec_list) else null;
@@ -329,7 +334,7 @@ pub const OpenApiConverter = struct {
 
     fn convertParameter(self: *OpenApiConverter, parameter: Parameter3) !Parameter {
         const name = try self.allocator.dupe(u8, parameter.name);
-        const location = self.convertParameterLocation(parameter.in);
+        const location = self.convertParameterLocation(parameter.in_field);
         const description = if (parameter.description) |desc| try self.allocator.dupe(u8, desc) else null;
         const required = parameter.required orelse false;
         

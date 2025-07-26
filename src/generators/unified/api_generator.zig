@@ -1,12 +1,12 @@
 const std = @import("std");
 const cli = @import("../../cli.zig");
-const UnifiedDocument = @import("../common/document.zig").UnifiedDocument;
-const Operation = @import("../common/document.zig").Operation;
-const Parameter = @import("../common/document.zig").Parameter;
-const ParameterLocation = @import("../common/document.zig").ParameterLocation;
-const Response = @import("../common/document.zig").Response;
-const Schema = @import("../common/document.zig").Schema;
-const SchemaType = @import("../common/document.zig").SchemaType;
+const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
+const Operation = @import("../../models/common/document.zig").Operation;
+const Parameter = @import("../../models/common/document.zig").Parameter;
+const ParameterLocation = @import("../../models/common/document.zig").ParameterLocation;
+const Response = @import("../../models/common/document.zig").Response;
+const Schema = @import("../../models/common/document.zig").Schema;
+const SchemaType = @import("../../models/common/document.zig").SchemaType;
 
 pub const UnifiedApiGenerator = struct {
     allocator: std.mem.Allocator,
@@ -52,7 +52,7 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
-    fn generateOperations(self: *UnifiedApiGenerator, path: []const u8, path_item: @import("../common/document.zig").PathItem) !void {
+    fn generateOperations(self: *UnifiedApiGenerator, path: []const u8, path_item: @import("../../models/common/document.zig").PathItem) !void {
         if (path_item.get) |op| try self.generateOperation("GET", path, op);
         if (path_item.post) |op| try self.generateOperation("POST", path, op);
         if (path_item.put) |op| try self.generateOperation("PUT", path, op);

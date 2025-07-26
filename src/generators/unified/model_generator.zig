@@ -1,7 +1,7 @@
 const std = @import("std");
-const UnifiedDocument = @import("../common/document.zig").UnifiedDocument;
-const Schema = @import("../common/document.zig").Schema;
-const SchemaType = @import("../common/document.zig").SchemaType;
+const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
+const Schema = @import("../../models/common/document.zig").Schema;
+const SchemaType = @import("../../models/common/document.zig").SchemaType;
 
 pub const UnifiedModelGenerator = struct {
     allocator: std.mem.Allocator,
