@@ -53,11 +53,35 @@ pub const PathItem = struct {
         };
     }
 
-    pub fn deinit(self: PathItem, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *PathItem, allocator: std.mem.Allocator) void {
         if (self.ref) |ref| allocator.free(ref);
         if (self.summary) |summary| allocator.free(summary);
         if (self.description) |description| allocator.free(description);
-        // TODO: Add proper deinit for operations, servers, and parameters when needed
+
+        if (self.get) |*get| get.deinit(allocator);
+        if (self.put) |*put| put.deinit(allocator);
+        if (self.post) |*post| post.deinit(allocator);
+        if (self.delete) |*delete| delete.deinit(allocator);
+        if (self.options) |*options| options.deinit(allocator);
+        if (self.head) |*head| head.deinit(allocator);
+        if (self.patch) |*patch| patch.deinit(allocator);
+        if (self.trace) |*trace| trace.deinit(allocator);
+
+        if (self.servers) |servers| {
+            for (servers) |*server| {
+                var mutable_server = @constCast(server);
+                mutable_server.deinit(allocator);
+            }
+            allocator.free(servers);
+        }
+
+        if (self.parameters) |parameters| {
+            for (parameters) |*param| {
+                var mutable_param = @constCast(param);
+                mutable_param.deinit(allocator);
+            }
+            allocator.free(parameters);
+        }
     }
 };
 

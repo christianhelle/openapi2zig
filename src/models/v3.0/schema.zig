@@ -20,6 +20,12 @@ pub const XML = struct {
             .wrapped = if (obj.get("wrapped")) |val| val.bool else null,
         };
     }
+
+    pub fn deinit(self: *XML, allocator: std.mem.Allocator) void {
+        if (self.name) |name| allocator.free(name);
+        if (self.namespace) |namespace| allocator.free(namespace);
+        if (self.prefix) |prefix| allocator.free(prefix);
+    }
 };
 
 pub const Discriminator = struct {
@@ -39,6 +45,18 @@ pub const Discriminator = struct {
             .propertyName = try allocator.dupe(u8, obj.get("propertyName").?.string),
             .mapping = if (mapping_map.count() > 0) mapping_map else null,
         };
+    }
+
+    pub fn deinit(self: *Discriminator, allocator: std.mem.Allocator) void {
+        allocator.free(self.propertyName);
+        if (self.mapping) |*map| {
+            var iterator = map.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                allocator.free(entry.value_ptr.*);
+            }
+            map.deinit();
+        }
     }
 };
 
@@ -67,6 +85,16 @@ pub const SchemaOrReference = union(enum) {
             errdefer allocator.destroy(schema);
             schema.* = try Schema.parseFromJson(allocator, value);
             return SchemaOrReference{ .schema = schema };
+        }
+    }
+
+    pub fn deinit(self: *SchemaOrReference, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .schema => |schema| {
+                schema.deinit(allocator);
+                allocator.destroy(schema);
+            },
+            .reference => |*ref| ref.deinit(allocator),
         }
     }
 };
@@ -190,5 +218,85 @@ pub const Schema = struct {
             .deprecated = if (obj.get("deprecated")) |val| val.bool else null,
             .xml = if (obj.get("xml")) |val| try XML.parseFromJson(allocator, val) else null,
         };
+    }
+
+    pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {
+        if (self.title) |title| allocator.free(title);
+        if (self.pattern) |pattern| allocator.free(pattern);
+        if (self.type) |type_val| allocator.free(type_val);
+        if (self.description) |description| allocator.free(description);
+        if (self.format) |format| allocator.free(format);
+
+        if (self.properties) |props| {
+            var iterator = props.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(allocator);
+            }
+            var mutable_props = @constCast(&props);
+            mutable_props.deinit();
+        }
+
+        if (self.items) |*items| {
+            items.deinit(allocator);
+        }
+
+        if (self.required) |req| {
+            for (req) |item| {
+                allocator.free(item);
+            }
+            allocator.free(req);
+        }
+
+        if (self.allOf) |allOf| {
+            for (allOf) |*item| {
+                var mutable_item = @constCast(item);
+                mutable_item.deinit(allocator);
+            }
+            allocator.free(allOf);
+        }
+
+        if (self.oneOf) |oneOf| {
+            for (oneOf) |*item| {
+                var mutable_item = @constCast(item);
+                mutable_item.deinit(allocator);
+            }
+            allocator.free(oneOf);
+        }
+
+        if (self.anyOf) |anyOf| {
+            for (anyOf) |*item| {
+                var mutable_item = @constCast(item);
+                mutable_item.deinit(allocator);
+            }
+            allocator.free(anyOf);
+        }
+
+        if (self.not) |*not| {
+            not.deinit(allocator);
+        }
+
+        if (self.additionalProperties) |*additionalProperties| {
+            switch (additionalProperties.*) {
+                .schema_or_reference => |*schema_ref| schema_ref.deinit(allocator),
+                .boolean => {},
+            }
+        }
+
+        if (self.discriminator) |*discriminator| {
+            discriminator.deinit(allocator);
+        }
+
+        if (self.externalDocs) |*externalDocs| {
+            externalDocs.deinit(allocator);
+        }
+
+        if (self.enum_values) |enum_values| {
+            allocator.free(enum_values);
+        }
+
+        if (self.xml) |*xml| {
+            xml.deinit(allocator);
+        }
     }
 };

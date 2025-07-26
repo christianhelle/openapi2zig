@@ -47,6 +47,21 @@ pub const OAuthFlows = struct {
             .authorizationCode = if (obj.get("authorizationCode")) |val| try AuthorizationCodeOAuthFlow.parseFromJson(allocator, val) else null,
         };
     }
+
+    pub fn deinit(self: *OAuthFlows, allocator: std.mem.Allocator) void {
+        if (self.implicit) |*flow| {
+            flow.deinit(allocator);
+        }
+        if (self.password) |*flow| {
+            flow.deinit(allocator);
+        }
+        if (self.clientCredentials) |*flow| {
+            flow.deinit(allocator);
+        }
+        if (self.authorizationCode) |*flow| {
+            flow.deinit(allocator);
+        }
+    }
 };
 
 pub const ImplicitOAuthFlow = struct {
@@ -67,6 +82,19 @@ pub const ImplicitOAuthFlow = struct {
             .scopes = scopes_map,
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
+    }
+
+    pub fn deinit(self: *ImplicitOAuthFlow, allocator: std.mem.Allocator) void {
+        allocator.free(self.authorizationUrl);
+        var iterator = self.scopes.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        self.scopes.deinit();
+        if (self.refreshUrl) |url| {
+            allocator.free(url);
+        }
     }
 };
 
@@ -89,6 +117,19 @@ pub const PasswordOAuthFlow = struct {
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
+    pub fn deinit(self: *PasswordOAuthFlow, allocator: std.mem.Allocator) void {
+        allocator.free(self.tokenUrl);
+        var iterator = self.scopes.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        self.scopes.deinit();
+        if (self.refreshUrl) |url| {
+            allocator.free(url);
+        }
+    }
 };
 
 pub const ClientCredentialsFlow = struct {
@@ -109,6 +150,19 @@ pub const ClientCredentialsFlow = struct {
             .scopes = scopes_map,
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
+    }
+
+    pub fn deinit(self: *ClientCredentialsFlow, allocator: std.mem.Allocator) void {
+        allocator.free(self.tokenUrl);
+        var iterator = self.scopes.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        self.scopes.deinit();
+        if (self.refreshUrl) |url| {
+            allocator.free(url);
+        }
     }
 };
 
@@ -133,6 +187,20 @@ pub const AuthorizationCodeOAuthFlow = struct {
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
+    pub fn deinit(self: *AuthorizationCodeOAuthFlow, allocator: std.mem.Allocator) void {
+        allocator.free(self.authorizationUrl);
+        allocator.free(self.tokenUrl);
+        var iterator = self.scopes.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        self.scopes.deinit();
+        if (self.refreshUrl) |url| {
+            allocator.free(url);
+        }
+    }
 };
 
 pub const APIKeySecurityScheme = struct {
@@ -149,6 +217,15 @@ pub const APIKeySecurityScheme = struct {
             .in_field = try allocator.dupe(u8, obj.get("in").?.string),
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
+    }
+
+    pub fn deinit(self: *APIKeySecurityScheme, allocator: std.mem.Allocator) void {
+        allocator.free(self.type);
+        allocator.free(self.name);
+        allocator.free(self.in_field);
+        if (self.description) |desc| {
+            allocator.free(desc);
+        }
     }
 };
 
@@ -167,6 +244,17 @@ pub const HTTPSecurityScheme = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
+    pub fn deinit(self: *HTTPSecurityScheme, allocator: std.mem.Allocator) void {
+        allocator.free(self.scheme);
+        allocator.free(self.type);
+        if (self.bearerFormat) |bf| {
+            allocator.free(bf);
+        }
+        if (self.description) |desc| {
+            allocator.free(desc);
+        }
+    }
 };
 
 pub const OAuth2SecurityScheme = struct {
@@ -182,6 +270,14 @@ pub const OAuth2SecurityScheme = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
+    pub fn deinit(self: *OAuth2SecurityScheme, allocator: std.mem.Allocator) void {
+        allocator.free(self.type);
+        self.flows.deinit(allocator);
+        if (self.description) |desc| {
+            allocator.free(desc);
+        }
+    }
 };
 
 pub const OpenIdConnectSecurityScheme = struct {
@@ -196,6 +292,14 @@ pub const OpenIdConnectSecurityScheme = struct {
             .openIdConnectUrl = try allocator.dupe(u8, obj.get("openIdConnectUrl").?.string),
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
+    }
+
+    pub fn deinit(self: *OpenIdConnectSecurityScheme, allocator: std.mem.Allocator) void {
+        allocator.free(self.type);
+        allocator.free(self.openIdConnectUrl);
+        if (self.description) |desc| {
+            allocator.free(desc);
+        }
     }
 };
 
@@ -220,6 +324,15 @@ pub const SecurityScheme = union(enum) {
             return error.UnknownSecuritySchemeType;
         }
     }
+
+    pub fn deinit(self: *SecurityScheme, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .api_key => |*api_key| api_key.deinit(allocator),
+            .http => |*http| http.deinit(allocator),
+            .oauth2 => |*oauth2| oauth2.deinit(allocator),
+            .openIdConnect => |*openIdConnect| openIdConnect.deinit(allocator),
+        }
+    }
 };
 
 pub const SecuritySchemeOrReference = union(enum) {
@@ -231,6 +344,13 @@ pub const SecuritySchemeOrReference = union(enum) {
             return SecuritySchemeOrReference{ .reference = try @import("reference.zig").Reference.parseFromJson(allocator, value) };
         } else {
             return SecuritySchemeOrReference{ .security_scheme = try SecurityScheme.parseFromJson(allocator, value) };
+        }
+    }
+
+    pub fn deinit(self: *SecuritySchemeOrReference, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .security_scheme => |*security_scheme| security_scheme.deinit(allocator),
+            .reference => |*reference| reference.deinit(allocator),
         }
     }
 };

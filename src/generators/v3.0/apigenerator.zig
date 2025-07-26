@@ -38,7 +38,7 @@ pub const ApiCodeGenerator = struct {
             const path_key = entry.key_ptr.*;
             const path_item = entry.value_ptr.*;
             const path = if (self.args.base_url) |base_url| try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ base_url, path_key }) else path_key;
-            defer self.allocator.free(path);
+            defer if (self.args.base_url != null) self.allocator.free(path);
 
             if (path_item.get) |op| {
                 try methods.append(try self.generateMethod(op, path, "GET"));

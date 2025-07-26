@@ -42,7 +42,7 @@ pub const Operation = struct {
         errdefer callbacks_map.deinit();
         if (obj.get("callbacks")) |callbacks_val| {
             for (callbacks_val.object.keys()) |key| {
-                try callbacks_map.put(key, try CallbackOrReference.parseFromJson(allocator, callbacks_val.object.get(key).?));
+                try callbacks_map.put(try allocator.dupe(u8, key), try CallbackOrReference.parseFromJson(allocator, callbacks_val.object.get(key).?));
             }
         }
         var security_list = std.ArrayList(SecurityRequirement).init(allocator);
@@ -74,5 +74,61 @@ pub const Operation = struct {
             .security = if (security_list.items.len > 0) try security_list.toOwnedSlice() else null,
             .servers = if (servers_list.items.len > 0) try servers_list.toOwnedSlice() else null,
         };
+    }
+
+    pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
+        self.responses.deinit(allocator);
+
+        if (self.tags) |tags| {
+            for (tags) |tag| {
+                allocator.free(tag);
+            }
+            allocator.free(tags);
+        }
+
+        if (self.summary) |summary| allocator.free(summary);
+        if (self.description) |description| allocator.free(description);
+        if (self.operationId) |operationId| allocator.free(operationId);
+
+        if (self.externalDocs) |*externalDocs| {
+            externalDocs.deinit(allocator);
+        }
+
+        if (self.parameters) |params| {
+            for (params) |*param| {
+                var mutable_param = @constCast(param);
+                mutable_param.deinit(allocator);
+            }
+            allocator.free(params);
+        }
+
+        if (self.requestBody) |*requestBody| {
+            requestBody.deinit(allocator);
+        }
+
+        if (self.callbacks) |*callbacks| {
+            var iterator = callbacks.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(allocator);
+            }
+            callbacks.deinit();
+        }
+
+        if (self.security) |security| {
+            for (security) |*sec| {
+                var mutable_sec = @constCast(sec);
+                mutable_sec.deinit(allocator);
+            }
+            allocator.free(security);
+        }
+
+        if (self.servers) |servers| {
+            for (servers) |*server| {
+                var mutable_server = @constCast(server);
+                mutable_server.deinit(allocator);
+            }
+            allocator.free(servers);
+        }
     }
 };
