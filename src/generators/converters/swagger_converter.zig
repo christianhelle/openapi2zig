@@ -121,10 +121,10 @@ pub const SwaggerConverter = struct {
             var schemes = std.StringHashMap([][]const u8).init(self.allocator);
             var sec_iterator = sec_req.requirements.iterator();
             while (sec_iterator.next()) |entry| {
-                const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                const key = try self.allocator.dupe(u8, entry.key_ptr.*); // HashMap keys must be duped
                 const scopes = try self.allocator.alloc([]const u8, entry.value_ptr.*.len);
                 for (entry.value_ptr.*, 0..) |scope, j| {
-                    scopes[j] = try self.allocator.dupe(u8, scope);
+                    scopes[j] = scope; // Reference, don't duplicate
                 }
                 try schemes.put(key, scopes);
             }
@@ -136,17 +136,18 @@ pub const SwaggerConverter = struct {
     fn convertTags(self: *SwaggerConverter, tags: []Tag2) ![]Tag {
         var converted_tags = try self.allocator.alloc(Tag, tags.len);
         for (tags, 0..) |tag, i| {
-            const name = try self.allocator.dupe(u8, tag.name);
-            const description = if (tag.description) |desc| try self.allocator.dupe(u8, desc) else null;
+            const name = tag.name; // Reference, don't duplicate
+            const description = tag.description; // Reference, don't duplicate
             const externalDocs = if (tag.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
             converted_tags[i] = Tag{ .name = name, .description = description, .externalDocs = externalDocs };
         }
         return converted_tags;
     }
 
-    fn convertExternalDocs(self: *SwaggerConverter, externalDocs: ExternalDocs2) !ExternalDocumentation {
-        const url = try self.allocator.dupe(u8, externalDocs.url);
-        const description = if (externalDocs.description) |desc| try self.allocator.dupe(u8, desc) else null;
+    fn convertExternalDocs(self: *SwaggerConverter, externalDocs: ExternalDocs2) ExternalDocumentation {
+        _ = self; // Not needed for reference-based conversion
+        const url = externalDocs.url; // Reference, don't duplicate
+        const description = externalDocs.description; // Reference, don't duplicate
         return ExternalDocumentation{ .url = url, .description = description };
     }
 
@@ -191,15 +192,15 @@ pub const SwaggerConverter = struct {
 
     fn convertSchema(self: *SwaggerConverter, schema: Schema2) !Schema {
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
-        const ref = if (schema.ref) |ref_str| try self.allocator.dupe(u8, ref_str) else null;
-        const title = if (schema.title) |title_str| try self.allocator.dupe(u8, title_str) else null;
-        const description = if (schema.description) |desc| try self.allocator.dupe(u8, desc) else null;
-        const format = if (schema.format) |fmt| try self.allocator.dupe(u8, fmt) else null;
+        const ref = schema.ref; // Reference, don't duplicate
+        const title = schema.title; // Reference, don't duplicate
+        const description = schema.description; // Reference, don't duplicate
+        const format = schema.format; // Reference, don't duplicate
 
         const required = if (schema.required) |req_list| blk: {
             const req_array = try self.allocator.alloc([]const u8, req_list.len);
             for (req_list, 0..) |req, i| {
-                req_array[i] = try self.allocator.dupe(u8, req);
+                req_array[i] = req; // Reference, don't duplicate
             }
             break :blk req_array;
         } else null;
@@ -208,7 +209,7 @@ pub const SwaggerConverter = struct {
             var props_map = std.StringHashMap(Schema).init(self.allocator);
             var prop_iterator = props.iterator();
             while (prop_iterator.next()) |entry| {
-                const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                const key = try self.allocator.dupe(u8, entry.key_ptr.*); // HashMap keys must be duped
                 const prop_schema = try self.convertSchema(entry.value_ptr.*);
                 try props_map.put(key, prop_schema);
             }
@@ -288,21 +289,21 @@ pub const SwaggerConverter = struct {
         const tags = if (operation.tags) |tags_list| blk: {
             const tags_array = try self.allocator.alloc([]const u8, tags_list.len);
             for (tags_list, 0..) |tag, i| {
-                tags_array[i] = try self.allocator.dupe(u8, tag);
+                tags_array[i] = tag; // Reference, don't duplicate
             }
             break :blk tags_array;
         } else null;
 
-        const summary = if (operation.summary) |sum| try self.allocator.dupe(u8, sum) else null;
-        const description = if (operation.description) |desc| try self.allocator.dupe(u8, desc) else null;
-        const operationId = if (operation.operationId) |opId| try self.allocator.dupe(u8, opId) else null;
+        const summary = operation.summary; // Reference, don't duplicate
+        const description = operation.description; // Reference, don't duplicate
+        const operationId = operation.operationId; // Reference, don't duplicate
 
         const parameters = if (operation.parameters) |params| try self.convertParameters(params) else null;
 
         var responses = std.StringHashMap(Response).init(self.allocator);
         var resp_iterator = operation.responses.iterator();
         while (resp_iterator.next()) |entry| {
-            const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+            const key = try self.allocator.dupe(u8, entry.key_ptr.*); // HashMap keys must be duped
             const response = try self.convertResponse(entry.value_ptr.*);
             try responses.put(key, response);
         }
@@ -330,9 +331,9 @@ pub const SwaggerConverter = struct {
     }
 
     fn convertParameter(self: *SwaggerConverter, parameter: Parameter2) !Parameter {
-        const name = try self.allocator.dupe(u8, parameter.name);
+        const name = parameter.name; // Reference, don't duplicate
         const location = self.convertParameterLocation(parameter.in);
-        const description = if (parameter.description) |desc| try self.allocator.dupe(u8, desc) else null;
+        const description = parameter.description; // Reference, don't duplicate
         const required = parameter.required;
 
         const schema = if (parameter.schema) |param_schema| blk: {
@@ -341,7 +342,7 @@ pub const SwaggerConverter = struct {
         } else null;
 
         const param_type = if (parameter.type) |type_val| self.convertParameterType(type_val) else null;
-        const format = if (parameter.format) |fmt| try self.allocator.dupe(u8, fmt) else null;
+        const format = parameter.format; // Reference, don't duplicate
 
         return Parameter{
             .name = name,
@@ -378,7 +379,7 @@ pub const SwaggerConverter = struct {
     }
 
     fn convertResponse(self: *SwaggerConverter, response: Response2) !Response {
-        const description = try self.allocator.dupe(u8, response.description);
+        const description = response.description; // Reference, don't duplicate
 
         const schema = if (response.schema) |resp_schema| blk: {
             const converted_schema = try self.convertSchema(resp_schema);
@@ -389,12 +390,12 @@ pub const SwaggerConverter = struct {
             var converted_headers = std.StringHashMap(Parameter).init(self.allocator);
             var header_iterator = headers_map.iterator();
             while (header_iterator.next()) |entry| {
-                const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                const key = try self.allocator.dupe(u8, entry.key_ptr.*); // HashMap keys must be duped
                 // Convert header to parameter (headers in Swagger 2.0 are similar to parameters)
                 const header_param = Parameter{
-                    .name = try self.allocator.dupe(u8, key),
+                    .name = entry.key_ptr.*, // Reference, don't duplicate
                     .location = .header,
-                    .description = entry.value_ptr.description,
+                    .description = entry.value_ptr.description, // Reference, don't duplicate
                     .required = false,
                     .schema = null,
                     .type = null,
