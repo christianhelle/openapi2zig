@@ -115,7 +115,7 @@ pub const OpenApiConverter = struct {
                 const key = try self.allocator.dupe(u8, entry.key_ptr.*);
                 const scopes = try self.allocator.alloc([]const u8, entry.value_ptr.*.len);
                 for (entry.value_ptr.*, 0..) |scope, j| {
-                    scopes[j] = try self.allocator.dupe(u8, scope);
+                    scopes[j] = scope; // Reference, don't duplicate
                 }
                 try schemes.put(key, scopes);
             }
@@ -127,8 +127,8 @@ pub const OpenApiConverter = struct {
     fn convertTags(self: *OpenApiConverter, tags: []const Tag3) ![]Tag {
         var converted_tags = try self.allocator.alloc(Tag, tags.len);
         for (tags, 0..) |tag, i| {
-            const name = try self.allocator.dupe(u8, tag.name);
-            const description = if (tag.description) |desc| try self.allocator.dupe(u8, desc) else null;
+            const name = tag.name; // Reference, don't duplicate
+            const description = tag.description; // Reference, don't duplicate
             const externalDocs = if (tag.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
             converted_tags[i] = Tag{ .name = name, .description = description, .externalDocs = externalDocs };
         }
@@ -136,8 +136,9 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertExternalDocs(self: *OpenApiConverter, externalDocs: ExternalDocs3) !ExternalDocumentation {
-        const url = try self.allocator.dupe(u8, externalDocs.url);
-        const description = if (externalDocs.description) |desc| try self.allocator.dupe(u8, desc) else null;
+        _ = self; // Mark unused parameter
+        const url = externalDocs.url; // Reference, don't duplicate
+        const description = externalDocs.description; // Reference, don't duplicate
         return ExternalDocumentation{ .url = url, .description = description };
     }
 
@@ -159,7 +160,7 @@ pub const OpenApiConverter = struct {
     fn convertSchemaOrReference(self: *OpenApiConverter, schemaOrRef: SchemaOrReference3) anyerror!Schema {
         switch (schemaOrRef) {
             .reference => |ref| {
-                const ref_str = try self.allocator.dupe(u8, ref.ref);
+                const ref_str = ref.ref; // Reference, don't duplicate
                 return Schema{ .type = .reference, .ref = ref_str };
             },
             .schema => |schema| {
@@ -170,14 +171,14 @@ pub const OpenApiConverter = struct {
 
     fn convertSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
-        const title = if (schema.title) |title_str| try self.allocator.dupe(u8, title_str) else null;
-        const description = if (schema.description) |desc| try self.allocator.dupe(u8, desc) else null;
-        const format = if (schema.format) |fmt| try self.allocator.dupe(u8, fmt) else null;
+        const title = schema.title; // Reference, don't duplicate
+        const description = schema.description; // Reference, don't duplicate
+        const format = schema.format; // Reference, don't duplicate
 
         const required = if (schema.required) |req_list| blk: {
             const req_array = try self.allocator.alloc([]const u8, req_list.len);
             for (req_list, 0..) |req, i| {
-                req_array[i] = try self.allocator.dupe(u8, req);
+                req_array[i] = req; // Reference, don't duplicate
             }
             break :blk req_array;
         } else null;
@@ -266,14 +267,14 @@ pub const OpenApiConverter = struct {
         const tags = if (operation.tags) |tags_list| blk: {
             const tags_array = try self.allocator.alloc([]const u8, tags_list.len);
             for (tags_list, 0..) |tag, i| {
-                tags_array[i] = try self.allocator.dupe(u8, tag);
+                tags_array[i] = tag; // Reference, don't duplicate
             }
             break :blk tags_array;
         } else null;
 
-        const summary = if (operation.summary) |sum| try self.allocator.dupe(u8, sum) else null;
-        const description = if (operation.description) |desc| try self.allocator.dupe(u8, desc) else null;
-        const operationId = if (operation.operationId) |opId| try self.allocator.dupe(u8, opId) else null;
+        const summary = operation.summary; // Reference, don't duplicate
+        const description = operation.description; // Reference, don't duplicate
+        const operationId = operation.operationId; // Reference, don't duplicate
 
         const parameters = if (operation.parameters) |params| try self.convertParameters(params) else null;
 
@@ -282,7 +283,8 @@ pub const OpenApiConverter = struct {
         // Add default response if present
         if (operation.responses.default) |default_response| {
             const response = try self.convertResponseOrReference(default_response);
-            try responses.put("default", response);
+            const default_key = try self.allocator.dupe(u8, "default"); // Must dupe to match other keys
+            try responses.put(default_key, response);
         }
 
         // Add status code responses
@@ -334,9 +336,9 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertParameter(self: *OpenApiConverter, parameter: Parameter3) !Parameter {
-        const name = try self.allocator.dupe(u8, parameter.name);
+        const name = parameter.name; // Reference, don't duplicate
         const location = self.convertParameterLocation(parameter.in_field);
-        const description = if (parameter.description) |desc| try self.allocator.dupe(u8, desc) else null;
+        const description = parameter.description; // Reference, don't duplicate
         const required = parameter.required orelse false;
 
         const schema = if (parameter.schema) |schema_ref| try self.convertSchemaOrReference(schema_ref) else null;
@@ -375,7 +377,8 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertResponse(self: *OpenApiConverter, response: Response3) !Response {
-        const description = try self.allocator.dupe(u8, response.description);
+        _ = self; // Mark unused parameter
+        const description = response.description; // Reference, don't duplicate
         // TODO: Convert schema from response content
         // TODO: Convert headers
         return Response{

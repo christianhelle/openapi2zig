@@ -47,7 +47,7 @@ pub const SwaggerConverter = struct {
         const servers = try self.createServersFromHostAndBasePath(swagger.host, swagger.basePath, swagger.schemes);
         const security = if (swagger.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
         const tags = if (swagger.tags) |tags_list| try self.convertTags(tags_list) else null;
-        const externalDocs = if (swagger.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
+        const externalDocs = if (swagger.externalDocs) |ext_docs| self.convertExternalDocs(ext_docs) else null;
         const schemas = if (swagger.definitions) |definitions| try self.convertDefinitions(definitions) else null;
         const parameters = if (swagger.parameters) |params| try self.convertGlobalParameters(params) else null;
         const responses = if (swagger.responses) |resps| try self.convertGlobalResponses(resps) else null;
@@ -109,7 +109,7 @@ pub const SwaggerConverter = struct {
         var servers = try self.allocator.alloc(Server, schemes_list.len);
         for (schemes_list, 0..) |scheme, i| {
             const url = try std.fmt.allocPrint(self.allocator, "{s}://{s}{s}", .{ scheme, host_str, base_path });
-            servers[i] = Server{ .url = url, .description = null };
+            servers[i] = Server{ .url = url, .description = null, ._url_allocated = true };
         }
 
         return servers;
@@ -138,7 +138,7 @@ pub const SwaggerConverter = struct {
         for (tags, 0..) |tag, i| {
             const name = tag.name; // Reference, don't duplicate
             const description = tag.description; // Reference, don't duplicate
-            const externalDocs = if (tag.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
+            const externalDocs = if (tag.externalDocs) |ext_docs| self.convertExternalDocs(ext_docs) else null;
             converted_tags[i] = Tag{ .name = name, .description = description, .externalDocs = externalDocs };
         }
         return converted_tags;
