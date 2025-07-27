@@ -4,16 +4,20 @@ const cli = @import("../../cli.zig");
 const detector = @import("../../detector.zig");
 const converter = @import("../converter.zig");
 const default_output_file: []const u8 = "generated.zig";
+
 pub const ModelCodeGenerator = struct {
     allocator: std.mem.Allocator,
+
     pub fn init(allocator: std.mem.Allocator) ModelCodeGenerator {
         return ModelCodeGenerator{
             .allocator = allocator,
         };
     }
+
     pub fn deinit(self: *ModelCodeGenerator) void {
         _ = self;
     }
+
     pub fn generate(self: *ModelCodeGenerator, document: models.SwaggerDocument) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
@@ -26,6 +30,7 @@ pub const ModelCodeGenerator = struct {
         const code = try std.mem.join(self.allocator, "", parts.items);
         return code;
     }
+
     fn generateSchemas(parts: *std.ArrayList([]const u8), schemas: std.StringHashMap(models.v2.Schema)) !void {
         var iterator = schemas.iterator();
         while (iterator.next()) |entry| {
@@ -34,6 +39,7 @@ pub const ModelCodeGenerator = struct {
             try generateSchema(parts, schema_name, schema);
         }
     }
+
     fn generateSchema(parts: *std.ArrayList([]const u8), name: []const u8, schema: models.v2.Schema) !void {
         try parts.append("pub const ");
         try parts.append(name);
@@ -48,6 +54,7 @@ pub const ModelCodeGenerator = struct {
         }
         try parts.append("};\n\n");
     }
+
     fn generateField(parts: *std.ArrayList([]const u8), field_name: []const u8, field_schema: models.v2.Schema, required_fields: ?[]const []const u8) !void {
         const is_required = if (required_fields) |req_fields| blk: {
             for (req_fields) |req_field| {
