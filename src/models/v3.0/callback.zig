@@ -2,6 +2,7 @@ const std = @import("std");
 const json = std.json;
 const PathItem = @import("paths.zig").PathItem;
 const Reference = @import("reference.zig").Reference;
+
 pub const Callback = struct {
     path_items: std.StringHashMap(PathItem),
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Callback {
