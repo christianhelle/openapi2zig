@@ -35,9 +35,11 @@ const Paths3 = @import("../../models/v3.0/paths.zig").Paths;
 
 pub const OpenApiConverter = struct {
     allocator: std.mem.Allocator,
+
     pub fn init(allocator: std.mem.Allocator) OpenApiConverter {
         return OpenApiConverter{ .allocator = allocator };
     }
+
     pub fn convert(self: *OpenApiConverter, openapi: OpenApiDocument) !UnifiedDocument {
         const version = openapi.openapi; // Reference, don't duplicate
         const info = self.convertInfo(openapi.info);
@@ -60,6 +62,7 @@ pub const OpenApiConverter = struct {
             .responses = null,
         };
     }
+
     fn convertInfo(self: *OpenApiConverter, info: Info3) DocumentInfo {
         _ = self; // Not needed for reference-based conversion
         const title = info.title; // Reference, don't duplicate
@@ -86,6 +89,7 @@ pub const OpenApiConverter = struct {
             .license = license,
         };
     }
+
     fn convertServers(self: *OpenApiConverter, servers: []Server3) ![]Server {
         var converted_servers = try self.allocator.alloc(Server, servers.len);
         for (servers, 0..) |server, i| {
@@ -95,6 +99,7 @@ pub const OpenApiConverter = struct {
         }
         return converted_servers;
     }
+
     fn convertSecurityRequirements(self: *OpenApiConverter, security: []const SecurityRequirement3) ![]SecurityRequirement {
         var converted_security = try self.allocator.alloc(SecurityRequirement, security.len);
         for (security, 0..) |sec_req, i| {
@@ -112,6 +117,7 @@ pub const OpenApiConverter = struct {
         }
         return converted_security;
     }
+
     fn convertTags(self: *OpenApiConverter, tags: []const Tag3) ![]Tag {
         var converted_tags = try self.allocator.alloc(Tag, tags.len);
         for (tags, 0..) |tag, i| {
@@ -128,6 +134,7 @@ pub const OpenApiConverter = struct {
         const description = externalDocs.description; // Reference, don't duplicate
         return ExternalDocumentation{ .url = url, .description = description };
     }
+
     fn convertSchemas(self: *OpenApiConverter, components: Components3) !std.StringHashMap(Schema) {
         var schemas = std.StringHashMap(Schema).init(self.allocator);
         if (components.schemas) |schemas_map| {
@@ -140,6 +147,7 @@ pub const OpenApiConverter = struct {
         }
         return schemas;
     }
+
     fn convertSchemaOrReference(self: *OpenApiConverter, schemaOrRef: SchemaOrReference3) anyerror!Schema {
         switch (schemaOrRef) {
             .reference => |ref| {
@@ -151,6 +159,7 @@ pub const OpenApiConverter = struct {
             },
         }
     }
+
     fn convertSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
         const title = schema.title; // Reference, don't duplicate
@@ -193,6 +202,7 @@ pub const OpenApiConverter = struct {
             .example = schema.example,
         };
     }
+
     fn convertSchemaType(self: *OpenApiConverter, type_str: []const u8) SchemaType {
         _ = self;
         if (std.mem.eql(u8, type_str, "string")) return .string;
@@ -203,6 +213,7 @@ pub const OpenApiConverter = struct {
         if (std.mem.eql(u8, type_str, "object")) return .object;
         return .string; // default fallback
     }
+
     fn convertPaths(self: *OpenApiConverter, paths: Paths3) !std.StringHashMap(PathItem) {
         var converted_paths = std.StringHashMap(PathItem).init(self.allocator);
         var path_iterator = paths.path_items.iterator();
@@ -213,6 +224,7 @@ pub const OpenApiConverter = struct {
         }
         return converted_paths;
     }
+
     fn convertPathItem(self: *OpenApiConverter, pathItem: PathItem3) !PathItem {
         const get = if (pathItem.get) |op| try self.convertOperation(op) else null;
         const put = if (pathItem.put) |op| try self.convertOperation(op) else null;
@@ -233,6 +245,7 @@ pub const OpenApiConverter = struct {
             .parameters = parameters,
         };
     }
+
     fn convertOperation(self: *OpenApiConverter, operation: Operation3) !Operation {
         const tags = if (operation.tags) |tags_list| blk: {
             const tags_array = try self.allocator.alloc([]const u8, tags_list.len);
@@ -269,6 +282,7 @@ pub const OpenApiConverter = struct {
             .security = security,
         };
     }
+
     fn convertParameters(self: *OpenApiConverter, parameters: []const ParameterOrReference3) ![]Parameter {
         var converted_params = try self.allocator.alloc(Parameter, parameters.len);
         for (parameters, 0..) |param_ref, i| {
@@ -276,6 +290,7 @@ pub const OpenApiConverter = struct {
         }
         return converted_params;
     }
+
     fn convertParameterOrReference(self: *OpenApiConverter, paramOrRef: ParameterOrReference3) !Parameter {
         switch (paramOrRef) {
             .reference => |ref| {
@@ -291,6 +306,7 @@ pub const OpenApiConverter = struct {
             },
         }
     }
+
     fn convertParameter(self: *OpenApiConverter, parameter: Parameter3) !Parameter {
         const name = parameter.name; // Reference, don't duplicate
         const location = self.convertParameterLocation(parameter.in_field);
@@ -307,6 +323,7 @@ pub const OpenApiConverter = struct {
             .format = null,
         };
     }
+
     fn convertParameterLocation(self: *OpenApiConverter, location: []const u8) ParameterLocation {
         _ = self;
         if (std.mem.eql(u8, location, "query")) return .query;
@@ -315,6 +332,7 @@ pub const OpenApiConverter = struct {
         if (std.mem.eql(u8, location, "cookie")) return .query; // map to query as fallback
         return .query; // default fallback
     }
+
     fn convertResponseOrReference(self: *OpenApiConverter, respOrRef: ResponseOrReference3) !Response {
         switch (respOrRef) {
             .reference => |ref| {
@@ -326,6 +344,7 @@ pub const OpenApiConverter = struct {
             },
         }
     }
+
     fn convertResponse(self: *OpenApiConverter, response: Response3) !Response {
         _ = self; // Mark unused parameter
         const description = response.description; // Reference, don't duplicate
