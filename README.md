@@ -10,8 +10,7 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 
 ## Features
 
-- Parse OpenAPI v3.0 specifications (JSON format)
-- **🔜 Coming Soon**: Support for Swagger v2.0 specifications
+- Parse OpenAPI v2.0 and v3.0 specifications (JSON format)
 - Generate type-safe Zig client code
 - Support for complex OpenAPI schemas and operations
 - Cross-platform support (Linux, macOS, Windows)
@@ -316,7 +315,7 @@ This project follows standard Zig formatting. Use `zig fmt` to format your code 
 
 This project is in early development. Current capabilities include:
 
-- OpenAPI v3.0 specification parsing
+- OpenAPI v2.0 and v3.0 specification parsing
 - Basic data model structures for OpenAPI components
 - Comprehensive test suite for parsing functionality
 
