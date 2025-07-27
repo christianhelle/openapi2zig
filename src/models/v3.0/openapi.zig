@@ -7,6 +7,7 @@ const Server = @import("server.zig").Server;
 const SecurityRequirement = @import("security.zig").SecurityRequirement;
 const Tag = @import("tag.zig").Tag;
 const Components = @import("components.zig").Components;
+
 pub const OpenApiDocument = struct {
     openapi: []const u8,
     info: Info,
@@ -45,6 +46,7 @@ pub const OpenApiDocument = struct {
             components.deinit(allocator);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, json_string: []const u8) anyerror!OpenApiDocument {
         var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
