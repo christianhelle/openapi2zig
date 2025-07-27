@@ -9,6 +9,7 @@ const HeaderOrReference = @import("media.zig").HeaderOrReference;
 const SecuritySchemeOrReference = @import("security.zig").SecuritySchemeOrReference;
 const LinkOrReference = @import("link.zig").LinkOrReference;
 const CallbackOrReference = @import("callback.zig").CallbackOrReference;
+
 pub const Components = struct {
     schemas: ?std.StringHashMap(SchemaOrReference) = null,
     responses: ?std.StringHashMap(ResponseOrReference) = null,
