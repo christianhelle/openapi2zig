@@ -2,42 +2,31 @@ const std = @import("std");
 const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
 const Schema = @import("../../models/common/document.zig").Schema;
 const SchemaType = @import("../../models/common/document.zig").SchemaType;
-
 pub const UnifiedModelGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
-
     pub fn init(allocator: std.mem.Allocator) UnifiedModelGenerator {
         return UnifiedModelGenerator{
             .allocator = allocator,
             .buffer = std.ArrayList(u8).init(allocator),
         };
     }
-
     pub fn deinit(self: *UnifiedModelGenerator) void {
         self.buffer.deinit();
     }
-
     pub fn generate(self: *UnifiedModelGenerator, document: UnifiedDocument) ![]const u8 {
-        // Clear buffer for fresh generation
         self.buffer.clearRetainingCapacity();
-
         try self.generateHeader();
-
-        // Generate models from schemas
         if (document.schemas) |schemas| {
             try self.generateSchemas(schemas);
         }
-
         return try self.allocator.dupe(u8, self.buffer.items);
     }
-
     fn generateHeader(self: *UnifiedModelGenerator) !void {
         try self.buffer.appendSlice("///////////////////////////////////////////\n");
         try self.buffer.appendSlice("// Generated Zig structures from OpenAPI\n");
         try self.buffer.appendSlice("///////////////////////////////////////////\n\n");
     }
-
     fn generateSchemas(self: *UnifiedModelGenerator, schemas: std.StringHashMap(Schema)) !void {
         var schema_iterator = schemas.iterator();
         while (schema_iterator.next()) |entry| {
@@ -46,65 +35,48 @@ pub const UnifiedModelGenerator = struct {
             try self.generateSchema(schema_name, schema);
         }
     }
-
     fn generateSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !void {
-        // Skip if this is a reference
         if (schema.type == .reference) {
             return;
         }
-
         try self.buffer.appendSlice("pub const ");
         try self.buffer.appendSlice(name);
         try self.buffer.appendSlice(" = struct {\n");
-
-        // Generate fields from properties
         if (schema.properties) |properties| {
             try self.generateStructFields(properties, schema.required);
         }
-
         try self.buffer.appendSlice("};\n\n");
     }
-
     fn generateStructFields(self: *UnifiedModelGenerator, properties: std.StringHashMap(Schema), required: ?[][]const u8) !void {
         var prop_iterator = properties.iterator();
         while (prop_iterator.next()) |entry| {
             const field_name = entry.key_ptr.*;
             const field_schema = entry.value_ptr.*;
-
             const is_required = self.isFieldRequired(field_name, required);
             try self.generateStructField(field_name, field_schema, is_required);
         }
     }
-
     fn generateStructField(self: *UnifiedModelGenerator, field_name: []const u8, field_schema: Schema, is_required: bool) !void {
         try self.buffer.appendSlice("    ");
         try self.buffer.appendSlice(field_name);
         try self.buffer.appendSlice(": ");
-
         if (!is_required) {
             try self.buffer.appendSlice("?");
         }
-
         try self.buffer.appendSlice(try self.getZigType(field_schema));
-
         if (!is_required) {
             try self.buffer.appendSlice(" = null");
         }
-
         try self.buffer.appendSlice(",\n");
     }
-
     fn getZigType(self: *UnifiedModelGenerator, schema: Schema) ![]const u8 {
         if (schema.ref) |ref| {
-            // Extract the schema name from the reference
-            // References typically look like "#/definitions/Pet" or "#/components/schemas/Pet"
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
                 const schema_name = ref[last_slash + 1 ..];
                 return schema_name;
             }
             return "[]const u8"; // fallback
         }
-
         if (schema.type) |schema_type| {
             return switch (schema_type) {
                 .string => "[]const u8",
@@ -114,7 +86,6 @@ pub const UnifiedModelGenerator = struct {
                 .array => blk: {
                     if (schema.items) |items| {
                         const item_type = try self.getZigType(items.*);
-                        // Use a simple concatenation to avoid memory allocation
                         if (std.mem.eql(u8, item_type, "[]const u8")) {
                             break :blk "[]const []const u8";
                         } else if (std.mem.eql(u8, item_type, "i64")) {
@@ -134,14 +105,11 @@ pub const UnifiedModelGenerator = struct {
                 .reference => "[]const u8", // Should not happen, but fallback
             };
         }
-
         return "[]const u8"; // default fallback
     }
-
     fn isFieldRequired(self: *UnifiedModelGenerator, field_name: []const u8, required: ?[][]const u8) bool {
         _ = self;
         if (required == null) return false;
-
         for (required.?) |req_field| {
             if (std.mem.eql(u8, field_name, req_field)) {
                 return true;

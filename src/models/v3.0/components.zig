@@ -9,7 +9,6 @@ const HeaderOrReference = @import("media.zig").HeaderOrReference;
 const SecuritySchemeOrReference = @import("security.zig").SecuritySchemeOrReference;
 const LinkOrReference = @import("link.zig").LinkOrReference;
 const CallbackOrReference = @import("callback.zig").CallbackOrReference;
-
 pub const Components = struct {
     schemas: ?std.StringHashMap(SchemaOrReference) = null,
     responses: ?std.StringHashMap(ResponseOrReference) = null,
@@ -21,11 +20,9 @@ pub const Components = struct {
     links: ?std.StringHashMap(LinkOrReference) = null,
     callbacks: ?std.StringHashMap(CallbackOrReference) = null,
     _allocated_strings: std.ArrayList([]const u8),
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Components {
         var _allocated_strings = std.ArrayList([]const u8).init(allocator);
         errdefer _allocated_strings.deinit();
-
         const obj = value.object;
         var schemas_map = std.StringHashMap(SchemaOrReference).init(allocator);
         errdefer schemas_map.deinit();
@@ -108,7 +105,6 @@ pub const Components = struct {
                 try callbacks_map.put(k, try CallbackOrReference.parseFromJson(allocator, callbacks_val.object.get(key).?));
             }
         }
-
         return Components{
             .schemas = if (schemas_map.count() > 0) schemas_map else null,
             .responses = if (responses_map.count() > 0) responses_map else null,
@@ -122,13 +118,11 @@ pub const Components = struct {
             ._allocated_strings = _allocated_strings,
         };
     }
-
     pub fn deinit(self: *Components, allocator: std.mem.Allocator) void {
         for (self._allocated_strings.items) |str| {
             allocator.free(str);
         }
         defer self._allocated_strings.deinit();
-
         if (self.schemas) |*schemas| {
             var iterator = schemas.iterator();
             while (iterator.next()) |entry| {
@@ -136,7 +130,6 @@ pub const Components = struct {
             }
             schemas.deinit();
         }
-
         if (self.responses) |*responses| {
             var iterator = responses.iterator();
             while (iterator.next()) |entry| {
@@ -144,7 +137,6 @@ pub const Components = struct {
             }
             responses.deinit();
         }
-
         if (self.parameters) |*parameters| {
             var iterator = parameters.iterator();
             while (iterator.next()) |entry| {
@@ -152,7 +144,6 @@ pub const Components = struct {
             }
             parameters.deinit();
         }
-
         if (self.examples) |*examples| {
             var iterator = examples.iterator();
             while (iterator.next()) |entry| {
@@ -160,7 +151,6 @@ pub const Components = struct {
             }
             examples.deinit();
         }
-
         if (self.requestBodies) |*requestBodies| {
             var iterator = requestBodies.iterator();
             while (iterator.next()) |entry| {
@@ -168,7 +158,6 @@ pub const Components = struct {
             }
             requestBodies.deinit();
         }
-
         if (self.headers) |*headers| {
             var iterator = headers.iterator();
             while (iterator.next()) |entry| {
@@ -176,7 +165,6 @@ pub const Components = struct {
             }
             headers.deinit();
         }
-
         if (self.securitySchemes) |*securitySchemes| {
             var iterator = securitySchemes.iterator();
             while (iterator.next()) |entry| {
@@ -184,7 +172,6 @@ pub const Components = struct {
             }
             securitySchemes.deinit();
         }
-
         if (self.links) |*links| {
             var iterator = links.iterator();
             while (iterator.next()) |entry| {
@@ -192,7 +179,6 @@ pub const Components = struct {
             }
             links.deinit();
         }
-
         if (self.callbacks) |*callbacks| {
             var iterator = callbacks.iterator();
             while (iterator.next()) |entry| {

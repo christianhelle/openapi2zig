@@ -2,12 +2,10 @@ const std = @import("std");
 const json = std.json;
 const MediaType = @import("media.zig").MediaType;
 const Reference = @import("reference.zig").Reference;
-
 pub const RequestBody = struct {
     content: std.StringHashMap(MediaType),
     description: ?[]const u8 = null,
     required: ?bool = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!RequestBody {
         const obj = value.object;
         var content_map = std.StringHashMap(MediaType).init(allocator);
@@ -22,10 +20,8 @@ pub const RequestBody = struct {
             .required = if (obj.get("required")) |val| val.bool else null,
         };
     }
-
     pub fn deinit(self: *RequestBody, allocator: std.mem.Allocator) void {
         if (self.description) |description| allocator.free(description);
-
         var iterator = self.content.iterator();
         while (iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*);
@@ -34,11 +30,9 @@ pub const RequestBody = struct {
         self.content.deinit();
     }
 };
-
 pub const RequestBodyOrReference = union(enum) {
     request_body: RequestBody,
     reference: Reference,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!RequestBodyOrReference {
         if (value.object.get("$ref") != null) {
             return RequestBodyOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
@@ -46,7 +40,6 @@ pub const RequestBodyOrReference = union(enum) {
             return RequestBodyOrReference{ .request_body = try RequestBody.parseFromJson(allocator, value) };
         }
     }
-
     pub fn deinit(self: *RequestBodyOrReference, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .request_body => |*request_body| request_body.deinit(allocator),

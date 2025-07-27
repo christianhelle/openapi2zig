@@ -4,7 +4,6 @@ const Parameter = @import("parameter.zig").Parameter;
 const Response = @import("response.zig").Response;
 const SecurityRequirement = @import("security.zig").SecurityRequirement;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
-
 pub const Operation = struct {
     responses: std.StringHashMap(Response),
     tags: ?[][]const u8 = null,
@@ -18,16 +17,13 @@ pub const Operation = struct {
     schemes: ?[][]const u8 = null,
     deprecated: ?bool = null,
     security: ?[]SecurityRequirement = null,
-
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
-        // Clean up responses
         var response_iterator = self.responses.iterator();
         while (response_iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*);
             entry.value_ptr.deinit(allocator);
         }
         self.responses.deinit();
-
         if (self.tags) |tags| {
             for (tags) |tag| {
                 allocator.free(tag);
@@ -77,7 +73,6 @@ pub const Operation = struct {
             allocator.free(security);
         }
     }
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Operation {
         const responses = try parseResponses(allocator, value.object.get("responses").?);
         const tags = if (value.object.get("tags")) |val| try parseStringArray(allocator, val) else null;
@@ -91,7 +86,6 @@ pub const Operation = struct {
         const schemes = if (value.object.get("schemes")) |val| try parseStringArray(allocator, val) else null;
         const deprecated = if (value.object.get("deprecated")) |val| val.bool else null;
         const security = if (value.object.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
-
         return Operation{
             .responses = responses,
             .tags = tags,
@@ -107,7 +101,6 @@ pub const Operation = struct {
             .security = security,
         };
     }
-
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
         var array_list = std.ArrayList([]const u8).init(allocator);
         errdefer array_list.deinit();
@@ -116,11 +109,9 @@ pub const Operation = struct {
         }
         return array_list.toOwnedSlice();
     }
-
     fn parseResponses(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Response) {
         var map = std.StringHashMap(Response).init(allocator);
         errdefer map.deinit();
-
         var iterator = value.object.iterator();
         while (iterator.next()) |entry| {
             const key = try allocator.dupe(u8, entry.key_ptr.*);
@@ -129,7 +120,6 @@ pub const Operation = struct {
         }
         return map;
     }
-
     fn parseParameters(allocator: std.mem.Allocator, value: json.Value) anyerror![]Parameter {
         var array_list = std.ArrayList(Parameter).init(allocator);
         errdefer array_list.deinit();
@@ -138,7 +128,6 @@ pub const Operation = struct {
         }
         return array_list.toOwnedSlice();
     }
-
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
         var array_list = std.ArrayList(SecurityRequirement).init(allocator);
         errdefer array_list.deinit();

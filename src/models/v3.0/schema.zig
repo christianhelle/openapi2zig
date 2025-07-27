@@ -2,14 +2,12 @@ const std = @import("std");
 const json = std.json;
 const Reference = @import("reference.zig").Reference;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
-
 pub const XML = struct {
     name: ?[]const u8 = null,
     namespace: ?[]const u8 = null,
     prefix: ?[]const u8 = null,
     attribute: ?bool = null,
     wrapped: ?bool = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!XML {
         const obj = value.object;
         return XML{
@@ -20,18 +18,15 @@ pub const XML = struct {
             .wrapped = if (obj.get("wrapped")) |val| val.bool else null,
         };
     }
-
     pub fn deinit(self: *XML, allocator: std.mem.Allocator) void {
         if (self.name) |name| allocator.free(name);
         if (self.namespace) |namespace| allocator.free(namespace);
         if (self.prefix) |prefix| allocator.free(prefix);
     }
 };
-
 pub const Discriminator = struct {
     propertyName: []const u8,
     mapping: ?std.StringHashMap([]const u8) = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Discriminator {
         const obj = value.object;
         var mapping_map = std.StringHashMap([]const u8).init(allocator);
@@ -46,7 +41,6 @@ pub const Discriminator = struct {
             .mapping = if (mapping_map.count() > 0) mapping_map else null,
         };
     }
-
     pub fn deinit(self: *Discriminator, allocator: std.mem.Allocator) void {
         allocator.free(self.propertyName);
         if (self.mapping) |*map| {
@@ -59,11 +53,9 @@ pub const Discriminator = struct {
         }
     }
 };
-
 pub const AdditionalProperties = union(enum) {
     boolean: bool,
     schema_or_reference: SchemaOrReference,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!AdditionalProperties {
         switch (value) {
             .bool => |bool_val| return AdditionalProperties{ .boolean = bool_val },
@@ -72,11 +64,9 @@ pub const AdditionalProperties = union(enum) {
         }
     }
 };
-
 pub const SchemaOrReference = union(enum) {
     schema: *Schema,
     reference: Reference,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SchemaOrReference {
         if (value.object.get("$ref") != null) {
             return SchemaOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
@@ -87,7 +77,6 @@ pub const SchemaOrReference = union(enum) {
             return SchemaOrReference{ .schema = schema };
         }
     }
-
     pub fn deinit(self: *SchemaOrReference, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .schema => |schema| {
@@ -98,7 +87,6 @@ pub const SchemaOrReference = union(enum) {
         }
     }
 };
-
 pub const Schema = struct {
     title: ?[]const u8 = null,
     multipleOf: ?f64 = null,
@@ -135,7 +123,6 @@ pub const Schema = struct {
     externalDocs: ?ExternalDocumentation = null,
     deprecated: ?bool = null,
     xml: ?XML = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Schema {
         const obj = value.object;
         var required_list = std.ArrayList([]const u8).init(allocator);
@@ -180,7 +167,6 @@ pub const Schema = struct {
                 try properties_map.put(try allocator.dupe(u8, key), try SchemaOrReference.parseFromJson(allocator, props_val.object.get(key).?));
             }
         }
-
         return Schema{
             .title = if (obj.get("title")) |val| try allocator.dupe(u8, val.string) else null,
             .multipleOf = if (obj.get("multipleOf")) |val| val.float else null,
@@ -219,14 +205,12 @@ pub const Schema = struct {
             .xml = if (obj.get("xml")) |val| try XML.parseFromJson(allocator, val) else null,
         };
     }
-
     pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {
         if (self.title) |title| allocator.free(title);
         if (self.pattern) |pattern| allocator.free(pattern);
         if (self.type) |type_val| allocator.free(type_val);
         if (self.description) |description| allocator.free(description);
         if (self.format) |format| allocator.free(format);
-
         if (self.properties) |props| {
             var iterator = props.iterator();
             while (iterator.next()) |entry| {
@@ -236,18 +220,15 @@ pub const Schema = struct {
             var mutable_props = @constCast(&props);
             mutable_props.deinit();
         }
-
         if (self.items) |*items| {
             items.deinit(allocator);
         }
-
         if (self.required) |req| {
             for (req) |item| {
                 allocator.free(item);
             }
             allocator.free(req);
         }
-
         if (self.allOf) |allOf| {
             for (allOf) |*item| {
                 var mutable_item = @constCast(item);
@@ -255,7 +236,6 @@ pub const Schema = struct {
             }
             allocator.free(allOf);
         }
-
         if (self.oneOf) |oneOf| {
             for (oneOf) |*item| {
                 var mutable_item = @constCast(item);
@@ -263,7 +243,6 @@ pub const Schema = struct {
             }
             allocator.free(oneOf);
         }
-
         if (self.anyOf) |anyOf| {
             for (anyOf) |*item| {
                 var mutable_item = @constCast(item);
@@ -271,30 +250,24 @@ pub const Schema = struct {
             }
             allocator.free(anyOf);
         }
-
         if (self.not) |*not| {
             not.deinit(allocator);
         }
-
         if (self.additionalProperties) |*additionalProperties| {
             switch (additionalProperties.*) {
                 .schema_or_reference => |*schema_ref| schema_ref.deinit(allocator),
                 .boolean => {},
             }
         }
-
         if (self.discriminator) |*discriminator| {
             discriminator.deinit(allocator);
         }
-
         if (self.externalDocs) |*externalDocs| {
             externalDocs.deinit(allocator);
         }
-
         if (self.enum_values) |enum_values| {
             allocator.free(enum_values);
         }
-
         if (self.xml) |*xml| {
             xml.deinit(allocator);
         }

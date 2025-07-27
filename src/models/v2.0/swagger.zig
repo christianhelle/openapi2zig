@@ -9,7 +9,6 @@ const Tag = @import("tag.zig").Tag;
 const Schema = @import("schema.zig").Schema;
 const Parameter = @import("parameter.zig").Parameter;
 const Response = @import("response.zig").Response;
-
 pub const SwaggerDocument = struct {
     swagger: []const u8,
     info: Info,
@@ -26,41 +25,34 @@ pub const SwaggerDocument = struct {
     securityDefinitions: ?SecurityDefinitions = null,
     tags: ?[]Tag = null,
     externalDocs: ?ExternalDocumentation = null,
-
     pub fn deinit(self: *SwaggerDocument, allocator: std.mem.Allocator) void {
         allocator.free(self.swagger);
         self.info.deinit(allocator);
         self.paths.deinit(allocator);
-
         if (self.host) |host| {
             allocator.free(host);
         }
-
         if (self.basePath) |basePath| {
             allocator.free(basePath);
         }
-
         if (self.schemes) |schemes| {
             for (schemes) |scheme| {
                 allocator.free(scheme);
             }
             allocator.free(schemes);
         }
-
         if (self.consumes) |consumes| {
             for (consumes) |consume| {
                 allocator.free(consume);
             }
             allocator.free(consumes);
         }
-
         if (self.produces) |produces| {
             for (produces) |produce| {
                 allocator.free(produce);
             }
             allocator.free(produces);
         }
-
         if (self.definitions) |*definitions| {
             var iterator = definitions.iterator();
             while (iterator.next()) |entry| {
@@ -69,7 +61,6 @@ pub const SwaggerDocument = struct {
             }
             definitions.deinit();
         }
-
         if (self.parameters) |*parameters| {
             var iterator = parameters.iterator();
             while (iterator.next()) |entry| {
@@ -78,7 +69,6 @@ pub const SwaggerDocument = struct {
             }
             parameters.deinit();
         }
-
         if (self.responses) |*responses| {
             var iterator = responses.iterator();
             while (iterator.next()) |entry| {
@@ -87,42 +77,32 @@ pub const SwaggerDocument = struct {
             }
             responses.deinit();
         }
-
         if (self.security) |security| {
             for (security) |*security_req| {
                 security_req.deinit(allocator);
             }
             allocator.free(security);
         }
-
         if (self.securityDefinitions) |*securityDefinitions| {
             securityDefinitions.deinit(allocator);
         }
-
         if (self.tags) |tags| {
             for (tags) |*tag| {
                 tag.deinit(allocator);
             }
             allocator.free(tags);
         }
-
         if (self.externalDocs) |*external_docs| {
             external_docs.deinit(allocator);
         }
     }
-
     pub fn parseFromJson(allocator: std.mem.Allocator, json_string: []const u8) anyerror!SwaggerDocument {
         var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
-
         const root = parsed.value;
-
-        // Allocate persistent copies of strings
         const swagger_str = try allocator.dupe(u8, root.object.get("swagger").?.string);
-
         const info = try Info.parseFromJson(allocator, root.object.get("info").?);
         const paths = try Paths.parseFromJson(allocator, root.object.get("paths").?);
-
         const host = if (root.object.get("host")) |val| try allocator.dupe(u8, val.string) else null;
         const basePath = if (root.object.get("basePath")) |val| try allocator.dupe(u8, val.string) else null;
         const schemes = if (root.object.get("schemes")) |val| try parseStringArray(allocator, val) else null;
@@ -135,7 +115,6 @@ pub const SwaggerDocument = struct {
         const securityDefinitions = if (root.object.get("securityDefinitions")) |val| try SecurityDefinitions.parseFromJson(allocator, val) else null;
         const tags = if (root.object.get("tags")) |val| try parseTags(allocator, val) else null;
         const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
-
         return SwaggerDocument{
             .swagger = swagger_str,
             .info = info,
@@ -154,7 +133,6 @@ pub const SwaggerDocument = struct {
             .externalDocs = externalDocs,
         };
     }
-
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
         var array_list = std.ArrayList([]const u8).init(allocator);
         errdefer array_list.deinit();
@@ -163,11 +141,9 @@ pub const SwaggerDocument = struct {
         }
         return array_list.toOwnedSlice();
     }
-
     fn parseDefinitions(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Schema) {
         var map = std.StringHashMap(Schema).init(allocator);
         errdefer map.deinit();
-
         var iterator = value.object.iterator();
         while (iterator.next()) |entry| {
             const key = try allocator.dupe(u8, entry.key_ptr.*);
@@ -176,11 +152,9 @@ pub const SwaggerDocument = struct {
         }
         return map;
     }
-
     fn parseParameters(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Parameter) {
         var map = std.StringHashMap(Parameter).init(allocator);
         errdefer map.deinit();
-
         var iterator = value.object.iterator();
         while (iterator.next()) |entry| {
             const key = try allocator.dupe(u8, entry.key_ptr.*);
@@ -189,11 +163,9 @@ pub const SwaggerDocument = struct {
         }
         return map;
     }
-
     fn parseResponses(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Response) {
         var map = std.StringHashMap(Response).init(allocator);
         errdefer map.deinit();
-
         var iterator = value.object.iterator();
         while (iterator.next()) |entry| {
             const key = try allocator.dupe(u8, entry.key_ptr.*);
@@ -202,7 +174,6 @@ pub const SwaggerDocument = struct {
         }
         return map;
     }
-
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
         var array_list = std.ArrayList(SecurityRequirement).init(allocator);
         errdefer array_list.deinit();
@@ -211,7 +182,6 @@ pub const SwaggerDocument = struct {
         }
         return array_list.toOwnedSlice();
     }
-
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]Tag {
         var array_list = std.ArrayList(Tag).init(allocator);
         errdefer array_list.deinit();

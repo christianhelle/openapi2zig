@@ -7,7 +7,6 @@ const RequestBodyOrReference = @import("requestbody.zig").RequestBodyOrReference
 const CallbackOrReference = @import("callback.zig").CallbackOrReference;
 const SecurityRequirement = @import("security.zig").SecurityRequirement;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
-
 pub const Operation = struct {
     responses: Responses,
     tags: ?[]const []const u8 = null,
@@ -21,7 +20,6 @@ pub const Operation = struct {
     deprecated: ?bool = null,
     security: ?[]const SecurityRequirement = null,
     servers: ?[]const Server = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Operation {
         const obj = value.object;
         var tags_list = std.ArrayList([]const u8).init(allocator);
@@ -59,7 +57,6 @@ pub const Operation = struct {
                 try servers_list.append(try Server.parseFromJson(allocator, item));
             }
         }
-
         return Operation{
             .responses = try Responses.parseFromJson(allocator, obj.get("responses").?),
             .tags = if (tags_list.items.len > 0) try tags_list.toOwnedSlice() else null,
@@ -75,25 +72,20 @@ pub const Operation = struct {
             .servers = if (servers_list.items.len > 0) try servers_list.toOwnedSlice() else null,
         };
     }
-
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
         self.responses.deinit(allocator);
-
         if (self.tags) |tags| {
             for (tags) |tag| {
                 allocator.free(tag);
             }
             allocator.free(tags);
         }
-
         if (self.summary) |summary| allocator.free(summary);
         if (self.description) |description| allocator.free(description);
         if (self.operationId) |operationId| allocator.free(operationId);
-
         if (self.externalDocs) |*externalDocs| {
             externalDocs.deinit(allocator);
         }
-
         if (self.parameters) |params| {
             for (params) |*param| {
                 var mutable_param = @constCast(param);
@@ -101,11 +93,9 @@ pub const Operation = struct {
             }
             allocator.free(params);
         }
-
         if (self.requestBody) |*requestBody| {
             requestBody.deinit(allocator);
         }
-
         if (self.callbacks) |*callbacks| {
             var iterator = callbacks.iterator();
             while (iterator.next()) |entry| {
@@ -114,7 +104,6 @@ pub const Operation = struct {
             }
             callbacks.deinit();
         }
-
         if (self.security) |security| {
             for (security) |*sec| {
                 var mutable_sec = @constCast(sec);
@@ -122,7 +111,6 @@ pub const Operation = struct {
             }
             allocator.free(security);
         }
-
         if (self.servers) |servers| {
             for (servers) |*server| {
                 var mutable_server = @constCast(server);

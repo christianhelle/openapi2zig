@@ -1,6 +1,4 @@
-// Re-export all v3.0 model types for easy access
 pub const OpenApiDocument = @import("openapi.zig").OpenApiDocument;
-
 pub usingnamespace @import("info.zig");
 pub usingnamespace @import("server.zig");
 pub usingnamespace @import("externaldocs.zig");

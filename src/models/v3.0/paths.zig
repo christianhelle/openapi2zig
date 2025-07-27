@@ -3,7 +3,6 @@ const json = std.json;
 const Operation = @import("operation.zig").Operation;
 const Server = @import("server.zig").Server;
 const ParameterOrReference = @import("parameter.zig").ParameterOrReference;
-
 pub const PathItem = struct {
     ref: ?[]const u8 = null,
     summary: ?[]const u8 = null,
@@ -18,7 +17,6 @@ pub const PathItem = struct {
     trace: ?Operation = null,
     servers: ?[]const Server = null,
     parameters: ?[]const ParameterOrReference = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PathItem {
         const obj = value.object;
         var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
@@ -35,7 +33,6 @@ pub const PathItem = struct {
                 try servers_list.append(try Server.parseFromJson(allocator, item));
             }
         }
-
         return PathItem{
             .ref = if (obj.get("$ref")) |val| try allocator.dupe(u8, val.string) else null,
             .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
@@ -52,12 +49,10 @@ pub const PathItem = struct {
             .parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice() else null,
         };
     }
-
     pub fn deinit(self: *PathItem, allocator: std.mem.Allocator) void {
         if (self.ref) |ref| allocator.free(ref);
         if (self.summary) |summary| allocator.free(summary);
         if (self.description) |description| allocator.free(description);
-
         if (self.get) |*get| get.deinit(allocator);
         if (self.put) |*put| put.deinit(allocator);
         if (self.post) |*post| post.deinit(allocator);
@@ -66,7 +61,6 @@ pub const PathItem = struct {
         if (self.head) |*head| head.deinit(allocator);
         if (self.patch) |*patch| patch.deinit(allocator);
         if (self.trace) |*trace| trace.deinit(allocator);
-
         if (self.servers) |servers| {
             for (servers) |*server| {
                 var mutable_server = @constCast(server);
@@ -74,7 +68,6 @@ pub const PathItem = struct {
             }
             allocator.free(servers);
         }
-
         if (self.parameters) |parameters| {
             for (parameters) |*param| {
                 var mutable_param = @constCast(param);
@@ -84,10 +77,8 @@ pub const PathItem = struct {
         }
     }
 };
-
 pub const Paths = struct {
     path_items: std.StringHashMap(PathItem),
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Paths {
         var path_items_map = std.StringHashMap(PathItem).init(allocator);
         errdefer path_items_map.deinit();
@@ -99,7 +90,6 @@ pub const Paths = struct {
         }
         return Paths{ .path_items = path_items_map };
     }
-
     pub fn deinit(self: *Paths, allocator: std.mem.Allocator) void {
         var iterator = self.path_items.iterator();
         while (iterator.next()) |entry| {

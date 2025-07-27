@@ -1,5 +1,4 @@
 const std = @import("std");
-
 pub fn getDataType(field_schema: []const u8) ![]const u8 {
     if (std.mem.eql(u8, field_schema, "string")) {
         return "[]const u8";
