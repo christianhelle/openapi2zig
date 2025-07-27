@@ -14,27 +14,27 @@ pub const ParsedArgs = struct {
 
 pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
     const args = try std.process.argsAlloc(allocator);
-    
+
     if (args.len < 4) {
         std.process.argsFree(allocator, args[0..]);
         printUsage();
         return error.InvalidArguments;
     }
-    
+
     if (!std.mem.eql(u8, args[1], "generate")) {
         std.process.argsFree(allocator, args[0..]);
         printUsage();
         return error.InvalidArguments;
     }
-    
+
     var input_path: ?[]const u8 = null;
     var output_path: ?[]const u8 = null;
     var base_url: ?[]const u8 = null;
-    
+
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
-        
+
         if (std.mem.eql(u8, arg, "-i") or std.mem.eql(u8, arg, "--input")) {
             i += 1;
             if (i >= args.len) {
@@ -61,13 +61,13 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
             base_url = args[i];
         }
     }
-    
+
     if (input_path == null) {
         std.process.argsFree(allocator, args[0..]);
         printUsage();
         return error.InvalidArguments;
     }
-    
+
     return ParsedArgs{
         .args = CliArgs{
             .input_path = input_path.?,

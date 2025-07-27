@@ -25,7 +25,7 @@ pub fn getOpenApiVersion(allocator: std.mem.Allocator, json: []const u8) !OpenAp
     const parsed = try std.json.parseFromSlice(Document, allocator, json, .{ .ignore_unknown_fields = true });
     defer parsed.deinit();
     const root = parsed.value;
-    
+
     if (root.openapi) |version| {
         if (std.mem.startsWith(u8, version, "3.1")) {
             return OpenApiVersion.v3_1;
@@ -33,12 +33,12 @@ pub fn getOpenApiVersion(allocator: std.mem.Allocator, json: []const u8) !OpenAp
             return OpenApiVersion.v3_0;
         }
     }
-    
+
     if (root.swagger) |version| {
         if (std.mem.startsWith(u8, version, "2.0")) {
             return OpenApiVersion.v2_0;
         }
     }
-    
+
     return OpenApiVersion.Unsupported;
 }

@@ -21,11 +21,11 @@ pub const UnifiedModelGenerator = struct {
     pub fn generate(self: *UnifiedModelGenerator, document: UnifiedDocument) ![]const u8 {
         self.buffer.clearRetainingCapacity();
         try self.generateHeader();
-        
+
         if (document.schemas) |schemas| {
             try self.generateSchemas(schemas);
         }
-        
+
         return try self.allocator.dupe(u8, self.buffer.items);
     }
 
@@ -46,15 +46,15 @@ pub const UnifiedModelGenerator = struct {
 
     fn generateSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !void {
         if (schema.type == .reference) return;
-        
+
         try self.buffer.appendSlice("pub const ");
         try self.buffer.appendSlice(name);
         try self.buffer.appendSlice(" = struct {\n");
-        
+
         if (schema.properties) |properties| {
             try self.generateStructFields(properties, schema.required);
         }
-        
+
         try self.buffer.appendSlice("};\n\n");
     }
 
@@ -72,17 +72,17 @@ pub const UnifiedModelGenerator = struct {
         try self.buffer.appendSlice("    ");
         try self.buffer.appendSlice(field_name);
         try self.buffer.appendSlice(": ");
-        
+
         if (!is_required) {
             try self.buffer.appendSlice("?");
         }
-        
+
         try self.buffer.appendSlice(try self.getZigType(field_schema));
-        
+
         if (!is_required) {
             try self.buffer.appendSlice(" = null");
         }
-        
+
         try self.buffer.appendSlice(",\n");
     }
 
@@ -94,7 +94,7 @@ pub const UnifiedModelGenerator = struct {
             }
             return "[]const u8";
         }
-        
+
         if (schema.type) |schema_type| {
             return switch (schema_type) {
                 .string => "[]const u8",
@@ -123,20 +123,20 @@ pub const UnifiedModelGenerator = struct {
                 .reference => "[]const u8",
             };
         }
-        
+
         return "[]const u8";
     }
 
     fn isFieldRequired(self: *UnifiedModelGenerator, field_name: []const u8, required: ?[][]const u8) bool {
         _ = self;
         if (required == null) return false;
-        
+
         for (required.?) |req_field| {
             if (std.mem.eql(u8, field_name, req_field)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 };
