@@ -29,6 +29,7 @@ const Response2 = @import("../../models/v2.0/response.zig").Response;
 const Operation2 = @import("../../models/v2.0/operation.zig").Operation;
 const PathItem2 = @import("../../models/v2.0/paths.zig").PathItem;
 const Paths2 = @import("../../models/v2.0/paths.zig").Paths;
+
 pub const SwaggerConverter = struct {
     allocator: std.mem.Allocator,
     pub fn init(allocator: std.mem.Allocator) SwaggerConverter {
