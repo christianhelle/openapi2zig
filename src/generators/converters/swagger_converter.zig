@@ -32,9 +32,11 @@ const Paths2 = @import("../../models/v2.0/paths.zig").Paths;
 
 pub const SwaggerConverter = struct {
     allocator: std.mem.Allocator,
+
     pub fn init(allocator: std.mem.Allocator) SwaggerConverter {
         return SwaggerConverter{ .allocator = allocator };
     }
+
     pub fn convert(self: *SwaggerConverter, swagger: SwaggerDocument) !UnifiedDocument {
         const version = swagger.swagger; // Reference, don't duplicate
         const info = self.convertInfo(swagger.info);
@@ -59,6 +61,7 @@ pub const SwaggerConverter = struct {
             .responses = responses,
         };
     }
+
     fn convertInfo(self: *SwaggerConverter, info: Info2) DocumentInfo {
         _ = self; // Mark unused parameter
         const title = info.title; // Reference, don't duplicate
@@ -85,6 +88,7 @@ pub const SwaggerConverter = struct {
             .license = license,
         };
     }
+
     fn createServersFromHostAndBasePath(self: *SwaggerConverter, host: ?[]const u8, basePath: ?[]const u8, schemes: ?[][]const u8) ![]Server {
         if (host == null) {
             return try self.allocator.alloc(Server, 0);
@@ -99,6 +103,7 @@ pub const SwaggerConverter = struct {
         }
         return servers;
     }
+
     fn convertSecurityRequirements(self: *SwaggerConverter, security: []SecurityRequirement2) ![]SecurityRequirement {
         var converted_security = try self.allocator.alloc(SecurityRequirement, security.len);
         for (security, 0..) |sec_req, i| {
@@ -116,6 +121,7 @@ pub const SwaggerConverter = struct {
         }
         return converted_security;
     }
+
     fn convertTags(self: *SwaggerConverter, tags: []Tag2) ![]Tag {
         var converted_tags = try self.allocator.alloc(Tag, tags.len);
         for (tags, 0..) |tag, i| {
@@ -126,12 +132,14 @@ pub const SwaggerConverter = struct {
         }
         return converted_tags;
     }
+
     fn convertExternalDocs(self: *SwaggerConverter, externalDocs: ExternalDocs2) ExternalDocumentation {
         _ = self; // Not needed for reference-based conversion
         const url = externalDocs.url; // Reference, don't duplicate
         const description = externalDocs.description; // Reference, don't duplicate
         return ExternalDocumentation{ .url = url, .description = description };
     }
+
     fn convertDefinitions(self: *SwaggerConverter, definitions: std.StringHashMap(Schema2)) !std.StringHashMap(Schema) {
         var schemas = std.StringHashMap(Schema).init(self.allocator);
         var def_iterator = definitions.iterator();
@@ -142,6 +150,7 @@ pub const SwaggerConverter = struct {
         }
         return schemas;
     }
+
     fn convertGlobalParameters(self: *SwaggerConverter, parameters: std.StringHashMap(Parameter2)) !std.StringHashMap(Parameter) {
         var converted_params = std.StringHashMap(Parameter).init(self.allocator);
         var param_iterator = parameters.iterator();
@@ -152,6 +161,7 @@ pub const SwaggerConverter = struct {
         }
         return converted_params;
     }
+
     fn convertGlobalResponses(self: *SwaggerConverter, responses: std.StringHashMap(Response2)) !std.StringHashMap(Response) {
         var converted_responses = std.StringHashMap(Response).init(self.allocator);
         var resp_iterator = responses.iterator();
@@ -162,6 +172,7 @@ pub const SwaggerConverter = struct {
         }
         return converted_responses;
     }
+
     fn convertSchema(self: *SwaggerConverter, schema: Schema2) !Schema {
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
         const ref = schema.ref; // Reference, don't duplicate
@@ -205,6 +216,7 @@ pub const SwaggerConverter = struct {
             .example = schema.example,
         };
     }
+
     fn convertSchemaType(self: *SwaggerConverter, type_str: []const u8) SchemaType {
         _ = self;
         if (std.mem.eql(u8, type_str, "string")) return .string;
@@ -215,6 +227,7 @@ pub const SwaggerConverter = struct {
         if (std.mem.eql(u8, type_str, "object")) return .object;
         return .string; // default fallback
     }
+
     fn convertPaths(self: *SwaggerConverter, paths: Paths2) !std.StringHashMap(PathItem) {
         var converted_paths = std.StringHashMap(PathItem).init(self.allocator);
         var path_iterator = paths.path_items.iterator();
@@ -225,6 +238,7 @@ pub const SwaggerConverter = struct {
         }
         return converted_paths;
     }
+
     fn convertPathItem(self: *SwaggerConverter, pathItem: PathItem2) !PathItem {
         const get = if (pathItem.get) |op| try self.convertOperation(op) else null;
         const put = if (pathItem.put) |op| try self.convertOperation(op) else null;
@@ -245,6 +259,7 @@ pub const SwaggerConverter = struct {
             .parameters = parameters,
         };
     }
+
     fn convertOperation(self: *SwaggerConverter, operation: Operation2) !Operation {
         const tags = if (operation.tags) |tags_list| blk: {
             const tags_array = try self.allocator.alloc([]const u8, tags_list.len);
@@ -276,6 +291,7 @@ pub const SwaggerConverter = struct {
             .security = security,
         };
     }
+
     fn convertParameters(self: *SwaggerConverter, parameters: []Parameter2) ![]Parameter {
         var converted_params = try self.allocator.alloc(Parameter, parameters.len);
         for (parameters, 0..) |param, i| {
@@ -283,6 +299,7 @@ pub const SwaggerConverter = struct {
         }
         return converted_params;
     }
+
     fn convertParameter(self: *SwaggerConverter, parameter: Parameter2) !Parameter {
         const name = parameter.name; // Reference, don't duplicate
         const location = self.convertParameterLocation(parameter.in);
@@ -304,6 +321,7 @@ pub const SwaggerConverter = struct {
             .format = format,
         };
     }
+
     fn convertParameterLocation(self: *SwaggerConverter, location: ParameterLocation2) ParameterLocation {
         _ = self;
         return switch (location) {
@@ -314,6 +332,7 @@ pub const SwaggerConverter = struct {
             .formData => .form,
         };
     }
+
     fn convertParameterType(self: *SwaggerConverter, param_type: PrimitiveType2) SchemaType {
         _ = self;
         return switch (param_type) {
@@ -325,6 +344,7 @@ pub const SwaggerConverter = struct {
             .file => .string, // Map file to string
         };
     }
+
     fn convertResponse(self: *SwaggerConverter, response: Response2) !Response {
         const description = response.description; // Reference, don't duplicate
         const schema = if (response.schema) |resp_schema| blk: {
