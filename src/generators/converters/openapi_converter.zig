@@ -32,6 +32,7 @@ const Response3 = @import("../../models/v3.0/response.zig").Response;
 const Operation3 = @import("../../models/v3.0/operation.zig").Operation;
 const PathItem3 = @import("../../models/v3.0/paths.zig").PathItem;
 const Paths3 = @import("../../models/v3.0/paths.zig").Paths;
+
 pub const OpenApiConverter = struct {
     allocator: std.mem.Allocator,
     pub fn init(allocator: std.mem.Allocator) OpenApiConverter {
