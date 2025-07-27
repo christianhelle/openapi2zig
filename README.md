@@ -317,13 +317,13 @@ This project is in early development. Current capabilities include:
 
 - OpenAPI v2.0 and v3.0 specification parsing
 - Basic data model structures for OpenAPI components
+- Generate API client code using `std.http.Client`
 - Comprehensive test suite for parsing functionality
 
 Planned features:
 
-- CLI interface for code generation
-- Zig client code generation
-- Support for various OpenAPI features (authentication, complex schemas, etc.)
+- Improved CLI interface for code generation
+- Authentication / Authorization support
 - Documentation generation
 
 ## License
