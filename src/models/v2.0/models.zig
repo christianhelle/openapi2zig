@@ -1,6 +1,4 @@
-// Re-export all v2.0 model types for easy access
 pub const SwaggerDocument = @import("swagger.zig").SwaggerDocument;
-
 pub usingnamespace @import("info.zig");
 pub usingnamespace @import("externaldocs.zig");
 pub usingnamespace @import("tag.zig");

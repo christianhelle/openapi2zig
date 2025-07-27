@@ -1,14 +1,12 @@
 const std = @import("std");
 const json = std.json;
 const Schema = @import("schema.zig").Schema;
-
 pub const ParameterLocation = enum {
     query,
     header,
     path,
     formData,
     body,
-
     pub fn fromString(str: []const u8) ?ParameterLocation {
         if (std.mem.eql(u8, str, "query")) return .query;
         if (std.mem.eql(u8, str, "header")) return .header;
@@ -18,7 +16,6 @@ pub const ParameterLocation = enum {
         return null;
     }
 };
-
 pub const PrimitiveType = enum {
     string,
     number,
@@ -26,7 +23,6 @@ pub const PrimitiveType = enum {
     boolean,
     array,
     file,
-
     pub fn fromString(str: []const u8) ?PrimitiveType {
         if (std.mem.eql(u8, str, "string")) return .string;
         if (std.mem.eql(u8, str, "number")) return .number;
@@ -37,14 +33,12 @@ pub const PrimitiveType = enum {
         return null;
     }
 };
-
 pub const CollectionFormat = enum {
     csv,
     ssv,
     tsv,
     pipes,
     multi,
-
     pub fn fromString(str: []const u8) ?CollectionFormat {
         if (std.mem.eql(u8, str, "csv")) return .csv;
         if (std.mem.eql(u8, str, "ssv")) return .ssv;
@@ -54,7 +48,6 @@ pub const CollectionFormat = enum {
         return null;
     }
 };
-
 pub const Items = struct {
     type: PrimitiveType,
     format: ?[]const u8 = null,
@@ -73,7 +66,6 @@ pub const Items = struct {
     uniqueItems: ?bool = null,
     enum_values: ?[]json.Value = null,
     multipleOf: ?f64 = null,
-
     pub fn deinit(self: *Items, allocator: std.mem.Allocator) void {
         if (self.format) |format| {
             allocator.free(format);
@@ -89,21 +81,17 @@ pub const Items = struct {
             allocator.free(enum_vals);
         }
     }
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Items {
         const type_str = value.object.get("type").?.string;
         const type_val = PrimitiveType.fromString(type_str) orelse return error.InvalidParameterType;
-
         const format = if (value.object.get("format")) |val| try allocator.dupe(u8, val.string) else null;
         const items = if (value.object.get("items")) |val| blk: {
             const items_ptr = try allocator.create(Items);
             items_ptr.* = try Items.parseFromJson(allocator, val);
             break :blk items_ptr;
         } else null;
-
         const collectionFormat_str = if (value.object.get("collectionFormat")) |val| val.string else "csv";
         const collectionFormat = CollectionFormat.fromString(collectionFormat_str);
-
         const default = if (value.object.get("default")) |val| val else null;
         const maximum = if (value.object.get("maximum")) |val| val.float else null;
         const exclusiveMaximum = if (value.object.get("exclusiveMaximum")) |val| val.bool else null;
@@ -117,7 +105,6 @@ pub const Items = struct {
         const uniqueItems = if (value.object.get("uniqueItems")) |val| val.bool else null;
         const enum_values = if (value.object.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
         const multipleOf = if (value.object.get("multipleOf")) |val| val.float else null;
-
         return Items{
             .type = type_val,
             .format = format,
@@ -138,7 +125,6 @@ pub const Items = struct {
             .multipleOf = multipleOf,
         };
     }
-
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
         var array_list = std.ArrayList(json.Value).init(allocator);
         errdefer array_list.deinit();
@@ -148,14 +134,11 @@ pub const Items = struct {
         return array_list.toOwnedSlice();
     }
 };
-
 pub const Parameter = struct {
     name: []const u8,
     in: ParameterLocation,
     description: ?[]const u8 = null,
     required: bool = false,
-
-    // For non-body parameters
     type: ?PrimitiveType = null,
     format: ?[]const u8 = null,
     allowEmptyValue: ?bool = null,
@@ -174,10 +157,7 @@ pub const Parameter = struct {
     uniqueItems: ?bool = null,
     enum_values: ?[]json.Value = null,
     multipleOf: ?f64 = null,
-
-    // For body parameters
     schema: ?Schema = null,
-
     pub fn deinit(self: *Parameter, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
         if (self.description) |description| {
@@ -199,18 +179,14 @@ pub const Parameter = struct {
             schema.deinit(allocator);
         }
     }
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Parameter {
         const name = try allocator.dupe(u8, value.object.get("name").?.string);
         const in_str = value.object.get("in").?.string;
         const in_location = ParameterLocation.fromString(in_str) orelse return error.InvalidParameterLocation;
         const description = if (value.object.get("description")) |val| try allocator.dupe(u8, val.string) else null;
         const required = if (value.object.get("required")) |val| val.bool else false;
-
         if (in_location == .body) {
-            // Body parameter
             const schema = if (value.object.get("schema")) |val| try Schema.parseFromJson(allocator, val) else null;
-
             return Parameter{
                 .name = name,
                 .in = in_location,
@@ -219,16 +195,13 @@ pub const Parameter = struct {
                 .schema = schema,
             };
         } else {
-            // Non-body parameter
             const type_str = if (value.object.get("type")) |val| val.string else null;
             const type_val = if (type_str) |ts| PrimitiveType.fromString(ts) else null;
             const format = if (value.object.get("format")) |val| try allocator.dupe(u8, val.string) else null;
             const allowEmptyValue = if (value.object.get("allowEmptyValue")) |val| val.bool else null;
             const items = if (value.object.get("items")) |val| try Items.parseFromJson(allocator, val) else null;
-
             const collectionFormat_str = if (value.object.get("collectionFormat")) |val| val.string else "csv";
             const collectionFormat = CollectionFormat.fromString(collectionFormat_str);
-
             const default = if (value.object.get("default")) |val| val else null;
             const maximum = if (value.object.get("maximum")) |val| val.float else null;
             const exclusiveMaximum = if (value.object.get("exclusiveMaximum")) |val| val.bool else null;
@@ -242,7 +215,6 @@ pub const Parameter = struct {
             const uniqueItems = if (value.object.get("uniqueItems")) |val| val.bool else null;
             const enum_values = if (value.object.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
             const multipleOf = if (value.object.get("multipleOf")) |val| val.float else null;
-
             return Parameter{
                 .name = name,
                 .in = in_location,
@@ -269,7 +241,6 @@ pub const Parameter = struct {
             };
         }
     }
-
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
         var array_list = std.ArrayList(json.Value).init(allocator);
         errdefer array_list.deinit();

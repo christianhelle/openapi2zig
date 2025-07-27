@@ -1,11 +1,9 @@
 const std = @import("std");
 const json = std.json;
-
 pub const Contact = struct {
     name: ?[]const u8 = null,
     url: ?[]const u8 = null,
     email: ?[]const u8 = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Contact {
         const obj = value.object;
         return Contact{
@@ -14,18 +12,15 @@ pub const Contact = struct {
             .email = if (obj.get("email")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
-
     pub fn deinit(self: Contact, allocator: std.mem.Allocator) void {
         if (self.name) |name| allocator.free(name);
         if (self.url) |url| allocator.free(url);
         if (self.email) |email| allocator.free(email);
     }
 };
-
 pub const License = struct {
     name: []const u8,
     url: ?[]const u8 = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!License {
         const obj = value.object;
         return License{
@@ -33,13 +28,11 @@ pub const License = struct {
             .url = if (obj.get("url")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
-
     pub fn deinit(self: License, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
         if (self.url) |url| allocator.free(url);
     }
 };
-
 pub const Info = struct {
     title: []const u8,
     version: []const u8,
@@ -47,7 +40,6 @@ pub const Info = struct {
     termsOfService: ?[]const u8 = null,
     contact: ?Contact = null,
     license: ?License = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Info {
         const obj = value.object;
         return Info{
@@ -59,7 +51,6 @@ pub const Info = struct {
             .license = if (obj.get("license")) |val| try License.parseFromJson(allocator, val) else null,
         };
     }
-
     pub fn deinit(self: Info, allocator: std.mem.Allocator) void {
         allocator.free(self.title);
         allocator.free(self.version);

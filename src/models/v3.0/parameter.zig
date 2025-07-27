@@ -4,7 +4,6 @@ const SchemaOrReference = @import("schema.zig").SchemaOrReference;
 const Reference = @import("reference.zig").Reference;
 const MediaType = @import("media.zig").MediaType;
 const ExampleOrReference = @import("media.zig").ExampleOrReference;
-
 pub const Parameter = struct {
     name: []const u8,
     in_field: []const u8, // Renamed 'in' to 'in_field' to avoid keyword conflict
@@ -19,7 +18,6 @@ pub const Parameter = struct {
     content: ?std.StringHashMap(MediaType) = null,
     example: ?json.Value = null,
     examples: ?std.StringHashMap(ExampleOrReference) = null,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Parameter {
         const obj = value.object;
         var content_map = std.StringHashMap(MediaType).init(allocator);
@@ -34,7 +32,6 @@ pub const Parameter = struct {
                 try examples_map.put(try allocator.dupe(u8, key), try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
             }
         }
-
         return Parameter{
             .name = try allocator.dupe(u8, obj.get("name").?.string),
             .in_field = try allocator.dupe(u8, obj.get("in").?.string),
@@ -51,18 +48,14 @@ pub const Parameter = struct {
             .examples = if (examples_map.count() > 0) examples_map else null,
         };
     }
-
     pub fn deinit(self: *Parameter, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
         allocator.free(self.in_field);
-
         if (self.description) |description| allocator.free(description);
         if (self.style) |style| allocator.free(style);
-
         if (self.schema) |*schema| {
             schema.deinit(allocator);
         }
-
         if (self.content) |*content| {
             var iterator = content.iterator();
             while (iterator.next()) |entry| {
@@ -71,7 +64,6 @@ pub const Parameter = struct {
             }
             content.deinit();
         }
-
         if (self.examples) |*examples| {
             var iterator = examples.iterator();
             while (iterator.next()) |entry| {
@@ -82,11 +74,9 @@ pub const Parameter = struct {
         }
     }
 };
-
 pub const ParameterOrReference = union(enum) {
     parameter: Parameter,
     reference: Reference,
-
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ParameterOrReference {
         if (value.object.get("$ref") != null) {
             return ParameterOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
@@ -94,7 +84,6 @@ pub const ParameterOrReference = union(enum) {
             return ParameterOrReference{ .parameter = try Parameter.parseFromJson(allocator, value) };
         }
     }
-
     pub fn deinit(self: *ParameterOrReference, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .parameter => |*param| param.deinit(allocator),

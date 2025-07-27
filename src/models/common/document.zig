@@ -1,6 +1,5 @@
 const std = @import("std");
 const json = std.json;
-
 pub const DocumentInfo = struct {
     title: []const u8,
     description: ?[]const u8 = null,
@@ -8,57 +7,38 @@ pub const DocumentInfo = struct {
     termsOfService: ?[]const u8 = null,
     contact: ?ContactInfo = null,
     license: ?LicenseInfo = null,
-
-    // No deinit needed - references original document strings
 };
-
 pub const ContactInfo = struct {
     name: ?[]const u8 = null,
     url: ?[]const u8 = null,
     email: ?[]const u8 = null,
-
-    // No deinit needed - references original document strings
 };
-
 pub const LicenseInfo = struct {
     name: []const u8,
     url: ?[]const u8 = null,
-
-    // No deinit needed - references original document strings
 };
-
 pub const ExternalDocumentation = struct {
     url: []const u8,
     description: ?[]const u8 = null,
-
-    // No deinit needed - references original document strings
 };
-
 pub const Tag = struct {
     name: []const u8,
     description: ?[]const u8 = null,
     externalDocs: ?ExternalDocumentation = null,
-
-    // No deinit needed - references original document strings
 };
-
 pub const Server = struct {
     url: []const u8,
     description: ?[]const u8 = null,
     _url_allocated: bool = false, // Track if URL was allocated
-
     pub fn deinit(self: *Server, allocator: std.mem.Allocator) void {
         if (self._url_allocated) {
             allocator.free(self.url);
         }
     }
 };
-
 pub const SecurityRequirement = struct {
     schemes: std.StringHashMap([][]const u8),
-
     pub fn deinit(self: *SecurityRequirement, allocator: std.mem.Allocator) void {
-        // Free all the duped keys and allocated scopes arrays before deinitializing the HashMap
         var iterator = self.schemes.iterator();
         while (iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*); // Free the duped key
@@ -67,7 +47,6 @@ pub const SecurityRequirement = struct {
         self.schemes.deinit();
     }
 };
-
 pub const SchemaType = enum {
     string,
     number,
@@ -77,7 +56,6 @@ pub const SchemaType = enum {
     object,
     reference,
 };
-
 pub const Schema = struct {
     type: ?SchemaType = null,
     ref: ?[]const u8 = null,
@@ -90,14 +68,10 @@ pub const Schema = struct {
     enum_values: ?[]json.Value = null,
     default: ?json.Value = null,
     example: ?json.Value = null,
-
     pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {
-        // Free the required array (allocated in converters)
         if (self.required) |required| {
             allocator.free(required);
         }
-
-        // Free the duped keys in properties HashMap, then deinitialize structures
         if (self.properties) |*props| {
             var iterator = props.iterator();
             while (iterator.next()) |entry| {
@@ -106,14 +80,12 @@ pub const Schema = struct {
             }
             props.deinit();
         }
-
         if (self.items) |items| {
             items.deinit(allocator);
             allocator.destroy(items);
         }
     }
 };
-
 pub const ParameterLocation = enum {
     query,
     header,
@@ -121,7 +93,6 @@ pub const ParameterLocation = enum {
     body,
     form,
 };
-
 pub const Parameter = struct {
     name: []const u8,
     location: ParameterLocation,
@@ -130,23 +101,16 @@ pub const Parameter = struct {
     schema: ?Schema = null,
     type: ?SchemaType = null,
     format: ?[]const u8 = null,
-
     pub fn deinit(self: *Parameter, allocator: std.mem.Allocator) void {
-        // Only deinitialize schema structure, not the strings they reference
         if (self.schema) |*schema| schema.deinit(allocator);
     }
 };
-
 pub const Response = struct {
     description: []const u8,
     schema: ?Schema = null,
     headers: ?std.StringHashMap(Parameter) = null,
-
     pub fn deinit(self: *Response, allocator: std.mem.Allocator) void {
-        // Free schema structure
         if (self.schema) |*schema| schema.deinit(allocator);
-
-        // Free the duped keys in headers HashMap, then deinitialize structures
         if (self.headers) |*headers| {
             var iterator = headers.iterator();
             while (iterator.next()) |entry| {
@@ -157,7 +121,6 @@ pub const Response = struct {
         }
     }
 };
-
 pub const Operation = struct {
     tags: ?[][]const u8 = null,
     summary: ?[]const u8 = null,
@@ -167,35 +130,26 @@ pub const Operation = struct {
     responses: std.StringHashMap(Response),
     deprecated: bool = false,
     security: ?[]SecurityRequirement = null,
-
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
-        // Free tags array (allocated in converters)
         if (self.tags) |tags| {
             allocator.free(tags);
         }
-
-        // Free parameters array
         if (self.parameters) |params| {
             for (params) |*param| param.deinit(allocator);
             allocator.free(params);
         }
-
-        // Free the duped keys in responses HashMap, then deinitialize structures
         var resp_iterator = self.responses.iterator();
         while (resp_iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*); // Free the duped response key
             entry.value_ptr.deinit(allocator);
         }
         self.responses.deinit();
-
-        // Free security array
         if (self.security) |security| {
             for (security) |*sec| sec.deinit(allocator);
             allocator.free(security);
         }
     }
 };
-
 pub const PathItem = struct {
     get: ?Operation = null,
     put: ?Operation = null,
@@ -205,9 +159,7 @@ pub const PathItem = struct {
     head: ?Operation = null,
     patch: ?Operation = null,
     parameters: ?[]Parameter = null,
-
     pub fn deinit(self: *PathItem, allocator: std.mem.Allocator) void {
-        // Only deinitialize operation and parameter structures
         if (self.get) |*op| op.deinit(allocator);
         if (self.put) |*op| op.deinit(allocator);
         if (self.post) |*op| op.deinit(allocator);
@@ -215,66 +167,42 @@ pub const PathItem = struct {
         if (self.options) |*op| op.deinit(allocator);
         if (self.head) |*op| op.deinit(allocator);
         if (self.patch) |*op| op.deinit(allocator);
-
         if (self.parameters) |params| {
             for (params) |*param| param.deinit(allocator);
             allocator.free(params);
         }
     }
 };
-
-/// Unified document abstraction that works with both OpenAPI 3.0 and Swagger 2.0
 pub const UnifiedDocument = struct {
-    /// Document version information
     version: []const u8, // "2.0", "3.0.2", etc.
     info: DocumentInfo,
     paths: std.StringHashMap(PathItem),
-
-    /// Optional fields
     servers: ?[]Server = null,
     security: ?[]SecurityRequirement = null,
     tags: ?[]Tag = null,
     externalDocs: ?ExternalDocumentation = null,
-
-    /// Schema definitions (definitions in v2.0, components.schemas in v3.0)
     schemas: ?std.StringHashMap(Schema) = null,
-
-    /// Global parameters (v2.0 only, but can be present in unified model)
     parameters: ?std.StringHashMap(Parameter) = null,
-
-    /// Global responses (v2.0 only, but can be present in unified model)
     responses: ?std.StringHashMap(Response) = null,
-
     pub fn deinit(self: *UnifiedDocument, allocator: std.mem.Allocator) void {
-        // Note: info has no deinit method since it doesn't own strings
         _ = self.info; // Suppress unused field warning
-
-        // Free the duped keys in paths HashMap, then deinitialize structures
         var path_iterator = self.paths.iterator();
         while (path_iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*); // Free the duped path key
             entry.value_ptr.deinit(allocator);
         }
         self.paths.deinit();
-
         if (self.servers) |servers| {
             for (servers) |*server| server.deinit(allocator);
             allocator.free(servers);
         }
-
         if (self.security) |security| {
             for (security) |*sec| sec.deinit(allocator);
             allocator.free(security);
         }
-
         if (self.tags) |tags| {
-            // tags is an array, but the Tag struct doesn't free strings
             allocator.free(tags);
         }
-
-        // externalDocs doesn't have a deinit method
-
-        // Free the duped keys in schemas HashMap, then deinitialize structures
         if (self.schemas) |*schemas| {
             var schema_iterator = schemas.iterator();
             while (schema_iterator.next()) |entry| {
@@ -283,8 +211,6 @@ pub const UnifiedDocument = struct {
             }
             schemas.deinit();
         }
-
-        // Free the duped keys in parameters HashMap, then deinitialize structures
         if (self.parameters) |*params| {
             var param_iterator = params.iterator();
             while (param_iterator.next()) |entry| {
@@ -293,8 +219,6 @@ pub const UnifiedDocument = struct {
             }
             params.deinit();
         }
-
-        // Free the duped keys in responses HashMap, then deinitialize structures
         if (self.responses) |*responses| {
             var resp_iterator = responses.iterator();
             while (resp_iterator.next()) |entry| {
