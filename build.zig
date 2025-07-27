@@ -73,6 +73,7 @@ pub fn build(b: *std.Build) void {
     const install_test_step = b.step("install_test", "Create test binaries for debugging");
     install_test_step.dependOn(&test_artifact.step);
 }
+
 fn generateVersionStep(b: *std.Build) *std.Build.Step {
     const step = b.allocator.create(std.Build.Step) catch @panic("OOM");
     step.* = std.Build.Step.init(.{
@@ -83,6 +84,7 @@ fn generateVersionStep(b: *std.Build) *std.Build.Step {
     });
     return step;
 }
+
 fn makeVersionInfo(step: *std.Build.Step, options: std.Build.Step.MakeOptions) !void {
     _ = options;
     const b = step.owner;
@@ -112,6 +114,7 @@ fn makeVersionInfo(step: *std.Build.Step, options: std.Build.Step.MakeOptions) !
     };
     std.log.info("Generated version info: {s} ({s} - {s})", .{ version, git_tag, git_commit });
 }
+
 fn getGitOutput(allocator: std.mem.Allocator, argv: []const []const u8) ?[]const u8 {
     var child = std.process.Child.init(argv, allocator);
     child.stdout_behavior = .Pipe;
