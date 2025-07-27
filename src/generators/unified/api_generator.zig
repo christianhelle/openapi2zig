@@ -7,10 +7,12 @@ const ParameterLocation = @import("../../models/common/document.zig").ParameterL
 const Response = @import("../../models/common/document.zig").Response;
 const Schema = @import("../../models/common/document.zig").Schema;
 const SchemaType = @import("../../models/common/document.zig").SchemaType;
+
 pub const UnifiedApiGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
     args: cli.CliArgs,
+
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
             .allocator = allocator,
@@ -18,21 +20,25 @@ pub const UnifiedApiGenerator = struct {
             .args = args,
         };
     }
+
     pub fn deinit(self: *UnifiedApiGenerator) void {
         self.buffer.deinit();
     }
+
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
         self.buffer.clearRetainingCapacity();
         try self.generateHeader();
         try self.generateApiClient(document);
         return try self.allocator.dupe(u8, self.buffer.items);
     }
+
     fn generateHeader(self: *UnifiedApiGenerator) !void {
         try self.buffer.appendSlice("///////////////////////////////////////////\n");
         try self.buffer.appendSlice("// Generated Zig API client from OpenAPI\n");
         try self.buffer.appendSlice("///////////////////////////////////////////\n\n");
         try self.buffer.appendSlice("const std = @import(\"std\");\n\n");
     }
+
     fn generateApiClient(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
         var path_iterator = document.paths.iterator();
         while (path_iterator.next()) |entry| {
@@ -41,6 +47,7 @@ pub const UnifiedApiGenerator = struct {
             try self.generateOperations(path, path_item);
         }
     }
+
     fn generateOperations(self: *UnifiedApiGenerator, path: []const u8, path_item: @import("../../models/common/document.zig").PathItem) !void {
         if (path_item.get) |op| try self.generateOperation("GET", path, op);
         if (path_item.post) |op| try self.generateOperation("POST", path, op);
@@ -50,11 +57,13 @@ pub const UnifiedApiGenerator = struct {
         if (path_item.head) |op| try self.generateOperation("HEAD", path, op);
         if (path_item.options) |op| try self.generateOperation("OPTIONS", path, op);
     }
+
     fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
         try self.generateComments(operation);
         try self.generateFunctionSignature(method, path, operation);
         try self.generateFunctionBody(method, path, operation);
     }
+
     fn generateComments(self: *UnifiedApiGenerator, operation: Operation) !void {
         if (operation.summary) |summary| {
             try self.buffer.appendSlice("/////////////////\n");
@@ -64,6 +73,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("\n");
             try self.buffer.appendSlice("//\n");
         }
+        
         if (operation.description) |description| {
             try self.buffer.appendSlice("// Description:\n");
             try self.buffer.appendSlice("// ");
@@ -72,9 +82,11 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("//\n");
         }
     }
+
     fn generateFunctionSignature(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
         _ = method;
         try self.buffer.appendSlice("pub fn ");
+        
         if (operation.operationId) |op_id| {
             try self.buffer.appendSlice(op_id);
         } else {
