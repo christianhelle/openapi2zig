@@ -1,10 +1,12 @@
 const std = @import("std");
 const json = std.json;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
+
 pub const Tag = struct {
     name: []const u8,
     description: ?[]const u8 = null,
     externalDocs: ?ExternalDocumentation = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Tag {
         const obj = value.object;
         return Tag{
@@ -13,6 +15,7 @@ pub const Tag = struct {
             .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null,
         };
     }
+
     pub fn deinit(self: Tag, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
         if (self.description) |desc| allocator.free(desc);
