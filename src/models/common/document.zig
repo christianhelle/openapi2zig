@@ -1,5 +1,6 @@
 const std = @import("std");
 const json = std.json;
+
 pub const DocumentInfo = struct {
     title: []const u8,
     description: ?[]const u8 = null,
@@ -8,24 +9,29 @@ pub const DocumentInfo = struct {
     contact: ?ContactInfo = null,
     license: ?LicenseInfo = null,
 };
+
 pub const ContactInfo = struct {
     name: ?[]const u8 = null,
     url: ?[]const u8 = null,
     email: ?[]const u8 = null,
 };
+
 pub const LicenseInfo = struct {
     name: []const u8,
     url: ?[]const u8 = null,
 };
+
 pub const ExternalDocumentation = struct {
     url: []const u8,
     description: ?[]const u8 = null,
 };
+
 pub const Tag = struct {
     name: []const u8,
     description: ?[]const u8 = null,
     externalDocs: ?ExternalDocumentation = null,
 };
+
 pub const Server = struct {
     url: []const u8,
     description: ?[]const u8 = null,
@@ -36,6 +42,7 @@ pub const Server = struct {
         }
     }
 };
+
 pub const SecurityRequirement = struct {
     schemes: std.StringHashMap([][]const u8),
     pub fn deinit(self: *SecurityRequirement, allocator: std.mem.Allocator) void {
@@ -47,6 +54,7 @@ pub const SecurityRequirement = struct {
         self.schemes.deinit();
     }
 };
+
 pub const SchemaType = enum {
     string,
     number,
@@ -56,6 +64,7 @@ pub const SchemaType = enum {
     object,
     reference,
 };
+
 pub const Schema = struct {
     type: ?SchemaType = null,
     ref: ?[]const u8 = null,
@@ -86,6 +95,7 @@ pub const Schema = struct {
         }
     }
 };
+
 pub const ParameterLocation = enum {
     query,
     header,
@@ -93,6 +103,7 @@ pub const ParameterLocation = enum {
     body,
     form,
 };
+
 pub const Parameter = struct {
     name: []const u8,
     location: ParameterLocation,
@@ -105,6 +116,7 @@ pub const Parameter = struct {
         if (self.schema) |*schema| schema.deinit(allocator);
     }
 };
+
 pub const Response = struct {
     description: []const u8,
     schema: ?Schema = null,
@@ -121,6 +133,7 @@ pub const Response = struct {
         }
     }
 };
+
 pub const Operation = struct {
     tags: ?[][]const u8 = null,
     summary: ?[]const u8 = null,
@@ -150,6 +163,7 @@ pub const Operation = struct {
         }
     }
 };
+
 pub const PathItem = struct {
     get: ?Operation = null,
     put: ?Operation = null,
@@ -173,6 +187,7 @@ pub const PathItem = struct {
         }
     }
 };
+
 pub const UnifiedDocument = struct {
     version: []const u8, // "2.0", "3.0.2", etc.
     info: DocumentInfo,
