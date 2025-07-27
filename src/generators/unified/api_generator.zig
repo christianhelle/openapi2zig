@@ -134,6 +134,7 @@ pub const UnifiedApiGenerator = struct {
         }
         try self.buffer.appendSlice(") !void {\n");
     }
+
     fn generateFunctionBody(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
         if (operation.parameters) |parameters| {
             if (parameters.len > 0) {
@@ -222,6 +223,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice("    try req.wait();\n");
         try self.buffer.appendSlice("}\n\n");
     }
+
     fn getZigTypeFromSchema(self: *UnifiedApiGenerator, schema: Schema) ![]const u8 {
         if (schema.ref) |ref| {
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
@@ -233,6 +235,7 @@ pub const UnifiedApiGenerator = struct {
         }
         return "[]const u8"; // default fallback
     }
+
     fn getZigTypeFromSchemaType(self: *UnifiedApiGenerator, schema_type: SchemaType) []const u8 {
         _ = self;
         return switch (schema_type) {
