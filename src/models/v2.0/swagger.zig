@@ -9,6 +9,7 @@ const Tag = @import("tag.zig").Tag;
 const Schema = @import("schema.zig").Schema;
 const Parameter = @import("parameter.zig").Parameter;
 const Response = @import("response.zig").Response;
+
 pub const SwaggerDocument = struct {
     swagger: []const u8,
     info: Info,
@@ -96,6 +97,7 @@ pub const SwaggerDocument = struct {
             external_docs.deinit(allocator);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, json_string: []const u8) anyerror!SwaggerDocument {
         var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
@@ -133,6 +135,7 @@ pub const SwaggerDocument = struct {
             .externalDocs = externalDocs,
         };
     }
+
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
         var array_list = std.ArrayList([]const u8).init(allocator);
         errdefer array_list.deinit();
@@ -141,6 +144,7 @@ pub const SwaggerDocument = struct {
         }
         return array_list.toOwnedSlice();
     }
+
     fn parseDefinitions(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Schema) {
         var map = std.StringHashMap(Schema).init(allocator);
         errdefer map.deinit();
@@ -152,6 +156,7 @@ pub const SwaggerDocument = struct {
         }
         return map;
     }
+
     fn parseParameters(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Parameter) {
         var map = std.StringHashMap(Parameter).init(allocator);
         errdefer map.deinit();
@@ -163,6 +168,7 @@ pub const SwaggerDocument = struct {
         }
         return map;
     }
+
     fn parseResponses(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Response) {
         var map = std.StringHashMap(Response).init(allocator);
         errdefer map.deinit();
@@ -174,6 +180,7 @@ pub const SwaggerDocument = struct {
         }
         return map;
     }
+
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
         var array_list = std.ArrayList(SecurityRequirement).init(allocator);
         errdefer array_list.deinit();
@@ -182,6 +189,7 @@ pub const SwaggerDocument = struct {
         }
         return array_list.toOwnedSlice();
     }
+
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]Tag {
         var array_list = std.ArrayList(Tag).init(allocator);
         errdefer array_list.deinit();
