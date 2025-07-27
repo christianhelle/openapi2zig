@@ -73,7 +73,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("\n");
             try self.buffer.appendSlice("//\n");
         }
-        
+
         if (operation.description) |description| {
             try self.buffer.appendSlice("// Description:\n");
             try self.buffer.appendSlice("// ");
@@ -86,7 +86,7 @@ pub const UnifiedApiGenerator = struct {
     fn generateFunctionSignature(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
         _ = method;
         try self.buffer.appendSlice("pub fn ");
-        
+
         if (operation.operationId) |op_id| {
             try self.buffer.appendSlice(op_id);
         } else {
