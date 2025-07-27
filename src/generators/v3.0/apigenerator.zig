@@ -4,18 +4,22 @@ const cli = @import("../../cli.zig");
 const detector = @import("../../detector.zig");
 const converter = @import("../converter.zig");
 const default_output_file: []const u8 = "generated.zig";
+
 pub const ApiCodeGenerator = struct {
     allocator: std.mem.Allocator,
     args: cli.CliArgs,
+
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) ApiCodeGenerator {
         return ApiCodeGenerator{
             .allocator = allocator,
             .args = args,
         };
     }
+
     pub fn deinit(self: *ApiCodeGenerator) void {
         _ = self;
     }
+
     pub fn generate(self: *ApiCodeGenerator, document: models.OpenApiDocument) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
@@ -62,6 +66,7 @@ pub const ApiCodeGenerator = struct {
         }
         return code;
     }
+
     pub fn generateMethod(self: *ApiCodeGenerator, op: models.v3.Operation, path: []const u8, method: []const u8) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(self.allocator);
         defer parts.deinit();
@@ -126,6 +131,7 @@ pub const ApiCodeGenerator = struct {
         try parts.append("}\n\n");
         return try std.mem.join(self.allocator, "", parts.items);
     }
+
     fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, op: models.v3.Operation) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(allocator);
         defer parts.deinit();
@@ -220,6 +226,7 @@ pub const ApiCodeGenerator = struct {
         }
         return code;
     }
+
     fn extractTypeFromReference(self: *ApiCodeGenerator, ref: []const u8) ?[]const u8 {
         _ = self;
         if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash_index| {
@@ -229,6 +236,7 @@ pub const ApiCodeGenerator = struct {
         }
         return null;
     }
+
     fn generateMethodDocs(allocator: std.mem.Allocator, op: models.v3.Operation) ![]const u8 {
         var parts = std.ArrayList([]const u8).init(allocator);
         defer parts.deinit();
