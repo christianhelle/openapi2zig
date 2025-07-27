@@ -1,6 +1,7 @@
 const std = @import("std");
 const json = std.json;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
+
 pub const Xml = struct {
     name: ?[]const u8 = null,
     namespace: ?[]const u8 = null,
@@ -18,6 +19,7 @@ pub const Xml = struct {
             allocator.free(prefix);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Xml {
         const name = if (value.object.get("name")) |val| try allocator.dupe(u8, val.string) else null;
         const namespace = if (value.object.get("namespace")) |val| try allocator.dupe(u8, val.string) else null;
@@ -33,6 +35,7 @@ pub const Xml = struct {
         };
     }
 };
+
 pub const Schema = struct {
     ref: ?[]const u8 = null, // $ref
     title: ?[]const u8 = null,
@@ -124,6 +127,7 @@ pub const Schema = struct {
             external_docs.deinit(allocator);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Schema {
         const ref = if (value.object.get("$ref")) |val| try allocator.dupe(u8, val.string) else null;
         const title = if (value.object.get("title")) |val| try allocator.dupe(u8, val.string) else null;
