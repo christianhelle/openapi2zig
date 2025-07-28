@@ -1,10 +1,12 @@
 const std = @import("std");
 const json = std.json;
 const Schema = @import("schema.zig").Schema;
+
 pub const Header = struct {
     type: []const u8,
     format: ?[]const u8 = null,
     description: ?[]const u8 = null,
+
     pub fn deinit(self: *Header, allocator: std.mem.Allocator) void {
         allocator.free(self.type);
         if (self.format) |format| {
@@ -14,6 +16,7 @@ pub const Header = struct {
             allocator.free(description);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Header {
         const type_val = try allocator.dupe(u8, value.object.get("type").?.string);
         const format = if (value.object.get("format")) |val| try allocator.dupe(u8, val.string) else null;
@@ -25,11 +28,13 @@ pub const Header = struct {
         };
     }
 };
+
 pub const Response = struct {
     description: []const u8,
     schema: ?Schema = null,
     headers: ?std.StringHashMap(Header) = null,
     examples: ?std.StringHashMap(json.Value) = null,
+
     pub fn deinit(self: *Response, allocator: std.mem.Allocator) void {
         allocator.free(self.description);
         if (self.schema) |*schema| {
@@ -51,6 +56,7 @@ pub const Response = struct {
             examples.deinit();
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Response {
         const description = try allocator.dupe(u8, value.object.get("description").?.string);
         const schema = if (value.object.get("schema")) |val| try Schema.parseFromJson(allocator, val) else null;
