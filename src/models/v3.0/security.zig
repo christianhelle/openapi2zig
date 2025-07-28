@@ -1,7 +1,9 @@
 const std = @import("std");
 const json = std.json;
+
 pub const SecurityRequirement = struct {
     schemes: std.StringHashMap([]const []const u8),
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityRequirement {
         var schemes_map = std.StringHashMap([]const []const u8).init(allocator);
         errdefer schemes_map.deinit();
@@ -16,6 +18,7 @@ pub const SecurityRequirement = struct {
         }
         return SecurityRequirement{ .schemes = schemes_map };
     }
+
     pub fn deinit(self: *SecurityRequirement, allocator: std.mem.Allocator) void {
         var iterator = self.schemes.iterator();
         while (iterator.next()) |entry| {
@@ -28,11 +31,13 @@ pub const SecurityRequirement = struct {
         self.schemes.deinit();
     }
 };
+
 pub const OAuthFlows = struct {
     implicit: ?ImplicitOAuthFlow = null,
     password: ?PasswordOAuthFlow = null,
     clientCredentials: ?ClientCredentialsFlow = null,
     authorizationCode: ?AuthorizationCodeOAuthFlow = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuthFlows {
         const obj = value.object;
         return OAuthFlows{
@@ -42,6 +47,7 @@ pub const OAuthFlows = struct {
             .authorizationCode = if (obj.get("authorizationCode")) |val| try AuthorizationCodeOAuthFlow.parseFromJson(allocator, val) else null,
         };
     }
+
     pub fn deinit(self: *OAuthFlows, allocator: std.mem.Allocator) void {
         if (self.implicit) |*flow| {
             flow.deinit(allocator);
@@ -57,10 +63,12 @@ pub const OAuthFlows = struct {
         }
     }
 };
+
 pub const ImplicitOAuthFlow = struct {
     authorizationUrl: []const u8,
     scopes: std.StringHashMap([]const u8),
     refreshUrl: ?[]const u8 = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ImplicitOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
@@ -75,6 +83,7 @@ pub const ImplicitOAuthFlow = struct {
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
     pub fn deinit(self: *ImplicitOAuthFlow, allocator: std.mem.Allocator) void {
         allocator.free(self.authorizationUrl);
         var iterator = self.scopes.iterator();
@@ -88,10 +97,12 @@ pub const ImplicitOAuthFlow = struct {
         }
     }
 };
+
 pub const PasswordOAuthFlow = struct {
     tokenUrl: []const u8,
     scopes: std.StringHashMap([]const u8),
     refreshUrl: ?[]const u8 = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PasswordOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
@@ -106,6 +117,7 @@ pub const PasswordOAuthFlow = struct {
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
     pub fn deinit(self: *PasswordOAuthFlow, allocator: std.mem.Allocator) void {
         allocator.free(self.tokenUrl);
         var iterator = self.scopes.iterator();
@@ -119,10 +131,12 @@ pub const PasswordOAuthFlow = struct {
         }
     }
 };
+
 pub const ClientCredentialsFlow = struct {
     tokenUrl: []const u8,
     scopes: std.StringHashMap([]const u8),
     refreshUrl: ?[]const u8 = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ClientCredentialsFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
@@ -137,6 +151,7 @@ pub const ClientCredentialsFlow = struct {
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
     pub fn deinit(self: *ClientCredentialsFlow, allocator: std.mem.Allocator) void {
         allocator.free(self.tokenUrl);
         var iterator = self.scopes.iterator();
@@ -150,11 +165,13 @@ pub const ClientCredentialsFlow = struct {
         }
     }
 };
+
 pub const AuthorizationCodeOAuthFlow = struct {
     authorizationUrl: []const u8,
     tokenUrl: []const u8,
     scopes: std.StringHashMap([]const u8),
     refreshUrl: ?[]const u8 = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!AuthorizationCodeOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
@@ -170,6 +187,7 @@ pub const AuthorizationCodeOAuthFlow = struct {
             .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
     pub fn deinit(self: *AuthorizationCodeOAuthFlow, allocator: std.mem.Allocator) void {
         allocator.free(self.authorizationUrl);
         allocator.free(self.tokenUrl);
@@ -184,11 +202,13 @@ pub const AuthorizationCodeOAuthFlow = struct {
         }
     }
 };
+
 pub const APIKeySecurityScheme = struct {
     type: []const u8, // "apiKey"
     name: []const u8,
     in_field: []const u8, // "header", "query", "cookie"
     description: ?[]const u8 = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!APIKeySecurityScheme {
         const obj = value.object;
         return APIKeySecurityScheme{
@@ -198,6 +218,7 @@ pub const APIKeySecurityScheme = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
     pub fn deinit(self: *APIKeySecurityScheme, allocator: std.mem.Allocator) void {
         allocator.free(self.type);
         allocator.free(self.name);
@@ -207,11 +228,13 @@ pub const APIKeySecurityScheme = struct {
         }
     }
 };
+
 pub const HTTPSecurityScheme = struct {
     scheme: []const u8,
     type: []const u8, // "http"
     bearerFormat: ?[]const u8 = null,
     description: ?[]const u8 = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!HTTPSecurityScheme {
         const obj = value.object;
         return HTTPSecurityScheme{
@@ -221,6 +244,7 @@ pub const HTTPSecurityScheme = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
     pub fn deinit(self: *HTTPSecurityScheme, allocator: std.mem.Allocator) void {
         allocator.free(self.scheme);
         allocator.free(self.type);
@@ -232,10 +256,12 @@ pub const HTTPSecurityScheme = struct {
         }
     }
 };
+
 pub const OAuth2SecurityScheme = struct {
     type: []const u8, // "oauth2"
     flows: OAuthFlows,
     description: ?[]const u8 = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuth2SecurityScheme {
         const obj = value.object;
         return OAuth2SecurityScheme{
@@ -244,6 +270,7 @@ pub const OAuth2SecurityScheme = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
     pub fn deinit(self: *OAuth2SecurityScheme, allocator: std.mem.Allocator) void {
         allocator.free(self.type);
         self.flows.deinit(allocator);
@@ -252,10 +279,12 @@ pub const OAuth2SecurityScheme = struct {
         }
     }
 };
+
 pub const OpenIdConnectSecurityScheme = struct {
     type: []const u8, // "openIdConnect"
     openIdConnectUrl: []const u8,
     description: ?[]const u8 = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OpenIdConnectSecurityScheme {
         const obj = value.object;
         return OpenIdConnectSecurityScheme{
@@ -264,6 +293,7 @@ pub const OpenIdConnectSecurityScheme = struct {
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }
+
     pub fn deinit(self: *OpenIdConnectSecurityScheme, allocator: std.mem.Allocator) void {
         allocator.free(self.type);
         allocator.free(self.openIdConnectUrl);
@@ -272,11 +302,13 @@ pub const OpenIdConnectSecurityScheme = struct {
         }
     }
 };
+
 pub const SecurityScheme = union(enum) {
     api_key: APIKeySecurityScheme,
     http: HTTPSecurityScheme,
     oauth2: OAuth2SecurityScheme,
     openIdConnect: OpenIdConnectSecurityScheme,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityScheme {
         const obj = value.object;
         const type_str = obj.get("type").?.string;
@@ -292,6 +324,7 @@ pub const SecurityScheme = union(enum) {
             return error.UnknownSecuritySchemeType;
         }
     }
+
     pub fn deinit(self: *SecurityScheme, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .api_key => |*api_key| api_key.deinit(allocator),
@@ -301,9 +334,11 @@ pub const SecurityScheme = union(enum) {
         }
     }
 };
+
 pub const SecuritySchemeOrReference = union(enum) {
     security_scheme: SecurityScheme,
     reference: @import("reference.zig").Reference,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecuritySchemeOrReference {
         if (value.object.get("$ref") != null) {
             return SecuritySchemeOrReference{ .reference = try @import("reference.zig").Reference.parseFromJson(allocator, value) };
@@ -311,6 +346,7 @@ pub const SecuritySchemeOrReference = union(enum) {
             return SecuritySchemeOrReference{ .security_scheme = try SecurityScheme.parseFromJson(allocator, value) };
         }
     }
+
     pub fn deinit(self: *SecuritySchemeOrReference, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .security_scheme => |*security_scheme| security_scheme.deinit(allocator),
