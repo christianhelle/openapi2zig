@@ -21,6 +21,7 @@ pub const Components = struct {
     links: ?std.StringHashMap(LinkOrReference) = null,
     callbacks: ?std.StringHashMap(CallbackOrReference) = null,
     _allocated_strings: std.ArrayList([]const u8),
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Components {
         var _allocated_strings = std.ArrayList([]const u8).init(allocator);
         errdefer _allocated_strings.deinit();
@@ -119,6 +120,7 @@ pub const Components = struct {
             ._allocated_strings = _allocated_strings,
         };
     }
+
     pub fn deinit(self: *Components, allocator: std.mem.Allocator) void {
         for (self._allocated_strings.items) |str| {
             allocator.free(str);
