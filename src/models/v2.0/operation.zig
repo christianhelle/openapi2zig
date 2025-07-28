@@ -4,6 +4,7 @@ const Parameter = @import("parameter.zig").Parameter;
 const Response = @import("response.zig").Response;
 const SecurityRequirement = @import("security.zig").SecurityRequirement;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
+
 pub const Operation = struct {
     responses: std.StringHashMap(Response),
     tags: ?[][]const u8 = null,
@@ -17,6 +18,7 @@ pub const Operation = struct {
     schemes: ?[][]const u8 = null,
     deprecated: ?bool = null,
     security: ?[]SecurityRequirement = null,
+
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
         var response_iterator = self.responses.iterator();
         while (response_iterator.next()) |entry| {
@@ -73,6 +75,7 @@ pub const Operation = struct {
             allocator.free(security);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Operation {
         const responses = try parseResponses(allocator, value.object.get("responses").?);
         const tags = if (value.object.get("tags")) |val| try parseStringArray(allocator, val) else null;
