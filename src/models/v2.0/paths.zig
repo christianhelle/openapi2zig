@@ -2,6 +2,7 @@ const std = @import("std");
 const json = std.json;
 const Operation = @import("operation.zig").Operation;
 const Parameter = @import("parameter.zig").Parameter;
+
 pub const PathItem = struct {
     ref: ?[]const u8 = null, // $ref
     get: ?Operation = null,
@@ -12,6 +13,7 @@ pub const PathItem = struct {
     head: ?Operation = null,
     patch: ?Operation = null,
     parameters: ?[]Parameter = null,
+
     pub fn deinit(self: *PathItem, allocator: std.mem.Allocator) void {
         if (self.ref) |ref| {
             allocator.free(ref);
@@ -44,6 +46,7 @@ pub const PathItem = struct {
             allocator.free(parameters);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PathItem {
         const ref = if (value.object.get("$ref")) |val| try allocator.dupe(u8, val.string) else null;
         const get = if (value.object.get("get")) |val| try Operation.parseFromJson(allocator, val) else null;
@@ -75,8 +78,10 @@ pub const PathItem = struct {
         return array_list.toOwnedSlice();
     }
 };
+
 pub const Paths = struct {
     path_items: std.StringHashMap(PathItem),
+
     pub fn deinit(self: *Paths, allocator: std.mem.Allocator) void {
         var iterator = self.path_items.iterator();
         while (iterator.next()) |entry| {
@@ -85,6 +90,7 @@ pub const Paths = struct {
         }
         self.path_items.deinit();
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Paths {
         var map = std.StringHashMap(PathItem).init(allocator);
         errdefer map.deinit();
