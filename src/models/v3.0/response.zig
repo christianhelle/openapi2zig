@@ -4,11 +4,13 @@ const MediaType = @import("media.zig").MediaType;
 const HeaderOrReference = @import("media.zig").HeaderOrReference;
 const LinkOrReference = @import("link.zig").LinkOrReference;
 const Reference = @import("reference.zig").Reference;
+
 pub const Response = struct {
     description: []const u8,
     headers: ?std.StringHashMap(HeaderOrReference) = null,
     content: ?std.StringHashMap(MediaType) = null,
     links: ?std.StringHashMap(LinkOrReference) = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Response {
         const obj = value.object;
         var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
@@ -36,6 +38,7 @@ pub const Response = struct {
             .links = if (links_map.count() > 0) links_map else null,
         };
     }
+
     pub fn deinit(self: *Response, allocator: std.mem.Allocator) void {
         allocator.free(self.description);
         if (self.headers) |*headers| {
@@ -64,9 +67,11 @@ pub const Response = struct {
         }
     }
 };
+
 pub const ResponseOrReference = union(enum) {
     response: Response,
     reference: Reference,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ResponseOrReference {
         if (value.object.get("$ref") != null) {
             return ResponseOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
@@ -74,6 +79,7 @@ pub const ResponseOrReference = union(enum) {
             return ResponseOrReference{ .response = try Response.parseFromJson(allocator, value) };
         }
     }
+
     pub fn deinit(self: *ResponseOrReference, allocator: std.mem.Allocator) void {
         switch (self.*) {
             .response => |*response| response.deinit(allocator),
@@ -81,9 +87,11 @@ pub const ResponseOrReference = union(enum) {
         }
     }
 };
+
 pub const Responses = struct {
     default: ?ResponseOrReference = null,
     status_codes: std.StringHashMap(ResponseOrReference),
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Responses {
         var status_codes_map = std.StringHashMap(ResponseOrReference).init(allocator);
         const obj = value.object;
@@ -97,6 +105,7 @@ pub const Responses = struct {
             .status_codes = status_codes_map,
         };
     }
+
     pub fn deinit(self: *Responses, allocator: std.mem.Allocator) void {
         if (self.default) |*default| {
             default.deinit(allocator);
