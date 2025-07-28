@@ -1,9 +1,11 @@
 const std = @import("std");
 const json = std.json;
+
 pub const SecuritySchemeType = enum {
     basic,
     apiKey,
     oauth2,
+
     pub fn fromString(str: []const u8) ?SecuritySchemeType {
         if (std.mem.eql(u8, str, "basic")) return .basic;
         if (std.mem.eql(u8, str, "apiKey")) return .apiKey;
@@ -11,20 +13,24 @@ pub const SecuritySchemeType = enum {
         return null;
     }
 };
+
 pub const ApiKeyLocation = enum {
     query,
     header,
+
     pub fn fromString(str: []const u8) ?ApiKeyLocation {
         if (std.mem.eql(u8, str, "query")) return .query;
         if (std.mem.eql(u8, str, "header")) return .header;
         return null;
     }
 };
+
 pub const OAuth2Flow = enum {
     implicit,
     password,
     application,
     accessCode,
+
     pub fn fromString(str: []const u8) ?OAuth2Flow {
         if (std.mem.eql(u8, str, "implicit")) return .implicit;
         if (std.mem.eql(u8, str, "password")) return .password;
@@ -33,6 +39,7 @@ pub const OAuth2Flow = enum {
         return null;
     }
 };
+
 pub const SecurityScheme = struct {
     type: SecuritySchemeType,
     description: ?[]const u8 = null,
@@ -42,6 +49,7 @@ pub const SecurityScheme = struct {
     authorizationUrl: ?[]const u8 = null,
     tokenUrl: ?[]const u8 = null,
     scopes: ?std.StringHashMap([]const u8) = null,
+
     pub fn deinit(self: *SecurityScheme, allocator: std.mem.Allocator) void {
         if (self.description) |description| {
             allocator.free(description);
@@ -64,6 +72,7 @@ pub const SecurityScheme = struct {
             scopes.deinit();
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityScheme {
         const type_str = value.object.get("type").?.string;
         const scheme_type = SecuritySchemeType.fromString(type_str) orelse return error.InvalidSecuritySchemeType;
@@ -103,8 +112,10 @@ pub const SecurityScheme = struct {
         return map;
     }
 };
+
 pub const SecurityDefinitions = struct {
     definitions: std.StringHashMap(SecurityScheme),
+
     pub fn deinit(self: *SecurityDefinitions, allocator: std.mem.Allocator) void {
         var iterator = self.definitions.iterator();
         while (iterator.next()) |entry| {
@@ -113,6 +124,7 @@ pub const SecurityDefinitions = struct {
         }
         self.definitions.deinit();
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityDefinitions {
         var map = std.StringHashMap(SecurityScheme).init(allocator);
         errdefer map.deinit();
@@ -127,8 +139,10 @@ pub const SecurityDefinitions = struct {
         };
     }
 };
+
 pub const SecurityRequirement = struct {
     requirements: std.StringHashMap([][]const u8),
+
     pub fn deinit(self: *SecurityRequirement, allocator: std.mem.Allocator) void {
         var iterator = self.requirements.iterator();
         while (iterator.next()) |entry| {
@@ -140,6 +154,7 @@ pub const SecurityRequirement = struct {
         }
         self.requirements.deinit();
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityRequirement {
         var map = std.StringHashMap([][]const u8).init(allocator);
         errdefer map.deinit();
