@@ -66,6 +66,7 @@ pub const Items = struct {
     uniqueItems: ?bool = null,
     enum_values: ?[]json.Value = null,
     multipleOf: ?f64 = null,
+
     pub fn deinit(self: *Items, allocator: std.mem.Allocator) void {
         if (self.format) |format| {
             allocator.free(format);
@@ -81,6 +82,7 @@ pub const Items = struct {
             allocator.free(enum_vals);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Items {
         const type_str = value.object.get("type").?.string;
         const type_val = PrimitiveType.fromString(type_str) orelse return error.InvalidParameterType;
@@ -158,6 +160,7 @@ pub const Parameter = struct {
     enum_values: ?[]json.Value = null,
     multipleOf: ?f64 = null,
     schema: ?Schema = null,
+
     pub fn deinit(self: *Parameter, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
         if (self.description) |description| {
@@ -179,6 +182,7 @@ pub const Parameter = struct {
             schema.deinit(allocator);
         }
     }
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Parameter {
         const name = try allocator.dupe(u8, value.object.get("name").?.string);
         const in_str = value.object.get("in").?.string;
