@@ -3,6 +3,7 @@ const json = std.json;
 const Operation = @import("operation.zig").Operation;
 const Server = @import("server.zig").Server;
 const ParameterOrReference = @import("parameter.zig").ParameterOrReference;
+
 pub const PathItem = struct {
     ref: ?[]const u8 = null,
     summary: ?[]const u8 = null,
@@ -17,6 +18,7 @@ pub const PathItem = struct {
     trace: ?Operation = null,
     servers: ?[]const Server = null,
     parameters: ?[]const ParameterOrReference = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PathItem {
         const obj = value.object;
         var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
@@ -49,6 +51,7 @@ pub const PathItem = struct {
             .parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice() else null,
         };
     }
+
     pub fn deinit(self: *PathItem, allocator: std.mem.Allocator) void {
         if (self.ref) |ref| allocator.free(ref);
         if (self.summary) |summary| allocator.free(summary);
@@ -77,8 +80,10 @@ pub const PathItem = struct {
         }
     }
 };
+
 pub const Paths = struct {
     path_items: std.StringHashMap(PathItem),
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Paths {
         var path_items_map = std.StringHashMap(PathItem).init(allocator);
         errdefer path_items_map.deinit();
@@ -90,6 +95,7 @@ pub const Paths = struct {
         }
         return Paths{ .path_items = path_items_map };
     }
+
     pub fn deinit(self: *Paths, allocator: std.mem.Allocator) void {
         var iterator = self.path_items.iterator();
         while (iterator.next()) |entry| {
