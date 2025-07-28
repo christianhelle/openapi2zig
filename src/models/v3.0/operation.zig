@@ -7,6 +7,7 @@ const RequestBodyOrReference = @import("requestbody.zig").RequestBodyOrReference
 const CallbackOrReference = @import("callback.zig").CallbackOrReference;
 const SecurityRequirement = @import("security.zig").SecurityRequirement;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
+
 pub const Operation = struct {
     responses: Responses,
     tags: ?[]const []const u8 = null,
@@ -20,6 +21,7 @@ pub const Operation = struct {
     deprecated: ?bool = null,
     security: ?[]const SecurityRequirement = null,
     servers: ?[]const Server = null,
+
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Operation {
         const obj = value.object;
         var tags_list = std.ArrayList([]const u8).init(allocator);
@@ -72,6 +74,7 @@ pub const Operation = struct {
             .servers = if (servers_list.items.len > 0) try servers_list.toOwnedSlice() else null,
         };
     }
+
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
         self.responses.deinit(allocator);
         if (self.tags) |tags| {
