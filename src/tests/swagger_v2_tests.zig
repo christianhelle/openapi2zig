@@ -2,6 +2,7 @@ const models = @import("../models.zig");
 const SwaggerConverter = @import("../generators/converters/swagger_converter.zig").SwaggerConverter;
 const std = @import("std");
 const test_utils = @import("test_utils.zig");
+
 fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.SwaggerDocument {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
@@ -10,6 +11,7 @@ fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !mod
     defer allocator.free(file_contents);
     return try models.SwaggerDocument.parseFromJson(allocator, file_contents);
 }
+
 fn testSwaggerDocumentParsing(allocator: std.mem.Allocator, file_path: []const u8) !void {
     var parsed = try loadSwaggerDocument(allocator, file_path);
     defer parsed.deinit(allocator);
@@ -17,6 +19,7 @@ fn testSwaggerDocumentParsing(allocator: std.mem.Allocator, file_path: []const u
     try std.testing.expect(parsed.info.title.len > 0);
     std.debug.print("Successfully parsed Swagger document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.swagger });
 }
+
 test "can deserialize v2.0 petstore into SwaggerDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -25,41 +28,49 @@ test "can deserialize v2.0 petstore into SwaggerDocument" {
     try std.testing.expectEqualStrings("2.0", parsed.swagger);
     try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
 }
+
 test "can parse v2.0 api-with-examples.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerDocumentParsing(allocator, "openapi/v2.0/api-with-examples.json");
 }
+
 test "can parse v2.0 petstore-expanded.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerDocumentParsing(allocator, "openapi/v2.0/petstore-expanded.json");
 }
+
 test "can parse v2.0 petstore-minimal.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerDocumentParsing(allocator, "openapi/v2.0/petstore-minimal.json");
 }
+
 test "can parse v2.0 petstore-simple.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerDocumentParsing(allocator, "openapi/v2.0/petstore-simple.json");
 }
+
 test "can parse v2.0 petstore-with-external-docs.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerDocumentParsing(allocator, "openapi/v2.0/petstore-with-external-docs.json");
 }
+
 test "can parse v2.0 petstore.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerDocumentParsing(allocator, "openapi/v2.0/petstore.json");
 }
+
 test "can parse v2.0 uber.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerDocumentParsing(allocator, "openapi/v2.0/uber.json");
 }
+
 test "can parse all v2.0 JSON Swagger specifications" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -83,6 +94,7 @@ test "can parse all v2.0 JSON Swagger specifications" {
     std.debug.print("Successfully parsed {d}/{d} JSON Swagger v2.0 specifications\n", .{ successful_parses, json_files.len });
     try std.testing.expect(successful_parses > 0);
 }
+
 fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_path: []const u8) !void {
     var parsed = try loadSwaggerDocument(allocator, file_path);
     defer parsed.deinit(allocator);
@@ -93,41 +105,49 @@ fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     try std.testing.expect(unified.info.title.len > 0);
     std.debug.print("Successfully converted Swagger document from {s}: {s} (version: {s})\n", .{ file_path, unified.info.title, unified.version });
 }
+
 test "can convert v2.0 api-with-examples.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerToUnifiedDocumentConversion(allocator, "openapi/v2.0/api-with-examples.json");
 }
+
 test "can convert v2.0 petstore-expanded.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerToUnifiedDocumentConversion(allocator, "openapi/v2.0/petstore-expanded.json");
 }
+
 test "can convert v2.0 petstore-minimal.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerToUnifiedDocumentConversion(allocator, "openapi/v2.0/petstore-minimal.json");
 }
+
 test "can convert v2.0 petstore-simple.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerToUnifiedDocumentConversion(allocator, "openapi/v2.0/petstore-simple.json");
 }
+
 test "can convert v2.0 petstore-with-external-docs.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerToUnifiedDocumentConversion(allocator, "openapi/v2.0/petstore-with-external-docs.json");
 }
+
 test "can convert v2.0 petstore.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerToUnifiedDocumentConversion(allocator, "openapi/v2.0/petstore.json");
 }
+
 test "can convert v2.0 uber.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testSwaggerToUnifiedDocumentConversion(allocator, "openapi/v2.0/uber.json");
 }
+
 test "can convert all v2.0 JSON Swagger specifications to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
