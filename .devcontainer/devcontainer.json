@@ -1,6 +1,6 @@
 {
   "name": "Zig Dev Environment",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "image": "mcr.microsoft.com/devcontainers/ubuntu:22.04",
   "features": {
     "ghcr.io/devcontainers-extra/features/zig:1": {
       "version": "0.14.1"
