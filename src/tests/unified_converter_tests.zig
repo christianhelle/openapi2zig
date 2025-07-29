@@ -3,6 +3,7 @@ const SwaggerConverter = @import("../generators/converters/swagger_converter.zig
 const models = @import("../models.zig");
 const std = @import("std");
 const test_utils = @import("test_utils.zig");
+
 fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
@@ -11,6 +12,7 @@ fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !mod
     defer allocator.free(file_contents);
     return try models.OpenApiDocument.parseFromJson(allocator, file_contents);
 }
+
 fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.SwaggerDocument {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
@@ -19,6 +21,7 @@ fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !mod
     defer allocator.free(file_contents);
     return try models.SwaggerDocument.parseFromJson(allocator, file_contents);
 }
+
 fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_path: []const u8) !void {
     var parsed = try loadOpenApiDocument(allocator, file_path);
     defer parsed.deinit(allocator);
@@ -30,6 +33,7 @@ fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     try std.testing.expect(std.mem.startsWith(u8, unified.version, "3."));
     std.debug.print("OpenAPI v3.0 -> UnifiedDocument: {s} ({s})\n", .{ unified.info.title, unified.version });
 }
+
 fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_path: []const u8) !void {
     var parsed = try loadSwaggerDocument(allocator, file_path);
     defer parsed.deinit(allocator);
@@ -41,6 +45,7 @@ fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     try std.testing.expectEqualStrings("2.0", unified.version);
     std.debug.print("Swagger v2.0 -> UnifiedDocument: {s} ({s})\n", .{ unified.info.title, unified.version });
 }
+
 test "convert all OpenAPI v3.0 JSON specifications to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -67,6 +72,7 @@ test "convert all OpenAPI v3.0 JSON specifications to UnifiedDocument" {
     std.debug.print("Successfully converted {d}/{d} OpenAPI v3.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
     try std.testing.expect(successful_conversions == json_files.len);
 }
+
 test "convert all Swagger v2.0 JSON specifications to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -90,6 +96,7 @@ test "convert all Swagger v2.0 JSON specifications to UnifiedDocument" {
     std.debug.print("Successfully converted {d}/{d} Swagger v2.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
     try std.testing.expect(successful_conversions == json_files.len);
 }
+
 test "unified conversion compatibility between Swagger v2.0 and OpenAPI v3.0" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
