@@ -15,5 +15,5 @@
   },
   "postCreateCommand": "zig version && echo 'Dev container setup complete!'",
   "forwardPorts": [],
-  "remoteUser": "codespace"
+  "remoteUser": "vscode"
 }
