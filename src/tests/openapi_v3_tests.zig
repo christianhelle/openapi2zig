@@ -3,6 +3,7 @@ const OpenApiConverter = @import("../generators/converters/openapi_converter.zig
 const models = @import("../models.zig");
 const std = @import("std");
 const test_utils = @import("test_utils.zig");
+
 fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
@@ -11,6 +12,7 @@ fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !mod
     defer allocator.free(file_contents);
     return try models.OpenApiDocument.parseFromJson(allocator, file_contents);
 }
+
 fn testOpenApiDocumentParsing(allocator: std.mem.Allocator, file_path: []const u8) !void {
     var parsed = try loadOpenApiDocument(allocator, file_path);
     defer parsed.deinit(allocator);
@@ -18,6 +20,7 @@ fn testOpenApiDocumentParsing(allocator: std.mem.Allocator, file_path: []const u
     try std.testing.expect(parsed.info.title.len > 0);
     std.debug.print("Successfully parsed OpenAPI document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.openapi });
 }
+
 test "can deserialize petstore into OpenApiDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -26,6 +29,7 @@ test "can deserialize petstore into OpenApiDocument" {
     try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
     try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
 }
+
 test "can generate data structures from petstore OpenAPI specification" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -39,56 +43,67 @@ test "can generate data structures from petstore OpenAPI specification" {
     try std.testing.expect(std.mem.indexOf(u8, generated_code, "pub const Pet = struct") != null);
     try std.testing.expect(std.mem.indexOf(u8, generated_code, "name: []const u8") != null);
 }
+
 test "can parse api-with-examples.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/api-with-examples.json");
 }
+
 test "can parse callback-example.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/callback-example.json");
 }
+
 test "can parse hubspot-events.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/hubspot-events.json");
 }
+
 test "can parse hubspot-webhooks.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/hubspot-webhooks.json");
 }
+
 test "can parse ingram-micro.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/ingram-micro.json");
 }
+
 test "can parse link-example.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/link-example.json");
 }
+
 test "can parse petstore-expanded.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/petstore-expanded.json");
 }
+
 test "can parse petstore.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/petstore.json");
 }
+
 test "can parse uspto.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/uspto.json");
 }
+
 test "can parse weather.json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiDocumentParsing(allocator, "openapi/v3.0/weather.json");
 }
+
 test "can parse all v3.0 JSON OpenAPI specifications" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -115,6 +130,7 @@ test "can parse all v3.0 JSON OpenAPI specifications" {
     std.debug.print("Successfully parsed {d}/{d} JSON OpenAPI specifications\n", .{ successful_parses, json_files.len });
     try std.testing.expect(successful_parses > 0);
 }
+
 fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_path: []const u8) !void {
     var parsed = try loadOpenApiDocument(allocator, file_path);
     defer parsed.deinit(allocator);
@@ -125,56 +141,67 @@ fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     try std.testing.expect(unified.info.title.len > 0);
     std.debug.print("Successfully converted OpenAPI document from {s}: {s} (version: {s})\n", .{ file_path, unified.info.title, unified.version });
 }
+
 test "can convert api-with-examples.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/api-with-examples.json");
 }
+
 test "can convert callback-example.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/callback-example.json");
 }
+
 test "can convert hubspot-events.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/hubspot-events.json");
 }
+
 test "can convert hubspot-webhooks.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/hubspot-webhooks.json");
 }
+
 test "can convert ingram-micro.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/ingram-micro.json");
 }
+
 test "can convert link-example.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/link-example.json");
 }
+
 test "can convert petstore-expanded.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/petstore-expanded.json");
 }
+
 test "can convert petstore.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/petstore.json");
 }
+
 test "can convert uspto.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/uspto.json");
 }
+
 test "can convert weather.json to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     try testOpenApiToUnifiedDocumentConversion(allocator, "openapi/v3.0/weather.json");
 }
+
 test "can convert all v3.0 JSON OpenAPI specifications to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
