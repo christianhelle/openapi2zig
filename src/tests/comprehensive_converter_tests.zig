@@ -3,6 +3,7 @@ const SwaggerConverter = @import("../generators/converters/swagger_converter.zig
 const models = @import("../models.zig");
 const std = @import("std");
 const test_utils = @import("test_utils.zig");
+
 fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
@@ -11,6 +12,7 @@ fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !mod
     defer allocator.free(file_contents);
     return try models.OpenApiDocument.parseFromJson(allocator, file_contents);
 }
+
 fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.SwaggerDocument {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
@@ -19,6 +21,7 @@ fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !mod
     defer allocator.free(file_contents);
     return try models.SwaggerDocument.parseFromJson(allocator, file_contents);
 }
+
 fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_path: []const u8) !void {
     var parsed = try loadOpenApiDocument(allocator, file_path);
     defer parsed.deinit(allocator);
@@ -36,6 +39,7 @@ fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     }
     std.debug.print("✓ OpenAPI v3.0 -> UnifiedDocument: {s} ({s}) - {d} paths\n", .{ unified.info.title, unified.version, unified.paths.count() });
 }
+
 fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_path: []const u8) !void {
     var parsed = try loadSwaggerDocument(allocator, file_path);
     defer parsed.deinit(allocator);
@@ -53,6 +57,7 @@ fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     }
     std.debug.print("✓ Swagger v2.0 -> UnifiedDocument: {s} ({s}) - {d} paths\n", .{ unified.info.title, unified.version, unified.paths.count() });
 }
+
 test "dynamically convert all OpenAPI v3.0 JSON files to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -76,6 +81,7 @@ test "dynamically convert all OpenAPI v3.0 JSON files to UnifiedDocument" {
     try std.testing.expect(successful_conversions == total_files);
     try std.testing.expect(total_files > 0);
 }
+
 test "dynamically convert all Swagger v2.0 JSON files to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -99,6 +105,7 @@ test "dynamically convert all Swagger v2.0 JSON files to UnifiedDocument" {
     try std.testing.expect(successful_conversions == total_files);
     try std.testing.expect(total_files > 0);
 }
+
 test "memory leak stress test for converters" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
