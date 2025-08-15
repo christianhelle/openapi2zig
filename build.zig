@@ -5,6 +5,15 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const version_step = generateVersionStep(b);
 
+    // Library module for external packages
+    const openapi2zig_mod = b.addModule("openapi2zig", .{
+        .root_source_file = b.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    openapi2zig_mod.addIncludePath(b.path("src"));
+
+    // CLI executable
     const exe = b.addExecutable(.{
         .name = "openapi2zig",
         .root_source_file = b.path("src/main.zig"),
@@ -12,7 +21,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.step.dependOn(version_step);
+    exe.root_module.addImport("openapi2zig", openapi2zig_mod);
     b.installArtifact(exe);
+
+    // Static library for linking
+    const lib = b.addStaticLibrary(.{
+        .name = "openapi2zig",
+        .root_source_file = b.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    lib.step.dependOn(version_step);
+    b.installArtifact(lib);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
@@ -62,6 +82,8 @@ pub fn build(b: *std.Build) void {
     const exe_unit_tests = b.addTest(.{
         .root_module = tests_mod,
     });
+    exe_unit_tests.step.dependOn(version_step);
+    exe_unit_tests.root_module.addImport("openapi2zig", openapi2zig_mod);
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
