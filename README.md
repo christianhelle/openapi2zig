@@ -4,9 +4,9 @@
 [![Zig Version](https://img.shields.io/badge/zig-0.14.1-orange.svg)](https://ziglang.org/download/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A CLI tool written in Zig that generates API client code in Zig from OpenAPI specifications.
+A CLI tool and Zig library that generates type-safe API client code from OpenAPI specifications.
 
-> **Note**: This is a new project and its direction may evolve, but the current goal is to provide a CLI tool that can generate type-safe Zig client code from OpenAPI 3.x specifications.
+> **Note**: This project provides both a CLI tool for generating Zig code from OpenAPI specs and a library for parsing and working with OpenAPI documents programmatically in Zig.
 
 ## Features
 
@@ -14,6 +14,8 @@ A CLI tool written in Zig that generates API client code in Zig from OpenAPI spe
 - Generate type-safe Zig client code
 - Support for complex OpenAPI schemas and operations
 - Cross-platform support (Linux, macOS, Windows)
+- Available as both CLI tool and Zig library
+- Unified document representation for both OpenAPI and Swagger specs
 
 ## Prerequisites
 
@@ -192,6 +194,109 @@ openapi2zig generate [options]
 | `-i`, `--input <path>` | Path to the OpenAPI Specification file (JSON or YAML). |
 | `-o`, `--output <path>`| Path to the output directory for the generated Zig code (default: current directory). |
 | `--base-url <url>` | Base URL for the API client (default: server URL from OpenAPI Specification). |
+
+## Using as a Library
+
+openapi2zig can also be used as a Zig library for parsing OpenAPI/Swagger specifications and generating code programmatically.
+
+### Adding as a Dependency
+
+Add openapi2zig to your `build.zig.zon`:
+
+```zig
+.{
+    .name = "my-project",
+    .version = "0.1.0",
+    .dependencies = .{
+        .openapi2zig = .{
+            .url = "https://github.com/christianhelle/openapi2zig/archive/refs/tags/v1.0.0.tar.gz",
+            .hash = "12345...", // Replace with actual hash from `zig fetch`
+        },
+    },
+}
+```
+
+Then in your `build.zig`:
+
+```zig
+const openapi2zig_dep = b.dependency("openapi2zig", .{
+    .target = target,
+    .optimize = optimize,
+});
+
+exe.root_module.addImport("openapi2zig", openapi2zig_dep.module("openapi2zig"));
+```
+
+### Library Usage Example
+
+```zig
+const std = @import("std");
+const openapi2zig = @import("openapi2zig");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Read OpenAPI specification
+    const content = try std.fs.cwd().readFileAlloc(allocator, "api.json", 1024 * 1024);
+    defer allocator.free(content);
+
+    // Detect version
+    const version = try openapi2zig.detectVersion(allocator, content);
+    std.debug.print("Detected version: {}\n", .{version});
+
+    // Parse to unified document representation
+    var unified_doc = try openapi2zig.parseToUnified(allocator, content);
+    defer unified_doc.deinit(allocator);
+
+    std.debug.print("API: {s} v{s}\n", .{ unified_doc.info.title, unified_doc.info.version });
+
+    // Generate Zig code
+    const args = openapi2zig.CliArgs{
+        .input_path = "api.json",
+        .output_path = null,
+        .base_url = "https://api.example.com",
+    };
+
+    const generated_code = try openapi2zig.generateCode(allocator, unified_doc, args);
+    defer allocator.free(generated_code);
+    
+    // Write generated code to file
+    try std.fs.cwd().writeFile(.{ .sub_path = "generated.zig", .data = generated_code });
+}
+```
+
+### Library API Reference
+
+#### Version Detection
+
+- `detectVersion(allocator, json_content)` - Detect OpenAPI/Swagger version
+- `ApiVersion` - Enum representing supported API versions (.v2_0, .v3_0, .v3_1, .Unsupported)
+
+#### Parsing Functions
+
+- `parseToUnified(allocator, json_content)` - Parse any supported version to unified representation
+- `parseOpenApi(allocator, json_content)` - Parse OpenAPI v3.0 specifically
+- `parseSwagger(allocator, json_content)` - Parse Swagger v2.0 specifically
+
+#### Code Generation
+
+- `generateCode(allocator, unified_doc, args)` - Generate complete Zig code (models + API)
+- `generateModels(allocator, unified_doc)` - Generate only model structs
+- `generateApi(allocator, unified_doc, args)` - Generate only API client functions
+
+#### Conversion Functions
+
+- `convertOpenApiToUnified(allocator, openapi_doc)` - Convert OpenAPI v3.0 to unified format
+- `convertSwaggerToUnified(allocator, swagger_doc)` - Convert Swagger v2.0 to unified format
+
+#### Data Types
+
+- `UnifiedDocument` - Common document representation for both OpenAPI and Swagger
+- `OpenApiDocument` - OpenAPI v3.0 specific document structure
+- `SwaggerDocument` - Swagger v2.0 specific document structure
+- `DocumentInfo`, `Schema`, `Operation`, etc. - Various OpenAPI components
 
 ## Example Generated Code
 
