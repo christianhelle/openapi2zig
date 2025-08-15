@@ -408,3 +408,6 @@ Commit as often as possible, once per logical change. Include a detailed descrip
 It is important to keep commits focused and atomic, making it easier to understand the history of changes and to revert specific changes if needed.
 It is important that you do not include unrelated changes in a single commit.
 It is very important that there are no memory leaks introduced in any commit.
+
+## Documentation
+Update the README with any new features, changes, or important information about the project.
