@@ -402,3 +402,9 @@ The project is transitioning to the unified converter architecture. When adding 
 2. Add comprehensive test coverage for both v2.0 and v3.0 inputs
 3. Ensure memory cleanup with proper `deinit()` implementations
 4. Follow the established JSON parsing patterns for new models
+
+## Source Control
+Commit as often as possible, once per logical change. Include a detailed description of the change in the commit message.
+It is important to keep commits focused and atomic, making it easier to understand the history of changes and to revert specific changes if needed.
+It is important that you do not include unrelated changes in a single commit.
+It is very important that there are no memory leaks introduced in any commit.
