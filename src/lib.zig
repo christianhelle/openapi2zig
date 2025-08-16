@@ -18,7 +18,7 @@
 //!     const json_content = try std.fs.cwd().readFileAlloc(allocator, "api.json", 1024 * 1024);
 //!     defer allocator.free(json_content);
 //!
-//!     const version = try openapi2zig.detectVersion(json_content);
+//!     const version = try openapi2zig.detectVersion(allocator, json_content);
 //!     std.debug.print("Detected version: {}\n", .{version});
 //!
 //!     // Parse and convert to unified document
