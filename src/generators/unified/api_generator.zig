@@ -236,6 +236,22 @@ pub const UnifiedApiGenerator = struct {
         }
         try self.buffer.appendSlice("    try req.finish();\n");
         try self.buffer.appendSlice("    try req.wait();\n");
+
+        const return_type = self.getReturnType(method, operation);
+        if (!std.mem.eql(u8, return_type, "!void")) {
+            try self.buffer.appendSlice("\n");
+            try self.buffer.appendSlice("    const response = req.response;\n");
+            try self.buffer.appendSlice("    if (response.status != .ok) {\n");
+            try self.buffer.appendSlice("        return error.ResponseError;\n");
+            try self.buffer.appendSlice("    }\n\n");
+            try self.buffer.appendSlice("    const body = try response.body.readAll(allocator);\n");
+            try self.buffer.appendSlice("    defer allocator.free(body);\n\n");
+            try self.buffer.appendSlice("    const json_value = try std.json.parseFromSlice(");
+            try self.buffer.appendSlice(return_type);
+            try self.buffer.appendSlice(", allocator, body, .{});\n");
+            try self.buffer.appendSlice("    return json_value;\n");
+        }
+
         try self.buffer.appendSlice("}\n\n");
     }
 
