@@ -84,7 +84,6 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateFunctionSignature(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
-        _ = method;
         try self.buffer.appendSlice("pub fn ");
 
         if (operation.operationId) |op_id| {
@@ -132,7 +131,23 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(data_type);
             }
         }
-        try self.buffer.appendSlice(") !void {\n");
+
+        const return_type = self.getReturnType(method, operation);
+        try self.buffer.appendSlice(") ");
+        try self.buffer.appendSlice(return_type);
+        try self.buffer.appendSlice(" {\n");
+    }
+
+    fn getReturnType(self: *UnifiedApiGenerator, method: []const u8, operation: Operation) []const u8 {
+        if (std.mem.eql(u8, method, "GET")) {
+            if (operation.responses.get("200")) |path_item| {
+                if (path_item.schema) |schema| {
+                    return try self.getZigTypeFromSchema(schema);
+                }
+            }
+        }
+
+        return "!void";
     }
 
     fn generateFunctionBody(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
