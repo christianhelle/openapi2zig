@@ -346,11 +346,20 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertResponse(self: *OpenApiConverter, response: Response3) !Response {
-        _ = self; // Mark unused parameter
-        const description = response.description; // Reference, don't duplicate
+        const description = response.description;
+        var schema: ?Schema = null;
+        if (response.content) |content| {
+            var content_iterator = content.iterator();
+            if (content_iterator.next()) |entry| {
+                if (entry.value_ptr.schema) |schema_or_ref| {
+                    schema = try self.convertSchemaOrReference(schema_or_ref);
+                }
+            }
+        }
+
         return Response{
             .description = description,
-            .schema = null,
+            .schema = schema,
             .headers = null,
         };
     }
