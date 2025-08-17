@@ -166,7 +166,8 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice("    var client = std.http.Client { .allocator = allocator };\n");
         try self.buffer.appendSlice("    defer client.deinit();\n\n");
 
-        try self.buffer.appendSlice("    const headers = [_]std.http.Header{\n");
+        try self.buffer.appendSlice("    var header_buffer: [8192]u8 = undefined;\n");
+        try self.buffer.appendSlice("    const headers = &[_]std.http.Header{\n");
         try self.buffer.appendSlice("        .{ .name = \"Content-Type\", .value = \"application/json\" },\n");
         try self.buffer.appendSlice("        .{ .name = \"Accept\", .value = \"application/json\" },\n");
         try self.buffer.appendSlice("    };\n");
@@ -221,9 +222,9 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("\");\n");
         }
 
-        try self.buffer.appendSlice("    var req = try client.request(.{ .method = .");
+        try self.buffer.appendSlice("    var req = try client.open(std.http.Method.");
         try self.buffer.appendSlice(method);
-        try self.buffer.appendSlice(", .uri = uri, .headers = headers });\n");
+        try self.buffer.appendSlice(", uri, .{ .server_header_buffer = &header_buffer, .extra_headers = headers });\n");
         try self.buffer.appendSlice("    defer req.deinit();\n\n");
 
         if (std.mem.eql(u8, method, "POST") or std.mem.eql(u8, method, "PUT") or std.mem.eql(u8, method, "PATCH")) {
