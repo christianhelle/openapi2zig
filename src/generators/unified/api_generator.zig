@@ -256,10 +256,10 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("    }\n\n");
             try self.buffer.appendSlice("    const body = try req.reader().readAllAlloc(allocator, 1024 * 1024);\n");
             try self.buffer.appendSlice("    defer allocator.free(body);\n\n");
-            try self.buffer.appendSlice("    const json_value = try std.json.parseFromSlice(");
+            try self.buffer.appendSlice("    const parsed = try std.json.parseFromSlice(");
             try self.buffer.appendSlice(return_type);
             try self.buffer.appendSlice(", allocator, body, .{});\n");
-            try self.buffer.appendSlice("    return json_value;\n");
+            try self.buffer.appendSlice("    return parsed.value;\n");
         }
 
         try self.buffer.appendSlice("}\n\n");
