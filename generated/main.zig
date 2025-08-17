@@ -18,6 +18,7 @@ pub fn main() !void {
     std.debug.print("Generated models build and run !!\n", .{});
     std.debug.print("Testing memory management in generated functions...\n", .{});
 
-    const pet = v3.getPetById(allocator, "1");
+    const pet = try v3.getPetById(allocator, "0");
+    std.debug.print("Success", .{});
     std.debug.print("Found Pet with ID:{any}", .{pet.id});
 }
