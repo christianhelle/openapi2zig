@@ -13,7 +13,7 @@ pub fn main() !void {
         }
     }
 
-    const allocator = gpa.allocator();
+    _ = gpa.allocator();
 
     std.debug.print("Generated models build and run !!\n", .{});
     std.debug.print("Testing memory management in generated functions...\n", .{});
