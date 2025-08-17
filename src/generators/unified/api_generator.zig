@@ -133,7 +133,7 @@ pub const UnifiedApiGenerator = struct {
         }
 
         const return_type = self.getReturnType(method, operation);
-        try self.buffer.appendSlice(") ");
+        try self.buffer.appendSlice(") !");
         try self.buffer.appendSlice(return_type);
         try self.buffer.appendSlice(" {\n");
     }
@@ -147,7 +147,7 @@ pub const UnifiedApiGenerator = struct {
             }
         }
 
-        return "!void";
+        return "void";
     }
 
     fn generateFunctionBody(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
@@ -165,6 +165,7 @@ pub const UnifiedApiGenerator = struct {
 
         try self.buffer.appendSlice("    var client = std.http.Client { .allocator = allocator };\n");
         try self.buffer.appendSlice("    defer client.deinit();\n\n");
+
         try self.buffer.appendSlice("    const headers = [_]std.http.Header{\n");
         try self.buffer.appendSlice("        .{ .name = \"Content-Type\", .value = \"application/json\" },\n");
         try self.buffer.appendSlice("        .{ .name = \"Accept\", .value = \"application/json\" },\n");
@@ -195,7 +196,6 @@ pub const UnifiedApiGenerator = struct {
             if (self.args.base_url) |base_url| {
                 try self.buffer.appendSlice(base_url);
             }
-
             try self.buffer.appendSlice(new_path);
             try self.buffer.appendSlice("\", .{");
 
