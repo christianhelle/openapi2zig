@@ -14,8 +14,10 @@ pub fn main() !void {
     }
 
     const allocator = gpa.allocator();
-    _ = allocator; // Suppress unused variable warning
 
     std.debug.print("Generated models build and run !!\n", .{});
     std.debug.print("Testing memory management in generated functions...\n", .{});
+
+    const pet = v3.getPetById(allocator, "1");
+    std.debug.print("Found Pet with ID:{any}", .{pet.id});
 }
