@@ -234,9 +234,9 @@ pub const UnifiedApiGenerator = struct {
                         try self.buffer.appendSlice("    var str = std.ArrayList(u8).init(allocator);\n");
                         try self.buffer.appendSlice("    defer str.deinit();\n\n");
                         try self.buffer.appendSlice("    try std.json.stringify(requestBody, .{}, str.writer());\n");
-                        try self.buffer.appendSlice("    const body = str.items;\n\n");
-                        try self.buffer.appendSlice("    req.transfer_encoding = .{ .content_length = body.len };\n");
-                        try self.buffer.appendSlice("    try req.writeAll(body);\n\n");
+                        try self.buffer.appendSlice("    const payload = str.items;\n\n");
+                        try self.buffer.appendSlice("    req.transfer_encoding = .{ .content_length = payload.len };\n");
+                        try self.buffer.appendSlice("    try req.writeAll(payload);\n\n");
                         break;
                     }
                 }
