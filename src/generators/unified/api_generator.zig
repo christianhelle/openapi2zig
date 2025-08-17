@@ -162,15 +162,15 @@ pub const UnifiedApiGenerator = struct {
                 }
             }
         }
-        try self.buffer.appendSlice("    var client = std.http.Client.init(allocator);\n");
+
+        try self.buffer.appendSlice("    var client = std.http.Client { .allocator = allocator };\n");
         try self.buffer.appendSlice("    defer client.deinit();\n\n");
-        try self.buffer.appendSlice("    var headers = std.http.Headers.init(allocator);\n");
-        try self.buffer.appendSlice("    defer headers.deinit();\n");
-        try self.buffer.appendSlice("    try headers.append(\"accept\", \"application/json\");\n");
-        if (std.mem.eql(u8, method, "POST") or std.mem.eql(u8, method, "PUT") or std.mem.eql(u8, method, "PATCH")) {
-            try self.buffer.appendSlice("    try headers.append(\"content-type\", \"application/json\");\n");
-        }
+        try self.buffer.appendSlice("    const headers = [_]std.http.Header{\n");
+        try self.buffer.appendSlice("        .{ .name = \"Content-Type\", .value = \"application/json\" },\n");
+        try self.buffer.appendSlice("        .{ .name = \"Accept\", .value = \"application/json\" },\n");
+        try self.buffer.appendSlice("    };\n");
         try self.buffer.appendSlice("\n");
+
         if (operation.parameters) |parameters| {
             var new_path = path;
             var allocated_paths = std.ArrayList([]u8).init(self.allocator);
@@ -180,6 +180,7 @@ pub const UnifiedApiGenerator = struct {
                 }
                 allocated_paths.deinit();
             }
+
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 const param = parameter.name;
@@ -189,12 +190,15 @@ pub const UnifiedApiGenerator = struct {
                 _ = std.mem.replace(u8, new_path, param, "s", output);
                 new_path = output;
             }
+
             try self.buffer.appendSlice("    const uri_str = try std.fmt.allocPrint(allocator, \"");
             if (self.args.base_url) |base_url| {
                 try self.buffer.appendSlice(base_url);
             }
+
             try self.buffer.appendSlice(new_path);
             try self.buffer.appendSlice("\", .{");
+
             var pos: i32 = 0;
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
@@ -205,6 +209,7 @@ pub const UnifiedApiGenerator = struct {
                     try self.buffer.appendSlice(", ");
             }
             try self.buffer.appendSlice("});\n");
+
             try self.buffer.appendSlice("    defer allocator.free(uri_str);\n");
             try self.buffer.appendSlice("    const uri = try std.Uri.parse(uri_str);\n");
         } else {
@@ -215,10 +220,12 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(path);
             try self.buffer.appendSlice("\");\n");
         }
+
         try self.buffer.appendSlice("    var req = try client.request(.{ .method = .");
         try self.buffer.appendSlice(method);
         try self.buffer.appendSlice(", .uri = uri, .headers = headers });\n");
         try self.buffer.appendSlice("    defer req.deinit();\n\n");
+
         if (std.mem.eql(u8, method, "POST") or std.mem.eql(u8, method, "PUT") or std.mem.eql(u8, method, "PATCH")) {
             if (operation.parameters) |params| {
                 for (params) |param| {
@@ -234,6 +241,8 @@ pub const UnifiedApiGenerator = struct {
                 }
             }
         }
+
+        try self.buffer.appendSlice("    try req.send();\n");
         try self.buffer.appendSlice("    try req.finish();\n");
         try self.buffer.appendSlice("    try req.wait();\n");
 
