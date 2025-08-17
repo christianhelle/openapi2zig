@@ -248,7 +248,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice("    try req.wait();\n");
 
         const return_type = self.getReturnType(method, operation);
-        if (!std.mem.eql(u8, return_type, "!void")) {
+        if (!std.mem.eql(u8, return_type, "void")) {
             try self.buffer.appendSlice("\n");
             try self.buffer.appendSlice("    const response = req.response;\n");
             try self.buffer.appendSlice("    if (response.status != .ok) {\n");
