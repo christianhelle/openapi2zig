@@ -259,6 +259,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("    const parsed = try std.json.parseFromSlice(");
             try self.buffer.appendSlice(return_type);
             try self.buffer.appendSlice(", allocator, body, .{});\n");
+            try self.buffer.appendSlice("    defer parsed.deinit();\n\n");
             try self.buffer.appendSlice("    return parsed.value;\n");
         }
 
