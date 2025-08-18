@@ -51,7 +51,7 @@ pub fn build(b: *std.Build) void {
         "-o",
         "generated/generated_v3.zig",
         "--base-url",
-        "https://petstore.swagger.io/api/v3",
+        "https://petstore3.swagger.io/api/v3",
     });
     const run_generate_v3_step = b.step("run-generate-v3", "Run the app with generate command");
     run_generate_v3_step.dependOn(&run_generate_v3_cmd.step);
