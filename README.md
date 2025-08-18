@@ -189,11 +189,11 @@ openapi2zig generate [options]
 
 ### Options
 
-| Flag | Description |
-| :--- | :--- |
-| `-i`, `--input <path>` | Path to the OpenAPI Specification file (JSON or YAML). |
-| `-o`, `--output <path>`| Path to the output directory for the generated Zig code (default: current directory). |
-| `--base-url <url>` | Base URL for the API client (default: server URL from OpenAPI Specification). |
+| Flag                    | Description                                                                           |
+| :---------------------- | :------------------------------------------------------------------------------------ |
+| `-i`, `--input <path>`  | Path to the OpenAPI Specification file (JSON or YAML).                                |
+| `-o`, `--output <path>` | Path to the output directory for the generated Zig code (default: current directory). |
+| `--base-url <url>`      | Base URL for the API client (default: server URL from OpenAPI Specification).         |
 
 ## Using as a Library
 
@@ -261,7 +261,7 @@ pub fn main() !void {
 
     const generated_code = try openapi2zig.generateCode(allocator, unified_doc, args);
     defer allocator.free(generated_code);
-    
+
     // Write generated code to file
     try std.fs.cwd().writeFile(.{ .sub_path = "generated.zig", .data = generated_code });
 }
@@ -379,23 +379,38 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
 // Description:
 // Returns a single pet
 //
-pub fn getPetById(allocator: std.mem.Allocator, petId: i64) !void {
-    var client = std.http.Client.init(allocator);
+pub fn getPetById(allocator: std.mem.Allocator, petId: []const u8) !Pet {
+    var client = std.http.Client { .allocator = allocator };
     defer client.deinit();
 
-    const uri = try std.Uri.parse("https://petstore.swagger.io/api/v3/pet");
-    const uri = try std.Uri.parse(uri_str);
-    const buf = try allocator.alloc(u8, 1024 * 8);
-    defer allocator.free(buf);
+    var header_buffer: [8192]u8 = undefined;
+    const headers = &[_]std.http.Header{
+        .{ .name = "Content-Type", .value = "application/json" },
+        .{ .name = "Accept", .value = "application/json" },
+    };
 
-    var req = try client.open(.GET, uri, .{
-        .server_header_buffer = buf,
-    });
+    const uri_str = try std.fmt.allocPrint(allocator, "https://petstore3.swagger.io/api/v3/pet/{s}", .{petId});
+    defer allocator.free(uri_str);
+    const uri = try std.Uri.parse(uri_str);
+    var req = try client.open(std.http.Method.GET, uri, .{ .server_header_buffer = &header_buffer, .extra_headers = headers });
     defer req.deinit();
 
     try req.send();
     try req.finish();
     try req.wait();
+
+    const response = req.response;
+    if (response.status != .ok) {
+        return error.ResponseError;
+    }
+
+    const body = try req.reader().readAllAlloc(allocator, 1024 * 1024 * 4);
+    defer allocator.free(body);
+
+    const parsed = try std.json.parseFromSlice(Pet, allocator, body, .{});
+    defer parsed.deinit();
+
+    return parsed.value;
 }
 ```
 
