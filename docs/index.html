@@ -520,11 +520,11 @@ pub const Pet = struct {
               <span class="code-title">Zig</span>
               <button
                 class="copy-btn"
-                data-code="///////////////////////////////////////////
+                data-code='///////////////////////////////////////////
 // Generated Zig API client from OpenAPI
 ///////////////////////////////////////////
 
-const std = @import('''std''');
+const std = @import("std");
 
 /////////////////
 // Summary:
@@ -540,7 +540,7 @@ pub fn placeOrder(allocator: std.mem.Allocator, requestBody: Order) !void {
     var client = std.http.Client.init(allocator);
     defer client.deinit();
 
-    const uri = try std.Uri.parse('''https://petstore.swagger.io/api/v3/store/order''');
+    const uri = try std.Uri.parse("https://petstore.swagger.io/api/v3/store/order");
     const buf = try allocator.alloc(u8, 1024 * 8);
     defer allocator.free(buf);   var req = try client.open(.POST, uri, .{
         .server_header_buffer = buf,
@@ -567,11 +567,11 @@ pub fn getPetById(allocator: std.mem.Allocator, petId: []const u8) !Pet {
 
     var header_buffer: [8192]u8 = undefined;
     const headers = &[_]std.http.Header{
-        .{ .name = '''Content-Type''', .value = '''application/json''' },
-        .{ .name = '''Accept''', .value = '''application/json''' },
+        .{ .name = "Content-Type", .value = "application/json" },
+        .{ .name = "Accept", .value = "application/json" },
     };
 
-    const uri_str = try std.fmt.allocPrint(allocator, '''https://petstore3.swagger.io/api/v3/pet/{s}''', .{petId});
+    const uri_str = try std.fmt.allocPrint(allocator, "https://petstore3.swagger.io/api/v3/pet/{s}", .{petId});
     defer allocator.free(uri_str);
     const uri = try std.Uri.parse(uri_str);
     var req = try client.open(std.http.Method.GET, uri, .{ .server_header_buffer = &header_buffer, .extra_headers = headers });
@@ -594,7 +594,7 @@ pub fn getPetById(allocator: std.mem.Allocator, petId: []const u8) !Pet {
 
     return parsed.value;
 }
-"
+'
               >
                 📋
               </button>
