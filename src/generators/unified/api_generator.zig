@@ -254,7 +254,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice("    if (response.status != .ok) {\n");
             try self.buffer.appendSlice("        return error.ResponseError;\n");
             try self.buffer.appendSlice("    }\n\n");
-            try self.buffer.appendSlice("    const body = try req.reader().readAllAlloc(allocator, 1024 * 1024);\n");
+            try self.buffer.appendSlice("    const body = try req.reader().readAllAlloc(allocator, 1024 * 1024 * 4);\n");
             try self.buffer.appendSlice("    defer allocator.free(body);\n\n");
             try self.buffer.appendSlice("    const parsed = try std.json.parseFromSlice(");
             try self.buffer.appendSlice(return_type);
