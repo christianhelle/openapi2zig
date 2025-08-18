@@ -13,12 +13,11 @@ pub fn main() !void {
         }
     }
 
-    _ = gpa.allocator();
+    const allocator = gpa.allocator();
 
     std.debug.print("Generated models build and run !!\n", .{});
     std.debug.print("Testing memory management in generated functions...\n", .{});
 
-    //const pet = try v3.getPetById(allocator, "0");
-    //std.debug.print("Success", .{});
-    //std.debug.print("Found Pet with ID:{any}", .{pet.id});
+    const pet = try v3.getPetById(allocator, "0");
+    std.debug.print("Found Pet with ID:{any}\n\n", .{pet.id});
 }
