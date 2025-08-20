@@ -186,10 +186,17 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 const param = parameter.name;
-                const size = std.mem.replacementSize(u8, new_path, param, "s");
+                const schemaType = parameter.type orelse .string; // Default to string if no type specified
+                const param_type = switch (schemaType) {
+                    .string => "s",
+                    .integer => "d",
+                    .number => "d",
+                    else => "any",
+                };
+                const size = std.mem.replacementSize(u8, new_path, param, param_type);
                 const output = try self.allocator.alloc(u8, size);
                 try allocated_paths.append(output);
-                _ = std.mem.replace(u8, new_path, param, "s", output);
+                _ = std.mem.replace(u8, new_path, param, param_type, output);
                 new_path = output;
             }
 
