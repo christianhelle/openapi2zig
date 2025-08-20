@@ -29,6 +29,8 @@ const ParameterOrReference3 = @import("../../models/v3.0/parameter.zig").Paramet
 const Parameter3 = @import("../../models/v3.0/parameter.zig").Parameter;
 const ResponseOrReference3 = @import("../../models/v3.0/response.zig").ResponseOrReference;
 const Response3 = @import("../../models/v3.0/response.zig").Response;
+const RequestBodyOrReference3 = @import("../../models/v3.0/requestbody.zig").RequestBodyOrReference;
+const RequestBody3 = @import("../../models/v3.0/requestbody.zig").RequestBody;
 const Operation3 = @import("../../models/v3.0/operation.zig").Operation;
 const PathItem3 = @import("../../models/v3.0/paths.zig").PathItem;
 const Paths3 = @import("../../models/v3.0/paths.zig").Paths;
@@ -41,7 +43,7 @@ pub const OpenApiConverter = struct {
     }
 
     pub fn convert(self: *OpenApiConverter, openapi: OpenApiDocument) !UnifiedDocument {
-        const version = openapi.openapi; // Reference, don't duplicate
+        const version = openapi.openapi;
         const info = self.convertInfo(openapi.info);
         const paths = try self.convertPaths(openapi.paths);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
@@ -64,20 +66,20 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertInfo(self: *OpenApiConverter, info: Info3) DocumentInfo {
-        _ = self; // Not needed for reference-based conversion
-        const title = info.title; // Reference, don't duplicate
-        const description = info.description; // Reference, don't duplicate
-        const version = info.version; // Reference, don't duplicate
-        const termsOfService = info.termsOfService; // Reference, don't duplicate
+        _ = self;
+        const title = info.title;
+        const description = info.description;
+        const version = info.version;
+        const termsOfService = info.termsOfService;
         const contact = if (info.contact) |contact_info| blk: {
-            const name = contact_info.name; // Reference, don't duplicate
-            const url = contact_info.url; // Reference, don't duplicate
-            const email = contact_info.email; // Reference, don't duplicate
+            const name = contact_info.name;
+            const url = contact_info.url;
+            const email = contact_info.email;
             break :blk ContactInfo{ .name = name, .url = url, .email = email };
         } else null;
         const license = if (info.license) |license_info| blk: {
-            const name = license_info.name; // Reference, don't duplicate
-            const url = license_info.url; // Reference, don't duplicate
+            const name = license_info.name;
+            const url = license_info.url;
             break :blk LicenseInfo{ .name = name, .url = url };
         } else null;
         return DocumentInfo{
@@ -109,7 +111,7 @@ pub const OpenApiConverter = struct {
                 const key = try self.allocator.dupe(u8, entry.key_ptr.*);
                 const scopes = try self.allocator.alloc([]const u8, entry.value_ptr.*.len);
                 for (entry.value_ptr.*, 0..) |scope, j| {
-                    scopes[j] = scope; // Reference, don't duplicate
+                    scopes[j] = scope;
                 }
                 try schemes.put(key, scopes);
             }
@@ -121,17 +123,17 @@ pub const OpenApiConverter = struct {
     fn convertTags(self: *OpenApiConverter, tags: []const Tag3) ![]Tag {
         var converted_tags = try self.allocator.alloc(Tag, tags.len);
         for (tags, 0..) |tag, i| {
-            const name = tag.name; // Reference, don't duplicate
-            const description = tag.description; // Reference, don't duplicate
+            const name = tag.name;
+            const description = tag.description;
             const externalDocs = if (tag.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
             converted_tags[i] = Tag{ .name = name, .description = description, .externalDocs = externalDocs };
         }
         return converted_tags;
     }
     fn convertExternalDocs(self: *OpenApiConverter, externalDocs: ExternalDocs3) !ExternalDocumentation {
-        _ = self; // Mark unused parameter
-        const url = externalDocs.url; // Reference, don't duplicate
-        const description = externalDocs.description; // Reference, don't duplicate
+        _ = self;
+        const url = externalDocs.url;
+        const description = externalDocs.description;
         return ExternalDocumentation{ .url = url, .description = description };
     }
 
@@ -151,7 +153,7 @@ pub const OpenApiConverter = struct {
     fn convertSchemaOrReference(self: *OpenApiConverter, schemaOrRef: SchemaOrReference3) anyerror!Schema {
         switch (schemaOrRef) {
             .reference => |ref| {
-                const ref_str = ref.ref; // Reference, don't duplicate
+                const ref_str = ref.ref;
                 return Schema{ .type = .reference, .ref = ref_str };
             },
             .schema => |schema| {
@@ -162,13 +164,13 @@ pub const OpenApiConverter = struct {
 
     fn convertSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
-        const title = schema.title; // Reference, don't duplicate
-        const description = schema.description; // Reference, don't duplicate
-        const format = schema.format; // Reference, don't duplicate
+        const title = schema.title;
+        const description = schema.description;
+        const format = schema.format;
         const required = if (schema.required) |req_list| blk: {
             const req_array = try self.allocator.alloc([]const u8, req_list.len);
             for (req_list, 0..) |req, i| {
-                req_array[i] = req; // Reference, don't duplicate
+                req_array[i] = req;
             }
             break :blk req_array;
         } else null;
@@ -190,14 +192,14 @@ pub const OpenApiConverter = struct {
         } else null;
         return Schema{
             .type = schema_type,
-            .ref = null, // OpenAPI 3.0 Schema doesn't have ref, only SchemaOrReference does
+            .ref = null,
             .title = title,
             .description = description,
             .format = format,
             .required = required,
             .properties = properties,
             .items = items,
-            .enum_values = null, // TODO: convert enum values
+            .enum_values = null,
             .default = schema.default,
             .example = schema.example,
         };
@@ -211,7 +213,7 @@ pub const OpenApiConverter = struct {
         if (std.mem.eql(u8, type_str, "boolean")) return .boolean;
         if (std.mem.eql(u8, type_str, "array")) return .array;
         if (std.mem.eql(u8, type_str, "object")) return .object;
-        return .string; // default fallback
+        return .string;
     }
 
     fn convertPaths(self: *OpenApiConverter, paths: Paths3) !std.StringHashMap(PathItem) {
@@ -250,18 +252,34 @@ pub const OpenApiConverter = struct {
         const tags = if (operation.tags) |tags_list| blk: {
             const tags_array = try self.allocator.alloc([]const u8, tags_list.len);
             for (tags_list, 0..) |tag, i| {
-                tags_array[i] = tag; // Reference, don't duplicate
+                tags_array[i] = tag;
             }
             break :blk tags_array;
         } else null;
-        const summary = operation.summary; // Reference, don't duplicate
-        const description = operation.description; // Reference, don't duplicate
-        const operationId = operation.operationId; // Reference, don't duplicate
-        const parameters = if (operation.parameters) |params| try self.convertParameters(params) else null;
+        const summary = operation.summary;
+        const description = operation.description;
+        const operationId = operation.operationId;
+
+        var parameters_list = std.ArrayList(Parameter).init(self.allocator);
+        defer parameters_list.deinit();
+
+        if (operation.parameters) |params| {
+            for (params) |*param_ref| {
+                try parameters_list.append(try self.convertParameterOrReference(param_ref));
+            }
+        }
+
+        if (operation.requestBody) |*request_body_or_ref| {
+            const request_body_param = try self.convertRequestBodyOrReference(request_body_or_ref);
+            try parameters_list.append(request_body_param);
+        }
+
+        const parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice() else null;
+
         var responses = std.StringHashMap(Response).init(self.allocator);
         if (operation.responses.default) |default_response| {
             const response = try self.convertResponseOrReference(default_response);
-            const default_key = try self.allocator.dupe(u8, "default"); // Must dupe to match other keys
+            const default_key = try self.allocator.dupe(u8, "default");
             try responses.put(default_key, response);
         }
         var resp_iterator = operation.responses.status_codes.iterator();
@@ -283,21 +301,59 @@ pub const OpenApiConverter = struct {
         };
     }
 
-    fn convertParameters(self: *OpenApiConverter, parameters: []const ParameterOrReference3) ![]Parameter {
-        var converted_params = try self.allocator.alloc(Parameter, parameters.len);
-        for (parameters, 0..) |param_ref, i| {
-            converted_params[i] = try self.convertParameterOrReference(param_ref);
-        }
-        return converted_params;
-    }
-
-    fn convertParameterOrReference(self: *OpenApiConverter, paramOrRef: ParameterOrReference3) !Parameter {
-        switch (paramOrRef) {
+    fn convertRequestBodyOrReference(self: *OpenApiConverter, requestBodyOrRef: *const RequestBodyOrReference3) !Parameter {
+        switch (requestBodyOrRef.*) {
             .reference => |ref| {
                 const name = try self.allocator.dupe(u8, ref.ref);
                 return Parameter{
                     .name = name,
-                    .location = .query, // default
+                    .location = .body,
+                    .required = false,
+                };
+            },
+            .request_body => |*body| {
+                return self.convertRequestBody(body);
+            },
+        }
+    }
+
+    fn convertRequestBody(self: *OpenApiConverter, requestBody: *const RequestBody3) !Parameter {
+        var mut_request_body = requestBody.*;
+        var schema: ?Schema = null;
+        if (mut_request_body.content.count() > 0) {
+            var it = mut_request_body.content.iterator();
+            if (it.next()) |entry| {
+                if (entry.value_ptr.schema) |schema_or_ref| {
+                    schema = try self.convertSchemaOrReference(schema_or_ref);
+                }
+            }
+        }
+        return Parameter{
+            .name = "body",
+            .location = .body,
+            .description = requestBody.description,
+            .required = requestBody.required orelse false,
+            .schema = schema,
+            .type = null,
+            .format = null,
+        };
+    }
+
+    fn convertParameters(self: *OpenApiConverter, parameters: []const ParameterOrReference3) ![]Parameter {
+        var converted_params = try self.allocator.alloc(Parameter, parameters.len);
+        for (parameters, 0..) |param_ref, i| {
+            converted_params[i] = try self.convertParameterOrReference(&param_ref);
+        }
+        return converted_params;
+    }
+
+    fn convertParameterOrReference(self: *OpenApiConverter, paramOrRef: *const ParameterOrReference3) !Parameter {
+        switch (paramOrRef.*) {
+            .reference => |ref| {
+                const name = try self.allocator.dupe(u8, ref.ref);
+                return Parameter{
+                    .name = name,
+                    .location = .query,
                     .required = false,
                 };
             },
@@ -308,9 +364,9 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertParameter(self: *OpenApiConverter, parameter: Parameter3) !Parameter {
-        const name = parameter.name; // Reference, don't duplicate
+        const name = parameter.name;
         const location = self.convertParameterLocation(parameter.in_field);
-        const description = parameter.description; // Reference, don't duplicate
+        const description = parameter.description;
         const required = parameter.required orelse false;
         const schema = if (parameter.schema) |schema_ref| try self.convertSchemaOrReference(schema_ref) else null;
         return Parameter{
@@ -329,8 +385,8 @@ pub const OpenApiConverter = struct {
         if (std.mem.eql(u8, location, "query")) return .query;
         if (std.mem.eql(u8, location, "header")) return .header;
         if (std.mem.eql(u8, location, "path")) return .path;
-        if (std.mem.eql(u8, location, "cookie")) return .query; // map to query as fallback
-        return .query; // default fallback
+        if (std.mem.eql(u8, location, "cookie")) return .query;
+        return .query;
     }
 
     fn convertResponseOrReference(self: *OpenApiConverter, respOrRef: ResponseOrReference3) !Response {
