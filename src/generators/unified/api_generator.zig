@@ -186,8 +186,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 const param = parameter.name;
-                const schemaType = parameter.type orelse .string; // Default to string if no type specified
-                const param_type = switch (schemaType) {
+                const param_type = switch (parameter.type orelse .string) {
                     .string => "s",
                     .integer => "d",
                     .number => "d",
