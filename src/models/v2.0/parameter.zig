@@ -84,29 +84,101 @@ pub const Items = struct {
     }
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Items {
-        const type_str = value.object.get("type").?.string;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
+        const type_str = switch (obj.get("type") orelse return error.MissingType) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
         const type_val = PrimitiveType.fromString(type_str) orelse return error.InvalidParameterType;
-        const format = if (value.object.get("format")) |val| try allocator.dupe(u8, val.string) else null;
-        const items = if (value.object.get("items")) |val| blk: {
+        
+        const format = if (obj.get("format")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const items = if (obj.get("items")) |val| blk: {
             const items_ptr = try allocator.create(Items);
             items_ptr.* = try Items.parseFromJson(allocator, val);
             break :blk items_ptr;
         } else null;
-        const collectionFormat_str = if (value.object.get("collectionFormat")) |val| val.string else "csv";
+        
+        const collectionFormat_str = if (obj.get("collectionFormat")) |val| switch (val) {
+            .string => |str| str,
+            else => "csv",
+        } else "csv";
         const collectionFormat = CollectionFormat.fromString(collectionFormat_str);
-        const default = if (value.object.get("default")) |val| val else null;
-        const maximum = if (value.object.get("maximum")) |val| val.float else null;
-        const exclusiveMaximum = if (value.object.get("exclusiveMaximum")) |val| val.bool else null;
-        const minimum = if (value.object.get("minimum")) |val| val.float else null;
-        const exclusiveMinimum = if (value.object.get("exclusiveMinimum")) |val| val.bool else null;
-        const maxLength = if (value.object.get("maxLength")) |val| @as(u32, @intCast(val.integer)) else null;
-        const minLength = if (value.object.get("minLength")) |val| @as(u32, @intCast(val.integer)) else null;
-        const pattern = if (value.object.get("pattern")) |val| try allocator.dupe(u8, val.string) else null;
-        const maxItems = if (value.object.get("maxItems")) |val| @as(u32, @intCast(val.integer)) else null;
-        const minItems = if (value.object.get("minItems")) |val| @as(u32, @intCast(val.integer)) else null;
-        const uniqueItems = if (value.object.get("uniqueItems")) |val| val.bool else null;
-        const enum_values = if (value.object.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
-        const multipleOf = if (value.object.get("multipleOf")) |val| val.float else null;
+        
+        const default = if (obj.get("default")) |val| val else null;
+        
+        const maximum = if (obj.get("maximum")) |val| switch (val) {
+            .float => |f| f,
+            .integer => |i| @as(f64, @floatFromInt(i)),
+            else => null,
+        } else null;
+        
+        const exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
+        const minimum = if (obj.get("minimum")) |val| switch (val) {
+            .float => |f| f,
+            .integer => |i| @as(f64, @floatFromInt(i)),
+            else => null,
+        } else null;
+        
+        const exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
+        const maxLength = if (obj.get("maxLength")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const minLength = if (obj.get("minLength")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const pattern = if (obj.get("pattern")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const maxItems = if (obj.get("maxItems")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const minItems = if (obj.get("minItems")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const uniqueItems = if (obj.get("uniqueItems")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
+        const enum_values = if (obj.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
+        
+        const multipleOf = if (obj.get("multipleOf")) |val| switch (val) {
+            .float => |f| f,
+            .integer => |i| @as(f64, @floatFromInt(i)),
+            else => null,
+        } else null;
+        const multipleOf = if (obj.get("multipleOf")) |val| switch (val) {
+            .float => |f| f,
+            .integer => |i| @as(f64, @floatFromInt(i)),
+            else => null,
+        } else null;
+        
         return Items{
             .type = type_val,
             .format = format,
@@ -127,10 +199,16 @@ pub const Items = struct {
             .multipleOf = multipleOf,
         };
     }
+    
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
+        const arr = switch (value) {
+            .array => |a| a,
+            else => return error.ExpectedArray,
+        };
+
         var array_list = std.ArrayList(json.Value).init(allocator);
         errdefer array_list.deinit();
-        for (value.array.items) |item| {
+        for (arr.items) |item| {
             try array_list.append(item);
         }
         return array_list.toOwnedSlice();
@@ -184,13 +262,35 @@ pub const Parameter = struct {
     }
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Parameter {
-        const name = try allocator.dupe(u8, value.object.get("name").?.string);
-        const in_str = value.object.get("in").?.string;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
+        const name_str = switch (obj.get("name") orelse return error.MissingName) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+        const name = try allocator.dupe(u8, name_str);
+        
+        const in_str = switch (obj.get("in") orelse return error.MissingIn) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
         const in_location = ParameterLocation.fromString(in_str) orelse return error.InvalidParameterLocation;
-        const description = if (value.object.get("description")) |val| try allocator.dupe(u8, val.string) else null;
-        const required = if (value.object.get("required")) |val| val.bool else false;
+        
+        const description = if (obj.get("description")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const required = if (obj.get("required")) |val| switch (val) {
+            .bool => |b| b,
+            else => false,
+        } else false;
+        
         if (in_location == .body) {
-            const schema = if (value.object.get("schema")) |val| try Schema.parseFromJson(allocator, val) else null;
+            const schema = if (obj.get("schema")) |val| try Schema.parseFromJson(allocator, val) else null;
             return Parameter{
                 .name = name,
                 .in = in_location,
@@ -199,26 +299,92 @@ pub const Parameter = struct {
                 .schema = schema,
             };
         } else {
-            const type_str = if (value.object.get("type")) |val| val.string else null;
+            const type_str = if (obj.get("type")) |val| switch (val) {
+                .string => |str| str,
+                else => null,
+            } else null;
             const type_val = if (type_str) |ts| PrimitiveType.fromString(ts) else null;
-            const format = if (value.object.get("format")) |val| try allocator.dupe(u8, val.string) else null;
-            const allowEmptyValue = if (value.object.get("allowEmptyValue")) |val| val.bool else null;
-            const items = if (value.object.get("items")) |val| try Items.parseFromJson(allocator, val) else null;
-            const collectionFormat_str = if (value.object.get("collectionFormat")) |val| val.string else "csv";
+            
+            const format = if (obj.get("format")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null;
+            
+            const allowEmptyValue = if (obj.get("allowEmptyValue")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null;
+            
+            const items = if (obj.get("items")) |val| try Items.parseFromJson(allocator, val) else null;
+            
+            const collectionFormat_str = if (obj.get("collectionFormat")) |val| switch (val) {
+                .string => |str| str,
+                else => "csv",
+            } else "csv";
             const collectionFormat = CollectionFormat.fromString(collectionFormat_str);
-            const default = if (value.object.get("default")) |val| val else null;
-            const maximum = if (value.object.get("maximum")) |val| val.float else null;
-            const exclusiveMaximum = if (value.object.get("exclusiveMaximum")) |val| val.bool else null;
-            const minimum = if (value.object.get("minimum")) |val| val.float else null;
-            const exclusiveMinimum = if (value.object.get("exclusiveMinimum")) |val| val.bool else null;
-            const maxLength = if (value.object.get("maxLength")) |val| @as(u32, @intCast(val.integer)) else null;
-            const minLength = if (value.object.get("minLength")) |val| @as(u32, @intCast(val.integer)) else null;
-            const pattern = if (value.object.get("pattern")) |val| try allocator.dupe(u8, val.string) else null;
-            const maxItems = if (value.object.get("maxItems")) |val| @as(u32, @intCast(val.integer)) else null;
-            const minItems = if (value.object.get("minItems")) |val| @as(u32, @intCast(val.integer)) else null;
-            const uniqueItems = if (value.object.get("uniqueItems")) |val| val.bool else null;
-            const enum_values = if (value.object.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
-            const multipleOf = if (value.object.get("multipleOf")) |val| val.float else null;
+            
+            const default = if (obj.get("default")) |val| val else null;
+            
+            const maximum = if (obj.get("maximum")) |val| switch (val) {
+                .float => |f| f,
+                .integer => |i| @as(f64, @floatFromInt(i)),
+                else => null,
+            } else null;
+            
+            const exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null;
+            
+            const minimum = if (obj.get("minimum")) |val| switch (val) {
+                .float => |f| f,
+                .integer => |i| @as(f64, @floatFromInt(i)),
+                else => null,
+            } else null;
+            
+            const exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null;
+            
+            const maxLength = if (obj.get("maxLength")) |val| switch (val) {
+                .integer => |i| @as(u32, @intCast(i)),
+                else => null,
+            } else null;
+            
+            const minLength = if (obj.get("minLength")) |val| switch (val) {
+                .integer => |i| @as(u32, @intCast(i)),
+                else => null,
+            } else null;
+            
+            const pattern = if (obj.get("pattern")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null;
+            
+            const maxItems = if (obj.get("maxItems")) |val| switch (val) {
+                .integer => |i| @as(u32, @intCast(i)),
+                else => null,
+            } else null;
+            
+            const minItems = if (obj.get("minItems")) |val| switch (val) {
+                .integer => |i| @as(u32, @intCast(i)),
+                else => null,
+            } else null;
+            
+            const uniqueItems = if (obj.get("uniqueItems")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null;
+            
+            const enum_values = if (obj.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
+            
+            const multipleOf = if (obj.get("multipleOf")) |val| switch (val) {
+                .float => |f| f,
+                .integer => |i| @as(f64, @floatFromInt(i)),
+                else => null,
+            } else null;
+            
             return Parameter{
                 .name = name,
                 .in = in_location,
@@ -245,10 +411,16 @@ pub const Parameter = struct {
             };
         }
     }
+    
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
+        const arr = switch (value) {
+            .array => |a| a,
+            else => return error.ExpectedArray,
+        };
+
         var array_list = std.ArrayList(json.Value).init(allocator);
         errdefer array_list.deinit();
-        for (value.array.items) |item| {
+        for (arr.items) |item| {
             try array_list.append(item);
         }
         return array_list.toOwnedSlice();

@@ -21,11 +21,36 @@ pub const Xml = struct {
     }
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Xml {
-        const name = if (value.object.get("name")) |val| try allocator.dupe(u8, val.string) else null;
-        const namespace = if (value.object.get("namespace")) |val| try allocator.dupe(u8, val.string) else null;
-        const prefix = if (value.object.get("prefix")) |val| try allocator.dupe(u8, val.string) else null;
-        const attribute = if (value.object.get("attribute")) |val| val.bool else null;
-        const wrapped = if (value.object.get("wrapped")) |val| val.bool else null;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
+        const name = if (obj.get("name")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const namespace = if (obj.get("namespace")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const prefix = if (obj.get("prefix")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const attribute = if (obj.get("attribute")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
+        const wrapped = if (obj.get("wrapped")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
         return Xml{
             .name = name,
             .namespace = namespace,
@@ -129,47 +154,142 @@ pub const Schema = struct {
     }
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Schema {
-        const ref = if (value.object.get("$ref")) |val| try allocator.dupe(u8, val.string) else null;
-        const title = if (value.object.get("title")) |val| try allocator.dupe(u8, val.string) else null;
-        const description = if (value.object.get("description")) |val| try allocator.dupe(u8, val.string) else null;
-        const default = if (value.object.get("default")) |val| val else null;
-        const type_val = if (value.object.get("type")) |val| try allocator.dupe(u8, val.string) else null;
-        const format = if (value.object.get("format")) |val| try allocator.dupe(u8, val.string) else null;
-        const multipleOf = if (value.object.get("multipleOf")) |val| val.float else null;
-        const maximum = if (value.object.get("maximum")) |val| val.float else null;
-        const exclusiveMaximum = if (value.object.get("exclusiveMaximum")) |val| val.bool else null;
-        const minimum = if (value.object.get("minimum")) |val| val.float else null;
-        const exclusiveMinimum = if (value.object.get("exclusiveMinimum")) |val| val.bool else null;
-        const maxLength = if (value.object.get("maxLength")) |val| @as(u32, @intCast(val.integer)) else null;
-        const minLength = if (value.object.get("minLength")) |val| @as(u32, @intCast(val.integer)) else null;
-        const pattern = if (value.object.get("pattern")) |val| try allocator.dupe(u8, val.string) else null;
-        const maxItems = if (value.object.get("maxItems")) |val| @as(u32, @intCast(val.integer)) else null;
-        const minItems = if (value.object.get("minItems")) |val| @as(u32, @intCast(val.integer)) else null;
-        const uniqueItems = if (value.object.get("uniqueItems")) |val| val.bool else null;
-        const items = if (value.object.get("items")) |val| blk: {
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
+        const ref = if (obj.get("$ref")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const title = if (obj.get("title")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const description = if (obj.get("description")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const default = if (obj.get("default")) |val| val else null;
+        
+        const type_val = if (obj.get("type")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const format = if (obj.get("format")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const multipleOf = if (obj.get("multipleOf")) |val| switch (val) {
+            .float => |f| f,
+            .integer => |i| @as(f64, @floatFromInt(i)),
+            else => null,
+        } else null;
+        
+        const maximum = if (obj.get("maximum")) |val| switch (val) {
+            .float => |f| f,
+            .integer => |i| @as(f64, @floatFromInt(i)),
+            else => null,
+        } else null;
+        
+        const exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
+        const minimum = if (obj.get("minimum")) |val| switch (val) {
+            .float => |f| f,
+            .integer => |i| @as(f64, @floatFromInt(i)),
+            else => null,
+        } else null;
+        
+        const exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
+        const maxLength = if (obj.get("maxLength")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const minLength = if (obj.get("minLength")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const pattern = if (obj.get("pattern")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const maxItems = if (obj.get("maxItems")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const minItems = if (obj.get("minItems")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const uniqueItems = if (obj.get("uniqueItems")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
+        const items = if (obj.get("items")) |val| blk: {
             const schema_ptr = try allocator.create(Schema);
             schema_ptr.* = try Schema.parseFromJson(allocator, val);
             break :blk schema_ptr;
         } else null;
-        const maxProperties = if (value.object.get("maxProperties")) |val| @as(u32, @intCast(val.integer)) else null;
-        const minProperties = if (value.object.get("minProperties")) |val| @as(u32, @intCast(val.integer)) else null;
-        const required = if (value.object.get("required")) |val| try parseStringArray(allocator, val) else null;
-        const properties = if (value.object.get("properties")) |val| try parseProperties(allocator, val) else null;
-        const additionalProperties = if (value.object.get("additionalProperties")) |val| blk: {
-            if (val == .object) {
-                const schema_ptr = try allocator.create(Schema);
-                schema_ptr.* = try Schema.parseFromJson(allocator, val);
-                break :blk schema_ptr;
-            }
-            break :blk null;
+        
+        const maxProperties = if (obj.get("maxProperties")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
         } else null;
-        const allOf = if (value.object.get("allOf")) |val| try parseSchemaArray(allocator, val) else null;
-        const enum_values = if (value.object.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
-        const discriminator = if (value.object.get("discriminator")) |val| try allocator.dupe(u8, val.string) else null;
-        const readOnly = if (value.object.get("readOnly")) |val| val.bool else null;
-        const xml = if (value.object.get("xml")) |val| try Xml.parseFromJson(allocator, val) else null;
-        const externalDocs = if (value.object.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
-        const example = if (value.object.get("example")) |val| val else null;
+        
+        const minProperties = if (obj.get("minProperties")) |val| switch (val) {
+            .integer => |i| @as(u32, @intCast(i)),
+            else => null,
+        } else null;
+        
+        const required = if (obj.get("required")) |val| try parseStringArray(allocator, val) else null;
+        const properties = if (obj.get("properties")) |val| try parseProperties(allocator, val) else null;
+        
+        const additionalProperties = if (obj.get("additionalProperties")) |val| blk: {
+            switch (val) {
+                .object => {
+                    const schema_ptr = try allocator.create(Schema);
+                    schema_ptr.* = try Schema.parseFromJson(allocator, val);
+                    break :blk schema_ptr;
+                },
+                else => break :blk null,
+            }
+        } else null;
+        
+        const allOf = if (obj.get("allOf")) |val| try parseSchemaArray(allocator, val) else null;
+        const enum_values = if (obj.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
+        
+        const discriminator = if (obj.get("discriminator")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const readOnly = if (obj.get("readOnly")) |val| switch (val) {
+            .bool => |b| b,
+            else => null,
+        } else null;
+        
+        const xml = if (obj.get("xml")) |val| try Xml.parseFromJson(allocator, val) else null;
+        const externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
+        const example = if (obj.get("example")) |val| val else null;
         return Schema{
             .ref = ref,
             .title = title,
@@ -204,17 +324,32 @@ pub const Schema = struct {
         };
     }
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
+        const arr = switch (value) {
+            .array => |a| a,
+            else => return error.ExpectedArray,
+        };
+
         var array_list = std.ArrayList([]const u8).init(allocator);
         errdefer array_list.deinit();
-        for (value.array.items) |item| {
-            try array_list.append(try allocator.dupe(u8, item.string));
+        for (arr.items) |item| {
+            const str = switch (item) {
+                .string => |s| s,
+                else => return error.ExpectedString,
+            };
+            try array_list.append(try allocator.dupe(u8, str));
         }
         return array_list.toOwnedSlice();
     }
+    
     fn parseProperties(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Schema) {
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
         var map = std.StringHashMap(Schema).init(allocator);
         errdefer map.deinit();
-        var iterator = value.object.iterator();
+        var iterator = obj.iterator();
         while (iterator.next()) |entry| {
             const key = try allocator.dupe(u8, entry.key_ptr.*);
             const schema = try Schema.parseFromJson(allocator, entry.value_ptr.*);
@@ -222,18 +357,30 @@ pub const Schema = struct {
         }
         return map;
     }
+    
     fn parseSchemaArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]Schema {
+        const arr = switch (value) {
+            .array => |a| a,
+            else => return error.ExpectedArray,
+        };
+
         var array_list = std.ArrayList(Schema).init(allocator);
         errdefer array_list.deinit();
-        for (value.array.items) |item| {
+        for (arr.items) |item| {
             try array_list.append(try Schema.parseFromJson(allocator, item));
         }
         return array_list.toOwnedSlice();
     }
+    
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
+        const arr = switch (value) {
+            .array => |a| a,
+            else => return error.ExpectedArray,
+        };
+
         var array_list = std.ArrayList(json.Value).init(allocator);
         errdefer array_list.deinit();
-        for (value.array.items) |item| {
+        for (arr.items) |item| {
             try array_list.append(item);
         }
         return array_list.toOwnedSlice();
