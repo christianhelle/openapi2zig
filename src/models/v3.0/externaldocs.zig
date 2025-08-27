@@ -6,10 +6,22 @@ pub const ExternalDocumentation = struct {
     description: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ExternalDocumentation {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
+        const url_str = switch (obj.get("url") orelse return error.MissingUrl) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+        
         return ExternalDocumentation{
-            .url = try allocator.dupe(u8, obj.get("url").?.string),
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .url = try allocator.dupe(u8, url_str),
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 

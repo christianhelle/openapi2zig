@@ -7,11 +7,24 @@ pub const Contact = struct {
     email: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Contact {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
         return Contact{
-            .name = if (obj.get("name")) |val| try allocator.dupe(u8, val.string) else null,
-            .url = if (obj.get("url")) |val| try allocator.dupe(u8, val.string) else null,
-            .email = if (obj.get("email")) |val| try allocator.dupe(u8, val.string) else null,
+            .name = if (obj.get("name")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
+            .url = if (obj.get("url")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
+            .email = if (obj.get("email")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -27,10 +40,22 @@ pub const License = struct {
     url: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!License {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
+        const name_str = switch (obj.get("name") orelse return error.MissingName) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+        
         return License{
-            .name = try allocator.dupe(u8, obj.get("name").?.string),
-            .url = if (obj.get("url")) |val| try allocator.dupe(u8, val.string) else null,
+            .name = try allocator.dupe(u8, name_str),
+            .url = if (obj.get("url")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -49,12 +74,32 @@ pub const Info = struct {
     license: ?License = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Info {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
+        const title_str = switch (obj.get("title") orelse return error.MissingTitle) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+        
+        const version_str = switch (obj.get("version") orelse return error.MissingVersion) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+        
         return Info{
-            .title = try allocator.dupe(u8, obj.get("title").?.string),
-            .version = try allocator.dupe(u8, obj.get("version").?.string),
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
-            .termsOfService = if (obj.get("termsOfService")) |val| try allocator.dupe(u8, val.string) else null,
+            .title = try allocator.dupe(u8, title_str),
+            .version = try allocator.dupe(u8, version_str),
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
+            .termsOfService = if (obj.get("termsOfService")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
             .contact = if (obj.get("contact")) |val| try Contact.parseFromJson(allocator, val) else null,
             .license = if (obj.get("license")) |val| try License.parseFromJson(allocator, val) else null,
         };
