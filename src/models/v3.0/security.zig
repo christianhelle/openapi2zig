@@ -5,16 +5,33 @@ pub const SecurityRequirement = struct {
     schemes: std.StringHashMap([]const []const u8),
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityRequirement {
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
         var schemes_map = std.StringHashMap([]const []const u8).init(allocator);
         errdefer schemes_map.deinit();
-        const obj = value.object;
-        for (obj.keys()) |key| {
+        
+        var iter = obj.iterator();
+        while (iter.next()) |entry| {
+            const scopes_val = entry.value_ptr.*;
+            const scopes_arr = switch (scopes_val) {
+                .array => |a| a,
+                else => return error.ExpectedArray,
+            };
+
             var scopes_list = std.ArrayList([]const u8).init(allocator);
             errdefer scopes_list.deinit();
-            for (obj.get(key).?.array.items) |item| {
-                try scopes_list.append(try allocator.dupe(u8, item.string));
+            
+            for (scopes_arr.items) |item| {
+                const scope_str = switch (item) {
+                    .string => |str| str,
+                    else => return error.ExpectedString,
+                };
+                try scopes_list.append(try allocator.dupe(u8, scope_str));
             }
-            try schemes_map.put(try allocator.dupe(u8, key), try scopes_list.toOwnedSlice());
+            try schemes_map.put(try allocator.dupe(u8, entry.key_ptr.*), try scopes_list.toOwnedSlice());
         }
         return SecurityRequirement{ .schemes = schemes_map };
     }
@@ -39,7 +56,11 @@ pub const OAuthFlows = struct {
     authorizationCode: ?AuthorizationCodeOAuthFlow = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuthFlows {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
         return OAuthFlows{
             .implicit = if (obj.get("implicit")) |val| try ImplicitOAuthFlow.parseFromJson(allocator, val) else null,
             .password = if (obj.get("password")) |val| try PasswordOAuthFlow.parseFromJson(allocator, val) else null,
@@ -70,17 +91,40 @@ pub const ImplicitOAuthFlow = struct {
     refreshUrl: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ImplicitOAuthFlow {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
-            for (scopes_val.object.keys()) |key| {
-                try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
+            const scopes_obj = switch (scopes_val) {
+                .object => |o| o,
+                else => return error.ExpectedObject,
+            };
+
+            var iter = scopes_obj.iterator();
+            while (iter.next()) |entry| {
+                const scope_desc = switch (entry.value_ptr.*) {
+                    .string => |str| str,
+                    else => return error.ExpectedString,
+                };
+                try scopes_map.put(try allocator.dupe(u8, entry.key_ptr.*), try allocator.dupe(u8, scope_desc));
             }
         }
+
+        const auth_url_str = switch (obj.get("authorizationUrl") orelse return error.MissingAuthorizationUrl) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return ImplicitOAuthFlow{
-            .authorizationUrl = try allocator.dupe(u8, obj.get("authorizationUrl").?.string),
+            .authorizationUrl = try allocator.dupe(u8, auth_url_str),
             .scopes = scopes_map,
-            .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -104,17 +148,40 @@ pub const PasswordOAuthFlow = struct {
     refreshUrl: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PasswordOAuthFlow {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
-            for (scopes_val.object.keys()) |key| {
-                try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
+            const scopes_obj = switch (scopes_val) {
+                .object => |o| o,
+                else => return error.ExpectedObject,
+            };
+
+            var iter = scopes_obj.iterator();
+            while (iter.next()) |entry| {
+                const scope_desc = switch (entry.value_ptr.*) {
+                    .string => |str| str,
+                    else => return error.ExpectedString,
+                };
+                try scopes_map.put(try allocator.dupe(u8, entry.key_ptr.*), try allocator.dupe(u8, scope_desc));
             }
         }
+
+        const token_url_str = switch (obj.get("tokenUrl") orelse return error.MissingTokenUrl) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return PasswordOAuthFlow{
-            .tokenUrl = try allocator.dupe(u8, obj.get("tokenUrl").?.string),
+            .tokenUrl = try allocator.dupe(u8, token_url_str),
             .scopes = scopes_map,
-            .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -138,17 +205,40 @@ pub const ClientCredentialsFlow = struct {
     refreshUrl: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ClientCredentialsFlow {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
-            for (scopes_val.object.keys()) |key| {
-                try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
+            const scopes_obj = switch (scopes_val) {
+                .object => |o| o,
+                else => return error.ExpectedObject,
+            };
+
+            var iter = scopes_obj.iterator();
+            while (iter.next()) |entry| {
+                const scope_desc = switch (entry.value_ptr.*) {
+                    .string => |str| str,
+                    else => return error.ExpectedString,
+                };
+                try scopes_map.put(try allocator.dupe(u8, entry.key_ptr.*), try allocator.dupe(u8, scope_desc));
             }
         }
+
+        const token_url_str = switch (obj.get("tokenUrl") orelse return error.MissingTokenUrl) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return ClientCredentialsFlow{
-            .tokenUrl = try allocator.dupe(u8, obj.get("tokenUrl").?.string),
+            .tokenUrl = try allocator.dupe(u8, token_url_str),
             .scopes = scopes_map,
-            .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 

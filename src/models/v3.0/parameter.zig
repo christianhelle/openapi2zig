@@ -21,29 +21,78 @@ pub const Parameter = struct {
     examples: ?std.StringHashMap(ExampleOrReference) = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Parameter {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
         var content_map = std.StringHashMap(MediaType).init(allocator);
         if (obj.get("content")) |content_val| {
-            for (content_val.object.keys()) |key| {
-                try content_map.put(try allocator.dupe(u8, key), try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
+            const content_obj = switch (content_val) {
+                .object => |o| o,
+                else => return error.ExpectedObject,
+            };
+            
+            var iter = content_obj.iterator();
+            while (iter.next()) |entry| {
+                try content_map.put(try allocator.dupe(u8, entry.key_ptr.*), try MediaType.parseFromJson(allocator, entry.value_ptr.*));
             }
         }
+        
         var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
         if (obj.get("examples")) |examples_val| {
-            for (examples_val.object.keys()) |key| {
-                try examples_map.put(try allocator.dupe(u8, key), try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
+            const examples_obj = switch (examples_val) {
+                .object => |o| o,
+                else => return error.ExpectedObject,
+            };
+            
+            var iter = examples_obj.iterator();
+            while (iter.next()) |entry| {
+                try examples_map.put(try allocator.dupe(u8, entry.key_ptr.*), try ExampleOrReference.parseFromJson(allocator, entry.value_ptr.*));
             }
         }
+        
+        const name_str = switch (obj.get("name") orelse return error.MissingName) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+        
+        const in_str = switch (obj.get("in") orelse return error.MissingIn) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+        
         return Parameter{
-            .name = try allocator.dupe(u8, obj.get("name").?.string),
-            .in_field = try allocator.dupe(u8, obj.get("in").?.string),
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
-            .required = if (obj.get("required")) |val| val.bool else null,
-            .deprecated = if (obj.get("deprecated")) |val| val.bool else null,
-            .allowEmptyValue = if (obj.get("allowEmptyValue")) |val| val.bool else null,
-            .style = if (obj.get("style")) |val| try allocator.dupe(u8, val.string) else null,
-            .explode = if (obj.get("explode")) |val| val.bool else null,
-            .allowReserved = if (obj.get("allowReserved")) |val| val.bool else null,
+            .name = try allocator.dupe(u8, name_str),
+            .in_field = try allocator.dupe(u8, in_str),
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
+            .required = if (obj.get("required")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null,
+            .deprecated = if (obj.get("deprecated")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null,
+            .allowEmptyValue = if (obj.get("allowEmptyValue")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null,
+            .style = if (obj.get("style")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
+            .explode = if (obj.get("explode")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null,
+            .allowReserved = if (obj.get("allowReserved")) |val| switch (val) {
+                .bool => |b| b,
+                else => null,
+            } else null,
             .schema = if (obj.get("schema")) |val| try SchemaOrReference.parseFromJson(allocator, val) else null,
             .content = if (content_map.count() > 0) content_map else null,
             .example = if (obj.get("example")) |val| val else null,
@@ -83,7 +132,12 @@ pub const ParameterOrReference = union(enum) {
     reference: Reference,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ParameterOrReference {
-        if (value.object.get("$ref") != null) {
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
+        if (obj.get("$ref") != null) {
             return ParameterOrReference{ .reference = try Reference.parseFromJson(allocator, value) };
         } else {
             return ParameterOrReference{ .parameter = try Parameter.parseFromJson(allocator, value) };
