@@ -7,20 +7,40 @@ pub const ServerVariable = struct {
     description: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ServerVariable {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
         var enum_list = std.ArrayList([]const u8).init(allocator);
         errdefer enum_list.deinit();
 
         if (obj.get("enum")) |enum_val| {
-            for (enum_val.array.items) |item| {
-                try enum_list.append(try allocator.dupe(u8, item.string));
+            const arr = switch (enum_val) {
+                .array => |a| a,
+                else => return error.ExpectedArray,
+            };
+            
+            for (arr.items) |item| {
+                switch (item) {
+                    .string => |str| try enum_list.append(try allocator.dupe(u8, str)),
+                    else => return error.ExpectedString,
+                }
             }
         }
 
+        const default_str = switch (obj.get("default") orelse return error.MissingDefault) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return ServerVariable{
-            .default = try allocator.dupe(u8, obj.get("default").?.string),
+            .default = try allocator.dupe(u8, default_str),
             .enum_values = if (enum_list.items.len > 0) try enum_list.toOwnedSlice() else null,
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
