@@ -23,18 +23,18 @@ pub const Operation = struct {
     servers: ?[]const Server = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Operation {
-        const obj = value.object;
+        const obj = switch (value) { .object => |o| o, else => return error.ExpectedObject, };
         var tags_list = std.ArrayList([]const u8).init(allocator);
         errdefer tags_list.deinit();
         if (obj.get("tags")) |tags_val| {
-            for (tags_val.array.items) |item| {
+            for (switch (&) { .array => |a| a, else => return error.ExpectedArray, }.items) |item| {
                 try tags_list.append(try allocator.dupe(u8, item.string));
             }
         }
         var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
         errdefer parameters_list.deinit();
         if (obj.get("parameters")) |params_val| {
-            for (params_val.array.items) |item| {
+            for (switch (&) { .array => |a| a, else => return error.ExpectedArray, }.items) |item| {
                 try parameters_list.append(try ParameterOrReference.parseFromJson(allocator, item));
             }
         }
@@ -48,14 +48,14 @@ pub const Operation = struct {
         var security_list = std.ArrayList(SecurityRequirement).init(allocator);
         errdefer security_list.deinit();
         if (obj.get("security")) |security_val| {
-            for (security_val.array.items) |item| {
+            for (switch (&) { .array => |a| a, else => return error.ExpectedArray, }.items) |item| {
                 try security_list.append(try SecurityRequirement.parseFromJson(allocator, item));
             }
         }
         var servers_list = std.ArrayList(Server).init(allocator);
         errdefer servers_list.deinit();
         if (obj.get("servers")) |servers_val| {
-            for (servers_val.array.items) |item| {
+            for (switch (&) { .array => |a| a, else => return error.ExpectedArray, }.items) |item| {
                 try servers_list.append(try Server.parseFromJson(allocator, item));
             }
         }
