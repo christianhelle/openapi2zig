@@ -1,7 +1,7 @@
 # openapi2zig
 
 [![CI](https://github.com/christianhelle/openapi2zig/actions/workflows/ci.yml/badge.svg)](https://github.com/christianhelle/openapi2zig/actions/workflows/ci.yml)
-[![Zig Version](https://img.shields.io/badge/zig-0.14.1-orange.svg)](https://ziglang.org/download/)
+[![Zig Version](https://img.shields.io/badge/zig-0.15.1-orange.svg)](https://ziglang.org/download/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A CLI tool and Zig library that generates type-safe API client code from OpenAPI specifications.
@@ -19,7 +19,7 @@ A CLI tool and Zig library that generates type-safe API client code from OpenAPI
 
 ## Prerequisites
 
-- [Zig](https://ziglang.org/download/) v0.14.1
+- [Zig](https://ziglang.org/download/) v0.15.1
 
 ## Development Environment
 

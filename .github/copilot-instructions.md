@@ -9,31 +9,31 @@ This is a CLI tool written in Zig that generates type-safe Zig API client code f
 ## Working Effectively
 
 ### Prerequisites and Installation
-Install Zig 0.14.1 exactly (other versions will NOT work):
+Install Zig 0.15.1 exactly (other versions will NOT work):
 
 **Option 1: GitHub Codespaces (RECOMMENDED for development)**
 ```bash
 # Navigate to repository on GitHub → Code → Codespaces → Create codespace
-# Everything is pre-configured with Zig 0.14.1, takes 2-3 minutes to set up
+# Everything is pre-configured with Zig 0.15.1, takes 2-3 minutes to set up
 ```
 
 **Option 2: Dev Containers (local with Docker)**
 ```bash
 # Install VS Code + Dev Containers extension
 # Open project in VS Code → "Reopen in Container"
-# Uses .devcontainer/devcontainer.json with Zig 0.14.1
+# Uses .devcontainer/devcontainer.json with Zig 0.15.1
 ```
 
 **Option 3: Manual Installation**
 ```bash
-# Download Zig 0.14.1 from https://ziglang.org/download/0.14.1/
+# Download Zig 0.15.1 from https://ziglang.org/download/0.15.1/
 # Linux x86_64:
-wget https://ziglang.org/download/0.14.1/zig-linux-x86_64-0.14.1.tar.xz
-tar -xf zig-linux-x86_64-0.14.1.tar.xz
-export PATH="$PWD/zig-linux-x86_64-0.14.1:$PATH"
+wget https://ziglang.org/download/0.15.1/zig-linux-x86_64-0.15.1.tar.xz
+tar -xf zig-linux-x86_64-0.15.1.tar.xz
+export PATH="$PWD/zig-linux-x86_64-0.15.1:$PATH"
 
 # Verify installation
-zig version  # Must output "0.14.1"
+zig version  # Must output "0.15.1"
 ```
 
 ### Bootstrap, Build, and Test the Repository
@@ -362,9 +362,9 @@ generated/
 ## Troubleshooting
 
 ### Installation Issues
-- **"zig: command not found"**: Install Zig 0.14.1 exactly using methods above
-- **Wrong Zig version**: Uninstall other versions, install 0.14.1 specifically  
-- **Build failures**: Ensure you're using Zig 0.14.1, not 0.13.x or 0.15.x
+- **"zig: command not found"**: Install Zig 0.15.1 exactly using methods above
+- **Wrong Zig version**: Uninstall other versions, install 0.15.1 specifically  
+- **Build failures**: Ensure you're using Zig 0.15.1, not 0.13.x or 0.15.x
 - **Docker issues**: Use GitHub Codespaces or dev containers instead
 
 ### Build and Test Issues  

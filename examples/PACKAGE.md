@@ -6,7 +6,7 @@ This document explains how to publish and use openapi2zig as a Zig package.
 
 ### Prerequisites
 
-1. Ensure you have Zig 0.14.1 installed
+1. Ensure you have Zig 0.15.1 installed
 2. All tests are passing: `zig build test`
 3. All builds work: `zig build -Doptimize=Debug`, `zig build -Doptimize=ReleaseFast`
 
