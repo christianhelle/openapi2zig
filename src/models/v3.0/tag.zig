@@ -8,10 +8,22 @@ pub const Tag = struct {
     externalDocs: ?ExternalDocumentation = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Tag {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
+        const name_str = switch (obj.get("name") orelse return error.MissingName) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+        
         return Tag{
-            .name = try allocator.dupe(u8, obj.get("name").?.string),
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .name = try allocator.dupe(u8, name_str),
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
             .externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null,
         };
     }
