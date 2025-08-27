@@ -102,21 +102,40 @@ pub const SwaggerDocument = struct {
         var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
         const root = parsed.value;
-        const swagger_str = try allocator.dupe(u8, root.object.get("swagger").?.string);
-        const info = try Info.parseFromJson(allocator, root.object.get("info").?);
-        const paths = try Paths.parseFromJson(allocator, root.object.get("paths").?);
-        const host = if (root.object.get("host")) |val| try allocator.dupe(u8, val.string) else null;
-        const basePath = if (root.object.get("basePath")) |val| try allocator.dupe(u8, val.string) else null;
-        const schemes = if (root.object.get("schemes")) |val| try parseStringArray(allocator, val) else null;
-        const consumes = if (root.object.get("consumes")) |val| try parseStringArray(allocator, val) else null;
-        const produces = if (root.object.get("produces")) |val| try parseStringArray(allocator, val) else null;
-        const definitions = if (root.object.get("definitions")) |val| try parseDefinitions(allocator, val) else null;
-        const parameters = if (root.object.get("parameters")) |val| try parseParameters(allocator, val) else null;
-        const responses = if (root.object.get("responses")) |val| try parseResponses(allocator, val) else null;
-        const security = if (root.object.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
-        const securityDefinitions = if (root.object.get("securityDefinitions")) |val| try SecurityDefinitions.parseFromJson(allocator, val) else null;
-        const tags = if (root.object.get("tags")) |val| try parseTags(allocator, val) else null;
-        const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
+        
+        const obj = switch (root) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
+        const swagger_str = switch (obj.get("swagger") orelse return error.MissingSwagger) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => return error.ExpectedString,
+        };
+        
+        const info = try Info.parseFromJson(allocator, obj.get("info") orelse return error.MissingInfo);
+        const paths = try Paths.parseFromJson(allocator, obj.get("paths") orelse return error.MissingPaths);
+        
+        const host = if (obj.get("host")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const basePath = if (obj.get("basePath")) |val| switch (val) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => null,
+        } else null;
+        
+        const schemes = if (obj.get("schemes")) |val| try parseStringArray(allocator, val) else null;
+        const consumes = if (obj.get("consumes")) |val| try parseStringArray(allocator, val) else null;
+        const produces = if (obj.get("produces")) |val| try parseStringArray(allocator, val) else null;
+        const definitions = if (obj.get("definitions")) |val| try parseDefinitions(allocator, val) else null;
+        const parameters = if (obj.get("parameters")) |val| try parseParameters(allocator, val) else null;
+        const responses = if (obj.get("responses")) |val| try parseResponses(allocator, val) else null;
+        const security = if (obj.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
+        const securityDefinitions = if (obj.get("securityDefinitions")) |val| try SecurityDefinitions.parseFromJson(allocator, val) else null;
+        const tags = if (obj.get("tags")) |val| try parseTags(allocator, val) else null;
+        const externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
         return SwaggerDocument{
             .swagger = swagger_str,
             .info = info,
@@ -139,8 +158,17 @@ pub const SwaggerDocument = struct {
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
         var array_list = std.ArrayList([]const u8).init(allocator);
         errdefer array_list.deinit();
-        for (value.array.items) |item| {
-            try array_list.append(try allocator.dupe(u8, item.string));
+        
+        const arr = switch (value) {
+            .array => |a| a,
+            else => return error.ExpectedArray,
+        };
+        
+        for (arr.items) |item| {
+            switch (item) {
+                .string => |str| try array_list.append(try allocator.dupe(u8, str)),
+                else => return error.ExpectedString,
+            }
         }
         return array_list.toOwnedSlice();
     }
@@ -148,7 +176,13 @@ pub const SwaggerDocument = struct {
     fn parseDefinitions(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Schema) {
         var map = std.StringHashMap(Schema).init(allocator);
         errdefer map.deinit();
-        var iterator = value.object.iterator();
+        
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
+        var iterator = obj.iterator();
         while (iterator.next()) |entry| {
             const key = try allocator.dupe(u8, entry.key_ptr.*);
             const schema = try Schema.parseFromJson(allocator, entry.value_ptr.*);
@@ -160,7 +194,13 @@ pub const SwaggerDocument = struct {
     fn parseParameters(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Parameter) {
         var map = std.StringHashMap(Parameter).init(allocator);
         errdefer map.deinit();
-        var iterator = value.object.iterator();
+        
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
+        var iterator = obj.iterator();
         while (iterator.next()) |entry| {
             const key = try allocator.dupe(u8, entry.key_ptr.*);
             const parameter = try Parameter.parseFromJson(allocator, entry.value_ptr.*);

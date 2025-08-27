@@ -51,14 +51,24 @@ pub const OpenApiDocument = struct {
         var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
         const root = parsed.value;
-        const openapi_str = try allocator.dupe(u8, root.object.get("openapi").?.string);
-        const info = try Info.parseFromJson(allocator, root.object.get("info").?);
-        const paths = try Paths.parseFromJson(allocator, root.object.get("paths").?);
-        const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
-        const servers = if (root.object.get("servers")) |val| try parseServers(allocator, val) else null;
-        const security = if (root.object.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
-        const tags = if (root.object.get("tags")) |val| try parseTags(allocator, val) else null;
-        const components = if (root.object.get("components")) |val| try Components.parseFromJson(allocator, val) else null;
+        
+        const obj = switch (root) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+        
+        const openapi_str = switch (obj.get("openapi") orelse return error.MissingOpenApi) {
+            .string => |str| try allocator.dupe(u8, str),
+            else => return error.ExpectedString,
+        };
+        
+        const info = try Info.parseFromJson(allocator, obj.get("info") orelse return error.MissingInfo);
+        const paths = try Paths.parseFromJson(allocator, obj.get("paths") orelse return error.MissingPaths);
+        const externalDocs = if (obj.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
+        const servers = if (obj.get("servers")) |val| try parseServers(allocator, val) else null;
+        const security = if (obj.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
+        const tags = if (obj.get("tags")) |val| try parseTags(allocator, val) else null;
+        const components = if (obj.get("components")) |val| try Components.parseFromJson(allocator, val) else null;
         return OpenApiDocument{
             .openapi = openapi_str,
             .info = info,
