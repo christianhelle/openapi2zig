@@ -263,18 +263,46 @@ pub const AuthorizationCodeOAuthFlow = struct {
     refreshUrl: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!AuthorizationCodeOAuthFlow {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
         if (obj.get("scopes")) |scopes_val| {
-            for (scopes_val.object.keys()) |key| {
-                try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
+            const scopes_obj = switch (scopes_val) {
+                .object => |o| o,
+                else => return error.ExpectedObject,
+            };
+
+            var iter = scopes_obj.iterator();
+            while (iter.next()) |entry| {
+                const scope_desc = switch (entry.value_ptr.*) {
+                    .string => |str| str,
+                    else => return error.ExpectedString,
+                };
+                try scopes_map.put(try allocator.dupe(u8, entry.key_ptr.*), try allocator.dupe(u8, scope_desc));
             }
         }
+
+        const auth_url_str = switch (obj.get("authorizationUrl") orelse return error.MissingAuthorizationUrl) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
+        const token_url_str = switch (obj.get("tokenUrl") orelse return error.MissingTokenUrl) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return AuthorizationCodeOAuthFlow{
-            .authorizationUrl = try allocator.dupe(u8, obj.get("authorizationUrl").?.string),
-            .tokenUrl = try allocator.dupe(u8, obj.get("tokenUrl").?.string),
+            .authorizationUrl = try allocator.dupe(u8, auth_url_str),
+            .tokenUrl = try allocator.dupe(u8, token_url_str),
             .scopes = scopes_map,
-            .refreshUrl = if (obj.get("refreshUrl")) |val| try allocator.dupe(u8, val.string) else null,
+            .refreshUrl = if (obj.get("refreshUrl")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -300,12 +328,34 @@ pub const APIKeySecurityScheme = struct {
     description: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!APIKeySecurityScheme {
-        const obj = value.object;
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
+        const type_str = switch (obj.get("type") orelse return error.MissingType) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
+        const name_str = switch (obj.get("name") orelse return error.MissingName) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
+        const in_str = switch (obj.get("in") orelse return error.MissingIn) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return APIKeySecurityScheme{
-            .type = try allocator.dupe(u8, obj.get("type").?.string),
-            .name = try allocator.dupe(u8, obj.get("name").?.string),
-            .in_field = try allocator.dupe(u8, obj.get("in").?.string),
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .type = try allocator.dupe(u8, type_str),
+            .name = try allocator.dupe(u8, name_str),
+            .in_field = try allocator.dupe(u8, in_str),
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -326,12 +376,28 @@ pub const HTTPSecurityScheme = struct {
     description: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!HTTPSecurityScheme {
-        const obj = value.object;
+        const obj = switch (value) { .object => |o| o, else => return error.ExpectedObject, };
+        const scheme_str = switch (obj.get("scheme") orelse return error.MissingScheme) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
+        const type_str = switch (obj.get("type") orelse return error.MissingType) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return HTTPSecurityScheme{
-            .scheme = try allocator.dupe(u8, obj.get("scheme").?.string),
-            .type = try allocator.dupe(u8, obj.get("type").?.string),
-            .bearerFormat = if (obj.get("bearerFormat")) |val| try allocator.dupe(u8, val.string) else null,
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .scheme = try allocator.dupe(u8, scheme_str),
+            .type = try allocator.dupe(u8, type_str),
+            .bearerFormat = if (obj.get("bearerFormat")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -353,11 +419,19 @@ pub const OAuth2SecurityScheme = struct {
     description: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OAuth2SecurityScheme {
-        const obj = value.object;
+        const obj = switch (value) { .object => |o| o, else => return error.ExpectedObject, };
+        const type_str = switch (obj.get("type") orelse return error.MissingType) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return OAuth2SecurityScheme{
-            .type = try allocator.dupe(u8, obj.get("type").?.string),
-            .flows = try OAuthFlows.parseFromJson(allocator, obj.get("flows").?),
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .type = try allocator.dupe(u8, type_str),
+            .flows = try OAuthFlows.parseFromJson(allocator, obj.get("flows") orelse return error.MissingFlows),
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -376,11 +450,24 @@ pub const OpenIdConnectSecurityScheme = struct {
     description: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!OpenIdConnectSecurityScheme {
-        const obj = value.object;
+        const obj = switch (value) { .object => |o| o, else => return error.ExpectedObject, };
+        const type_str = switch (obj.get("type") orelse return error.MissingType) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
+        const connect_url_str = switch (obj.get("openIdConnectUrl") orelse return error.MissingOpenIdConnectUrl) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
+
         return OpenIdConnectSecurityScheme{
-            .type = try allocator.dupe(u8, obj.get("type").?.string),
-            .openIdConnectUrl = try allocator.dupe(u8, obj.get("openIdConnectUrl").?.string),
-            .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
+            .type = try allocator.dupe(u8, type_str),
+            .openIdConnectUrl = try allocator.dupe(u8, connect_url_str),
+            .description = if (obj.get("description")) |val| switch (val) {
+                .string => |str| try allocator.dupe(u8, str),
+                else => null,
+            } else null,
         };
     }
 
@@ -400,8 +487,11 @@ pub const SecurityScheme = union(enum) {
     openIdConnect: OpenIdConnectSecurityScheme,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityScheme {
-        const obj = value.object;
-        const type_str = obj.get("type").?.string;
+        const obj = switch (value) { .object => |o| o, else => return error.ExpectedObject, };
+        const type_str = switch (obj.get("type") orelse return error.MissingType) {
+            .string => |str| str,
+            else => return error.ExpectedString,
+        };
         if (std.mem.eql(u8, type_str, "apiKey")) {
             return SecurityScheme{ .api_key = try APIKeySecurityScheme.parseFromJson(allocator, value) };
         } else if (std.mem.eql(u8, type_str, "http")) {
@@ -430,7 +520,12 @@ pub const SecuritySchemeOrReference = union(enum) {
     reference: @import("reference.zig").Reference,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecuritySchemeOrReference {
-        if (value.object.get("$ref") != null) {
+        const obj = switch (value) {
+            .object => |o| o,
+            else => return error.ExpectedObject,
+        };
+
+        if (obj.get("$ref") != null) {
             return SecuritySchemeOrReference{ .reference = try @import("reference.zig").Reference.parseFromJson(allocator, value) };
         } else {
             return SecuritySchemeOrReference{ .security_scheme = try SecurityScheme.parseFromJson(allocator, value) };
