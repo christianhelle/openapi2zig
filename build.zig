@@ -16,9 +16,11 @@ pub fn build(b: *std.Build) void {
     // CLI executable
     const exe = b.addExecutable(.{
         .name = "openapi2zig",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     exe.step.dependOn(version_step);
     exe.root_module.addImport("openapi2zig", openapi2zig_mod);
@@ -27,9 +29,11 @@ pub fn build(b: *std.Build) void {
     // Static library for linking
     const lib = b.addStaticLibrary(.{
         .name = "openapi2zig",
-        .root_source_file = b.path("src/lib.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/lib.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     lib.step.dependOn(version_step);
     b.installArtifact(lib);
