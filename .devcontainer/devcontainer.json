@@ -3,7 +3,7 @@
   "image": "mcr.microsoft.com/devcontainers/cpp",
   "features": {
     "ghcr.io/devcontainers-extra/features/zig:1": {
-      "version": "0.14.1"
+      "version": "0.15.1"
     }
   },
   "customizations": {
