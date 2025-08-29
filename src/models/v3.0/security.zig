@@ -9,12 +9,12 @@ pub const SecurityRequirement = struct {
         errdefer schemes_map.deinit();
         const obj = value.object;
         for (obj.keys()) |key| {
-            var scopes_list = std.ArrayList([]const u8).init(allocator);
-            errdefer scopes_list.deinit();
+            var scopes_list = std.ArrayList([]const u8){};
+            errdefer scopes_list.deinit(allocator);
             for (obj.get(key).?.array.items) |item| {
-                try scopes_list.append(try allocator.dupe(u8, item.string));
+                try scopes_list.append(allocator, try allocator.dupe(u8, item.string));
             }
-            try schemes_map.put(try allocator.dupe(u8, key), try scopes_list.toOwnedSlice());
+            try schemes_map.put(try allocator.dupe(u8, key), try scopes_list.toOwnedSlice(allocator));
         }
         return SecurityRequirement{ .schemes = schemes_map };
     }

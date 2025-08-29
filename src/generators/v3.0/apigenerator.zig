@@ -21,14 +21,14 @@ pub const ApiCodeGenerator = struct {
     }
 
     pub fn generate(self: *ApiCodeGenerator, document: models.OpenApiDocument) ![]const u8 {
-        var parts = std.ArrayList([]const u8).init(self.allocator);
-        defer parts.deinit();
+        var parts = std.ArrayList([]const u8){};
+        defer parts.deinit(self.allocator);
         try parts.append("///////////////////////////////////////////\n");
         try parts.append("// Generated Zig API client from OpenAPI\n");
         try parts.append("///////////////////////////////////////////\n\n");
         try parts.append("const std = @import(\"std\");\n\n");
-        var methods = std.ArrayList([]const u8).init(self.allocator);
-        defer methods.deinit();
+        var methods = std.ArrayList([]const u8){};
+        defer methods.deinit(self.allocator);
         var path_iterator = document.paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
             const path_key = entry.key_ptr.*;
@@ -68,16 +68,16 @@ pub const ApiCodeGenerator = struct {
     }
 
     pub fn generateMethod(self: *ApiCodeGenerator, op: models.v3.Operation, path: []const u8, method: []const u8) ![]const u8 {
-        var parts = std.ArrayList([]const u8).init(self.allocator);
-        defer parts.deinit();
+        var parts = std.ArrayList([]const u8){};
+        defer parts.deinit(self.allocator);
         const docs = try generateMethodDocs(self.allocator, op);
         defer self.allocator.free(docs);
         try parts.append(docs);
         try parts.append("pub fn ");
         try parts.append(op.operationId orelse path);
         try parts.append("(allocator: std.mem.Allocator");
-        var parameters = std.ArrayList([]const u8).init(self.allocator);
-        defer parameters.deinit();
+        var parameters = std.ArrayList([]const u8){};
+        defer parameters.deinit(self.allocator);
         if (op.parameters) |params| {
             if (params.len > 0) try parts.append(", ");
             var first = true;
@@ -133,8 +133,8 @@ pub const ApiCodeGenerator = struct {
     }
 
     fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, op: models.v3.Operation) ![]const u8 {
-        var parts = std.ArrayList([]const u8).init(allocator);
-        defer parts.deinit();
+        var parts = std.ArrayList([]const u8){};
+        defer parts.deinit(self.allocator);
         const has_request_body = op.requestBody != null;
         if (op.parameters) |params| {
             if (params.len > 0) {
@@ -153,8 +153,8 @@ pub const ApiCodeGenerator = struct {
         }
         try parts.append("    var client = std.http.Client { .allocator = allocator };\n");
         try parts.append("    defer client.deinit();\n\n");
-        var allocations = std.ArrayList([]const u8).init(allocator);
-        defer allocations.deinit();
+        var allocations = std.ArrayList([]const u8){};
+        defer allocations.deinit(self.allocator);
         if (op.parameters) |params| {
             var new_path = path;
             for (params) |paramOrReference| {
@@ -205,7 +205,7 @@ pub const ApiCodeGenerator = struct {
         );
         if (has_request_body) {
             try parts.append("\n\n");
-            try parts.append("    var str = std.ArrayList(u8).init(allocator);\n");
+            try parts.append("    var str = std.ArrayList([]const u8){};\n");
             try parts.append("    defer str.deinit();\n\n");
             try parts.append("    try std.json.stringify(requestBody, .{}, str.writer());\n");
             try parts.append("    const body = try std.mem.join(allocator, \"\", str.items);\n");
@@ -238,8 +238,8 @@ pub const ApiCodeGenerator = struct {
     }
 
     fn generateMethodDocs(allocator: std.mem.Allocator, op: models.v3.Operation) ![]const u8 {
-        var parts = std.ArrayList([]const u8).init(allocator);
-        defer parts.deinit();
+        var parts = std.ArrayList([]const u8){};
+        defer parts.deinit(self.allocator);
         if (op.summary != null or op.description != null) {
             try parts.append("/////////////////");
             try parts.append("\n");

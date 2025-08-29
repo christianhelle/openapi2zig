@@ -16,13 +16,13 @@ pub const UnifiedApiGenerator = struct {
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
             .allocator = allocator,
-            .buffer = std.ArrayList(u8).init(allocator),
+            .buffer = std.ArrayList(u8){},
             .args = args,
         };
     }
 
     pub fn deinit(self: *UnifiedApiGenerator) void {
-        self.buffer.deinit();
+        self.buffer.deinit(self.allocator);
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
@@ -33,10 +33,10 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateHeader(self: *UnifiedApiGenerator) !void {
-        try self.buffer.appendSlice("///////////////////////////////////////////\n");
-        try self.buffer.appendSlice("// Generated Zig API client from OpenAPI\n");
-        try self.buffer.appendSlice("///////////////////////////////////////////\n\n");
-        try self.buffer.appendSlice("const std = @import(\"std\");\n\n");
+        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
+        try self.buffer.appendSlice(self.allocator, "// Generated Zig API client from OpenAPI\n");
+        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
+        try self.buffer.appendSlice(self.allocator, "const std = @import(\"std\");\n\n");
     }
 
     fn generateApiClient(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
@@ -66,41 +66,41 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateComments(self: *UnifiedApiGenerator, operation: Operation) !void {
         if (operation.summary) |summary| {
-            try self.buffer.appendSlice("/////////////////\n");
-            try self.buffer.appendSlice("// Summary:\n");
-            try self.buffer.appendSlice("// ");
-            try self.buffer.appendSlice(summary);
-            try self.buffer.appendSlice("\n");
-            try self.buffer.appendSlice("//\n");
+            try self.buffer.appendSlice(self.allocator, "/////////////////\n");
+            try self.buffer.appendSlice(self.allocator, "// Summary:\n");
+            try self.buffer.appendSlice(self.allocator, "// ");
+            try self.buffer.appendSlice(self.allocator, summary);
+            try self.buffer.appendSlice(self.allocator, "\n");
+            try self.buffer.appendSlice(self.allocator, "//\n");
         }
 
         if (operation.description) |description| {
-            try self.buffer.appendSlice("// Description:\n");
-            try self.buffer.appendSlice("// ");
-            try self.buffer.appendSlice(description);
-            try self.buffer.appendSlice("\n");
-            try self.buffer.appendSlice("//\n");
+            try self.buffer.appendSlice(self.allocator, "// Description:\n");
+            try self.buffer.appendSlice(self.allocator, "// ");
+            try self.buffer.appendSlice(self.allocator, description);
+            try self.buffer.appendSlice(self.allocator, "\n");
+            try self.buffer.appendSlice(self.allocator, "//\n");
         }
     }
 
     fn generateFunctionSignature(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
-        try self.buffer.appendSlice("pub fn ");
+        try self.buffer.appendSlice(self.allocator, "pub fn ");
 
         if (operation.operationId) |op_id| {
-            try self.buffer.appendSlice(op_id);
+            try self.buffer.appendSlice(self.allocator, op_id);
         } else {
-            try self.buffer.appendSlice("operation");
-            try self.buffer.appendSlice(path[1..]); // Remove leading slash
+            try self.buffer.appendSlice(self.allocator, "operation");
+            try self.buffer.appendSlice(self.allocator, path[1..]); // Remove leading slash
         }
-        try self.buffer.appendSlice("(allocator: std.mem.Allocator");
+        try self.buffer.appendSlice(self.allocator, "(allocator: std.mem.Allocator");
         var has_body_param = false;
-        var path_parameters = std.ArrayList([]const u8).init(self.allocator);
-        defer path_parameters.deinit();
+        var path_parameters = std.ArrayList([]const u8){};
+        defer path_parameters.deinit(self.allocator);
         if (operation.parameters) |params| {
-            if (params.len > 0) try self.buffer.appendSlice(", ");
+            if (params.len > 0) try self.buffer.appendSlice(self.allocator, ", ");
             var first = true;
             for (params) |param| {
-                if (!first) try self.buffer.appendSlice(", ");
+                if (!first) try self.buffer.appendSlice(self.allocator, ", ");
                 first = false;
                 var data_type: []const u8 = "[]const u8"; // Default to string
                 var name: []const u8 = param.name;
@@ -117,7 +117,7 @@ pub const UnifiedApiGenerator = struct {
                         }
                     }
                 } else if (param.location == .path) {
-                    try path_parameters.append(param.name);
+                    try path_parameters.append(self.allocator, param.name);
                     if (param.type) |param_type| {
                         data_type = self.getZigTypeFromSchemaType(param_type);
                     }
@@ -126,16 +126,16 @@ pub const UnifiedApiGenerator = struct {
                         data_type = self.getZigTypeFromSchemaType(param_type);
                     }
                 }
-                try self.buffer.appendSlice(name);
-                try self.buffer.appendSlice(": ");
-                try self.buffer.appendSlice(data_type);
+                try self.buffer.appendSlice(self.allocator, name);
+                try self.buffer.appendSlice(self.allocator, ": ");
+                try self.buffer.appendSlice(self.allocator, data_type);
             }
         }
 
         const return_type = self.getReturnType(method, operation);
-        try self.buffer.appendSlice(") !");
-        try self.buffer.appendSlice(return_type);
-        try self.buffer.appendSlice(" {\n");
+        try self.buffer.appendSlice(self.allocator, ") !");
+        try self.buffer.appendSlice(self.allocator, return_type);
+        try self.buffer.appendSlice(self.allocator, " {\n");
     }
 
     fn getReturnType(self: *UnifiedApiGenerator, method: []const u8, operation: Operation) []const u8 {
@@ -155,32 +155,32 @@ pub const UnifiedApiGenerator = struct {
             if (parameters.len > 0) {
                 for (parameters) |parameter| {
                     if (parameter.location != .path and parameter.location != .body) {
-                        try self.buffer.appendSlice("    _ = ");
-                        try self.buffer.appendSlice(parameter.name);
-                        try self.buffer.appendSlice(";\n");
+                        try self.buffer.appendSlice(self.allocator, "    _ = ");
+                        try self.buffer.appendSlice(self.allocator, parameter.name);
+                        try self.buffer.appendSlice(self.allocator, ";\n");
                     }
                 }
             }
         }
 
-        try self.buffer.appendSlice("    var client = std.http.Client { .allocator = allocator };\n");
-        try self.buffer.appendSlice("    defer client.deinit();\n\n");
+        try self.buffer.appendSlice(self.allocator, "    var client = std.http.Client { .allocator = allocator };\n");
+        try self.buffer.appendSlice(self.allocator, "    defer client.deinit();\n\n");
 
-        try self.buffer.appendSlice("    var header_buffer: [8192]u8 = undefined;\n");
-        try self.buffer.appendSlice("    const headers = &[_]std.http.Header{\n");
-        try self.buffer.appendSlice("        .{ .name = \"Content-Type\", .value = \"application/json\" },\n");
-        try self.buffer.appendSlice("        .{ .name = \"Accept\", .value = \"application/json\" },\n");
-        try self.buffer.appendSlice("    };\n");
-        try self.buffer.appendSlice("\n");
+        try self.buffer.appendSlice(self.allocator, "    var header_buffer: [8192]u8 = undefined;\n");
+        try self.buffer.appendSlice(self.allocator, "    const headers = &[_]std.http.Header{\n");
+        try self.buffer.appendSlice(self.allocator, "        .{ .name = \"Content-Type\", .value = \"application/json\" },\n");
+        try self.buffer.appendSlice(self.allocator, "        .{ .name = \"Accept\", .value = \"application/json\" },\n");
+        try self.buffer.appendSlice(self.allocator, "    };\n");
+        try self.buffer.appendSlice(self.allocator, "\n");
 
         if (operation.parameters) |parameters| {
             var new_path = path;
-            var allocated_paths = std.ArrayList([]u8).init(self.allocator);
+            var allocated_paths = std.ArrayList([]u8){};
             defer {
                 for (allocated_paths.items) |allocated_path| {
                     self.allocator.free(allocated_path);
                 }
-                allocated_paths.deinit();
+                allocated_paths.deinit(self.allocator);
             }
 
             for (parameters) |parameter| {
@@ -194,82 +194,82 @@ pub const UnifiedApiGenerator = struct {
                 };
                 const size = std.mem.replacementSize(u8, new_path, param, param_type);
                 const output = try self.allocator.alloc(u8, size);
-                try allocated_paths.append(output);
+                try allocated_paths.append(self.allocator, output);
                 _ = std.mem.replace(u8, new_path, param, param_type, output);
                 new_path = output;
             }
 
-            try self.buffer.appendSlice("    const uri_str = try std.fmt.allocPrint(allocator, \"");
+            try self.buffer.appendSlice(self.allocator, "    const uri_str = try std.fmt.allocPrint(allocator, \"");
             if (self.args.base_url) |base_url| {
-                try self.buffer.appendSlice(base_url);
+                try self.buffer.appendSlice(self.allocator, base_url);
             }
-            try self.buffer.appendSlice(new_path);
-            try self.buffer.appendSlice("\", .{");
+            try self.buffer.appendSlice(self.allocator, new_path);
+            try self.buffer.appendSlice(self.allocator, "\", .{");
 
             var pos: i32 = 0;
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 const param = parameter.name;
-                try self.buffer.appendSlice(param);
+                try self.buffer.appendSlice(self.allocator, param);
                 pos += 1;
                 if (pos < parameters.len)
-                    try self.buffer.appendSlice(", ");
+                    try self.buffer.appendSlice(self.allocator, ", ");
             }
-            try self.buffer.appendSlice("});\n");
+            try self.buffer.appendSlice(self.allocator, "});\n");
 
-            try self.buffer.appendSlice("    defer allocator.free(uri_str);\n");
-            try self.buffer.appendSlice("    const uri = try std.Uri.parse(uri_str);\n");
+            try self.buffer.appendSlice(self.allocator, "    defer allocator.free(uri_str);\n");
+            try self.buffer.appendSlice(self.allocator, "    const uri = try std.Uri.parse(uri_str);\n");
         } else {
-            try self.buffer.appendSlice("    const uri = try std.Uri.parse(\"");
+            try self.buffer.appendSlice(self.allocator, "    const uri = try std.Uri.parse(\"");
             if (self.args.base_url) |base_url| {
-                try self.buffer.appendSlice(base_url);
+                try self.buffer.appendSlice(self.allocator, base_url);
             }
-            try self.buffer.appendSlice(path);
-            try self.buffer.appendSlice("\");\n");
+            try self.buffer.appendSlice(self.allocator, path);
+            try self.buffer.appendSlice(self.allocator, "\");\n");
         }
 
-        try self.buffer.appendSlice("    var req = try client.open(std.http.Method.");
-        try self.buffer.appendSlice(method);
-        try self.buffer.appendSlice(", uri, .{ .server_header_buffer = &header_buffer, .extra_headers = headers });\n");
-        try self.buffer.appendSlice("    defer req.deinit();\n\n");
+        try self.buffer.appendSlice(self.allocator, "    var req = try client.open(std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, method);
+        try self.buffer.appendSlice(self.allocator, ", uri, .{ .server_header_buffer = &header_buffer, .extra_headers = headers });\n");
+        try self.buffer.appendSlice(self.allocator, "    defer req.deinit();\n\n");
 
         if (std.mem.eql(u8, method, "POST") or std.mem.eql(u8, method, "PUT") or std.mem.eql(u8, method, "PATCH")) {
             if (operation.parameters) |params| {
                 for (params) |param| {
                     if (param.location == .body) {
-                        try self.buffer.appendSlice("    var str = std.ArrayList(u8).init(allocator);\n");
-                        try self.buffer.appendSlice("    defer str.deinit();\n\n");
-                        try self.buffer.appendSlice("    try std.json.stringify(requestBody, .{}, str.writer());\n");
-                        try self.buffer.appendSlice("    const payload = str.items;\n\n");
-                        try self.buffer.appendSlice("    req.transfer_encoding = .{ .content_length = payload.len };\n");
-                        try self.buffer.appendSlice("    try req.writeAll(payload);\n\n");
+                        try self.buffer.appendSlice(self.allocator, "    var str = std.ArrayList(u8){};\n");
+                        try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n\n");
+                        try self.buffer.appendSlice(self.allocator, "    try std.json.stringify(requestBody, .{}, str.writer());\n");
+                        try self.buffer.appendSlice(self.allocator, "    const payload = str.items;\n\n");
+                        try self.buffer.appendSlice(self.allocator, "    req.transfer_encoding = .{ .content_length = payload.len };\n");
+                        try self.buffer.appendSlice(self.allocator, "    try req.writeAll(payload);\n\n");
                         break;
                     }
                 }
             }
         }
 
-        try self.buffer.appendSlice("    try req.send();\n");
-        try self.buffer.appendSlice("    try req.finish();\n");
-        try self.buffer.appendSlice("    try req.wait();\n");
+        try self.buffer.appendSlice(self.allocator, "    try req.send();\n");
+        try self.buffer.appendSlice(self.allocator, "    try req.finish();\n");
+        try self.buffer.appendSlice(self.allocator, "    try req.wait();\n");
 
         const return_type = self.getReturnType(method, operation);
         if (!std.mem.eql(u8, return_type, "void")) {
-            try self.buffer.appendSlice("\n");
-            try self.buffer.appendSlice("    const response = req.response;\n");
-            try self.buffer.appendSlice("    if (response.status != .ok) {\n");
-            try self.buffer.appendSlice("        return error.ResponseError;\n");
-            try self.buffer.appendSlice("    }\n\n");
-            try self.buffer.appendSlice("    const body = try req.reader().readAllAlloc(allocator, 1024 * 1024 * 4);\n");
-            try self.buffer.appendSlice("    defer allocator.free(body);\n\n");
-            try self.buffer.appendSlice("    const parsed = try std.json.parseFromSlice(");
-            try self.buffer.appendSlice(return_type);
-            try self.buffer.appendSlice(", allocator, body, .{});\n");
-            try self.buffer.appendSlice("    defer parsed.deinit();\n\n");
-            try self.buffer.appendSlice("    return parsed.value;\n");
+            try self.buffer.appendSlice(self.allocator, "\n");
+            try self.buffer.appendSlice(self.allocator, "    const response = req.response;\n");
+            try self.buffer.appendSlice(self.allocator, "    if (response.status != .ok) {\n");
+            try self.buffer.appendSlice(self.allocator, "        return error.ResponseError;\n");
+            try self.buffer.appendSlice(self.allocator, "    }\n\n");
+            try self.buffer.appendSlice(self.allocator, "    const body = try req.reader().readAllAlloc(allocator, 1024 * 1024 * 4);\n");
+            try self.buffer.appendSlice(self.allocator, "    defer allocator.free(body);\n\n");
+            try self.buffer.appendSlice(self.allocator, "    const parsed = try std.json.parseFromSlice(");
+            try self.buffer.appendSlice(self.allocator, return_type);
+            try self.buffer.appendSlice(self.allocator, ", allocator, body, .{});\n");
+            try self.buffer.appendSlice(self.allocator, "    defer parsed.deinit();\n\n");
+            try self.buffer.appendSlice(self.allocator, "    return parsed.value;\n");
         }
 
-        try self.buffer.appendSlice("}\n\n");
+        try self.buffer.appendSlice(self.allocator, "}\n\n");
     }
 
     fn getZigTypeFromSchema(self: *UnifiedApiGenerator, schema: Schema) ![]const u8 {

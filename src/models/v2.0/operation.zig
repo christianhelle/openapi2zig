@@ -105,12 +105,12 @@ pub const Operation = struct {
         };
     }
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
-        var array_list = std.ArrayList([]const u8).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList([]const u8){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try allocator.dupe(u8, item.string));
+            try array_list.append(allocator, try allocator.dupe(u8, item.string));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
     fn parseResponses(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Response) {
         var map = std.StringHashMap(Response).init(allocator);
@@ -124,19 +124,19 @@ pub const Operation = struct {
         return map;
     }
     fn parseParameters(allocator: std.mem.Allocator, value: json.Value) anyerror![]Parameter {
-        var array_list = std.ArrayList(Parameter).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(Parameter){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try Parameter.parseFromJson(allocator, item));
+            try array_list.append(allocator, try Parameter.parseFromJson(allocator, item));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
-        var array_list = std.ArrayList(SecurityRequirement).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(SecurityRequirement){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try SecurityRequirement.parseFromJson(allocator, item));
+            try array_list.append(allocator, try SecurityRequirement.parseFromJson(allocator, item));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
 };

@@ -128,12 +128,12 @@ pub const Items = struct {
         };
     }
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
-        var array_list = std.ArrayList(json.Value).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(json.Value){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(item);
+            try array_list.append(allocator, item);
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
 };
 pub const Parameter = struct {
@@ -246,11 +246,11 @@ pub const Parameter = struct {
         }
     }
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
-        var array_list = std.ArrayList(json.Value).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(json.Value){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(item);
+            try array_list.append(allocator, item);
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
 };

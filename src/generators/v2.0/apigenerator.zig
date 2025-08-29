@@ -21,10 +21,10 @@ pub const ApiCodeGenerator = struct {
     }
 
     pub fn generate(self: *ApiCodeGenerator, document: models.SwaggerDocument) ![]const u8 {
-        var parts = std.ArrayList([]const u8).init(self.allocator);
-        defer parts.deinit();
-        var methods = std.ArrayList([]const u8).init(self.allocator);
-        defer methods.deinit();
+        var parts = std.ArrayList([]const u8){};
+        defer parts.deinit(self.allocator);
+        var methods = std.ArrayList([]const u8){};
+        defer methods.deinit(self.allocator);
         try parts.append("///////////////////////////////////////////\n");
         try parts.append("// Generated Zig API client from Swagger v2.0\n");
         try parts.append("///////////////////////////////////////////\n\n");
@@ -79,16 +79,16 @@ pub const ApiCodeGenerator = struct {
     }
 
     pub fn generateMethod(self: *ApiCodeGenerator, op: models.v2.Operation, path: []const u8, method: []const u8) ![]const u8 {
-        var parts = std.ArrayList([]const u8).init(self.allocator);
-        defer parts.deinit();
+        var parts = std.ArrayList([]const u8){};
+        defer parts.deinit(self.allocator);
         const comments = try generateMethodDocs(self.allocator, op);
         defer self.allocator.free(comments);
         try parts.append(comments);
         try parts.append("pub fn ");
         try parts.append(op.operationId orelse path);
         try parts.append("(allocator: std.mem.Allocator");
-        var path_parameters = std.ArrayList([]const u8).init(self.allocator);
-        defer path_parameters.deinit();
+        var path_parameters = std.ArrayList([]const u8){};
+        defer path_parameters.deinit(self.allocator);
         var has_body_param = false;
         if (op.parameters) |params| {
             if (params.len > 0) try parts.append(", ");
@@ -135,8 +135,8 @@ fn extractTypeFromReference(ref: []const u8) ?[]const u8 {
 }
 
 fn generateMethodDocs(allocator: std.mem.Allocator, op: models.v2.Operation) ![]const u8 {
-    var parts = std.ArrayList([]const u8).init(allocator);
-    defer parts.deinit();
+    var parts = std.ArrayList([]const u8){};
+    defer parts.deinit(self.allocator);
     if (op.summary) |summary| {
         try parts.append("/// ");
         try parts.append(summary);
@@ -151,8 +151,8 @@ fn generateMethodDocs(allocator: std.mem.Allocator, op: models.v2.Operation) ![]
 }
 
 fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, op: models.v2.Operation, has_request_body: bool) ![]const u8 {
-    var parts = std.ArrayList([]const u8).init(allocator);
-    defer parts.deinit();
+    var parts = std.ArrayList([]const u8){};
+    defer parts.deinit(self.allocator);
     if (op.parameters) |parameters| {
         if (parameters.len > 0) {
             for (parameters) |parameter| {
@@ -170,8 +170,8 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
     }
     try parts.append("    var client = std.http.Client { .allocator = allocator };\n");
     try parts.append("    defer client.deinit();\n\n");
-    var allocations = std.ArrayList([]const u8).init(allocator);
-    defer allocations.deinit();
+    var allocations = std.ArrayList([]const u8){};
+    defer allocations.deinit(self.allocator);
     if (op.parameters) |parameters| {
         if (parameters.len > 0) {
             var new_path = path;
@@ -222,7 +222,7 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
     );
     if (has_request_body) {
         try parts.append("\n\n");
-        try parts.append("    var str = std.ArrayList(u8).init(allocator);\n");
+        try parts.append("    var str = std.ArrayList([]const u8){};\n");
         try parts.append("    defer str.deinit();\n\n");
         try parts.append("    try std.json.stringify(requestBody, .{}, str.writer());\n");
         try parts.append("    const body = try std.mem.join(allocator, \"\", str.items);\n");
