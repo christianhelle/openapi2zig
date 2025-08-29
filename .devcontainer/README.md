@@ -5,7 +5,7 @@ This directory contains the development container configuration for the openapi2
 ## What's Included
 
 ### Software
-- **Zig 0.14.1** - The Zig programming language compiler
+- **Zig 0.15.1** - The Zig programming language compiler
 - **ZLS (Zig Language Server)** - Language server for Zig with IntelliSense support
 - **Git** - Version control
 - **Build tools** - Essential build utilities
@@ -74,7 +74,7 @@ If the Zig Language Server isn't providing IntelliSense:
 3. Verify ZLS config at `~/.config/zls/zls.json`
 
 ### Zig Version Issues
-The container is configured for Zig 0.14.1. If you need a different version:
+The container is configured for Zig 0.15.1. If you need a different version:
 1. Modify `ZIG_VERSION` in `.devcontainer/setup.sh`
 2. Rebuild the container: Command Palette → "Dev Containers: Rebuild Container"
 
