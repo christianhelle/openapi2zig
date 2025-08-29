@@ -10,12 +10,12 @@ pub const UnifiedModelGenerator = struct {
     pub fn init(allocator: std.mem.Allocator) UnifiedModelGenerator {
         return UnifiedModelGenerator{
             .allocator = allocator,
-            .buffer = std.ArrayList(u8).init(allocator),
+            .buffer = std.ArrayList(u8){},
         };
     }
 
     pub fn deinit(self: *UnifiedModelGenerator) void {
-        self.buffer.deinit();
+        self.buffer.deinit(self.allocator);
     }
 
     pub fn generate(self: *UnifiedModelGenerator, document: UnifiedDocument) ![]const u8 {
@@ -30,9 +30,9 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn generateHeader(self: *UnifiedModelGenerator) !void {
-        try self.buffer.appendSlice("///////////////////////////////////////////\n");
-        try self.buffer.appendSlice("// Generated Zig structures from OpenAPI\n");
-        try self.buffer.appendSlice("///////////////////////////////////////////\n\n");
+        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
+        try self.buffer.appendSlice(self.allocator, "// Generated Zig structures from OpenAPI\n");
+        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
     }
 
     fn generateSchemas(self: *UnifiedModelGenerator, schemas: std.StringHashMap(Schema)) !void {
@@ -47,15 +47,15 @@ pub const UnifiedModelGenerator = struct {
     fn generateSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !void {
         if (schema.type == .reference) return;
 
-        try self.buffer.appendSlice("pub const ");
-        try self.buffer.appendSlice(name);
-        try self.buffer.appendSlice(" = struct {\n");
+        try self.buffer.appendSlice(self.allocator, "pub const ");
+        try self.buffer.appendSlice(self.allocator, name);
+        try self.buffer.appendSlice(self.allocator, " = struct {\n");
 
         if (schema.properties) |properties| {
             try self.generateStructFields(properties, schema.required);
         }
 
-        try self.buffer.appendSlice("};\n\n");
+        try self.buffer.appendSlice(self.allocator, "};\n\n");
     }
 
     fn generateStructFields(self: *UnifiedModelGenerator, properties: std.StringHashMap(Schema), required: ?[][]const u8) !void {
@@ -69,21 +69,21 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn generateStructField(self: *UnifiedModelGenerator, field_name: []const u8, field_schema: Schema, is_required: bool) !void {
-        try self.buffer.appendSlice("    ");
-        try self.buffer.appendSlice(field_name);
-        try self.buffer.appendSlice(": ");
+        try self.buffer.appendSlice(self.allocator, "    ");
+        try self.buffer.appendSlice(self.allocator, field_name);
+        try self.buffer.appendSlice(self.allocator, ": ");
 
         if (!is_required) {
-            try self.buffer.appendSlice("?");
+            try self.buffer.appendSlice(self.allocator, "?");
         }
 
-        try self.buffer.appendSlice(try self.getZigType(field_schema));
+        try self.buffer.appendSlice(self.allocator, try self.getZigType(field_schema));
 
         if (!is_required) {
-            try self.buffer.appendSlice(" = null");
+            try self.buffer.appendSlice(self.allocator, " = null");
         }
 
-        try self.buffer.appendSlice(",\n");
+        try self.buffer.appendSlice(self.allocator, ",\n");
     }
 
     fn getZigType(self: *UnifiedModelGenerator, schema: Schema) ![]const u8 {

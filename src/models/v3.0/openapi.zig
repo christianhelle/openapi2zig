@@ -71,27 +71,27 @@ pub const OpenApiDocument = struct {
         };
     }
     fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]Server {
-        var array_list = std.ArrayList(Server).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(Server){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try Server.parseFromJson(allocator, item));
+            try array_list.append(allocator, try Server.parseFromJson(allocator, item));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
-        var array_list = std.ArrayList(SecurityRequirement).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(SecurityRequirement){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try SecurityRequirement.parseFromJson(allocator, item));
+            try array_list.append(allocator, try SecurityRequirement.parseFromJson(allocator, item));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Tag {
-        var array_list = std.ArrayList(Tag).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(Tag){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try Tag.parseFromJson(allocator, item));
+            try array_list.append(allocator, try Tag.parseFromJson(allocator, item));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
 };

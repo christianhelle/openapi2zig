@@ -260,21 +260,21 @@ pub const OpenApiConverter = struct {
         const description = operation.description;
         const operationId = operation.operationId;
 
-        var parameters_list = std.ArrayList(Parameter).init(self.allocator);
-        defer parameters_list.deinit();
+        var parameters_list = std.ArrayList(Parameter){};
+        defer parameters_list.deinit(self.allocator);
 
         if (operation.parameters) |params| {
             for (params) |*param_ref| {
-                try parameters_list.append(try self.convertParameterOrReference(param_ref));
+                try parameters_list.append(self.allocator, try self.convertParameterOrReference(param_ref));
             }
         }
 
         if (operation.requestBody) |*request_body_or_ref| {
             const request_body_param = try self.convertRequestBodyOrReference(request_body_or_ref);
-            try parameters_list.append(request_body_param);
+            try parameters_list.append(self.allocator, request_body_param);
         }
 
-        const parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice() else null;
+        const parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice(self.allocator) else null;
 
         var responses = std.StringHashMap(Response).init(self.allocator);
         if (operation.responses.default) |default_response| {

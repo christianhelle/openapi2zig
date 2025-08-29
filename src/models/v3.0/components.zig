@@ -23,15 +23,15 @@ pub const Components = struct {
     _allocated_strings: std.ArrayList([]const u8),
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Components {
-        var _allocated_strings = std.ArrayList([]const u8).init(allocator);
-        errdefer _allocated_strings.deinit();
+        var _allocated_strings = std.ArrayList([]const u8){};
+        errdefer _allocated_strings.deinit(allocator);
         const obj = value.object;
         var schemas_map = std.StringHashMap(SchemaOrReference).init(allocator);
         errdefer schemas_map.deinit();
         if (obj.get("schemas")) |schemas_val| {
             for (schemas_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try schemas_map.put(k, try SchemaOrReference.parseFromJson(allocator, schemas_val.object.get(key).?));
             }
         }
@@ -40,7 +40,7 @@ pub const Components = struct {
         if (obj.get("responses")) |responses_val| {
             for (responses_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try responses_map.put(k, try ResponseOrReference.parseFromJson(allocator, responses_val.object.get(key).?));
             }
         }
@@ -49,7 +49,7 @@ pub const Components = struct {
         if (obj.get("parameters")) |parameters_val| {
             for (parameters_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try parameters_map.put(k, try ParameterOrReference.parseFromJson(allocator, parameters_val.object.get(key).?));
             }
         }
@@ -58,7 +58,7 @@ pub const Components = struct {
         if (obj.get("examples")) |examples_val| {
             for (examples_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try examples_map.put(k, try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
             }
         }
@@ -67,7 +67,7 @@ pub const Components = struct {
         if (obj.get("requestBodies")) |request_bodies_val| {
             for (request_bodies_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try request_bodies_map.put(k, try RequestBodyOrReference.parseFromJson(allocator, request_bodies_val.object.get(key).?));
             }
         }
@@ -76,7 +76,7 @@ pub const Components = struct {
         if (obj.get("headers")) |headers_val| {
             for (headers_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try headers_map.put(k, try HeaderOrReference.parseFromJson(allocator, headers_val.object.get(key).?));
             }
         }
@@ -85,7 +85,7 @@ pub const Components = struct {
         if (obj.get("securitySchemes")) |security_schemes_val| {
             for (security_schemes_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try security_schemes_map.put(k, try SecuritySchemeOrReference.parseFromJson(allocator, security_schemes_val.object.get(key).?));
             }
         }
@@ -94,7 +94,7 @@ pub const Components = struct {
         if (obj.get("links")) |links_val| {
             for (links_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try links_map.put(k, try LinkOrReference.parseFromJson(allocator, links_val.object.get(key).?));
             }
         }
@@ -103,7 +103,7 @@ pub const Components = struct {
         if (obj.get("callbacks")) |callbacks_val| {
             for (callbacks_val.object.keys()) |key| {
                 const k = try allocator.dupe(u8, key);
-                try _allocated_strings.append(k);
+                try _allocated_strings.append(allocator, k);
                 try callbacks_map.put(k, try CallbackOrReference.parseFromJson(allocator, callbacks_val.object.get(key).?));
             }
         }
@@ -125,7 +125,7 @@ pub const Components = struct {
         for (self._allocated_strings.items) |str| {
             allocator.free(str);
         }
-        defer self._allocated_strings.deinit();
+        defer self._allocated_strings.deinit(allocator);
         if (self.schemas) |*schemas| {
             var iterator = schemas.iterator();
             while (iterator.next()) |entry| {

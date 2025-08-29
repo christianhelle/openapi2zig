@@ -8,18 +8,18 @@ pub const ServerVariable = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ServerVariable {
         const obj = value.object;
-        var enum_list = std.ArrayList([]const u8).init(allocator);
-        errdefer enum_list.deinit();
+        var enum_list = std.ArrayList([]const u8){};
+        errdefer enum_list.deinit(allocator);
 
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
-                try enum_list.append(try allocator.dupe(u8, item.string));
+                try enum_list.append(allocator, try allocator.dupe(u8, item.string));
             }
         }
 
         return ServerVariable{
             .default = try allocator.dupe(u8, obj.get("default").?.string),
-            .enum_values = if (enum_list.items.len > 0) try enum_list.toOwnedSlice() else null,
+            .enum_values = if (enum_list.items.len > 0) try enum_list.toOwnedSlice(allocator) else null,
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
         };
     }

@@ -138,39 +138,39 @@ pub const Schema = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Schema {
         const obj = value.object;
-        var required_list = std.ArrayList([]const u8).init(allocator);
-        errdefer required_list.deinit();
+        var required_list = std.ArrayList([]const u8){};
+        errdefer required_list.deinit(allocator);
         if (obj.get("required")) |req_val| {
             for (req_val.array.items) |item| {
-                try required_list.append(try allocator.dupe(u8, item.string));
+                try required_list.append(allocator, try allocator.dupe(u8, item.string));
             }
         }
-        var enum_list = std.ArrayList(json.Value).init(allocator);
-        errdefer enum_list.deinit();
+        var enum_list = std.ArrayList(json.Value){};
+        errdefer enum_list.deinit(allocator);
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
-                try enum_list.append(item);
+                try enum_list.append(allocator, item);
             }
         }
-        var all_of_list = std.ArrayList(SchemaOrReference).init(allocator);
-        errdefer all_of_list.deinit();
+        var all_of_list = std.ArrayList(SchemaOrReference){};
+        errdefer all_of_list.deinit(allocator);
         if (obj.get("allOf")) |all_of_val| {
             for (all_of_val.array.items) |item| {
-                try all_of_list.append(try SchemaOrReference.parseFromJson(allocator, item));
+                try all_of_list.append(allocator, try SchemaOrReference.parseFromJson(allocator, item));
             }
         }
-        var one_of_list = std.ArrayList(SchemaOrReference).init(allocator);
-        errdefer one_of_list.deinit();
+        var one_of_list = std.ArrayList(SchemaOrReference){};
+        errdefer one_of_list.deinit(allocator);
         if (obj.get("oneOf")) |one_of_val| {
             for (one_of_val.array.items) |item| {
-                try one_of_list.append(try SchemaOrReference.parseFromJson(allocator, item));
+                try one_of_list.append(allocator, try SchemaOrReference.parseFromJson(allocator, item));
             }
         }
-        var any_of_list = std.ArrayList(SchemaOrReference).init(allocator);
-        errdefer any_of_list.deinit();
+        var any_of_list = std.ArrayList(SchemaOrReference){};
+        errdefer any_of_list.deinit(allocator);
         if (obj.get("anyOf")) |any_of_val| {
             for (any_of_val.array.items) |item| {
-                try any_of_list.append(try SchemaOrReference.parseFromJson(allocator, item));
+                try any_of_list.append(allocator, try SchemaOrReference.parseFromJson(allocator, item));
             }
         }
         var properties_map = std.StringHashMap(SchemaOrReference).init(allocator);
@@ -195,13 +195,13 @@ pub const Schema = struct {
             .uniqueItems = if (obj.get("uniqueItems")) |val| val.bool else null,
             .maxProperties = if (obj.get("maxProperties")) |val| val.integer else null,
             .minProperties = if (obj.get("minProperties")) |val| val.integer else null,
-            .required = if (required_list.items.len > 0) try required_list.toOwnedSlice() else null,
-            .enum_values = if (enum_list.items.len > 0) try enum_list.toOwnedSlice() else null,
+            .required = if (required_list.items.len > 0) try required_list.toOwnedSlice(allocator) else null,
+            .enum_values = if (enum_list.items.len > 0) try enum_list.toOwnedSlice(allocator) else null,
             .type = if (obj.get("type")) |val| try allocator.dupe(u8, val.string) else null,
             .not = if (obj.get("not")) |val| try SchemaOrReference.parseFromJson(allocator, val) else null,
-            .allOf = if (all_of_list.items.len > 0) try all_of_list.toOwnedSlice() else null,
-            .oneOf = if (one_of_list.items.len > 0) try one_of_list.toOwnedSlice() else null,
-            .anyOf = if (any_of_list.items.len > 0) try any_of_list.toOwnedSlice() else null,
+            .allOf = if (all_of_list.items.len > 0) try all_of_list.toOwnedSlice(allocator) else null,
+            .oneOf = if (one_of_list.items.len > 0) try one_of_list.toOwnedSlice(allocator) else null,
+            .anyOf = if (any_of_list.items.len > 0) try any_of_list.toOwnedSlice(allocator) else null,
             .items = if (obj.get("items")) |val| try SchemaOrReference.parseFromJson(allocator, val) else null,
             .properties = if (properties_map.count() > 0) properties_map else null,
             .additionalProperties = if (obj.get("additionalProperties")) |val| try AdditionalProperties.parseFromJson(allocator, val) else null,

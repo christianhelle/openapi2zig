@@ -21,18 +21,18 @@ pub const PathItem = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PathItem {
         const obj = value.object;
-        var parameters_list = std.ArrayList(ParameterOrReference).init(allocator);
-        errdefer parameters_list.deinit();
+        var parameters_list = std.ArrayList(ParameterOrReference){};
+        errdefer parameters_list.deinit(allocator);
         if (obj.get("parameters")) |params_val| {
             for (params_val.array.items) |item| {
-                try parameters_list.append(try ParameterOrReference.parseFromJson(allocator, item));
+                try parameters_list.append(allocator, try ParameterOrReference.parseFromJson(allocator, item));
             }
         }
-        var servers_list = std.ArrayList(Server).init(allocator);
-        errdefer servers_list.deinit();
+        var servers_list = std.ArrayList(Server){};
+        errdefer servers_list.deinit(allocator);
         if (obj.get("servers")) |servers_val| {
             for (servers_val.array.items) |item| {
-                try servers_list.append(try Server.parseFromJson(allocator, item));
+                try servers_list.append(allocator, try Server.parseFromJson(allocator, item));
             }
         }
         return PathItem{
@@ -47,8 +47,8 @@ pub const PathItem = struct {
             .head = if (obj.get("head")) |val| try Operation.parseFromJson(allocator, val) else null,
             .patch = if (obj.get("patch")) |val| try Operation.parseFromJson(allocator, val) else null,
             .trace = if (obj.get("trace")) |val| try Operation.parseFromJson(allocator, val) else null,
-            .servers = if (servers_list.items.len > 0) try servers_list.toOwnedSlice() else null,
-            .parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice() else null,
+            .servers = if (servers_list.items.len > 0) try servers_list.toOwnedSlice(allocator) else null,
+            .parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice(allocator) else null,
         };
     }
 

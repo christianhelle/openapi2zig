@@ -169,11 +169,11 @@ pub const SecurityRequirement = struct {
         };
     }
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
-        var array_list = std.ArrayList([]const u8).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList([]const u8){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try allocator.dupe(u8, item.string));
+            try array_list.append(allocator, try allocator.dupe(u8, item.string));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
 };

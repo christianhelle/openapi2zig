@@ -137,12 +137,12 @@ pub const SwaggerDocument = struct {
     }
 
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
-        var array_list = std.ArrayList([]const u8).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList([]const u8){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try allocator.dupe(u8, item.string));
+            try array_list.append(allocator, try allocator.dupe(u8, item.string));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
 
     fn parseDefinitions(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(Schema) {
@@ -182,20 +182,20 @@ pub const SwaggerDocument = struct {
     }
 
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
-        var array_list = std.ArrayList(SecurityRequirement).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(SecurityRequirement){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try SecurityRequirement.parseFromJson(allocator, item));
+            try array_list.append(allocator, try SecurityRequirement.parseFromJson(allocator, item));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
 
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]Tag {
-        var array_list = std.ArrayList(Tag).init(allocator);
-        errdefer array_list.deinit();
+        var array_list = std.ArrayList(Tag){};
+        errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
-            try array_list.append(try Tag.parseFromJson(allocator, item));
+            try array_list.append(allocator, try Tag.parseFromJson(allocator, item));
         }
-        return array_list.toOwnedSlice();
+        return array_list.toOwnedSlice(allocator);
     }
 };
