@@ -166,7 +166,6 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    var client = std.http.Client { .allocator = allocator };\n");
         try self.buffer.appendSlice(self.allocator, "    defer client.deinit();\n\n");
 
-        try self.buffer.appendSlice(self.allocator, "    var header_buffer: [8192]u8 = undefined;\n");
         try self.buffer.appendSlice(self.allocator, "    const headers = &[_]std.http.Header{\n");
         try self.buffer.appendSlice(self.allocator, "        .{ .name = \"Content-Type\", .value = \"application/json\" },\n");
         try self.buffer.appendSlice(self.allocator, "        .{ .name = \"Accept\", .value = \"application/json\" },\n");
@@ -228,9 +227,9 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "\");\n");
         }
 
-        try self.buffer.appendSlice(self.allocator, "    var req = try client.open(std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, "    var req = try client.request(std.http.Method.");
         try self.buffer.appendSlice(self.allocator, method);
-        try self.buffer.appendSlice(self.allocator, ", uri, .{ .server_header_buffer = &header_buffer, .extra_headers = headers });\n");
+        try self.buffer.appendSlice(self.allocator, ", uri, .{ .extra_headers = headers });\n");
         try self.buffer.appendSlice(self.allocator, "    defer req.deinit();\n\n");
 
         if (std.mem.eql(u8, method, "POST") or std.mem.eql(u8, method, "PUT") or std.mem.eql(u8, method, "PATCH")) {
@@ -242,25 +241,25 @@ pub const UnifiedApiGenerator = struct {
                         try self.buffer.appendSlice(self.allocator, "    try std.json.stringify(requestBody, .{}, str.writer());\n");
                         try self.buffer.appendSlice(self.allocator, "    const payload = str.items;\n\n");
                         try self.buffer.appendSlice(self.allocator, "    req.transfer_encoding = .{ .content_length = payload.len };\n");
-                        try self.buffer.appendSlice(self.allocator, "    try req.writeAll(payload);\n\n");
+                        try self.buffer.appendSlice(self.allocator, "    try req.sendBodyComplete(payload);\n\n");
                         break;
                     }
                 }
             }
+        } else {
+            try self.buffer.appendSlice(self.allocator, "    try req.sendBodiless();\n");
         }
-
-        try self.buffer.appendSlice(self.allocator, "    try req.send();\n");
-        try self.buffer.appendSlice(self.allocator, "    try req.finish();\n");
-        try self.buffer.appendSlice(self.allocator, "    try req.wait();\n");
 
         const return_type = self.getReturnType(method, operation);
         if (!std.mem.eql(u8, return_type, "void")) {
             try self.buffer.appendSlice(self.allocator, "\n");
-            try self.buffer.appendSlice(self.allocator, "    const response = req.response;\n");
-            try self.buffer.appendSlice(self.allocator, "    if (response.status != .ok) {\n");
+            try self.buffer.appendSlice(self.allocator, "    var response = try req.receiveHead(&.{});\n");
+            try self.buffer.appendSlice(self.allocator, "    if (response.head.status != .ok) {\n");
             try self.buffer.appendSlice(self.allocator, "        return error.ResponseError;\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
-            try self.buffer.appendSlice(self.allocator, "    const body = try req.reader().readAllAlloc(allocator, 1024 * 1024 * 4);\n");
+            try self.buffer.appendSlice(self.allocator, "    var reader_buffer: [100]u8 = undefined;\n");
+            try self.buffer.appendSlice(self.allocator, "    const body_reader = response.reader(&reader_buffer);\n");
+            try self.buffer.appendSlice(self.allocator, "    const body = try body_reader.readAlloc(allocator, response.head.content_length orelse 1024 * 1024 * 4);\n");
             try self.buffer.appendSlice(self.allocator, "    defer allocator.free(body);\n\n");
             try self.buffer.appendSlice(self.allocator, "    const parsed = try std.json.parseFromSlice(");
             try self.buffer.appendSlice(self.allocator, return_type);
