@@ -90,7 +90,7 @@ pub const ApiCodeGenerator = struct {
                         try parts.append(p.name);
                         try parts.append(": ");
                         const field_name = p.schema.?.schema.type orelse "[]const u8";
-                        const data_type = try converter.getDataType(field_name);
+                        const data_type = converter.getDataType(field_name);
                         try parts.append(data_type); // Unwrap the optional, as it can never be null
                     },
                     .reference => |_| {
@@ -110,7 +110,7 @@ pub const ApiCodeGenerator = struct {
                         switch (schema_or_ref) {
                             .schema => |schema_ptr| {
                                 if (schema_ptr.type) |schemaName| {
-                                    data_type = try converter.getDataType(schemaName);
+                                    data_type = converter.getDataType(schemaName);
                                 }
                             },
                             .reference => |ref| {

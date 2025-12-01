@@ -78,7 +78,7 @@ fn generateField(allocator: std.mem.Allocator, parts: *std.ArrayList([]const u8)
             try parts.append(allocator, "    ");
             try parts.append(allocator, name);
             try parts.append(allocator, ": ");
-            const data_type = try converter.getDataType(field_schema);
+            const data_type = converter.getDataType(field_schema);
             if (is_required) {
                 try parts.append(allocator, data_type);
                 try parts.append(allocator, ",\n");

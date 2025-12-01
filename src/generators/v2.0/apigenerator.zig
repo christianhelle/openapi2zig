@@ -110,7 +110,7 @@ pub const ApiCodeGenerator = struct {
                     try path_parameters.append(name);
                 }
                 if (param.type) |param_type| {
-                    data_type = try converter.getDataType(@tagName(param_type));
+                    data_type = converter.getDataType(@tagName(param_type));
                 }
                 try parts.append(name);
                 try parts.append(": ");
