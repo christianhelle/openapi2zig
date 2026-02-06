@@ -12,7 +12,7 @@ on:
 
 jobs:
   changelog:
-    if: github.ref == 'refs/heads/main' && github.repository == 'christianhelle/httprunner'
+    if: github.ref == 'refs/heads/main' && github.repository == 'christianhelle/openapi2zig'
     runs-on: ubuntu-latest
     steps:
       - name: 🛒 Checkout repository
@@ -27,7 +27,7 @@ jobs:
       - name: Install github_changelog_generator
         run: gem install github_changelog_generator
       - name: Re-generate CHANGELOG.md
-        run: github_changelog_generator --user christianhelle --project httprunner --token ${{ secrets.PAT }}
+        run: github_changelog_generator --user christianhelle --project openapi2zig --token ${{ secrets.PAT }}
       - name: Git commit CHANGELOG.md
         run: |
           git config --global user.name "Continuous Integration"
