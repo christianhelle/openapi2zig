@@ -26,6 +26,7 @@
 
 **Merged pull requests:**
 
+- Fix generated code compilation and remove unnecessary error unions [\#37](https://github.com/christianhelle/openapi2zig/pull/37) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Update Zig version to 0.15.1 and fix related build issues [\#36](https://github.com/christianhelle/openapi2zig/pull/36) ([christianhelle](https://github.com/christianhelle))
 - Implement working GET methods [\#32](https://github.com/christianhelle/openapi2zig/pull/32) ([christianhelle](https://github.com/christianhelle))
 - Create comprehensive GitHub Copilot instructions for openapi2zig development [\#29](https://github.com/christianhelle/openapi2zig/pull/29) ([Copilot](https://github.com/apps/copilot-swe-agent))
