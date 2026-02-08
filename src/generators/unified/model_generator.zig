@@ -30,6 +30,7 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn generateHeader(self: *UnifiedModelGenerator) !void {
+        try self.buffer.appendSlice(self.allocator, "const std = @import(\"std\");\n\n");
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
         try self.buffer.appendSlice(self.allocator, "// Generated Zig structures from OpenAPI\n");
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
@@ -77,7 +78,7 @@ pub const UnifiedModelGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "?");
         }
 
-        try self.buffer.appendSlice(self.allocator, try self.getZigType(field_schema));
+        try self.buffer.appendSlice(self.allocator, self.getZigType(field_schema));
 
         if (!is_required) {
             try self.buffer.appendSlice(self.allocator, " = null");
@@ -86,7 +87,7 @@ pub const UnifiedModelGenerator = struct {
         try self.buffer.appendSlice(self.allocator, ",\n");
     }
 
-    fn getZigType(self: *UnifiedModelGenerator, schema: Schema) ![]const u8 {
+    fn getZigType(self: *UnifiedModelGenerator, schema: Schema) []const u8 {
         if (schema.ref) |ref| {
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
                 const schema_name = ref[last_slash + 1 ..];
@@ -103,7 +104,7 @@ pub const UnifiedModelGenerator = struct {
                 .boolean => "bool",
                 .array => blk: {
                     if (schema.items) |items| {
-                        const item_type = try self.getZigType(items.*);
+                        const item_type = self.getZigType(items.*);
                         if (std.mem.eql(u8, item_type, "[]const u8")) {
                             break :blk "[]const []const u8";
                         } else if (std.mem.eql(u8, item_type, "i64")) {

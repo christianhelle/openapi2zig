@@ -101,7 +101,7 @@ snap install --edge openapi2zig
 
 ### Option 4: Build from Source
 
-Make sure you have Zig installed (version 0.14 or later).
+Make sure you have Zig installed (version 0.15.1 exactly).
 
 ```bash
 git clone https://github.com/christianhelle/openapi2zig.git
@@ -305,6 +305,8 @@ Below is an example of the Zig code generated from an OpenAPI specification.
 ### Models
 
 ```zig
+const std = @import("std");
+
 ///////////////////////////////////////////
 // Generated Zig structures from OpenAPI
 ///////////////////////////////////////////
@@ -334,8 +336,6 @@ pub const Pet = struct {
 ///////////////////////////////////////////
 // Generated Zig API client from OpenAPI
 ///////////////////////////////////////////
-
-const std = @import("std");
 
 /////////////////
 // Summary:

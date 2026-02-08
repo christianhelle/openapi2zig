@@ -36,7 +36,6 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
         try self.buffer.appendSlice(self.allocator, "// Generated Zig API client from OpenAPI\n");
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
-        try self.buffer.appendSlice(self.allocator, "const std = @import(\"std\");\n\n");
     }
 
     fn generateApiClient(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
@@ -113,7 +112,7 @@ pub const UnifiedApiGenerator = struct {
                                 data_type = ref[last_slash + 1 ..];
                             }
                         } else {
-                            data_type = try self.getZigTypeFromSchema(schema);
+                            data_type = self.getZigTypeFromSchema(schema);
                         }
                     }
                 } else if (param.location == .path) {
@@ -142,7 +141,7 @@ pub const UnifiedApiGenerator = struct {
         if (std.mem.eql(u8, method, "GET")) {
             if (operation.responses.get("200")) |path_item| {
                 if (path_item.schema) |schema| {
-                    return try self.getZigTypeFromSchema(schema);
+                    return self.getZigTypeFromSchema(schema);
                 }
             }
         }
@@ -271,7 +270,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "}\n\n");
     }
 
-    fn getZigTypeFromSchema(self: *UnifiedApiGenerator, schema: Schema) ![]const u8 {
+    fn getZigTypeFromSchema(self: *UnifiedApiGenerator, schema: Schema) []const u8 {
         if (schema.ref) |ref| {
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
                 return ref[last_slash + 1 ..];

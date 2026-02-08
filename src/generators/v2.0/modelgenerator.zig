@@ -66,7 +66,7 @@ pub const ModelCodeGenerator = struct {
         } else false;
         var data_type: []const u8 = "[]const u8"; // Default to string
         if (field_schema.type) |schema_type| {
-            data_type = try converter.getDataType(schema_type);
+            data_type = converter.getDataType(schema_type);
         } else if (field_schema.ref) |_| {
             data_type = "[]const u8";
         }
