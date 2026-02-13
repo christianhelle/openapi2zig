@@ -37,7 +37,6 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
     const openapi_file = try std.fs.cwd().openFile(args.input_path, .{});
     defer openapi_file.close();
 
-    try openapi_file.seekBy(0);
     const file_contents = try openapi_file.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(file_contents);
 
@@ -90,20 +89,14 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, unified_doc: @i
     const generated_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
     defer allocator.free(generated_code);
 
-    if (args.output_path) |output_path| {
-        if (std.fs.path.dirname(output_path)) |dir_path| {
-            try std.fs.cwd().makePath(dir_path);
-        }
-        const output_file = try std.fs.cwd().createFile(output_path, .{ .read = true });
-        defer output_file.close();
-        try output_file.writeAll(generated_code);
-        std.debug.print("Code generated successfully and written to '{s}'.\n", .{output_path});
-    } else {
-        const output_file = try std.fs.cwd().createFile(default_output_file, .{ .read = true });
-        defer output_file.close();
-        try output_file.writeAll(generated_code);
-        std.debug.print("Code generated successfully and written to '{s}'.\n", .{default_output_file});
+    const output_path = args.output_path orelse default_output_file;
+    if (std.fs.path.dirname(output_path)) |dir_path| {
+        try std.fs.cwd().makePath(dir_path);
     }
+    const output_file = try std.fs.cwd().createFile(output_path, .{ .read = true });
+    defer output_file.close();
+    try output_file.writeAll(generated_code);
+    std.debug.print("Code generated successfully and written to '{s}'.\n", .{output_path});
 }
 
 fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, swagger: models.SwaggerDocument, args: cli.CliArgs) !void {
