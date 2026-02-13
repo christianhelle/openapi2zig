@@ -64,7 +64,7 @@ test "convert all OpenAPI v3.0 JSON specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testOpenApiToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert OpenAPI v3.0 {s}: {any}\n", .{ file_path, err });
+            std.debug.print("Failed to convert OpenAPI v3.0 {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;
@@ -88,7 +88,7 @@ test "convert all Swagger v2.0 JSON specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testSwaggerToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert Swagger v2.0 {s}: {any}\n", .{ file_path, err });
+            std.debug.print("Failed to convert Swagger v2.0 {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;

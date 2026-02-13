@@ -72,7 +72,7 @@ test "dynamically convert all OpenAPI v3.0 JSON files to UnifiedDocument" {
         var path_buffer: [256]u8 = undefined;
         const full_path = try std.fmt.bufPrint(path_buffer[0..], "openapi/v3.0/{s}", .{entry.name});
         testOpenApiToUnifiedDocumentConversion(allocator, full_path) catch |err| {
-            std.debug.print("✗ Failed to convert OpenAPI v3.0 {s}: {any}\n", .{ full_path, err });
+            std.debug.print("✗ Failed to convert OpenAPI v3.0 {s}: {}\n", .{ full_path, err });
             continue;
         };
         successful_conversions += 1;
@@ -96,7 +96,7 @@ test "dynamically convert all Swagger v2.0 JSON files to UnifiedDocument" {
         var path_buffer: [256]u8 = undefined;
         const full_path = try std.fmt.bufPrint(path_buffer[0..], "openapi/v2.0/{s}", .{entry.name});
         testSwaggerToUnifiedDocumentConversion(allocator, full_path) catch |err| {
-            std.debug.print("✗ Failed to convert Swagger v2.0 {s}: {any}\n", .{ full_path, err });
+            std.debug.print("✗ Failed to convert Swagger v2.0 {s}: {}\n", .{ full_path, err });
             continue;
         };
         successful_conversions += 1;
