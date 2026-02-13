@@ -47,7 +47,7 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
         },
         .JSON => {
             const version = detector.getOpenApiVersion(allocator, file_contents) catch |err| {
-                std.debug.print("Failed to parse OpenAPI version: {any}\n", .{err});
+                std.debug.print("Failed to parse OpenAPI version: {}\n", .{err});
                 return err;
             };
 
