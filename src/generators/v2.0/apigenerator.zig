@@ -223,7 +223,7 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
     if (has_request_body) {
         try parts.append(allocator, "\n\n");
         try parts.append(allocator, "    var str = std.ArrayList([]const u8){};\n");
-        try parts.append(allocator, "    defer str.deinit();\n\n");
+        try parts.append(allocator, "    defer str.deinit(allocator);\n\n");
         try parts.append(allocator, "    try std.json.stringify(requestBody, .{}, str.writer());\n");
         try parts.append(allocator, "    const body = try std.mem.join(allocator, \"\", str.items);\n");
         try parts.append(allocator, "    defer allocator.free(body);\n\n");
