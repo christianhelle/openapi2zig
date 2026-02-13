@@ -35,10 +35,16 @@ pub const Tag = struct {
 pub const Server = struct {
     url: []const u8,
     description: ?[]const u8 = null,
-    _url_allocated: bool = false, // Track if URL was allocated
+    _url_allocated: bool = false,
+    _description_allocated: bool = false,
     pub fn deinit(self: *Server, allocator: std.mem.Allocator) void {
         if (self._url_allocated) {
             allocator.free(self.url);
+        }
+        if (self._description_allocated) {
+            if (self.description) |desc| {
+                allocator.free(desc);
+            }
         }
     }
 };
