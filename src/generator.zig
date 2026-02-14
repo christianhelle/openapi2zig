@@ -3,6 +3,7 @@ const cli = @import("cli.zig");
 const detector = @import("detector.zig");
 const models = @import("models.zig");
 const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
+const OpenApi32Converter = @import("generators/converters/openapi32_converter.zig").OpenApi32Converter;
 const SwaggerConverter = @import("generators/converters/swagger_converter.zig").SwaggerConverter;
 const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
 const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
@@ -66,6 +67,12 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
                     std.debug.print("Successfully parsed OpenAPI v3.0 document\n", .{});
                     try generateCodeFromOpenApiDocument(allocator, openapi, args);
                 },
+                .v3_2 => {
+                    var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, file_contents);
+                    defer openapi32.deinit(allocator);
+                    std.debug.print("Successfully parsed OpenAPI v3.2 document\n", .{});
+                    try generateCodeFromOpenApi32Document(allocator, openapi32, args);
+                },
                 else => {
                     std.debug.print("Unsupported OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
                     return GeneratorErrors.UnsupportedExtension;
@@ -109,6 +116,13 @@ fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, swagger: models
 fn generateCodeFromOpenApiDocument(allocator: std.mem.Allocator, openapi: models.OpenApiDocument, args: cli.CliArgs) !void {
     var openapi_converter = OpenApiConverter.init(allocator);
     var unified_doc = try openapi_converter.convert(openapi);
+    defer unified_doc.deinit(allocator);
+    try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
+}
+
+fn generateCodeFromOpenApi32Document(allocator: std.mem.Allocator, openapi: models.OpenApi32Document, args: cli.CliArgs) !void {
+    var openapi32_converter = OpenApi32Converter.init(allocator);
+    var unified_doc = try openapi32_converter.convert(openapi);
     defer unified_doc.deinit(allocator);
     try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
 }
