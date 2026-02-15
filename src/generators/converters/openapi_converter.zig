@@ -94,9 +94,10 @@ pub const OpenApiConverter = struct {
 
     fn convertServers(self: *OpenApiConverter, servers: []Server3) ![]Server {
         var converted_servers = try self.allocator.alloc(Server, servers.len);
+        var initialized_count: usize = 0;
         errdefer {
             // Clean up any already-allocated server fields on error
-            for (converted_servers) |*server| {
+            for (converted_servers[0..initialized_count]) |*server| {
                 if (server._url_allocated) {
                     self.allocator.free(server.url);
                 }
@@ -118,6 +119,7 @@ pub const OpenApiConverter = struct {
                 ._url_allocated = true,
                 ._description_allocated = description != null,
             };
+            initialized_count += 1;
         }
         return converted_servers;
     }
