@@ -122,7 +122,7 @@ test "can parse all v3.0 JSON OpenAPI specifications" {
     var successful_parses: u32 = 0;
     for (json_files) |file_path| {
         testOpenApiDocumentParsing(allocator, file_path) catch |err| {
-            std.debug.print("Failed to parse {s}: {any}\n", .{ file_path, err });
+            std.debug.print("Failed to parse {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_parses += 1;
@@ -220,7 +220,7 @@ test "can convert all v3.0 JSON OpenAPI specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testOpenApiToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert {s}: {any}\n", .{ file_path, err });
+            std.debug.print("Failed to convert {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;

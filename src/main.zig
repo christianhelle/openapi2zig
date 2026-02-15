@@ -11,7 +11,7 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, parsed_args.raw[0..]);
 
     generator.generateCode(allocator, parsed_args.args) catch |err| {
-        std.debug.print("Error generating OpenAPI code: {any}\n", .{err});
+        std.debug.print("Error generating OpenAPI code: {}\n", .{err});
         return err;
     };
 }

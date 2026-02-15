@@ -97,7 +97,12 @@ pub const OpenApiConverter = struct {
         for (servers, 0..) |server, i| {
             const url = try self.allocator.dupe(u8, server.url);
             const description = if (server.description) |desc| try self.allocator.dupe(u8, desc) else null;
-            converted_servers[i] = Server{ .url = url, .description = description };
+            converted_servers[i] = Server{
+                .url = url,
+                .description = description,
+                ._url_allocated = true,
+                ._description_allocated = description != null,
+            };
         }
         return converted_servers;
     }

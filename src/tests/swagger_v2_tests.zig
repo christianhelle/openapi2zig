@@ -86,7 +86,7 @@ test "can parse all v2.0 JSON Swagger specifications" {
     var successful_parses: u32 = 0;
     for (json_files) |file_path| {
         testSwaggerDocumentParsing(allocator, file_path) catch |err| {
-            std.debug.print("Failed to parse {s}: {any}\n", .{ file_path, err });
+            std.debug.print("Failed to parse {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_parses += 1;
@@ -163,7 +163,7 @@ test "can convert all v2.0 JSON Swagger specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testSwaggerToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert {s}: {any}\n", .{ file_path, err });
+            std.debug.print("Failed to convert {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;
