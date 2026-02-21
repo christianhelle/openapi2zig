@@ -34,16 +34,29 @@ pub const Discriminator = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Discriminator {
         const obj = value.object;
-        var mapping_map = std.StringHashMap([]const u8).init(allocator);
-        errdefer mapping_map.deinit();
+        var mapping_map: ?std.StringHashMap([]const u8) = null;
         if (obj.get("mapping")) |map_val| {
+            var map = std.StringHashMap([]const u8).init(allocator);
+            errdefer {
+                var iterator = map.iterator();
+                while (iterator.next()) |entry| {
+                    allocator.free(entry.key_ptr.*);
+                    allocator.free(entry.value_ptr.*);
+                }
+                map.deinit();
+            }
             for (map_val.object.keys()) |key| {
-                try mapping_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, map_val.object.get(key).?.string));
+                try map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, map_val.object.get(key).?.string));
+            }
+            if (map.count() > 0) {
+                mapping_map = map;
+            } else {
+                map.deinit();
             }
         }
         return Discriminator{
             .propertyName = try allocator.dupe(u8, obj.get("propertyName").?.string),
-            .mapping = if (mapping_map.count() > 0) mapping_map else null,
+            .mapping = mapping_map,
         };
     }
 
@@ -72,6 +85,14 @@ pub const AdditionalProperties = union(enum) {
         }
     }
 };
+
+fn parseNumber(value: json.Value) anyerror!f64 {
+    return switch (value) {
+        .float => |float_value| float_value,
+        .integer => |integer_value| @as(f64, @floatFromInt(integer_value)),
+        else => error.InvalidNumberValue,
+    };
+}
 
 pub const SchemaOrReference = union(enum) {
     schema: *Schema,
@@ -206,10 +227,10 @@ pub const Schema = struct {
 
         return Schema{
             .title = if (obj.get("title")) |val| try allocator.dupe(u8, val.string) else null,
-            .multipleOf = if (obj.get("multipleOf")) |val| val.float else null,
-            .maximum = if (obj.get("maximum")) |val| val.float else null,
+            .multipleOf = if (obj.get("multipleOf")) |val| try parseNumber(val) else null,
+            .maximum = if (obj.get("maximum")) |val| try parseNumber(val) else null,
             .exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| val.bool else null,
-            .minimum = if (obj.get("minimum")) |val| val.float else null,
+            .minimum = if (obj.get("minimum")) |val| try parseNumber(val) else null,
             .exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| val.bool else null,
             .maxLength = if (obj.get("maxLength")) |val| val.integer else null,
             .minLength = if (obj.get("minLength")) |val| val.integer else null,

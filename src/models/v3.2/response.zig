@@ -5,6 +5,33 @@ const HeaderOrReference = @import("media.zig").HeaderOrReference;
 const LinkOrReference = @import("link.zig").LinkOrReference;
 const Reference = @import("reference.zig").Reference;
 
+fn deinitHeadersMap(map: *std.StringHashMap(HeaderOrReference), allocator: std.mem.Allocator) void {
+    var iterator = map.iterator();
+    while (iterator.next()) |entry| {
+        allocator.free(entry.key_ptr.*);
+        entry.value_ptr.deinit(allocator);
+    }
+    map.deinit();
+}
+
+fn deinitContentMap(map: *std.StringHashMap(MediaType), allocator: std.mem.Allocator) void {
+    var iterator = map.iterator();
+    while (iterator.next()) |entry| {
+        allocator.free(entry.key_ptr.*);
+        entry.value_ptr.deinit(allocator);
+    }
+    map.deinit();
+}
+
+fn deinitLinksMap(map: *std.StringHashMap(LinkOrReference), allocator: std.mem.Allocator) void {
+    var iterator = map.iterator();
+    while (iterator.next()) |entry| {
+        allocator.free(entry.key_ptr.*);
+        entry.value_ptr.deinit(allocator);
+    }
+    map.deinit();
+}
+
 pub const Response = struct {
     description: []const u8,
     headers: ?std.StringHashMap(HeaderOrReference) = null,
@@ -13,57 +40,63 @@ pub const Response = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Response {
         const obj = value.object;
-        var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
+        var headers_map: ?std.StringHashMap(HeaderOrReference) = null;
         if (obj.get("headers")) |headers_val| {
+            var map = std.StringHashMap(HeaderOrReference).init(allocator);
+            errdefer deinitHeadersMap(&map, allocator);
             for (headers_val.object.keys()) |key| {
-                try headers_map.put(try allocator.dupe(u8, key), try HeaderOrReference.parseFromJson(allocator, headers_val.object.get(key).?));
+                try map.put(try allocator.dupe(u8, key), try HeaderOrReference.parseFromJson(allocator, headers_val.object.get(key).?));
+            }
+            if (map.count() > 0) {
+                headers_map = map;
+            } else {
+                map.deinit();
             }
         }
-        var content_map = std.StringHashMap(MediaType).init(allocator);
+        var content_map: ?std.StringHashMap(MediaType) = null;
         if (obj.get("content")) |content_val| {
+            var map = std.StringHashMap(MediaType).init(allocator);
+            errdefer deinitContentMap(&map, allocator);
             for (content_val.object.keys()) |key| {
-                try content_map.put(try allocator.dupe(u8, key), try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
+                try map.put(try allocator.dupe(u8, key), try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
+            }
+            if (map.count() > 0) {
+                content_map = map;
+            } else {
+                map.deinit();
             }
         }
-        var links_map = std.StringHashMap(LinkOrReference).init(allocator);
+        var links_map: ?std.StringHashMap(LinkOrReference) = null;
         if (obj.get("links")) |links_val| {
+            var map = std.StringHashMap(LinkOrReference).init(allocator);
+            errdefer deinitLinksMap(&map, allocator);
             for (links_val.object.keys()) |key| {
-                try links_map.put(try allocator.dupe(u8, key), try LinkOrReference.parseFromJson(allocator, links_val.object.get(key).?));
+                try map.put(try allocator.dupe(u8, key), try LinkOrReference.parseFromJson(allocator, links_val.object.get(key).?));
+            }
+            if (map.count() > 0) {
+                links_map = map;
+            } else {
+                map.deinit();
             }
         }
         return Response{
             .description = try allocator.dupe(u8, obj.get("description").?.string),
-            .headers = if (headers_map.count() > 0) headers_map else null,
-            .content = if (content_map.count() > 0) content_map else null,
-            .links = if (links_map.count() > 0) links_map else null,
+            .headers = headers_map,
+            .content = content_map,
+            .links = links_map,
         };
     }
 
     pub fn deinit(self: *Response, allocator: std.mem.Allocator) void {
         allocator.free(self.description);
         if (self.headers) |*headers| {
-            var iterator = headers.iterator();
-            while (iterator.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
-                entry.value_ptr.deinit(allocator);
-            }
-            headers.deinit();
+            deinitHeadersMap(headers, allocator);
         }
         if (self.content) |*content| {
-            var iterator = content.iterator();
-            while (iterator.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
-                entry.value_ptr.deinit(allocator);
-            }
-            content.deinit();
+            deinitContentMap(content, allocator);
         }
         if (self.links) |*links| {
-            var iterator = links.iterator();
-            while (iterator.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
-                entry.value_ptr.deinit(allocator);
-            }
-            links.deinit();
+            deinitLinksMap(links, allocator);
         }
     }
 };
@@ -94,9 +127,17 @@ pub const Responses = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Responses {
         var status_codes_map = std.StringHashMap(ResponseOrReference).init(allocator);
+        errdefer {
+            var iterator = status_codes_map.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(allocator);
+            }
+            status_codes_map.deinit();
+        }
         const obj = value.object;
         for (obj.keys()) |key| {
-            if (std.ascii.isDigit(key[0])) {
+            if (key.len > 0 and std.ascii.isDigit(key[0])) {
                 try status_codes_map.put(try allocator.dupe(u8, key), try ResponseOrReference.parseFromJson(allocator, obj.get(key).?));
             }
         }

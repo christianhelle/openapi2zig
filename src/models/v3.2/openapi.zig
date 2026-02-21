@@ -69,28 +69,20 @@ pub const OpenApi32Document = struct {
         var parsed = try json.parseFromSlice(json.Value, allocator, json_string, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
         const root = parsed.value;
-        const openapi_str = try allocator.dupe(u8, root.object.get("openapi").?.string);
-        const info = try Info.parseFromJson(allocator, root.object.get("info").?);
-        const paths = if (root.object.get("paths")) |val| try Paths.parseFromJson(allocator, val) else null;
-        const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
-        const servers = if (root.object.get("servers")) |val| try parseServers(allocator, val) else null;
-        const security = if (root.object.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
-        const tags = if (root.object.get("tags")) |val| try parseTags(allocator, val) else null;
-        const components = if (root.object.get("components")) |val| try Components.parseFromJson(allocator, val) else null;
-        const jsonSchemaDialect = if (root.object.get("jsonSchemaDialect")) |val| try allocator.dupe(u8, val.string) else null;
-        const webhooks = if (root.object.get("webhooks")) |val| try parseWebhooks(allocator, val) else null;
-        return OpenApi32Document{
-            .openapi = openapi_str,
-            .info = info,
-            .paths = paths,
-            .externalDocs = externalDocs,
-            .servers = servers,
-            .security = security,
-            .tags = tags,
-            .components = components,
-            .jsonSchemaDialect = jsonSchemaDialect,
-            .webhooks = webhooks,
+        var document = OpenApi32Document{
+            .openapi = try allocator.dupe(u8, root.object.get("openapi").?.string),
+            .info = try Info.parseFromJson(allocator, root.object.get("info").?),
         };
+        errdefer document.deinit(allocator);
+        document.paths = if (root.object.get("paths")) |val| try Paths.parseFromJson(allocator, val) else null;
+        document.externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;
+        document.servers = if (root.object.get("servers")) |val| try parseServers(allocator, val) else null;
+        document.security = if (root.object.get("security")) |val| try parseSecurityRequirements(allocator, val) else null;
+        document.tags = if (root.object.get("tags")) |val| try parseTags(allocator, val) else null;
+        document.components = if (root.object.get("components")) |val| try Components.parseFromJson(allocator, val) else null;
+        document.jsonSchemaDialect = if (root.object.get("jsonSchemaDialect")) |val| try allocator.dupe(u8, val.string) else null;
+        document.webhooks = if (root.object.get("webhooks")) |val| try parseWebhooks(allocator, val) else null;
+        return document;
     }
 
     fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]Server {

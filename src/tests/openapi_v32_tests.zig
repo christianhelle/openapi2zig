@@ -305,7 +305,8 @@ test "can convert all v3.2 JSON OpenAPI specifications to UnifiedDocument" {
 test "dynamically convert all OpenAPI v3.2 JSON files to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
-    const openapi_dir = try std.fs.cwd().openDir("openapi/v3.2", .{ .iterate = true });
+    var openapi_dir = try std.fs.cwd().openDir("openapi/v3.2", .{ .iterate = true });
+    defer openapi_dir.close();
     var iterator = openapi_dir.iterate();
     var successful_conversions: u32 = 0;
     var total_files: u32 = 0;

@@ -1,16 +1,42 @@
 const std = @import("std");
 const json = std.json;
 
+fn deinitScopesMap(map: *std.StringHashMap([]const u8), allocator: std.mem.Allocator) void {
+    var iterator = map.iterator();
+    while (iterator.next()) |entry| {
+        allocator.free(entry.key_ptr.*);
+        allocator.free(entry.value_ptr.*);
+    }
+    map.deinit();
+}
+
+fn deinitSecurityRequirementMap(map: *std.StringHashMap([]const []const u8), allocator: std.mem.Allocator) void {
+    var iterator = map.iterator();
+    while (iterator.next()) |entry| {
+        allocator.free(entry.key_ptr.*);
+        for (entry.value_ptr.*) |scope| {
+            allocator.free(scope);
+        }
+        allocator.free(entry.value_ptr.*);
+    }
+    map.deinit();
+}
+
 pub const SecurityRequirement = struct {
     schemes: std.StringHashMap([]const []const u8),
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!SecurityRequirement {
         var schemes_map = std.StringHashMap([]const []const u8).init(allocator);
-        errdefer schemes_map.deinit();
+        errdefer deinitSecurityRequirementMap(&schemes_map, allocator);
         const obj = value.object;
         for (obj.keys()) |key| {
             var scopes_list = std.ArrayList([]const u8){};
-            errdefer scopes_list.deinit(allocator);
+            errdefer {
+                for (scopes_list.items) |scope| {
+                    allocator.free(scope);
+                }
+                scopes_list.deinit(allocator);
+            }
             for (obj.get(key).?.array.items) |item| {
                 try scopes_list.append(allocator, try allocator.dupe(u8, item.string));
             }
@@ -20,15 +46,7 @@ pub const SecurityRequirement = struct {
     }
 
     pub fn deinit(self: *SecurityRequirement, allocator: std.mem.Allocator) void {
-        var iterator = self.schemes.iterator();
-        while (iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            for (entry.value_ptr.*) |scope| {
-                allocator.free(scope);
-            }
-            allocator.free(entry.value_ptr.*);
-        }
-        self.schemes.deinit();
+        deinitSecurityRequirementMap(&self.schemes, allocator);
     }
 };
 
@@ -72,6 +90,7 @@ pub const ImplicitOAuthFlow = struct {
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ImplicitOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
+        errdefer deinitScopesMap(&scopes_map, allocator);
         if (obj.get("scopes")) |scopes_val| {
             for (scopes_val.object.keys()) |key| {
                 try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
@@ -86,12 +105,7 @@ pub const ImplicitOAuthFlow = struct {
 
     pub fn deinit(self: *ImplicitOAuthFlow, allocator: std.mem.Allocator) void {
         allocator.free(self.authorizationUrl);
-        var iterator = self.scopes.iterator();
-        while (iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
-        }
-        self.scopes.deinit();
+        deinitScopesMap(&self.scopes, allocator);
         if (self.refreshUrl) |url| {
             allocator.free(url);
         }
@@ -106,6 +120,7 @@ pub const PasswordOAuthFlow = struct {
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PasswordOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
+        errdefer deinitScopesMap(&scopes_map, allocator);
         if (obj.get("scopes")) |scopes_val| {
             for (scopes_val.object.keys()) |key| {
                 try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
@@ -120,12 +135,7 @@ pub const PasswordOAuthFlow = struct {
 
     pub fn deinit(self: *PasswordOAuthFlow, allocator: std.mem.Allocator) void {
         allocator.free(self.tokenUrl);
-        var iterator = self.scopes.iterator();
-        while (iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
-        }
-        self.scopes.deinit();
+        deinitScopesMap(&self.scopes, allocator);
         if (self.refreshUrl) |url| {
             allocator.free(url);
         }
@@ -140,6 +150,7 @@ pub const ClientCredentialsFlow = struct {
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ClientCredentialsFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
+        errdefer deinitScopesMap(&scopes_map, allocator);
         if (obj.get("scopes")) |scopes_val| {
             for (scopes_val.object.keys()) |key| {
                 try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
@@ -154,12 +165,7 @@ pub const ClientCredentialsFlow = struct {
 
     pub fn deinit(self: *ClientCredentialsFlow, allocator: std.mem.Allocator) void {
         allocator.free(self.tokenUrl);
-        var iterator = self.scopes.iterator();
-        while (iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
-        }
-        self.scopes.deinit();
+        deinitScopesMap(&self.scopes, allocator);
         if (self.refreshUrl) |url| {
             allocator.free(url);
         }
@@ -175,6 +181,7 @@ pub const AuthorizationCodeOAuthFlow = struct {
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!AuthorizationCodeOAuthFlow {
         const obj = value.object;
         var scopes_map = std.StringHashMap([]const u8).init(allocator);
+        errdefer deinitScopesMap(&scopes_map, allocator);
         if (obj.get("scopes")) |scopes_val| {
             for (scopes_val.object.keys()) |key| {
                 try scopes_map.put(try allocator.dupe(u8, key), try allocator.dupe(u8, scopes_val.object.get(key).?.string));
@@ -191,12 +198,7 @@ pub const AuthorizationCodeOAuthFlow = struct {
     pub fn deinit(self: *AuthorizationCodeOAuthFlow, allocator: std.mem.Allocator) void {
         allocator.free(self.authorizationUrl);
         allocator.free(self.tokenUrl);
-        var iterator = self.scopes.iterator();
-        while (iterator.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
-        }
-        self.scopes.deinit();
+        deinitScopesMap(&self.scopes, allocator);
         if (self.refreshUrl) |url| {
             allocator.free(url);
         }

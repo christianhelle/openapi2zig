@@ -75,15 +75,29 @@ pub const Encoding = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Encoding {
         const obj = value.object;
-        var headers_map = std.StringHashMap(HeaderOrReference).init(allocator);
+        var headers_map: ?std.StringHashMap(HeaderOrReference) = null;
         if (obj.get("headers")) |headers_val| {
+            var map = std.StringHashMap(HeaderOrReference).init(allocator);
+            errdefer {
+                var iterator = map.iterator();
+                while (iterator.next()) |entry| {
+                    allocator.free(entry.key_ptr.*);
+                    entry.value_ptr.deinit(allocator);
+                }
+                map.deinit();
+            }
             for (headers_val.object.keys()) |key| {
-                try headers_map.put(try allocator.dupe(u8, key), try HeaderOrReference.parseFromJson(allocator, headers_val.object.get(key).?));
+                try map.put(try allocator.dupe(u8, key), try HeaderOrReference.parseFromJson(allocator, headers_val.object.get(key).?));
+            }
+            if (map.count() > 0) {
+                headers_map = map;
+            } else {
+                map.deinit();
             }
         }
         return Encoding{
             .contentType = if (obj.get("contentType")) |val| try allocator.dupe(u8, val.string) else null,
-            .headers = if (headers_map.count() > 0) headers_map else null,
+            .headers = headers_map,
             .style = if (obj.get("style")) |val| try allocator.dupe(u8, val.string) else null,
             .explode = if (obj.get("explode")) |val| val.bool else null,
             .allowReserved = if (obj.get("allowReserved")) |val| val.bool else null,
@@ -112,23 +126,51 @@ pub const MediaType = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!MediaType {
         const obj = value.object;
-        var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
+        var examples_map: ?std.StringHashMap(ExampleOrReference) = null;
         if (obj.get("examples")) |examples_val| {
+            var map = std.StringHashMap(ExampleOrReference).init(allocator);
+            errdefer {
+                var iterator = map.iterator();
+                while (iterator.next()) |entry| {
+                    allocator.free(entry.key_ptr.*);
+                    entry.value_ptr.deinit(allocator);
+                }
+                map.deinit();
+            }
             for (examples_val.object.keys()) |key| {
-                try examples_map.put(try allocator.dupe(u8, key), try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
+                try map.put(try allocator.dupe(u8, key), try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
+            }
+            if (map.count() > 0) {
+                examples_map = map;
+            } else {
+                map.deinit();
             }
         }
-        var encoding_map = std.StringHashMap(Encoding).init(allocator);
+        var encoding_map: ?std.StringHashMap(Encoding) = null;
         if (obj.get("encoding")) |encoding_val| {
+            var map = std.StringHashMap(Encoding).init(allocator);
+            errdefer {
+                var iterator = map.iterator();
+                while (iterator.next()) |entry| {
+                    allocator.free(entry.key_ptr.*);
+                    entry.value_ptr.deinit(allocator);
+                }
+                map.deinit();
+            }
             for (encoding_val.object.keys()) |key| {
-                try encoding_map.put(try allocator.dupe(u8, key), try Encoding.parseFromJson(allocator, encoding_val.object.get(key).?));
+                try map.put(try allocator.dupe(u8, key), try Encoding.parseFromJson(allocator, encoding_val.object.get(key).?));
+            }
+            if (map.count() > 0) {
+                encoding_map = map;
+            } else {
+                map.deinit();
             }
         }
         return MediaType{
             .schema = if (obj.get("schema")) |val| try SchemaOrReference.parseFromJson(allocator, val) else null,
             .example = if (obj.get("example")) |val| val else null,
-            .examples = if (examples_map.count() > 0) examples_map else null,
-            .encoding = if (encoding_map.count() > 0) encoding_map else null,
+            .examples = examples_map,
+            .encoding = encoding_map,
         };
     }
 
@@ -170,16 +212,44 @@ pub const Header = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Header {
         const obj = value.object;
-        var content_map = std.StringHashMap(MediaType).init(allocator);
+        var content_map: ?std.StringHashMap(MediaType) = null;
         if (obj.get("content")) |content_val| {
+            var map = std.StringHashMap(MediaType).init(allocator);
+            errdefer {
+                var iterator = map.iterator();
+                while (iterator.next()) |entry| {
+                    allocator.free(entry.key_ptr.*);
+                    entry.value_ptr.deinit(allocator);
+                }
+                map.deinit();
+            }
             for (content_val.object.keys()) |key| {
-                try content_map.put(try allocator.dupe(u8, key), try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
+                try map.put(try allocator.dupe(u8, key), try MediaType.parseFromJson(allocator, content_val.object.get(key).?));
+            }
+            if (map.count() > 0) {
+                content_map = map;
+            } else {
+                map.deinit();
             }
         }
-        var examples_map = std.StringHashMap(ExampleOrReference).init(allocator);
+        var examples_map: ?std.StringHashMap(ExampleOrReference) = null;
         if (obj.get("examples")) |examples_val| {
+            var map = std.StringHashMap(ExampleOrReference).init(allocator);
+            errdefer {
+                var iterator = map.iterator();
+                while (iterator.next()) |entry| {
+                    allocator.free(entry.key_ptr.*);
+                    entry.value_ptr.deinit(allocator);
+                }
+                map.deinit();
+            }
             for (examples_val.object.keys()) |key| {
-                try examples_map.put(try allocator.dupe(u8, key), try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
+                try map.put(try allocator.dupe(u8, key), try ExampleOrReference.parseFromJson(allocator, examples_val.object.get(key).?));
+            }
+            if (map.count() > 0) {
+                examples_map = map;
+            } else {
+                map.deinit();
             }
         }
         return Header{
@@ -191,9 +261,9 @@ pub const Header = struct {
             .explode = if (obj.get("explode")) |val| val.bool else null,
             .allowReserved = if (obj.get("allowReserved")) |val| val.bool else null,
             .schema = if (obj.get("schema")) |val| try SchemaOrReference.parseFromJson(allocator, val) else null,
-            .content = if (content_map.count() > 0) content_map else null,
+            .content = content_map,
             .example = if (obj.get("example")) |val| val else null,
-            .examples = if (examples_map.count() > 0) examples_map else null,
+            .examples = examples_map,
         };
     }
 
