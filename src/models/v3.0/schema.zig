@@ -73,6 +73,14 @@ pub const AdditionalProperties = union(enum) {
     }
 };
 
+fn parseNumber(value: json.Value) anyerror!f64 {
+    return switch (value) {
+        .float => |float_value| float_value,
+        .integer => |integer_value| @as(f64, @floatFromInt(integer_value)),
+        else => error.InvalidNumberValue,
+    };
+}
+
 pub const SchemaOrReference = union(enum) {
     schema: *Schema,
     reference: Reference,
@@ -182,10 +190,10 @@ pub const Schema = struct {
         }
         return Schema{
             .title = if (obj.get("title")) |val| try allocator.dupe(u8, val.string) else null,
-            .multipleOf = if (obj.get("multipleOf")) |val| val.float else null,
-            .maximum = if (obj.get("maximum")) |val| val.float else null,
+            .multipleOf = if (obj.get("multipleOf")) |val| try parseNumber(val) else null,
+            .maximum = if (obj.get("maximum")) |val| try parseNumber(val) else null,
             .exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| val.bool else null,
-            .minimum = if (obj.get("minimum")) |val| val.float else null,
+            .minimum = if (obj.get("minimum")) |val| try parseNumber(val) else null,
             .exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| val.bool else null,
             .maxLength = if (obj.get("maxLength")) |val| val.integer else null,
             .minLength = if (obj.get("minLength")) |val| val.integer else null,
