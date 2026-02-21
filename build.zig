@@ -76,9 +76,23 @@ pub fn build(b: *std.Build) void {
     const run_generate_v2_step = b.step("run-generate-v2", "Run the app with generate command");
     run_generate_v2_step.dependOn(&run_generate_v2_cmd.step);
 
+    const run_generate_v32_cmd = b.addRunArtifact(exe);
+    run_generate_v32_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.2/petstore.json",
+        "-o",
+        "generated/generated_v32.zig",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v32_step = b.step("run-generate-v32", "Run the app with generate command for OpenAPI v3.2");
+    run_generate_v32_step.dependOn(&run_generate_v32_cmd.step);
+
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
+    run_generate.dependOn(&run_generate_v32_cmd.step);
 
     const tests_mod = b.createModule(.{
         .root_source_file = b.path("src/tests.zig"),

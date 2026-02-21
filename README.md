@@ -10,7 +10,7 @@ A CLI tool and Zig library that generates type-safe API client code from OpenAPI
 
 ## Features
 
-- Parse OpenAPI v2.0 and v3.0 specifications (JSON format)
+- Parse OpenAPI v2.0, v3.0, and v3.2 specifications (JSON format)
 - Generate type-safe Zig client code
 - Support for complex OpenAPI schemas and operations
 - Cross-platform support (Linux, macOS, Windows)
@@ -272,12 +272,13 @@ pub fn main() !void {
 #### Version Detection
 
 - `detectVersion(allocator, json_content)` - Detect OpenAPI/Swagger version
-- `ApiVersion` - Enum representing supported API versions (.v2_0, .v3_0, .v3_1, .Unsupported)
+- `ApiVersion` - Enum representing supported API versions (.v2_0, .v3_0, .v3_1, .v3_2, .Unsupported)
 
 #### Parsing Functions
 
 - `parseToUnified(allocator, json_content)` - Parse any supported version to unified representation
 - `parseOpenApi(allocator, json_content)` - Parse OpenAPI v3.0 specifically
+- `parseOpenApi32(allocator, json_content)` - Parse OpenAPI v3.2 specifically
 - `parseSwagger(allocator, json_content)` - Parse Swagger v2.0 specifically
 
 #### Code Generation
@@ -289,12 +290,14 @@ pub fn main() !void {
 #### Conversion Functions
 
 - `convertOpenApiToUnified(allocator, openapi_doc)` - Convert OpenAPI v3.0 to unified format
+- `convertOpenApi32ToUnified(allocator, openapi_doc)` - Convert OpenAPI v3.2 to unified format
 - `convertSwaggerToUnified(allocator, swagger_doc)` - Convert Swagger v2.0 to unified format
 
 #### Data Types
 
 - `UnifiedDocument` - Common document representation for both OpenAPI and Swagger
 - `OpenApiDocument` - OpenAPI v3.0 specific document structure
+- `OpenApi32Document` - OpenAPI v3.2 specific document structure
 - `SwaggerDocument` - Swagger v2.0 specific document structure
 - `DocumentInfo`, `Schema`, `Operation`, etc. - Various OpenAPI components
 
@@ -435,7 +438,7 @@ This project follows standard Zig formatting. Use `zig fmt` to format your code 
 
 This project is in early development. Current capabilities include:
 
-- OpenAPI v2.0 and v3.0 specification parsing
+- OpenAPI v2.0, v3.0, and v3.2 specification parsing
 - Basic data model structures for OpenAPI components
 - Generate API client code using `std.http.Client`
 - Comprehensive test suite for parsing functionality

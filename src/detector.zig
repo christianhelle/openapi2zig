@@ -10,6 +10,7 @@ pub const OpenApiVersion = enum {
     v2_0,
     v3_0,
     v3_1,
+    v3_2,
 };
 
 pub fn getOpenApiVersionString(version: OpenApiVersion) []const u8 {
@@ -18,6 +19,7 @@ pub fn getOpenApiVersionString(version: OpenApiVersion) []const u8 {
         .v2_0 => "v2.0",
         .v3_0 => "v3.0",
         .v3_1 => "v3.1",
+        .v3_2 => "v3.2",
     };
 }
 
@@ -27,7 +29,9 @@ pub fn getOpenApiVersion(allocator: std.mem.Allocator, json: []const u8) !OpenAp
     const root = parsed.value;
 
     if (root.openapi) |version| {
-        if (std.mem.startsWith(u8, version, "3.1")) {
+        if (std.mem.startsWith(u8, version, "3.2")) {
+            return OpenApiVersion.v3_2;
+        } else if (std.mem.startsWith(u8, version, "3.1")) {
             return OpenApiVersion.v3_1;
         } else if (std.mem.startsWith(u8, version, "3.0")) {
             return OpenApiVersion.v3_0;
