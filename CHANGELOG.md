@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Add OpenAPI 3.2 specification support [\#40](https://github.com/christianhelle/openapi2zig/pull/40) ([christianhelle](https://github.com/christianhelle))
 - Fix missing requestBody when converting OpenAPI v3 to Unified OpenAPI Document [\#33](https://github.com/christianhelle/openapi2zig/pull/33) ([christianhelle](https://github.com/christianhelle))
 - Fix incorrect generated function return types [\#31](https://github.com/christianhelle/openapi2zig/pull/31) ([christianhelle](https://github.com/christianhelle))
 - Expose OpenAPI/Swagger parsing as library and documentation updates [\#30](https://github.com/christianhelle/openapi2zig/pull/30) ([christianhelle](https://github.com/christianhelle))
