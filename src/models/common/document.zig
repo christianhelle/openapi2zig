@@ -8,28 +8,120 @@ pub const DocumentInfo = struct {
     termsOfService: ?[]const u8 = null,
     contact: ?ContactInfo = null,
     license: ?LicenseInfo = null,
+    _title_allocated: bool = false,
+    _description_allocated: bool = false,
+    _version_allocated: bool = false,
+    _terms_of_service_allocated: bool = false,
+
+    pub fn deinit(self: *DocumentInfo, allocator: std.mem.Allocator) void {
+        if (self._title_allocated) {
+            allocator.free(self.title);
+        }
+        if (self._description_allocated) {
+            if (self.description) |description| {
+                allocator.free(description);
+            }
+        }
+        if (self._version_allocated) {
+            allocator.free(self.version);
+        }
+        if (self._terms_of_service_allocated) {
+            if (self.termsOfService) |terms_of_service| {
+                allocator.free(terms_of_service);
+            }
+        }
+        if (self.contact) |*contact| {
+            contact.deinit(allocator);
+        }
+        if (self.license) |*license| {
+            license.deinit(allocator);
+        }
+    }
 };
 
 pub const ContactInfo = struct {
     name: ?[]const u8 = null,
     url: ?[]const u8 = null,
     email: ?[]const u8 = null,
+    _name_allocated: bool = false,
+    _url_allocated: bool = false,
+    _email_allocated: bool = false,
+
+    pub fn deinit(self: *ContactInfo, allocator: std.mem.Allocator) void {
+        if (self._name_allocated) {
+            if (self.name) |name| {
+                allocator.free(name);
+            }
+        }
+        if (self._url_allocated) {
+            if (self.url) |url| {
+                allocator.free(url);
+            }
+        }
+        if (self._email_allocated) {
+            if (self.email) |email| {
+                allocator.free(email);
+            }
+        }
+    }
 };
 
 pub const LicenseInfo = struct {
     name: []const u8,
     url: ?[]const u8 = null,
+    _name_allocated: bool = false,
+    _url_allocated: bool = false,
+
+    pub fn deinit(self: *LicenseInfo, allocator: std.mem.Allocator) void {
+        if (self._name_allocated) {
+            allocator.free(self.name);
+        }
+        if (self._url_allocated) {
+            if (self.url) |url| {
+                allocator.free(url);
+            }
+        }
+    }
 };
 
 pub const ExternalDocumentation = struct {
     url: []const u8,
     description: ?[]const u8 = null,
+    _url_allocated: bool = false,
+    _description_allocated: bool = false,
+
+    pub fn deinit(self: *ExternalDocumentation, allocator: std.mem.Allocator) void {
+        if (self._url_allocated) {
+            allocator.free(self.url);
+        }
+        if (self._description_allocated) {
+            if (self.description) |description| {
+                allocator.free(description);
+            }
+        }
+    }
 };
 
 pub const Tag = struct {
     name: []const u8,
     description: ?[]const u8 = null,
     externalDocs: ?ExternalDocumentation = null,
+    _name_allocated: bool = false,
+    _description_allocated: bool = false,
+
+    pub fn deinit(self: *Tag, allocator: std.mem.Allocator) void {
+        if (self._name_allocated) {
+            allocator.free(self.name);
+        }
+        if (self._description_allocated) {
+            if (self.description) |description| {
+                allocator.free(description);
+            }
+        }
+        if (self.externalDocs) |*external_docs| {
+            external_docs.deinit(allocator);
+        }
+    }
 };
 
 pub const Server = struct {
@@ -106,6 +198,7 @@ pub const ParameterLocation = enum {
     query,
     header,
     path,
+    cookie,
     body,
     form,
 };
@@ -206,7 +299,7 @@ pub const UnifiedDocument = struct {
     parameters: ?std.StringHashMap(Parameter) = null,
     responses: ?std.StringHashMap(Response) = null,
     pub fn deinit(self: *UnifiedDocument, allocator: std.mem.Allocator) void {
-        _ = self.info; // Suppress unused field warning
+        self.info.deinit(allocator);
         var path_iterator = self.paths.iterator();
         while (path_iterator.next()) |entry| {
             allocator.free(entry.key_ptr.*); // Free the duped path key
@@ -222,7 +315,13 @@ pub const UnifiedDocument = struct {
             allocator.free(security);
         }
         if (self.tags) |tags| {
+            for (tags) |*tag| {
+                tag.deinit(allocator);
+            }
             allocator.free(tags);
+        }
+        if (self.externalDocs) |*external_docs| {
+            external_docs.deinit(allocator);
         }
         if (self.schemas) |*schemas| {
             var schema_iterator = schemas.iterator();

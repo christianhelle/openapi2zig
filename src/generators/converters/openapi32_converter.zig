@@ -44,7 +44,7 @@ pub const OpenApi32Converter = struct {
 
     pub fn convert(self: *OpenApi32Converter, openapi: OpenApi32Document) !UnifiedDocument {
         const version = openapi.openapi;
-        const info = self.convertInfo(openapi.info);
+        const info = try self.convertInfo(openapi.info);
         const paths = if (openapi.paths) |p| try self.convertPaths(p) else std.StringHashMap(PathItem).init(self.allocator);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -65,22 +65,33 @@ pub const OpenApi32Converter = struct {
         };
     }
 
-    fn convertInfo(self: *OpenApi32Converter, info: Info32) DocumentInfo {
-        _ = self;
-        const title = info.title;
-        const description = info.description;
-        const version = info.version;
-        const termsOfService = info.termsOfService;
+    fn convertInfo(self: *OpenApi32Converter, info: Info32) !DocumentInfo {
+        const title = try self.allocator.dupe(u8, info.title);
+        const description = if (info.description) |desc| try self.allocator.dupe(u8, desc) else null;
+        const version = try self.allocator.dupe(u8, info.version);
+        const termsOfService = if (info.termsOfService) |terms| try self.allocator.dupe(u8, terms) else null;
         const contact = if (info.contact) |contact_info| blk: {
-            const name = contact_info.name;
-            const url = contact_info.url;
-            const email = contact_info.email;
-            break :blk ContactInfo{ .name = name, .url = url, .email = email };
+            const name = if (contact_info.name) |contact_name| try self.allocator.dupe(u8, contact_name) else null;
+            const url = if (contact_info.url) |contact_url| try self.allocator.dupe(u8, contact_url) else null;
+            const email = if (contact_info.email) |contact_email| try self.allocator.dupe(u8, contact_email) else null;
+            break :blk ContactInfo{
+                .name = name,
+                .url = url,
+                .email = email,
+                ._name_allocated = name != null,
+                ._url_allocated = url != null,
+                ._email_allocated = email != null,
+            };
         } else null;
         const license = if (info.license) |license_info| blk: {
-            const name = license_info.name;
-            const url = license_info.url;
-            break :blk LicenseInfo{ .name = name, .url = url };
+            const name = try self.allocator.dupe(u8, license_info.name);
+            const url = if (license_info.url) |license_url| try self.allocator.dupe(u8, license_url) else null;
+            break :blk LicenseInfo{
+                .name = name,
+                .url = url,
+                ._name_allocated = true,
+                ._url_allocated = url != null,
+            };
         } else null;
         return DocumentInfo{
             .title = title,
@@ -89,6 +100,10 @@ pub const OpenApi32Converter = struct {
             .termsOfService = termsOfService,
             .contact = contact,
             .license = license,
+            ._title_allocated = true,
+            ._description_allocated = description != null,
+            ._version_allocated = true,
+            ._terms_of_service_allocated = termsOfService != null,
         };
     }
 
@@ -128,19 +143,29 @@ pub const OpenApi32Converter = struct {
     fn convertTags(self: *OpenApi32Converter, tags: []const Tag32) ![]Tag {
         var converted_tags = try self.allocator.alloc(Tag, tags.len);
         for (tags, 0..) |tag, i| {
-            const name = tag.name;
-            const description = tag.description;
+            const name = try self.allocator.dupe(u8, tag.name);
+            const description = if (tag.description) |desc| try self.allocator.dupe(u8, desc) else null;
             const externalDocs = if (tag.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
-            converted_tags[i] = Tag{ .name = name, .description = description, .externalDocs = externalDocs };
+            converted_tags[i] = Tag{
+                .name = name,
+                .description = description,
+                .externalDocs = externalDocs,
+                ._name_allocated = true,
+                ._description_allocated = description != null,
+            };
         }
         return converted_tags;
     }
 
     fn convertExternalDocs(self: *OpenApi32Converter, externalDocs: ExternalDocs32) !ExternalDocumentation {
-        _ = self;
-        const url = externalDocs.url;
-        const description = externalDocs.description;
-        return ExternalDocumentation{ .url = url, .description = description };
+        const url = try self.allocator.dupe(u8, externalDocs.url);
+        const description = if (externalDocs.description) |desc| try self.allocator.dupe(u8, desc) else null;
+        return ExternalDocumentation{
+            .url = url,
+            .description = description,
+            ._url_allocated = true,
+            ._description_allocated = description != null,
+        };
     }
 
     fn convertSchemas(self: *OpenApi32Converter, components: Components32) !std.StringHashMap(Schema) {
@@ -404,7 +429,7 @@ pub const OpenApi32Converter = struct {
         if (std.mem.eql(u8, location, "query")) return .query;
         if (std.mem.eql(u8, location, "header")) return .header;
         if (std.mem.eql(u8, location, "path")) return .path;
-        if (std.mem.eql(u8, location, "cookie")) return .query;
+        if (std.mem.eql(u8, location, "cookie")) return .cookie;
         return .query;
     }
 

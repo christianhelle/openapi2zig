@@ -390,7 +390,7 @@ pub const OpenApiConverter = struct {
         if (std.mem.eql(u8, location, "query")) return .query;
         if (std.mem.eql(u8, location, "header")) return .header;
         if (std.mem.eql(u8, location, "path")) return .path;
-        if (std.mem.eql(u8, location, "cookie")) return .query;
+        if (std.mem.eql(u8, location, "cookie")) return .cookie;
         return .query;
     }
 
