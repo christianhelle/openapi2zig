@@ -209,7 +209,11 @@ pub const Parameter = struct {
             const default = if (value.object.get("default")) |val| val else null;
             const maximum = if (value.object.get("maximum")) |val| val.float else null;
             const exclusiveMaximum = if (value.object.get("exclusiveMaximum")) |val| val.bool else null;
-            const minimum = if (value.object.get("minimum")) |val| val.float else null;
+            const minimum = if (value.object.get("minimum")) |val| switch (val) {
+                .integer => |i| @as(f64, @floatFromInt(i)),
+                .float => |f| f,
+                else => null,
+            } else null;
             const exclusiveMinimum = if (value.object.get("exclusiveMinimum")) |val| val.bool else null;
             const maxLength = if (value.object.get("maxLength")) |val| @as(u32, @intCast(val.integer)) else null;
             const minLength = if (value.object.get("minLength")) |val| @as(u32, @intCast(val.integer)) else null;

@@ -58,7 +58,7 @@ pub const Response = struct {
     }
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Response {
-        const description = try allocator.dupe(u8, value.object.get("description").?.string);
+        const description = if (value.object.get("description")) |val| try allocator.dupe(u8, val.string) else try allocator.dupe(u8, "");
         const schema = if (value.object.get("schema")) |val| try Schema.parseFromJson(allocator, val) else null;
         const headers = if (value.object.get("headers")) |val| try parseHeaders(allocator, val) else null;
         const examples = if (value.object.get("examples")) |val| try parseExamples(allocator, val) else null;
