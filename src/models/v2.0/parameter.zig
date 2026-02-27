@@ -207,7 +207,11 @@ pub const Parameter = struct {
             const collectionFormat_str = if (value.object.get("collectionFormat")) |val| val.string else "csv";
             const collectionFormat = CollectionFormat.fromString(collectionFormat_str);
             const default = if (value.object.get("default")) |val| val else null;
-            const maximum = if (value.object.get("maximum")) |val| val.float else null;
+            const maximum = if (value.object.get("maximum")) |val| switch (val) {
+                .integer => |i| @as(f64, @floatFromInt(i)),
+                .float => |f| f,
+                else => null,
+            } else null;
             const exclusiveMaximum = if (value.object.get("exclusiveMaximum")) |val| val.bool else null;
             const minimum = if (value.object.get("minimum")) |val| switch (val) {
                 .integer => |i| @as(f64, @floatFromInt(i)),
@@ -222,7 +226,11 @@ pub const Parameter = struct {
             const minItems = if (value.object.get("minItems")) |val| @as(u32, @intCast(val.integer)) else null;
             const uniqueItems = if (value.object.get("uniqueItems")) |val| val.bool else null;
             const enum_values = if (value.object.get("enum")) |val| try parseJsonValueArray(allocator, val) else null;
-            const multipleOf = if (value.object.get("multipleOf")) |val| val.float else null;
+            const multipleOf = if (value.object.get("multipleOf")) |val| switch (val) {
+                .integer => |i| @as(f64, @floatFromInt(i)),
+                .float => |f| f,
+                else => null,
+            } else null;
             return Parameter{
                 .name = name,
                 .in = in_location,
