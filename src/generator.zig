@@ -3,6 +3,7 @@ const cli = @import("cli.zig");
 const detector = @import("detector.zig");
 const models = @import("models.zig");
 const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
+const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
 const OpenApi32Converter = @import("generators/converters/openapi32_converter.zig").OpenApi32Converter;
 const SwaggerConverter = @import("generators/converters/swagger_converter.zig").SwaggerConverter;
 const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
@@ -67,6 +68,12 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
                     std.debug.print("Successfully parsed OpenAPI v3.0 document\n", .{});
                     try generateCodeFromOpenApiDocument(allocator, openapi, args);
                 },
+                .v3_1 => {
+                    var openapi31 = try models.OpenApi31Document.parseFromJson(allocator, file_contents);
+                    defer openapi31.deinit(allocator);
+                    std.debug.print("Successfully parsed OpenAPI v3.1 document\n", .{});
+                    try generateCodeFromOpenApi31Document(allocator, openapi31, args);
+                },
                 .v3_2 => {
                     var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, file_contents);
                     defer openapi32.deinit(allocator);
@@ -116,6 +123,13 @@ fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, swagger: models
 fn generateCodeFromOpenApiDocument(allocator: std.mem.Allocator, openapi: models.OpenApiDocument, args: cli.CliArgs) !void {
     var openapi_converter = OpenApiConverter.init(allocator);
     var unified_doc = try openapi_converter.convert(openapi);
+    defer unified_doc.deinit(allocator);
+    try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
+}
+
+fn generateCodeFromOpenApi31Document(allocator: std.mem.Allocator, openapi: models.OpenApi31Document, args: cli.CliArgs) !void {
+    var openapi31_converter = OpenApi31Converter.init(allocator);
+    var unified_doc = try openapi31_converter.convert(openapi);
     defer unified_doc.deinit(allocator);
     try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
 }
