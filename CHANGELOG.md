@@ -27,6 +27,7 @@
 
 **Merged pull requests:**
 
+- Add full OpenAPI 3.1 support: parsing, converting, and code generation [\#42](https://github.com/christianhelle/openapi2zig/pull/42) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Upgrade to Zig 0.15.2 [\#38](https://github.com/christianhelle/openapi2zig/pull/38) ([christianhelle](https://github.com/christianhelle))
 - Fix generated code compilation and remove unnecessary error unions [\#37](https://github.com/christianhelle/openapi2zig/pull/37) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Update Zig version to 0.15.1 and fix related build issues [\#36](https://github.com/christianhelle/openapi2zig/pull/36) ([christianhelle](https://github.com/christianhelle))
