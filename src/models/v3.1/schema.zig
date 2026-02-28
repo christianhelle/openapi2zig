@@ -184,7 +184,7 @@ pub const Schema = struct {
             }
         }
 
-        // In OpenAPI 3.2, "type" can be a string or an array of strings
+        // In OpenAPI 3.1, "type" can be a string or an array of strings
         var type_str: ?[]const u8 = null;
         var type_array: ?[]const []const u8 = null;
         if (obj.get("type")) |type_val| {

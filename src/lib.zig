@@ -39,6 +39,7 @@ pub const detectVersion = @import("detector.zig").getOpenApiVersion;
 pub const models = @import("models.zig");
 pub const OpenApiDocument = models.OpenApiDocument;
 pub const OpenApi31Document = models.OpenApi31Document;
+pub const OpenApi32Document = models.OpenApi32Document;
 pub const SwaggerDocument = models.SwaggerDocument;
 
 // Unified document representation
@@ -62,6 +63,7 @@ pub const PathItem = @import("models/common/document.zig").PathItem;
 pub const SwaggerConverter = @import("generators/converters/swagger_converter.zig").SwaggerConverter;
 pub const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
 pub const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
+pub const OpenApi32Converter = @import("generators/converters/openapi32_converter.zig").OpenApi32Converter;
 
 // Code generators
 pub const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
@@ -110,7 +112,15 @@ pub fn parseToUnified(allocator: std.mem.Allocator, json_content: []const u8) !U
 
             return try converter.convert(openapi31_doc);
         },
-        .Unsupported, .v3_2 => {
+        .v3_2 => {
+            var openapi32_doc = try OpenApi32Document.parseFromJson(allocator, json_content);
+            defer openapi32_doc.deinit(allocator);
+
+            var converter = OpenApi32Converter.init(allocator);
+
+            return try converter.convert(openapi32_doc);
+        },
+        .Unsupported => {
             return error.UnsupportedApiVersion;
         },
     }
@@ -228,6 +238,20 @@ pub fn convertOpenApi31ToUnified(allocator: std.mem.Allocator, openapi31_doc: Op
     var converter = OpenApi31Converter.init(allocator);
 
     return try converter.convert(openapi31_doc);
+}
+
+/// Convert a version-specific OpenAPI v3.2 document to unified representation.
+///
+/// Parameters:
+/// - allocator: Memory allocator to use for conversion
+/// - openapi32_doc: Parsed OpenAPI v3.2 document
+///
+/// Returns:
+/// - UnifiedDocument: Unified representation of the OpenAPI v3.2 document
+pub fn convertOpenApi32ToUnified(allocator: std.mem.Allocator, openapi32_doc: OpenApi32Document) !UnifiedDocument {
+    var converter = OpenApi32Converter.init(allocator);
+
+    return try converter.convert(openapi32_doc);
 }
 
 /// Convert a version-specific Swagger document to unified representation.
