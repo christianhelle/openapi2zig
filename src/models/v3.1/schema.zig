@@ -99,7 +99,7 @@ pub const SchemaOrReference = union(enum) {
     }
 };
 
-/// OpenAPI 3.2 Schema supports `type` as either a single string or an array of strings
+/// OpenAPI 3.1 Schema supports `type` as either a single string or an array of strings
 /// (e.g. `["string", "null"]` for nullable types instead of the `nullable` boolean).
 pub const Schema = struct {
     title: ?[]const u8 = null,
