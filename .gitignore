@@ -29,5 +29,7 @@ generated/swagger-petstore-expanded.zig
 generated/swagger-petstore.zig
 generated/generated_v2.zig
 generated/generated_v3.zig
+generated/generated_v31.zig
+generated/generated_v32.zig
 generated/petstore_v2_unified.zig
 generated/petstore_v3_unified.zig
