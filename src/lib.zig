@@ -38,6 +38,7 @@ pub const detectVersion = @import("detector.zig").getOpenApiVersion;
 // Document models
 pub const models = @import("models.zig");
 pub const OpenApiDocument = models.OpenApiDocument;
+pub const OpenApi31Document = models.OpenApi31Document;
 pub const SwaggerDocument = models.SwaggerDocument;
 
 // Unified document representation
@@ -60,6 +61,7 @@ pub const PathItem = @import("models/common/document.zig").PathItem;
 // Converters for transforming version-specific documents to unified representation
 pub const SwaggerConverter = @import("generators/converters/swagger_converter.zig").SwaggerConverter;
 pub const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
+pub const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
 
 // Code generators
 pub const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
@@ -100,7 +102,15 @@ pub fn parseToUnified(allocator: std.mem.Allocator, json_content: []const u8) !U
 
             return try converter.convert(swagger_doc);
         },
-        .Unsupported, .v3_1 => {
+        .v3_1 => {
+            var openapi31_doc = try OpenApi31Document.parseFromJson(allocator, json_content);
+            defer openapi31_doc.deinit(allocator);
+
+            var converter = OpenApi31Converter.init(allocator);
+
+            return try converter.convert(openapi31_doc);
+        },
+        .Unsupported, .v3_2 => {
             return error.UnsupportedApiVersion;
         },
     }
@@ -204,6 +214,20 @@ pub fn convertOpenApiToUnified(allocator: std.mem.Allocator, openapi_doc: OpenAp
     var converter = OpenApiConverter.init(allocator);
 
     return try converter.convert(openapi_doc);
+}
+
+/// Convert a version-specific OpenAPI v3.1 document to unified representation.
+///
+/// Parameters:
+/// - allocator: Memory allocator to use for conversion
+/// - openapi31_doc: Parsed OpenAPI v3.1 document
+///
+/// Returns:
+/// - UnifiedDocument: Unified representation of the OpenAPI v3.1 document
+pub fn convertOpenApi31ToUnified(allocator: std.mem.Allocator, openapi31_doc: OpenApi31Document) !UnifiedDocument {
+    var converter = OpenApi31Converter.init(allocator);
+
+    return try converter.convert(openapi31_doc);
 }
 
 /// Convert a version-specific Swagger document to unified representation.

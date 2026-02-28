@@ -9,7 +9,7 @@ const SecurityRequirement = @import("security.zig").SecurityRequirement;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
 
 pub const Operation = struct {
-    responses: Responses,
+    responses: ?Responses = null,
     tags: ?[]const []const u8 = null,
     summary: ?[]const u8 = null,
     description: ?[]const u8 = null,
@@ -60,7 +60,7 @@ pub const Operation = struct {
             }
         }
         return Operation{
-            .responses = try Responses.parseFromJson(allocator, obj.get("responses").?),
+            .responses = if (obj.get("responses")) |val| try Responses.parseFromJson(allocator, val) else null,
             .tags = if (tags_list.items.len > 0) try tags_list.toOwnedSlice(allocator) else null,
             .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
@@ -76,7 +76,9 @@ pub const Operation = struct {
     }
 
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
-        self.responses.deinit(allocator);
+        if (self.responses) |*responses| {
+            responses.deinit(allocator);
+        }
         if (self.tags) |tags| {
             for (tags) |tag| {
                 allocator.free(tag);

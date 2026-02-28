@@ -89,10 +89,22 @@ pub fn build(b: *std.Build) void {
     const run_generate_v32_step = b.step("run-generate-v32", "Run the app with generate command for OpenAPI v3.2");
     run_generate_v32_step.dependOn(&run_generate_v32_cmd.step);
 
+    const run_generate_v31_cmd = b.addRunArtifact(exe);
+    run_generate_v31_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.1/webhook-example.json",
+        "-o",
+        "generated/generated_v31.zig",
+    });
+    const run_generate_v31_step = b.step("run-generate-v31", "Run the app with generate command for OpenAPI v3.1");
+    run_generate_v31_step.dependOn(&run_generate_v31_cmd.step);
+
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
     run_generate.dependOn(&run_generate_v32_cmd.step);
+    run_generate.dependOn(&run_generate_v31_cmd.step);
 
     const tests_mod = b.createModule(.{
         .root_source_file = b.path("src/tests.zig"),
