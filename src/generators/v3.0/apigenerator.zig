@@ -139,11 +139,17 @@ pub const ApiCodeGenerator = struct {
         if (op.parameters) |params| {
             if (params.len > 0) {
                 for (params) |paramOrReference| {
-                    const parameter = paramOrReference.parameter;
-                    if (!std.mem.eql(u8, parameter.in_field, "path") and !std.mem.eql(u8, parameter.in_field, "body")) {
-                        try parts.append(allocator, "    _ = ");
-                        try parts.append(allocator, parameter.name);
-                        try parts.append(allocator, ";\n");
+                    switch (paramOrReference) {
+                        .parameter => |parameter| {
+                            if (!std.mem.eql(u8, parameter.in_field, "path") and !std.mem.eql(u8, parameter.in_field, "body")) {
+                                try parts.append(allocator, "    _ = ");
+                                try parts.append(allocator, parameter.name);
+                                try parts.append(allocator, ";\n");
+                            }
+                        },
+                        .reference => {
+                            // Skip references for now - they should be resolved before code generation
+                        },
                     }
                 }
                 if (has_request_body) {
@@ -205,11 +211,10 @@ pub const ApiCodeGenerator = struct {
         );
         if (has_request_body) {
             try parts.append(allocator, "\n\n");
-            try parts.append(allocator, "    var str = std.ArrayList([]const u8){};\n");
-            try parts.append(allocator, "    defer str.deinit(allocator);\n\n");
+            try parts.append(allocator, "    var str = std.ArrayList(u8).init(allocator);\n");
+            try parts.append(allocator, "    defer str.deinit();\n\n");
             try parts.append(allocator, "    try std.json.stringify(requestBody, .{}, str.writer());\n");
-            try parts.append(allocator, "    const body = try std.mem.join(allocator, \"\", str.items);\n");
-            try parts.append(allocator, "    defer allocator.free(body);\n\n");
+            try parts.append(allocator, "    const body = str.items;\n\n");
             try parts.append(allocator, "    req.transfer_encoding = .{ .content_length = body.len };\n");
             try parts.append(allocator, "    try req.writeAll(body);\n\n");
         } else {
