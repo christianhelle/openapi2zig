@@ -8,14 +8,24 @@ A CLI tool and Zig library that generates type-safe API client code from OpenAPI
 
 > **Note**: This project provides both a CLI tool for generating Zig code from OpenAPI specs and a library for parsing and working with OpenAPI documents programmatically in Zig.
 
+## Supported Specifications
+
+This tool supports the following OpenAPI and Swagger specifications:
+- **Swagger v2.0** - Full support
+- **OpenAPI v3.0** - Full support
+- **OpenAPI v3.1** - Full support
+- **OpenAPI v3.2** - Full support
+
+All specifications are supported in JSON format. YAML support may be added in future releases.
+
 ## Features
 
-- Parse OpenAPI v2.0, v3.0, and v3.2 specifications (JSON format)
+- Parse and generate from Swagger v2.0, OpenAPI v3.0, v3.1, and v3.2 specifications
 - Generate type-safe Zig client code
 - Support for complex OpenAPI schemas and operations
 - Cross-platform support (Linux, macOS, Windows)
 - Available as both CLI tool and Zig library
-- Unified document representation for both OpenAPI and Swagger specs
+- Unified document representation for all OpenAPI and Swagger versions
 
 ## Prerequisites
 
@@ -276,8 +286,9 @@ pub fn main() !void {
 
 #### Parsing Functions
 
-- `parseToUnified(allocator, json_content)` - Parse any supported version to unified representation
+- `parseToUnified(allocator, json_content)` - Parse any supported version (v2.0, v3.0, v3.1, v3.2) to unified representation
 - `parseOpenApi(allocator, json_content)` - Parse OpenAPI v3.0 specifically
+- `parseOpenApi31(allocator, json_content)` - Parse OpenAPI v3.1 specifically
 - `parseOpenApi32(allocator, json_content)` - Parse OpenAPI v3.2 specifically
 - `parseSwagger(allocator, json_content)` - Parse Swagger v2.0 specifically
 
@@ -289,16 +300,18 @@ pub fn main() !void {
 
 #### Conversion Functions
 
-- `convertOpenApiToUnified(allocator, openapi_doc)` - Convert OpenAPI v3.0 to unified format
-- `convertOpenApi32ToUnified(allocator, openapi_doc)` - Convert OpenAPI v3.2 to unified format
 - `convertSwaggerToUnified(allocator, swagger_doc)` - Convert Swagger v2.0 to unified format
+- `convertOpenApiToUnified(allocator, openapi_doc)` - Convert OpenAPI v3.0 to unified format
+- `convertOpenApi31ToUnified(allocator, openapi_doc)` - Convert OpenAPI v3.1 to unified format
+- `convertOpenApi32ToUnified(allocator, openapi_doc)` - Convert OpenAPI v3.2 to unified format
 
 #### Data Types
 
-- `UnifiedDocument` - Common document representation for both OpenAPI and Swagger
-- `OpenApiDocument` - OpenAPI v3.0 specific document structure
-- `OpenApi32Document` - OpenAPI v3.2 specific document structure
+- `UnifiedDocument` - Common document representation for all OpenAPI and Swagger versions
 - `SwaggerDocument` - Swagger v2.0 specific document structure
+- `OpenApiDocument` - OpenAPI v3.0 specific document structure
+- `OpenApi31Document` - OpenAPI v3.1 specific document structure
+- `OpenApi32Document` - OpenAPI v3.2 specific document structure
 - `DocumentInfo`, `Schema`, `Operation`, etc. - Various OpenAPI components
 
 ## Example Generated Code
@@ -434,20 +447,23 @@ This project follows standard Zig formatting. Use `zig fmt` to format your code 
 
 ## Project Status
 
-🚧 **Under Active Development** 🚧
+🚀 **Active Development** 🚀
 
-This project is in early development. Current capabilities include:
+This project is in active development with solid foundation for OpenAPI/Swagger support. Current capabilities include:
 
-- OpenAPI v2.0, v3.0, and v3.2 specification parsing
-- Basic data model structures for OpenAPI components
-- Generate API client code using `std.http.Client`
-- Comprehensive test suite for parsing functionality
+- Full parsing support for Swagger v2.0, OpenAPI v3.0, v3.1, and v3.2 specifications
+- Comprehensive data model structures for all OpenAPI versions
+- Generate type-safe API client code using `std.http.Client`
+- Extensive test suite covering all specification versions
+- Cross-compilation support (Linux, macOS, Windows)
+- Both CLI tool and Zig library interfaces
 
-Planned features:
+Planned features and enhancements:
 
-- Improved CLI interface for code generation
-- Authentication / Authorization support
-- Documentation generation
+- YAML specification format support
+- Enhanced authentication/authorization client support
+- Automatic API documentation generation
+- Performance optimizations for large specifications
 
 ## License
 
