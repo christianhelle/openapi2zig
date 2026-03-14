@@ -99,6 +99,11 @@ From build.zig.zon `.paths`:
 ## Version Compatibility
 
 - **Zig Version**: Requires exactly Zig 0.15.2
+- **Supported OpenAPI/Swagger Versions**:
+  - Swagger v2.0
+  - OpenAPI v3.0
+  - OpenAPI v3.1
+  - OpenAPI v3.2
 - **API Stability**: The library API is considered stable as of v1.0.0
 - **Semantic Versioning**: We follow semver for breaking changes
 

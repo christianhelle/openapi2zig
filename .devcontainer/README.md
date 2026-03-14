@@ -2,6 +2,14 @@
 
 This directory contains the development container configuration for the openapi2zig project, designed to work seamlessly with GitHub Codespaces and VS Code Dev Containers.
 
+## Supported Specifications
+
+The openapi2zig project supports the following specifications:
+- **Swagger v2.0** - Full support
+- **OpenAPI v3.0** - Full support
+- **OpenAPI v3.1** - Full support
+- **OpenAPI v3.2** - Full support
+
 ## What's Included
 
 ### Software

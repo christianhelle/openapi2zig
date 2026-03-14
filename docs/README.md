@@ -2,6 +2,14 @@
 
 This directory contains the static documentation website for openapi2zig.
 
+## Supported Specifications
+
+The openapi2zig tool supports the following OpenAPI and Swagger specifications:
+- **Swagger v2.0** - Full support
+- **OpenAPI v3.0** - Full support
+- **OpenAPI v3.1** - Full support
+- **OpenAPI v3.2** - Full support
+
 ## Structure
 
 - `index.html` - Main documentation page
