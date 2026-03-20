@@ -14,6 +14,9 @@ pub const LoadError = error{
     InvalidResponse,
 };
 
+// Maximum size for loaded content (10MB for OpenAPI specs)
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+
 /// Loads input from either a file path or HTTP/HTTPS URL
 /// Caller owns the returned memory and must free it with allocator.free()
 pub fn loadInput(allocator: std.mem.Allocator, source: InputSource) ![]const u8 {
@@ -32,7 +35,7 @@ pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 
     };
     defer file.close();
 
-    const contents = file.readToEndAlloc(allocator, std.math.maxInt(usize)) catch |err| {
+    const contents = file.readToEndAlloc(allocator, MAX_BODY_BYTES) catch |err| {
         std.debug.print("Failed to read file '{s}': {}\n", .{ path, err });
         return err;
     };
@@ -90,7 +93,7 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {
     }
 
     // Read response body (max 10MB for OpenAPI specs)
-    const max_size = 10 * 1024 * 1024;
+    const max_size = MAX_BODY_BYTES;
     var transfer_buffer: [4096]u8 = undefined;
     const reader = response.reader(&transfer_buffer);
     const body = reader.allocRemaining(allocator, std.io.Limit.limited(max_size)) catch |err| {

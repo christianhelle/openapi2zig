@@ -1,5 +1,6 @@
 const std = @import("std");
 const version_info = @import("version_info.zig");
+const input_loader = @import("input_loader.zig");
 
 pub const CliArgs = struct {
     input_path: []const u8,
@@ -11,10 +12,6 @@ pub const ParsedArgs = struct {
     args: CliArgs,
     raw: [][:0]u8,
 };
-
-pub fn isRemoteUrl(input: []const u8) bool {
-    return std.mem.startsWith(u8, input, "http://") or std.mem.startsWith(u8, input, "https://");
-}
 
 pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
     const args = try std.process.argsAlloc(allocator);

@@ -149,7 +149,7 @@ These tests ensure:
 
 ## Test Output Examples
 
-```
+```text
 ✓ Full pipeline (file): Swagger Petstore - OpenAPI v3.0
 ✓ Full pipeline (file): Swagger Petstore - Swagger v2.0
 ✓ Full pipeline (file): Simple API overview - OpenAPI v3.0
