@@ -12,12 +12,17 @@ pub const ParsedArgs = struct {
     raw: [][:0]u8,
 };
 
+pub fn isRemoteUrl(input: []const u8) bool {
+    return std.mem.startsWith(u8, input, "http://") or std.mem.startsWith(u8, input, "https://");
+}
+
 pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
     const args = try std.process.argsAlloc(allocator);
 
     if (args.len < 4) {
         std.process.argsFree(allocator, args[0..]);
         printUsage();
+        std.debug.print("\nError: OpenAPI spec path or URL required\n", .{});
         return error.InvalidArguments;
     }
 
@@ -40,6 +45,7 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
             if (i >= args.len) {
                 std.process.argsFree(allocator, args[0..]);
                 printUsage();
+                std.debug.print("\nError: OpenAPI spec path or URL required\n", .{});
                 return error.InvalidArguments;
             }
             input_path = args[i];
@@ -65,6 +71,7 @@ pub fn parse(allocator: std.mem.Allocator) !ParsedArgs {
     if (input_path == null) {
         std.process.argsFree(allocator, args[0..]);
         printUsage();
+        std.debug.print("\nError: OpenAPI spec path or URL required\n", .{});
         return error.InvalidArguments;
     }
 
@@ -85,11 +92,15 @@ fn printUsage() void {
         \\ Version: {s} ({s})
         \\
         \\ Options:
-        \\   -i, --input <path>      Path to the OpenAPI Specification JSON file (YAML currently not supported)
-        \\   -o, --output <path>     Path to the output file path for the generated Zig code
-        \\                           (default: generated.zig)
-        \\   --base-url <url>        Base URL for the API client.
-        \\                           (default: server URL from OpenAPI Specification)
+        \\   -i, --input <PATH_OR_URL>  OpenAPI/Swagger spec (file path or http/https URL)
+        \\   -o, --output <path>        Path to the output file path for the generated Zig code
+        \\                              (default: generated.zig)
+        \\   --base-url <url>           Base URL for the API client.
+        \\                              (default: server URL from OpenAPI Specification)
+        \\
+        \\ EXAMPLES:
+        \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
+        \\   openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
         \\
         \\
     , .{ version_info.VERSION, version_info.GIT_COMMIT });
