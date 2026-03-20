@@ -1,0 +1,58 @@
+{
+  "agents": [
+    {
+      "persistent_name": "Lando",
+      "universe": "star_wars_ot",
+      "cast_as": "Lando Calrissian",
+      "role": "Lead / Architect",
+      "created_at": "2026-03-20T15:09:41.052Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    {
+      "persistent_name": "Fenster",
+      "universe": "star_wars_ot",
+      "cast_as": "Fen Sterksson (OC inspired)",
+      "role": "Backend Dev",
+      "created_at": "2026-03-20T15:09:41.052Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    {
+      "persistent_name": "Juno",
+      "universe": "star_wars_ot",
+      "cast_as": "Juno Eclipse (Force Unleashed universe)",
+      "role": "Frontend Dev",
+      "created_at": "2026-03-20T15:09:41.052Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    {
+      "persistent_name": "Starkiller",
+      "universe": "star_wars_ot",
+      "cast_as": "Starkiller / Galen Marek",
+      "role": "Tester",
+      "created_at": "2026-03-20T15:09:41.052Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    {
+      "persistent_name": "Scribe",
+      "universe": "meta",
+      "cast_as": "Scribe",
+      "role": "Session Logger",
+      "created_at": "2026-03-20T15:09:41.052Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    {
+      "persistent_name": "Ralph",
+      "universe": "meta",
+      "cast_as": "Ralph",
+      "role": "Work Monitor",
+      "created_at": "2026-03-20T15:09:41.052Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  ]
+}

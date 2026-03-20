@@ -1,0 +1,42 @@
+{
+  "assignments": [
+    {
+      "assignment_id": "openapi2zig-001",
+      "timestamp": "2026-03-20T15:09:41.052Z",
+      "universe": "star_wars_ot",
+      "team_size": 6,
+      "roster": [
+        {
+          "persistent_name": "Lando",
+          "cast_as": "Lando Calrissian",
+          "role": "Lead / Architect"
+        },
+        {
+          "persistent_name": "Fenster",
+          "cast_as": "Fen Sterksson (OC inspired)",
+          "role": "Backend Dev"
+        },
+        {
+          "persistent_name": "Juno",
+          "cast_as": "Juno Eclipse",
+          "role": "Frontend Dev"
+        },
+        {
+          "persistent_name": "Starkiller",
+          "cast_as": "Starkiller / Galen Marek",
+          "role": "Tester"
+        },
+        {
+          "persistent_name": "Scribe",
+          "cast_as": "Scribe",
+          "role": "Session Logger"
+        },
+        {
+          "persistent_name": "Ralph",
+          "cast_as": "Ralph",
+          "role": "Work Monitor"
+        }
+      ]
+    }
+  ]
+}
