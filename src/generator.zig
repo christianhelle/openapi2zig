@@ -2,6 +2,7 @@ const std = @import("std");
 const cli = @import("cli.zig");
 const detector = @import("detector.zig");
 const models = @import("models.zig");
+const input_loader = @import("input_loader.zig");
 const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
 const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
 const OpenApi32Converter = @import("generators/converters/openapi32_converter.zig").OpenApi32Converter;
@@ -36,10 +37,14 @@ pub fn validateExtension(input_file_path: []const u8) !Extension {
 
 pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
     const extension = try validateExtension(args.input_path);
-    const openapi_file = try std.fs.cwd().openFile(args.input_path, .{});
-    defer openapi_file.close();
 
-    const file_contents = try openapi_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    // Determine input source: URL or file path
+    const source = if (input_loader.isUrl(args.input_path))
+        input_loader.InputSource{ .url = args.input_path }
+    else
+        input_loader.InputSource{ .file_path = args.input_path };
+
+    const file_contents = try input_loader.loadInput(allocator, source);
     defer allocator.free(file_contents);
 
     switch (extension) {

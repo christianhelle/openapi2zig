@@ -199,11 +199,23 @@ openapi2zig generate [options]
 
 ### Options
 
-| Flag                    | Description                                                                           |
-| :---------------------- | :------------------------------------------------------------------------------------ |
-| `-i`, `--input <path>`  | Path to the OpenAPI Specification file (JSON or YAML).                                |
-| `-o`, `--output <path>` | Path to the output directory for the generated Zig code (default: current directory). |
-| `--base-url <url>`      | Base URL for the API client (default: server URL from OpenAPI Specification).         |
+| Flag                           | Description                                                                           |
+| :----------------------------- | :------------------------------------------------------------------------------------ |
+| `-i`, `--input <PATH_OR_URL>`  | OpenAPI/Swagger spec (file path or http/https URL).                                   |
+| `-o`, `--output <path>`        | Path to the output directory for the generated Zig code (default: current directory). |
+| `--base-url <url>`             | Base URL for the API client (default: server URL from OpenAPI Specification).         |
+
+### Examples
+
+**From a local file:**
+```bash
+openapi2zig generate -i ./openapi/petstore.json -o api.zig
+```
+
+**From a remote URL:**
+```bash
+openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
+```
 
 ## Using as a Library
 
