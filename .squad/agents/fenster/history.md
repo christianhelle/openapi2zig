@@ -24,4 +24,30 @@
 
 ## Learnings
 
-*To be updated as the team works.*
+### HTTP Client Integration in Zig 0.15.2 (2025-01-17)
+
+**HTTP Request Pattern:**
+- Use `std.http.Client{ .allocator = allocator }` for initialization
+- Call `client.request(method, uri, options)` to create a request (takes 3 args, not 4)
+- Use `req.sendBodiless()` for GET requests
+- Call `req.receiveHead(&redirect_buffer)` to get response headers
+- Access status via `response.head.status`
+- Get reader with `response.reader(&transfer_buffer)` for body reading
+
+**Response Body Reading:**
+- `reader.allocRemaining(allocator, std.io.Limit.limited(max_bytes))` for bounded allocation
+- Returns `[]const u8` owned by allocator - caller must free
+- `std.io.Limit.limited(n)` wraps a size limit, NOT a raw integer
+- Transfer buffer size (4096 bytes) balances memory vs performance
+
+**Memory Safety:**
+- All HTTP allocations go through provided allocator (no global state)
+- Body ownership transferred to caller via return value
+- No cleanup needed on error paths (allocator handles failed allocations)
+- Existing `defer allocator.free(contents)` pattern in generator.zig remains unchanged
+
+**Edge Cases:**
+- OpenAPI specs from public URLs may be updated (version strings change)
+- Test brittleness: external API tests should use version-agnostic assertions
+- 10MB size limit reasonable for OpenAPI specs (typical: 10-500KB)
+

@@ -59,30 +59,27 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {
     var client = std.http.Client{ .allocator = allocator };
     defer client.deinit();
 
-    // Create request
-    var header_buffer: [8192]u8 = undefined;
-    var request = client.open(.GET, uri, .{
-        .server_header_buffer = &header_buffer,
-    }) catch |err| {
-        std.debug.print("Failed to connect to '{s}': {}\n", .{ url, err });
+    // Create and send request
+    var req = client.request(.GET, uri, .{}) catch |err| {
+        std.debug.print("Failed to create HTTP request to '{s}': {}\n", .{ url, err });
         return LoadError.ConnectionFailed;
     };
-    defer request.deinit();
+    defer req.deinit();
 
-    // Send request
-    request.send() catch |err| {
+    req.sendBodiless() catch |err| {
         std.debug.print("Failed to send HTTP request to '{s}': {}\n", .{ url, err });
         return LoadError.HttpRequestFailed;
     };
 
-    // Wait for response
-    request.wait() catch |err| {
+    // Receive response headers
+    var redirect_buffer: [1024]u8 = undefined;
+    var response = req.receiveHead(&redirect_buffer) catch |err| {
         std.debug.print("Failed to receive HTTP response from '{s}': {}\n", .{ url, err });
         return LoadError.HttpRequestFailed;
     };
 
     // Check status code
-    const status = request.response.status;
+    const status = response.head.status;
     if (status != .ok) {
         if (status == .not_found) {
             std.debug.print("HTTP 404: Resource not found at '{s}'\n", .{url});
@@ -92,12 +89,16 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {
         return LoadError.HttpRequestFailed;
     }
 
-    // Read response body
-    const body = request.reader().readAllAlloc(allocator, std.math.maxInt(usize)) catch |err| {
+    // Read response body (max 10MB for OpenAPI specs)
+    const max_size = 10 * 1024 * 1024;
+    var transfer_buffer: [4096]u8 = undefined;
+    const reader = response.reader(&transfer_buffer);
+    const body = reader.allocRemaining(allocator, std.io.Limit.limited(max_size)) catch |err| {
         std.debug.print("Failed to read HTTP response body from '{s}': {}\n", .{ url, err });
         return LoadError.InvalidResponse;
     };
 
+    // Body ownership is transferred to caller
     return body;
 }
 
