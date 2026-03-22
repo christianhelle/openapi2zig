@@ -20,6 +20,12 @@ fn testOpenApi31DocumentParsing(allocator: std.mem.Allocator, file_path: []const
     std.debug.print("Successfully parsed OpenAPI 3.1 document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.openapi });
 }
 
+fn parseOpenApi31Schema(allocator: std.mem.Allocator, schema_json: []const u8) !models.v31.Schema {
+    var parsed_json = try std.json.parseFromSlice(std.json.Value, allocator, schema_json, .{});
+    defer parsed_json.deinit();
+    return try models.v31.Schema.parseFromJson(allocator, parsed_json.value);
+}
+
 test "can deserialize non-oauth-scopes into OpenApi31Document" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -74,6 +80,27 @@ test "can parse webhook-example components schemas" {
     try std.testing.expect(parsed.components != null);
     try std.testing.expect(parsed.components.?.schemas != null);
     try std.testing.expect(parsed.components.?.schemas.?.count() > 0);
+}
+
+test "v3.1 schema parses integer numeric constraints" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    var schema = try parseOpenApi31Schema(allocator,
+        \\{
+        \\  "type": "integer",
+        \\  "multipleOf": 5,
+        \\  "minimum": 1,
+        \\  "maximum": 100
+        \\}
+    );
+    defer schema.deinit(allocator);
+
+    try std.testing.expect(schema.multipleOf != null);
+    try std.testing.expectApproxEqAbs(@as(f64, 5.0), schema.multipleOf.?, 0.0);
+    try std.testing.expect(schema.minimum != null);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), schema.minimum.?, 0.0);
+    try std.testing.expect(schema.maximum != null);
+    try std.testing.expectApproxEqAbs(@as(f64, 100.0), schema.maximum.?, 0.0);
 }
 
 test "can parse all v3.1 JSON OpenAPI specifications" {

@@ -2,6 +2,7 @@ const std = @import("std");
 const json = std.json;
 const Reference = @import("reference.zig").Reference;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
+const numeric = @import("../common/numeric.zig");
 
 pub const XML = struct {
     name: ?[]const u8 = null,
@@ -182,10 +183,10 @@ pub const Schema = struct {
         }
         return Schema{
             .title = if (obj.get("title")) |val| try allocator.dupe(u8, val.string) else null,
-            .multipleOf = if (obj.get("multipleOf")) |val| val.float else null,
-            .maximum = if (obj.get("maximum")) |val| val.float else null,
+            .multipleOf = if (obj.get("multipleOf")) |val| numeric.toOptionalFloat(val) else null,
+            .maximum = if (obj.get("maximum")) |val| numeric.toOptionalFloat(val) else null,
             .exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| val.bool else null,
-            .minimum = if (obj.get("minimum")) |val| val.float else null,
+            .minimum = if (obj.get("minimum")) |val| numeric.toOptionalFloat(val) else null,
             .exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| val.bool else null,
             .maxLength = if (obj.get("maxLength")) |val| val.integer else null,
             .minLength = if (obj.get("minLength")) |val| val.integer else null,

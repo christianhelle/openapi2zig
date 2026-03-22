@@ -1,6 +1,7 @@
 const std = @import("std");
 const json = std.json;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
+const numeric = @import("../common/numeric.zig");
 
 pub const Xml = struct {
     name: ?[]const u8 = null,
@@ -135,10 +136,10 @@ pub const Schema = struct {
         const default = if (value.object.get("default")) |val| val else null;
         const type_val = if (value.object.get("type")) |val| try allocator.dupe(u8, val.string) else null;
         const format = if (value.object.get("format")) |val| try allocator.dupe(u8, val.string) else null;
-        const multipleOf = if (value.object.get("multipleOf")) |val| val.float else null;
-        const maximum = if (value.object.get("maximum")) |val| val.float else null;
+        const multipleOf = if (value.object.get("multipleOf")) |val| numeric.toOptionalFloat(val) else null;
+        const maximum = if (value.object.get("maximum")) |val| numeric.toOptionalFloat(val) else null;
         const exclusiveMaximum = if (value.object.get("exclusiveMaximum")) |val| val.bool else null;
-        const minimum = if (value.object.get("minimum")) |val| val.float else null;
+        const minimum = if (value.object.get("minimum")) |val| numeric.toOptionalFloat(val) else null;
         const exclusiveMinimum = if (value.object.get("exclusiveMinimum")) |val| val.bool else null;
         const maxLength = if (value.object.get("maxLength")) |val| @as(u32, @intCast(val.integer)) else null;
         const minLength = if (value.object.get("minLength")) |val| @as(u32, @intCast(val.integer)) else null;
