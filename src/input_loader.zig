@@ -14,8 +14,8 @@ pub const LoadError = error{
     InvalidResponse,
 };
 
-// Maximum size for loaded content (10MB for OpenAPI specs)
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
+// Maximum size for loaded content (20MB for OpenAPI specs)
+const MAX_BODY_BYTES = 20 * 1024 * 1024;
 
 /// Loads input from either a file path or HTTP/HTTPS URL
 /// Caller owns the returned memory and must free it with allocator.free()
