@@ -7,6 +7,7 @@ const ParameterLocation = @import("../../models/common/document.zig").ParameterL
 const Response = @import("../../models/common/document.zig").Response;
 const Schema = @import("../../models/common/document.zig").Schema;
 const SchemaType = @import("../../models/common/document.zig").SchemaType;
+const zig_identifier = @import("../zig_identifier.zig");
 
 pub const UnifiedApiGenerator = struct {
     allocator: std.mem.Allocator,
@@ -67,98 +68,133 @@ pub const UnifiedApiGenerator = struct {
         if (operation.summary) |summary| {
             try self.buffer.appendSlice(self.allocator, "/////////////////\n");
             try self.buffer.appendSlice(self.allocator, "// Summary:\n");
-            try self.buffer.appendSlice(self.allocator, "// ");
-            try self.buffer.appendSlice(self.allocator, summary);
-            try self.buffer.appendSlice(self.allocator, "\n");
+            try self.appendCommentLines(summary);
             try self.buffer.appendSlice(self.allocator, "//\n");
         }
 
         if (operation.description) |description| {
             try self.buffer.appendSlice(self.allocator, "// Description:\n");
-            try self.buffer.appendSlice(self.allocator, "// ");
-            try self.buffer.appendSlice(self.allocator, description);
-            try self.buffer.appendSlice(self.allocator, "\n");
+            try self.appendCommentLines(description);
             try self.buffer.appendSlice(self.allocator, "//\n");
         }
+    }
+
+    fn appendCommentLines(self: *UnifiedApiGenerator, text: []const u8) !void {
+        var line_start: usize = 0;
+        var index: usize = 0;
+
+        while (index < text.len) : (index += 1) {
+            switch (text[index]) {
+                '\n' => {
+                    try self.appendCommentLine(text[line_start..index]);
+                    line_start = index + 1;
+                },
+                '\r' => {
+                    try self.appendCommentLine(text[line_start..index]);
+                    if (index + 1 < text.len and text[index + 1] == '\n') {
+                        index += 1;
+                    }
+                    line_start = index + 1;
+                },
+                else => {},
+            }
+        }
+
+        if (text.len == 0 or line_start < text.len or text[text.len - 1] == '\n' or text[text.len - 1] == '\r') {
+            try self.appendCommentLine(text[line_start..]);
+        }
+    }
+
+    fn appendCommentLine(self: *UnifiedApiGenerator, line: []const u8) !void {
+        try self.buffer.appendSlice(self.allocator, "// ");
+        for (line) |byte| {
+            switch (byte) {
+                '\t' => try self.buffer.appendSlice(self.allocator, "    "),
+                0...8, 11...12, 14...31, 127 => try self.appendHexEscape(byte),
+                else => try self.buffer.append(self.allocator, byte),
+            }
+        }
+        try self.buffer.appendSlice(self.allocator, "\n");
+    }
+
+    fn appendHexEscape(self: *UnifiedApiGenerator, byte: u8) !void {
+        const hex_digits = "0123456789abcdef";
+        const hi: usize = byte >> 4;
+        const lo: usize = byte & 0x0f;
+        const escaped = [_]u8{ '\\', 'x', hex_digits[hi], hex_digits[lo] };
+
+        try self.buffer.appendSlice(self.allocator, &escaped);
     }
 
     fn generateFunctionSignature(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
         try self.buffer.appendSlice(self.allocator, "pub fn ");
 
         if (operation.operationId) |op_id| {
-            try self.buffer.appendSlice(self.allocator, op_id);
+            try zig_identifier.append(&self.buffer, self.allocator, op_id);
         } else {
-            try self.buffer.appendSlice(self.allocator, "operation");
-            try self.buffer.appendSlice(self.allocator, path[1..]); // Remove leading slash
+            const fallback_name = try std.fmt.allocPrint(self.allocator, "operation{s}", .{if (path.len > 0) path[1..] else path});
+            defer self.allocator.free(fallback_name);
+
+            try zig_identifier.append(&self.buffer, self.allocator, fallback_name);
         }
         try self.buffer.appendSlice(self.allocator, "(allocator: std.mem.Allocator");
-        var has_body_param = false;
-        var path_parameters = std.ArrayList([]const u8){};
-        defer path_parameters.deinit(self.allocator);
         if (operation.parameters) |params| {
             if (params.len > 0) try self.buffer.appendSlice(self.allocator, ", ");
             var first = true;
             for (params) |param| {
                 if (!first) try self.buffer.appendSlice(self.allocator, ", ");
                 first = false;
-                var data_type: []const u8 = "[]const u8"; // Default to string
-                var name: []const u8 = param.name;
-                if (param.location == .body) {
-                    has_body_param = true;
-                    name = "requestBody";
-                    if (param.schema) |schema| {
-                        if (schema.ref) |ref| {
-                            if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
-                                data_type = ref[last_slash + 1 ..];
-                            }
-                        } else {
-                            data_type = self.getZigTypeFromSchema(schema);
-                        }
-                    }
-                } else if (param.location == .path) {
-                    try path_parameters.append(self.allocator, param.name);
-                    if (param.type) |param_type| {
-                        data_type = self.getZigTypeFromSchemaType(param_type);
-                    }
-                } else {
-                    if (param.type) |param_type| {
-                        data_type = self.getZigTypeFromSchemaType(param_type);
-                    }
-                }
-                try self.buffer.appendSlice(self.allocator, name);
+
+                try self.appendParameterIdentifier(param);
+
                 try self.buffer.appendSlice(self.allocator, ": ");
-                try self.buffer.appendSlice(self.allocator, data_type);
+
+                if (param.location == .body) {
+                    if (param.schema) |schema| {
+                        try self.appendZigTypeFromSchema(schema);
+                    } else {
+                        try self.buffer.appendSlice(self.allocator, "[]const u8");
+                    }
+                } else if (param.type) |param_type| {
+                    try self.appendZigTypeFromSchemaType(param_type);
+                } else if (param.schema) |schema| {
+                    try self.appendZigTypeFromSchema(schema);
+                } else {
+                    try self.buffer.appendSlice(self.allocator, "[]const u8");
+                }
             }
         }
 
-        const return_type = self.getReturnType(method, operation);
         try self.buffer.appendSlice(self.allocator, ") !");
-        try self.buffer.appendSlice(self.allocator, return_type);
+        try self.appendReturnType(method, operation);
         try self.buffer.appendSlice(self.allocator, " {\n");
     }
 
-    fn getReturnType(self: *UnifiedApiGenerator, method: []const u8, operation: Operation) []const u8 {
-        if (std.mem.eql(u8, method, "GET")) {
-            if (operation.responses.get("200")) |path_item| {
-                if (path_item.schema) |schema| {
-                    return self.getZigTypeFromSchema(schema);
-                }
-            }
+    fn appendReturnType(self: *UnifiedApiGenerator, method: []const u8, operation: Operation) !void {
+        if (self.getReturnSchema(method, operation)) |schema| {
+            try self.appendZigTypeFromSchema(schema);
+            return;
         }
 
-        return "void";
+        try self.buffer.appendSlice(self.allocator, "void");
     }
 
     fn generateFunctionBody(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
         if (operation.parameters) |parameters| {
+            var emitted_unused_discard = false;
             if (parameters.len > 0) {
                 for (parameters) |parameter| {
-                    if (parameter.location != .path and parameter.location != .body) {
-                        try self.buffer.appendSlice(self.allocator, "    _ = ");
-                        try self.buffer.appendSlice(self.allocator, parameter.name);
-                        try self.buffer.appendSlice(self.allocator, ";\n");
-                    }
+                    if (parameter.location == .path) continue;
+                    if (parameter.location == .body) continue;
+                    try self.buffer.appendSlice(self.allocator, "    _ = ");
+                    try self.appendParameterIdentifier(parameter);
+                    try self.buffer.appendSlice(self.allocator, ";\n");
+                    emitted_unused_discard = true;
                 }
+            }
+
+            if (emitted_unused_discard) {
+                try self.buffer.appendSlice(self.allocator, "\n");
             }
         }
 
@@ -207,8 +243,7 @@ pub const UnifiedApiGenerator = struct {
             var pos: i32 = 0;
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
-                const param = parameter.name;
-                try self.buffer.appendSlice(self.allocator, param);
+                try self.appendParameterIdentifier(parameter);
                 pos += 1;
                 if (pos < parameters.len)
                     try self.buffer.appendSlice(self.allocator, ", ");
@@ -231,26 +266,27 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, ", uri, .{ .extra_headers = headers });\n");
         try self.buffer.appendSlice(self.allocator, "    defer req.deinit();\n\n");
 
-        if (std.mem.eql(u8, method, "POST") or std.mem.eql(u8, method, "PUT") or std.mem.eql(u8, method, "PATCH")) {
-            if (operation.parameters) |params| {
-                for (params) |param| {
-                    if (param.location == .body) {
-                        try self.buffer.appendSlice(self.allocator, "    var str = std.ArrayList(u8){};\n");
-                        try self.buffer.appendSlice(self.allocator, "    defer str.deinit(allocator);\n\n");
-                        try self.buffer.appendSlice(self.allocator, "    try std.json.stringify(requestBody, .{}, str.writer());\n");
-                        try self.buffer.appendSlice(self.allocator, "    const payload = str.items;\n\n");
-                        try self.buffer.appendSlice(self.allocator, "    req.transfer_encoding = .{ .content_length = payload.len };\n");
-                        try self.buffer.appendSlice(self.allocator, "    try req.sendBodyComplete(payload);\n\n");
-                        break;
-                    }
+        var has_body_param = false;
+        if (operation.parameters) |params| {
+            for (params) |param| {
+                if (param.location == .body) {
+                    has_body_param = true;
+                    try self.buffer.appendSlice(self.allocator, "    var str = std.ArrayList(u8){};\n");
+                    try self.buffer.appendSlice(self.allocator, "    defer str.deinit(allocator);\n\n");
+                    try self.buffer.appendSlice(self.allocator, "    try std.json.stringify(requestBody, .{}, str.writer());\n");
+                    try self.buffer.appendSlice(self.allocator, "    const payload = str.items;\n\n");
+                    try self.buffer.appendSlice(self.allocator, "    req.transfer_encoding = .{ .content_length = payload.len };\n");
+                    try self.buffer.appendSlice(self.allocator, "    try req.sendBodyComplete(payload);\n\n");
+                    break;
                 }
             }
-        } else {
+        }
+
+        if (!has_body_param) {
             try self.buffer.appendSlice(self.allocator, "    try req.sendBodiless();\n");
         }
 
-        const return_type = self.getReturnType(method, operation);
-        if (!std.mem.eql(u8, return_type, "void")) {
+        if (self.getReturnSchema(method, operation) != null) {
             try self.buffer.appendSlice(self.allocator, "\n");
             try self.buffer.appendSlice(self.allocator, "    var response = try req.receiveHead(&.{});\n");
             try self.buffer.appendSlice(self.allocator, "    if (response.head.status != .ok) {\n");
@@ -261,7 +297,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "    const body = try body_reader.readAlloc(allocator, response.head.content_length orelse 1024 * 1024 * 4);\n");
             try self.buffer.appendSlice(self.allocator, "    defer allocator.free(body);\n\n");
             try self.buffer.appendSlice(self.allocator, "    const parsed = try std.json.parseFromSlice(");
-            try self.buffer.appendSlice(self.allocator, return_type);
+            try self.appendReturnType(method, operation);
             try self.buffer.appendSlice(self.allocator, ", allocator, body, .{});\n");
             try self.buffer.appendSlice(self.allocator, "    defer parsed.deinit();\n\n");
             try self.buffer.appendSlice(self.allocator, "    return parsed.value;\n");
@@ -270,28 +306,61 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "}\n\n");
     }
 
-    fn getZigTypeFromSchema(self: *UnifiedApiGenerator, schema: Schema) []const u8 {
+    fn getReturnSchema(self: *UnifiedApiGenerator, method: []const u8, operation: Operation) ?Schema {
+        _ = self;
+        if (std.mem.eql(u8, method, "GET")) {
+            if (operation.responses.get("200")) |response| {
+                if (response.schema) |schema| {
+                    return schema;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    fn appendParameterIdentifier(self: *UnifiedApiGenerator, parameter: Parameter) !void {
+        if (parameter.location == .body) {
+            try self.buffer.appendSlice(self.allocator, "requestBody");
+            return;
+        }
+
+        const prefix = switch (parameter.location) {
+            .path => "path_",
+            .query => "query_",
+            .header => "header_",
+            .form => "form_",
+            .body => unreachable,
+        };
+        const identifier = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, parameter.name });
+        defer self.allocator.free(identifier);
+
+        try zig_identifier.append(&self.buffer, self.allocator, identifier);
+    }
+
+    fn appendZigTypeFromSchema(self: *UnifiedApiGenerator, schema: Schema) !void {
         if (schema.ref) |ref| {
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
-                return ref[last_slash + 1 ..];
+                try zig_identifier.append(&self.buffer, self.allocator, ref[last_slash + 1 ..]);
+                return;
             }
         }
         if (schema.type) |schema_type| {
-            return self.getZigTypeFromSchemaType(schema_type);
+            try self.appendZigTypeFromSchemaType(schema_type);
+            return;
         }
-        return "[]const u8"; // default fallback
+        try self.buffer.appendSlice(self.allocator, "[]const u8");
     }
 
-    fn getZigTypeFromSchemaType(self: *UnifiedApiGenerator, schema_type: SchemaType) []const u8 {
-        _ = self;
-        return switch (schema_type) {
-            .string => "[]const u8",
-            .integer => "i64",
-            .number => "f64",
-            .boolean => "bool",
-            .array => "[]const u8", // Simplified for now
-            .object => "std.json.Value",
-            .reference => "[]const u8",
-        };
+    fn appendZigTypeFromSchemaType(self: *UnifiedApiGenerator, schema_type: SchemaType) !void {
+        switch (schema_type) {
+            .string => try self.buffer.appendSlice(self.allocator, "[]const u8"),
+            .integer => try self.buffer.appendSlice(self.allocator, "i64"),
+            .number => try self.buffer.appendSlice(self.allocator, "f64"),
+            .boolean => try self.buffer.appendSlice(self.allocator, "bool"),
+            .array => try self.buffer.appendSlice(self.allocator, "[]const u8"), // Simplified for now
+            .object => try self.buffer.appendSlice(self.allocator, "std.json.Value"),
+            .reference => try self.buffer.appendSlice(self.allocator, "[]const u8"),
+        }
     }
 };

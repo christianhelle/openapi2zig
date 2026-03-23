@@ -2,6 +2,7 @@ const std = @import("std");
 const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
 const Schema = @import("../../models/common/document.zig").Schema;
 const SchemaType = @import("../../models/common/document.zig").SchemaType;
+const zig_identifier = @import("../zig_identifier.zig");
 
 pub const UnifiedModelGenerator = struct {
     allocator: std.mem.Allocator,
@@ -49,7 +50,7 @@ pub const UnifiedModelGenerator = struct {
         if (schema.type == .reference) return;
 
         try self.buffer.appendSlice(self.allocator, "pub const ");
-        try self.buffer.appendSlice(self.allocator, name);
+        try zig_identifier.append(&self.buffer, self.allocator, name);
         try self.buffer.appendSlice(self.allocator, " = struct {\n");
 
         if (schema.properties) |properties| {
@@ -71,14 +72,14 @@ pub const UnifiedModelGenerator = struct {
 
     fn generateStructField(self: *UnifiedModelGenerator, field_name: []const u8, field_schema: Schema, is_required: bool) !void {
         try self.buffer.appendSlice(self.allocator, "    ");
-        try self.buffer.appendSlice(self.allocator, field_name);
+        try zig_identifier.append(&self.buffer, self.allocator, field_name);
         try self.buffer.appendSlice(self.allocator, ": ");
 
         if (!is_required) {
             try self.buffer.appendSlice(self.allocator, "?");
         }
 
-        try self.buffer.appendSlice(self.allocator, self.getZigType(field_schema));
+        try self.appendZigType(field_schema);
 
         if (!is_required) {
             try self.buffer.appendSlice(self.allocator, " = null");
@@ -87,45 +88,50 @@ pub const UnifiedModelGenerator = struct {
         try self.buffer.appendSlice(self.allocator, ",\n");
     }
 
-    fn getZigType(self: *UnifiedModelGenerator, schema: Schema) []const u8 {
+    fn appendZigType(self: *UnifiedModelGenerator, schema: Schema) !void {
         if (schema.ref) |ref| {
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
-                const schema_name = ref[last_slash + 1 ..];
-                return schema_name;
+                try zig_identifier.append(&self.buffer, self.allocator, ref[last_slash + 1 ..]);
+                return;
             }
-            return "[]const u8";
+
+            try self.buffer.appendSlice(self.allocator, "[]const u8");
+            return;
         }
 
         if (schema.type) |schema_type| {
-            return switch (schema_type) {
-                .string => "[]const u8",
-                .integer => "i64",
-                .number => "f64",
-                .boolean => "bool",
-                .array => blk: {
+            switch (schema_type) {
+                .string => try self.buffer.appendSlice(self.allocator, "[]const u8"),
+                .integer => try self.buffer.appendSlice(self.allocator, "i64"),
+                .number => try self.buffer.appendSlice(self.allocator, "f64"),
+                .boolean => try self.buffer.appendSlice(self.allocator, "bool"),
+                .array => {
                     if (schema.items) |items| {
-                        const item_type = self.getZigType(items.*);
-                        if (std.mem.eql(u8, item_type, "[]const u8")) {
-                            break :blk "[]const []const u8";
-                        } else if (std.mem.eql(u8, item_type, "i64")) {
-                            break :blk "[]const i64";
-                        } else if (std.mem.eql(u8, item_type, "f64")) {
-                            break :blk "[]const f64";
-                        } else if (std.mem.eql(u8, item_type, "bool")) {
-                            break :blk "[]const bool";
+                        if (items.ref != null) {
+                            try self.buffer.appendSlice(self.allocator, "[]const std.json.Value");
+                        } else if (items.type) |item_type| {
+                            switch (item_type) {
+                                .string => try self.buffer.appendSlice(self.allocator, "[]const []const u8"),
+                                .integer => try self.buffer.appendSlice(self.allocator, "[]const i64"),
+                                .number => try self.buffer.appendSlice(self.allocator, "[]const f64"),
+                                .boolean => try self.buffer.appendSlice(self.allocator, "[]const bool"),
+                                else => try self.buffer.appendSlice(self.allocator, "[]const std.json.Value"),
+                            }
                         } else {
-                            break :blk "[]const std.json.Value";
+                            try self.buffer.appendSlice(self.allocator, "[]const u8");
                         }
                     } else {
-                        break :blk "[]const u8";
+                        try self.buffer.appendSlice(self.allocator, "[]const u8");
                     }
                 },
-                .object => "std.json.Value",
-                .reference => "[]const u8",
-            };
+                .object => try self.buffer.appendSlice(self.allocator, "std.json.Value"),
+                .reference => try self.buffer.appendSlice(self.allocator, "[]const u8"),
+            }
+
+            return;
         }
 
-        return "[]const u8";
+        try self.buffer.appendSlice(self.allocator, "[]const u8");
     }
 
     fn isFieldRequired(self: *UnifiedModelGenerator, field_name: []const u8, required: ?[][]const u8) bool {
