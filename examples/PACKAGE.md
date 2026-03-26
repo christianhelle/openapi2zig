@@ -30,7 +30,10 @@ This document explains how to publish and use openapi2zig as a Zig package.
 
 4. **Test Package Installation**
    ```bash
-   # In a test project
+   # In this repository
+   zig build test-package
+
+   # Or in a separate test project
    zig fetch --save https://github.com/christianhelle/openapi2zig/archive/refs/tags/v1.0.0.tar.gz
    ```
 
@@ -70,7 +73,7 @@ This document explains how to publish and use openapi2zig as a Zig package.
 
 ### Example Usage
 
-See the main README.md for detailed usage examples.
+See the main README.md for detailed usage examples. The repository also includes a minimal consumer fixture in `examples/package_consumer/`, and `zig build test-package` validates it against a clean package snapshot.
 
 ## Package Structure
 

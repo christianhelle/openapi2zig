@@ -249,6 +249,8 @@ const openapi2zig_dep = b.dependency("openapi2zig", .{
 exe.root_module.addImport("openapi2zig", openapi2zig_dep.module("openapi2zig"));
 ```
 
+The repository includes a minimal downstream consumer fixture in `examples/package_consumer/`, and `zig build test-package` builds it against a clean package snapshot so ignored local files cannot mask packaging issues.
+
 ### Library Usage Example
 
 ```zig
