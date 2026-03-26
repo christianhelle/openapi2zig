@@ -1,0 +1,16 @@
+.{
+    .name = .package_consumer,
+    .version = "0.0.0",
+    .fingerprint = 0x94daa3492b91cc50,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .openapi2zig = .{
+            .path = "../..",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

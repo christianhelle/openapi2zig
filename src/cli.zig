@@ -1,5 +1,5 @@
 const std = @import("std");
-const version_info = @import("version_info.zig");
+const version_info = @import("build_info");
 const input_loader = @import("input_loader.zig");
 
 pub const CliArgs = struct {

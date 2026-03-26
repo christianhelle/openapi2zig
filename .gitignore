@@ -21,7 +21,6 @@ desktop.ini
 .idea
 **/generated_models.zig
 test/generated.zig
-src/version_info.zig
 src/openapi2zig.rc
 generated/generated.zig
 generated/openapi-petstore.zig

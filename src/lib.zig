@@ -269,7 +269,7 @@ pub fn convertSwaggerToUnified(allocator: std.mem.Allocator, swagger_doc: Swagge
 }
 
 // Version information
-pub const version_info = @import("version_info.zig");
+pub const version_info = @import("build_info");
 
 // Test utilities for library users
 pub const test_utils = @import("tests/test_utils.zig");
