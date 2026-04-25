@@ -35,7 +35,7 @@ pub fn validateExtension(input_file_path: []const u8) !Extension {
     return GeneratorErrors.UnsupportedExtension;
 }
 
-pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
+pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs) !void {
     const extension = try validateExtension(args.input_path);
 
     // Determine input source: URL or file path
@@ -44,7 +44,7 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
     else
         input_loader.InputSource{ .file_path = args.input_path };
 
-    const file_contents = try input_loader.loadInput(allocator, source);
+    const file_contents = try input_loader.loadInput(allocator, io, source);
     defer allocator.free(file_contents);
 
     switch (extension) {
@@ -65,25 +65,25 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
                     var swagger = try models.SwaggerDocument.parseFromJson(allocator, file_contents);
                     defer swagger.deinit(allocator);
                     std.debug.print("Successfully parsed Swagger v2.0 document\n", .{});
-                    try generateCodeFromSwaggerDocument(allocator, swagger, args);
+                    try generateCodeFromSwaggerDocument(allocator, io, swagger, args);
                 },
                 .v3_0 => {
                     var openapi = try models.OpenApiDocument.parseFromJson(allocator, file_contents);
                     defer openapi.deinit(allocator);
                     std.debug.print("Successfully parsed OpenAPI v3.0 document\n", .{});
-                    try generateCodeFromOpenApiDocument(allocator, openapi, args);
+                    try generateCodeFromOpenApiDocument(allocator, io, openapi, args);
                 },
                 .v3_1 => {
                     var openapi31 = try models.OpenApi31Document.parseFromJson(allocator, file_contents);
                     defer openapi31.deinit(allocator);
                     std.debug.print("Successfully parsed OpenAPI v3.1 document\n", .{});
-                    try generateCodeFromOpenApi31Document(allocator, openapi31, args);
+                    try generateCodeFromOpenApi31Document(allocator, io, openapi31, args);
                 },
                 .v3_2 => {
                     var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, file_contents);
                     defer openapi32.deinit(allocator);
                     std.debug.print("Successfully parsed OpenAPI v3.2 document\n", .{});
-                    try generateCodeFromOpenApi32Document(allocator, openapi32, args);
+                    try generateCodeFromOpenApi32Document(allocator, io, openapi32, args);
                 },
                 else => {
                     std.debug.print("Unsupported OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
@@ -94,7 +94,7 @@ pub fn generateCode(allocator: std.mem.Allocator, args: cli.CliArgs) !void {
     }
 }
 
-fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, unified_doc: @import("models/common/document.zig").UnifiedDocument, args: cli.CliArgs) !void {
+fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, unified_doc: @import("models/common/document.zig").UnifiedDocument, args: cli.CliArgs) !void {
     var model_generator = UnifiedModelGenerator.init(allocator);
     defer model_generator.deinit();
     const generated_models = try model_generator.generate(unified_doc);
@@ -109,39 +109,40 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, unified_doc: @i
     defer allocator.free(generated_code);
 
     const output_path = args.output_path orelse default_output_file;
+    const cwd = std.Io.Dir.cwd();
     if (std.fs.path.dirname(output_path)) |dir_path| {
-        try std.fs.cwd().makePath(dir_path);
+        try cwd.createDirPath(io, dir_path);
     }
-    const output_file = try std.fs.cwd().createFile(output_path, .{ .read = true });
-    defer output_file.close();
-    try output_file.writeAll(generated_code);
+    const output_file = try cwd.createFile(io, output_path, .{});
+    defer output_file.close(io);
+    try output_file.writeStreamingAll(io, generated_code);
     std.debug.print("Code generated successfully and written to '{s}'.\n", .{output_path});
 }
 
-fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, swagger: models.SwaggerDocument, args: cli.CliArgs) !void {
+fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, io: std.Io, swagger: models.SwaggerDocument, args: cli.CliArgs) !void {
     var swagger_converter = SwaggerConverter.init(allocator);
     var unified_doc = try swagger_converter.convert(swagger);
     defer unified_doc.deinit(allocator);
-    try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
+    try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
 }
 
-fn generateCodeFromOpenApiDocument(allocator: std.mem.Allocator, openapi: models.OpenApiDocument, args: cli.CliArgs) !void {
+fn generateCodeFromOpenApiDocument(allocator: std.mem.Allocator, io: std.Io, openapi: models.OpenApiDocument, args: cli.CliArgs) !void {
     var openapi_converter = OpenApiConverter.init(allocator);
     var unified_doc = try openapi_converter.convert(openapi);
     defer unified_doc.deinit(allocator);
-    try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
+    try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
 }
 
-fn generateCodeFromOpenApi31Document(allocator: std.mem.Allocator, openapi: models.OpenApi31Document, args: cli.CliArgs) !void {
+fn generateCodeFromOpenApi31Document(allocator: std.mem.Allocator, io: std.Io, openapi: models.OpenApi31Document, args: cli.CliArgs) !void {
     var openapi31_converter = OpenApi31Converter.init(allocator);
     var unified_doc = try openapi31_converter.convert(openapi);
     defer unified_doc.deinit(allocator);
-    try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
+    try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
 }
 
-fn generateCodeFromOpenApi32Document(allocator: std.mem.Allocator, openapi: models.OpenApi32Document, args: cli.CliArgs) !void {
+fn generateCodeFromOpenApi32Document(allocator: std.mem.Allocator, io: std.Io, openapi: models.OpenApi32Document, args: cli.CliArgs) !void {
     var openapi32_converter = OpenApi32Converter.init(allocator);
     var unified_doc = try openapi32_converter.convert(openapi);
     defer unified_doc.deinit(allocator);
-    try generateCodeFromUnifiedDocument(allocator, unified_doc, args);
+    try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
 }

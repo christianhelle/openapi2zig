@@ -21,13 +21,13 @@ pub const ApiCodeGenerator = struct {
     }
 
     pub fn generate(self: *ApiCodeGenerator, document: models.OpenApiDocument) ![]const u8 {
-        var parts = std.ArrayList([]const u8){};
+        var parts = std.ArrayList([]const u8).empty;
         defer parts.deinit(self.allocator);
         try parts.append(self.allocator, "///////////////////////////////////////////\n");
         try parts.append(self.allocator, "// Generated Zig API client from OpenAPI\n");
         try parts.append(self.allocator, "///////////////////////////////////////////\n\n");
         try parts.append(self.allocator, "const std = @import(\"std\");\n\n");
-        var methods = std.ArrayList([]const u8){};
+        var methods = std.ArrayList([]const u8).empty;
         defer methods.deinit(self.allocator);
         var path_iterator = document.paths.path_items.iterator();
         while (path_iterator.next()) |entry| {
@@ -68,15 +68,15 @@ pub const ApiCodeGenerator = struct {
     }
 
     pub fn generateMethod(self: *ApiCodeGenerator, op: models.v3.Operation, path: []const u8, method: []const u8) ![]const u8 {
-        var parts = std.ArrayList([]const u8){};
+        var parts = std.ArrayList([]const u8).empty;
         defer parts.deinit(self.allocator);
         const docs = try generateMethodDocs(self.allocator, op);
         defer self.allocator.free(docs);
         try parts.append(self.allocator, docs);
         try parts.append(self.allocator, "pub fn ");
         try parts.append(self.allocator, op.operationId orelse path);
-        try parts.append(self.allocator, "(allocator: std.mem.Allocator");
-        var parameters = std.ArrayList([]const u8){};
+        try parts.append(self.allocator, "(allocator: std.mem.Allocator, io: std.Io");
+        var parameters = std.ArrayList([]const u8).empty;
         defer parameters.deinit(self.allocator);
         if (op.parameters) |params| {
             if (params.len > 0) try parts.append(self.allocator, ", ");
@@ -133,7 +133,7 @@ pub const ApiCodeGenerator = struct {
     }
 
     fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method: []const u8, op: models.v3.Operation) ![]const u8 {
-        var parts = std.ArrayList([]const u8){};
+        var parts = std.ArrayList([]const u8).empty;
         defer parts.deinit(allocator);
         const has_request_body = op.requestBody != null;
         if (op.parameters) |params| {
@@ -151,9 +151,9 @@ pub const ApiCodeGenerator = struct {
                 }
             }
         }
-        try parts.append(allocator, "    var client = std.http.Client { .allocator = allocator };\n");
+        try parts.append(allocator, "    var client: std.http.Client = .{ .allocator = allocator, .io = io };\n");
         try parts.append(allocator, "    defer client.deinit();\n\n");
-        var allocations = std.ArrayList([]const u8){};
+        var allocations = std.ArrayList([]const u8).empty;
         defer allocations.deinit(allocator);
         if (op.parameters) |params| {
             var new_path = path;
@@ -188,38 +188,21 @@ pub const ApiCodeGenerator = struct {
             try parts.append(allocator, path);
             try parts.append(allocator, "\");\n");
         }
-        try parts.append(allocator,
-            \\    const buf = try allocator.alloc(u8, 1024 * 8);
-            \\    defer allocator.free(buf);
-        );
-        try parts.append(allocator, "\n\n");
-        try parts.append(allocator, "    var req = try client.open(.");
+        try parts.append(allocator, "\n");
+        try parts.append(allocator, "    var req = try client.request(.");
         try parts.append(allocator, method);
-        try parts.append(allocator, ", uri, .{\n");
-        try parts.append(allocator,
-            \\        .server_header_buffer = buf,
-            \\    });
-            \\    defer req.deinit();
-            \\
-            \\    try req.send();
-        );
+        try parts.append(allocator, ", uri, .{});\n");
+        try parts.append(allocator, "    defer req.deinit();\n");
         if (has_request_body) {
-            try parts.append(allocator, "\n\n");
-            try parts.append(allocator, "    var str = std.ArrayList([]const u8){};\n");
-            try parts.append(allocator, "    defer str.deinit(allocator);\n\n");
-            try parts.append(allocator, "    try std.json.stringify(requestBody, .{}, str.writer());\n");
-            try parts.append(allocator, "    const body = try std.mem.join(allocator, \"\", str.items);\n");
-            try parts.append(allocator, "    defer allocator.free(body);\n\n");
-            try parts.append(allocator, "    req.transfer_encoding = .{ .content_length = body.len };\n");
-            try parts.append(allocator, "    try req.writeAll(body);\n\n");
-        } else {
             try parts.append(allocator, "\n");
+            try parts.append(allocator, "    var str: std.Io.Writer.Allocating = .init(allocator);\n");
+            try parts.append(allocator, "    defer str.deinit();\n\n");
+            try parts.append(allocator, "    try std.json.Stringify.value(requestBody, .{}, &str.writer);\n");
+            try parts.append(allocator, "    const body = str.written();\n\n");
+            try parts.append(allocator, "    try req.sendBodyComplete(body);\n");
+        } else {
+            try parts.append(allocator, "\n    try req.sendBodiless();\n");
         }
-        try parts.append(allocator,
-            \\    try req.finish();
-            \\    try req.wait();
-            \\
-        );
         const code = try std.mem.join(allocator, "", parts.items);
         for (allocations.items) |alloc| {
             allocator.free(alloc);
@@ -238,7 +221,7 @@ pub const ApiCodeGenerator = struct {
     }
 
     fn generateMethodDocs(allocator: std.mem.Allocator, op: models.v3.Operation) ![]const u8 {
-        var parts = std.ArrayList([]const u8){};
+        var parts = std.ArrayList([]const u8).empty;
         defer parts.deinit(allocator);
         if (op.summary != null or op.description != null) {
             try parts.append(allocator, "/////////////////");

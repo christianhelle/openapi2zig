@@ -204,7 +204,7 @@ pub const Schema = struct {
         };
     }
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
-        var array_list = std.ArrayList([]const u8){};
+        var array_list = std.ArrayList([]const u8).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try allocator.dupe(u8, item.string));
@@ -223,7 +223,7 @@ pub const Schema = struct {
         return map;
     }
     fn parseSchemaArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]Schema {
-        var array_list = std.ArrayList(Schema){};
+        var array_list = std.ArrayList(Schema).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try Schema.parseFromJson(allocator, item));
@@ -231,7 +231,7 @@ pub const Schema = struct {
         return array_list.toOwnedSlice(allocator);
     }
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
-        var array_list = std.ArrayList(json.Value){};
+        var array_list = std.ArrayList(json.Value).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, item);

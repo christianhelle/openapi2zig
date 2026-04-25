@@ -8,7 +8,7 @@ pub const ServerVariable = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!ServerVariable {
         const obj = value.object;
-        var enum_list = std.ArrayList([]const u8){};
+        var enum_list = std.ArrayList([]const u8).empty;
         errdefer enum_list.deinit(allocator);
 
         if (obj.get("enum")) |enum_val| {

@@ -5,19 +5,13 @@ const std = @import("std");
 const test_utils = @import("test_utils.zig");
 
 fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-    try file.seekBy(0);
-    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
     defer allocator.free(file_contents);
     return try models.OpenApiDocument.parseFromJson(allocator, file_contents);
 }
 
 fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.SwaggerDocument {
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-    try file.seekBy(0);
-    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
     defer allocator.free(file_contents);
     return try models.SwaggerDocument.parseFromJson(allocator, file_contents);
 }

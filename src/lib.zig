@@ -9,13 +9,12 @@
 //! const std = @import("std");
 //! const openapi2zig = @import("openapi2zig");
 //!
-//! pub fn main() !void {
-//!     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-//!     defer _ = gpa.deinit();
-//!     const allocator = gpa.allocator();
+//! pub fn main(init: std.process.Init) !void {
+//!     const allocator = init.gpa;
+//!     const io = init.io;
 //!
 //!     // Detect OpenAPI version
-//!     const json_content = try std.fs.cwd().readFileAlloc(allocator, "api.json", 1024 * 1024);
+//!     const json_content = try std.Io.Dir.cwd().readFileAlloc(io, "api.json", allocator, .limited(1024 * 1024));
 //!     defer allocator.free(json_content);
 //!
 //!     const version = try openapi2zig.detectVersion(allocator, json_content);

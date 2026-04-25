@@ -24,14 +24,14 @@ pub const Operation = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Operation {
         const obj = value.object;
-        var tags_list = std.ArrayList([]const u8){};
+        var tags_list = std.ArrayList([]const u8).empty;
         errdefer tags_list.deinit(allocator);
         if (obj.get("tags")) |tags_val| {
             for (tags_val.array.items) |item| {
                 try tags_list.append(allocator, try allocator.dupe(u8, item.string));
             }
         }
-        var parameters_list = std.ArrayList(ParameterOrReference){};
+        var parameters_list = std.ArrayList(ParameterOrReference).empty;
         errdefer parameters_list.deinit(allocator);
         if (obj.get("parameters")) |params_val| {
             for (params_val.array.items) |item| {
@@ -45,14 +45,14 @@ pub const Operation = struct {
                 try callbacks_map.put(try allocator.dupe(u8, key), try CallbackOrReference.parseFromJson(allocator, callbacks_val.object.get(key).?));
             }
         }
-        var security_list = std.ArrayList(SecurityRequirement){};
+        var security_list = std.ArrayList(SecurityRequirement).empty;
         errdefer security_list.deinit(allocator);
         if (obj.get("security")) |security_val| {
             for (security_val.array.items) |item| {
                 try security_list.append(allocator, try SecurityRequirement.parseFromJson(allocator, item));
             }
         }
-        var servers_list = std.ArrayList(Server){};
+        var servers_list = std.ArrayList(Server).empty;
         errdefer servers_list.deinit(allocator);
         if (obj.get("servers")) |servers_val| {
             for (servers_val.array.items) |item| {

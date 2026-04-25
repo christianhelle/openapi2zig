@@ -94,7 +94,7 @@ pub const OpenApi32Document = struct {
     }
 
     fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]Server {
-        var array_list = std.ArrayList(Server){};
+        var array_list = std.ArrayList(Server).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try Server.parseFromJson(allocator, item));
@@ -103,7 +103,7 @@ pub const OpenApi32Document = struct {
     }
 
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
-        var array_list = std.ArrayList(SecurityRequirement){};
+        var array_list = std.ArrayList(SecurityRequirement).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try SecurityRequirement.parseFromJson(allocator, item));
@@ -112,7 +112,7 @@ pub const OpenApi32Document = struct {
     }
 
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Tag {
-        var array_list = std.ArrayList(Tag){};
+        var array_list = std.ArrayList(Tag).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try Tag.parseFromJson(allocator, item));

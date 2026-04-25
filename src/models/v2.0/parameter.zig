@@ -128,7 +128,7 @@ pub const Items = struct {
         };
     }
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
-        var array_list = std.ArrayList(json.Value){};
+        var array_list = std.ArrayList(json.Value).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, item);
@@ -258,7 +258,7 @@ pub const Parameter = struct {
         }
     }
     fn parseJsonValueArray(allocator: std.mem.Allocator, value: json.Value) anyerror![]json.Value {
-        var array_list = std.ArrayList(json.Value){};
+        var array_list = std.ArrayList(json.Value).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, item);

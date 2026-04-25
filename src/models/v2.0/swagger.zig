@@ -137,7 +137,7 @@ pub const SwaggerDocument = struct {
     }
 
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
-        var array_list = std.ArrayList([]const u8){};
+        var array_list = std.ArrayList([]const u8).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try allocator.dupe(u8, item.string));
@@ -182,7 +182,7 @@ pub const SwaggerDocument = struct {
     }
 
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
-        var array_list = std.ArrayList(SecurityRequirement){};
+        var array_list = std.ArrayList(SecurityRequirement).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try SecurityRequirement.parseFromJson(allocator, item));
@@ -191,7 +191,7 @@ pub const SwaggerDocument = struct {
     }
 
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]Tag {
-        var array_list = std.ArrayList(Tag){};
+        var array_list = std.ArrayList(Tag).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try Tag.parseFromJson(allocator, item));

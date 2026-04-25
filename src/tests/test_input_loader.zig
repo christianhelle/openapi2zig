@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_info = @import("build_info");
 const input_loader = @import("../input_loader.zig");
 const models = @import("../models.zig");
 const detector = @import("../detector.zig");
@@ -48,7 +49,7 @@ test "loadFromFile loads OpenAPI v3.0 petstore spec" {
         }
     }
 
-    const contents = try input_loader.loadFromFile(allocator, "openapi/v3.0/petstore.json");
+    const contents = try input_loader.loadFromFile(allocator, std.testing.io, "openapi/v3.0/petstore.json");
     defer allocator.free(contents);
 
     try std.testing.expect(contents.len > 0);
@@ -66,7 +67,7 @@ test "loadFromFile loads Swagger v2.0 petstore spec" {
         }
     }
 
-    const contents = try input_loader.loadFromFile(allocator, "openapi/v2.0/petstore.json");
+    const contents = try input_loader.loadFromFile(allocator, std.testing.io, "openapi/v2.0/petstore.json");
     defer allocator.free(contents);
 
     try std.testing.expect(contents.len > 0);
@@ -84,7 +85,7 @@ test "loadFromFile returns error for non-existent file" {
         }
     }
 
-    const result = input_loader.loadFromFile(allocator, "nonexistent/file.json");
+    const result = input_loader.loadFromFile(allocator, std.testing.io, "nonexistent/file.json");
     try std.testing.expectError(error.FileNotFound, result);
 }
 
@@ -103,7 +104,7 @@ test "loadInput with file_path source loads v3.0 spec" {
     }
 
     const source = input_loader.InputSource{ .file_path = "openapi/v3.0/petstore.json" };
-    const contents = try input_loader.loadInput(allocator, source);
+    const contents = try input_loader.loadInput(allocator, std.testing.io, source);
     defer allocator.free(contents);
 
     try std.testing.expect(contents.len > 0);
@@ -121,7 +122,7 @@ test "loadInput with file_path source loads v2.0 spec" {
     }
 
     const source = input_loader.InputSource{ .file_path = "openapi/v2.0/petstore.json" };
-    const contents = try input_loader.loadInput(allocator, source);
+    const contents = try input_loader.loadInput(allocator, std.testing.io, source);
     defer allocator.free(contents);
 
     try std.testing.expect(contents.len > 0);
@@ -142,7 +143,7 @@ test "loadFromUrl returns InvalidUrl for invalid URL syntax" {
         }
     }
 
-    const result = input_loader.loadFromUrl(allocator, "not a valid url");
+    const result = input_loader.loadFromUrl(allocator, std.testing.io, "not a valid url");
     try std.testing.expectError(input_loader.LoadError.InvalidUrl, result);
 }
 
@@ -156,7 +157,7 @@ test "loadFromUrl returns InvalidUrl for unsupported scheme" {
         }
     }
 
-    const result = input_loader.loadFromUrl(allocator, "ftp://example.com/spec.json");
+    const result = input_loader.loadFromUrl(allocator, std.testing.io, "ftp://example.com/spec.json");
     try std.testing.expectError(input_loader.LoadError.InvalidUrl, result);
 }
 
@@ -173,7 +174,7 @@ test "loadFromUrl returns ConnectionFailed for unreachable host" {
     // Use TEST-NET-1 (192.0.2.0/24), a reserved IP range for documentation.
     // This test may take several seconds due to system TCP connect timeout (typically 10-30s).
     // Expected behavior: loadFromUrl should return ConnectionFailed when unable to reach the host.
-    const result = input_loader.loadFromUrl(allocator, "http://192.0.2.1:9999/spec.json");
+    const result = input_loader.loadFromUrl(allocator, std.testing.io, "http://192.0.2.1:9999/spec.json");
     try std.testing.expectError(input_loader.LoadError.ConnectionFailed, result);
 }
 
@@ -185,7 +186,7 @@ test "loadFromFile properly cleans up memory on success" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
 
-    const contents = try input_loader.loadFromFile(allocator, "openapi/v3.0/petstore.json");
+    const contents = try input_loader.loadFromFile(allocator, std.testing.io, "openapi/v3.0/petstore.json");
     allocator.free(contents);
 
     const deinit_status = gpa.deinit();
@@ -196,7 +197,7 @@ test "loadFromFile properly cleans up memory on error" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
 
-    _ = input_loader.loadFromFile(allocator, "nonexistent/file.json") catch |err| {
+    _ = input_loader.loadFromFile(allocator, std.testing.io, "nonexistent/file.json") catch |err| {
         try std.testing.expectEqual(error.FileNotFound, err);
     };
 
@@ -211,7 +212,7 @@ test "loadFromFile properly cleans up memory on error" {
 fn testFullPipelineFromFile(allocator: std.mem.Allocator, file_path: []const u8, expected_version: detector.OpenApiVersion) !void {
     // Load from file
     const source = input_loader.InputSource{ .file_path = file_path };
-    const contents = try input_loader.loadInput(allocator, source);
+    const contents = try input_loader.loadInput(allocator, std.testing.io, source);
     defer allocator.free(contents);
 
     // Detect version
@@ -302,14 +303,18 @@ test "full pipeline: file load -> parse -> validate (v2.0 api-with-examples)" {
 
 // ============================================================================
 // INTEGRATION TESTS - Real HTTP Endpoints
-// These tests are marked with @slow tag - meant to run in CI but skip in dev
+// These tests are skipped by default to keep unit tests deterministic.
 // ============================================================================
+
+fn skipIntegrationTests() bool {
+    return !build_info.RUN_INTEGRATION_TESTS;
+}
 
 // Helper function for real URL testing
 fn testFullPipelineFromUrl(allocator: std.mem.Allocator, url: []const u8, expected_version: detector.OpenApiVersion) !void {
     // Load from URL
     const source = input_loader.InputSource{ .url = url };
-    const contents = try input_loader.loadInput(allocator, source);
+    const contents = try input_loader.loadInput(allocator, std.testing.io, source);
     defer allocator.free(contents);
 
     // Verify we got valid JSON
@@ -357,7 +362,7 @@ fn testFullPipelineFromUrl(allocator: std.mem.Allocator, url: []const u8, expect
 test "integration: load OpenAPI v3.0 from public petstore URL" {
     // Skip this test in development, only run in CI
     // This can be controlled via environment variables or build flags
-    const skip_integration = std.process.hasEnvVarConstant("SKIP_INTEGRATION_TESTS");
+    const skip_integration = skipIntegrationTests();
     if (skip_integration) return error.SkipZigTest;
 
     var gpa = test_utils.createTestAllocator();
@@ -378,7 +383,7 @@ test "integration: load OpenAPI v3.0 from public petstore URL" {
 
 // @slow - Integration test with real Swagger v2.0 endpoint
 test "integration: load Swagger v2.0 from public petstore URL" {
-    const skip_integration = std.process.hasEnvVarConstant("SKIP_INTEGRATION_TESTS");
+    const skip_integration = skipIntegrationTests();
     if (skip_integration) return error.SkipZigTest;
 
     var gpa = test_utils.createTestAllocator();
@@ -399,7 +404,7 @@ test "integration: load Swagger v2.0 from public petstore URL" {
 
 // @slow - Integration test for HTTP 404 error handling
 test "integration: loadFromUrl handles 404 not found" {
-    const skip_integration = std.process.hasEnvVarConstant("SKIP_INTEGRATION_TESTS");
+    const skip_integration = skipIntegrationTests();
     if (skip_integration) return error.SkipZigTest;
 
     var gpa = test_utils.createTestAllocator();
@@ -411,7 +416,7 @@ test "integration: loadFromUrl handles 404 not found" {
         }
     }
 
-    const result = input_loader.loadFromUrl(allocator, "https://petstore3.swagger.io/api/v3/nonexistent.json");
+    const result = input_loader.loadFromUrl(allocator, std.testing.io, "https://petstore3.swagger.io/api/v3/nonexistent.json");
     try std.testing.expectError(input_loader.LoadError.HttpNotFound, result);
     std.debug.print("✓ 404 error handling verified\n", .{});
 }
@@ -421,7 +426,7 @@ test "integration: loadFromUrl handles 404 not found" {
 // ============================================================================
 
 test "file and URL loading produce equivalent results for v3.0" {
-    const skip_integration = std.process.hasEnvVarConstant("SKIP_INTEGRATION_TESTS");
+    const skip_integration = skipIntegrationTests();
     if (skip_integration) return error.SkipZigTest;
 
     var gpa = test_utils.createTestAllocator();
@@ -435,7 +440,7 @@ test "file and URL loading produce equivalent results for v3.0" {
 
     // Load from file
     const file_source = input_loader.InputSource{ .file_path = "openapi/v3.0/petstore.json" };
-    const file_contents = try input_loader.loadInput(allocator, file_source);
+    const file_contents = try input_loader.loadInput(allocator, std.testing.io, file_source);
     defer allocator.free(file_contents);
 
     var file_doc = try models.OpenApiDocument.parseFromJson(allocator, file_contents);
@@ -443,7 +448,7 @@ test "file and URL loading produce equivalent results for v3.0" {
 
     // Load from URL (if available)
     const url_source = input_loader.InputSource{ .url = "https://petstore3.swagger.io/api/v3/openapi.json" };
-    const url_contents = try input_loader.loadInput(allocator, url_source);
+    const url_contents = try input_loader.loadInput(allocator, std.testing.io, url_source);
     defer allocator.free(url_contents);
 
     var url_doc = try models.OpenApiDocument.parseFromJson(allocator, url_contents);
@@ -459,7 +464,7 @@ test "file and URL loading produce equivalent results for v3.0" {
 }
 
 test "file and URL loading produce equivalent results for v2.0" {
-    const skip_integration = std.process.hasEnvVarConstant("SKIP_INTEGRATION_TESTS");
+    const skip_integration = skipIntegrationTests();
     if (skip_integration) return error.SkipZigTest;
 
     var gpa = test_utils.createTestAllocator();
@@ -473,7 +478,7 @@ test "file and URL loading produce equivalent results for v2.0" {
 
     // Load from file
     const file_source = input_loader.InputSource{ .file_path = "openapi/v2.0/petstore.json" };
-    const file_contents = try input_loader.loadInput(allocator, file_source);
+    const file_contents = try input_loader.loadInput(allocator, std.testing.io, file_source);
     defer allocator.free(file_contents);
 
     var file_doc = try models.SwaggerDocument.parseFromJson(allocator, file_contents);
@@ -481,7 +486,7 @@ test "file and URL loading produce equivalent results for v2.0" {
 
     // Load from URL (if available)
     const url_source = input_loader.InputSource{ .url = "https://petstore.swagger.io/v2/swagger.json" };
-    const url_contents = try input_loader.loadInput(allocator, url_source);
+    const url_contents = try input_loader.loadInput(allocator, std.testing.io, url_source);
     defer allocator.free(url_contents);
 
     var url_doc = try models.SwaggerDocument.parseFromJson(allocator, url_contents);
@@ -511,7 +516,7 @@ test "loadFromFile handles large files without memory issues" {
     }
 
     // Use api-with-examples which is larger and more complex
-    const contents = try input_loader.loadFromFile(allocator, "openapi/v3.0/api-with-examples.json");
+    const contents = try input_loader.loadFromFile(allocator, std.testing.io, "openapi/v3.0/api-with-examples.json");
     defer allocator.free(contents);
 
     try std.testing.expect(contents.len > 1000); // Should be reasonably large

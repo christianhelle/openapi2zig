@@ -9,11 +9,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const exe = b.addExecutable(.{
-        .name = "example",
+    const root_module = b.createModule(.{
         .root_source_file = b.path("example_usage.zig"),
         .target = target,
         .optimize = optimize,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "example",
+        .root_module = root_module,
     });
 
     exe.root_module.addImport("openapi2zig", openapi2zig_dep.module("openapi2zig"));

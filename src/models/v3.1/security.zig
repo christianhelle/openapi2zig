@@ -9,7 +9,7 @@ pub const SecurityRequirement = struct {
         errdefer schemes_map.deinit();
         const obj = value.object;
         for (obj.keys()) |key| {
-            var scopes_list = std.ArrayList([]const u8){};
+            var scopes_list = std.ArrayList([]const u8).empty;
             errdefer scopes_list.deinit(allocator);
             for (obj.get(key).?.array.items) |item| {
                 try scopes_list.append(allocator, try allocator.dupe(u8, item.string));

@@ -5,19 +5,13 @@ const std = @import("std");
 const test_utils = @import("test_utils.zig");
 
 fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-    try file.seekBy(0);
-    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
     defer allocator.free(file_contents);
     return try models.OpenApiDocument.parseFromJson(allocator, file_contents);
 }
 
 fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.SwaggerDocument {
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-    try file.seekBy(0);
-    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
     defer allocator.free(file_contents);
     return try models.SwaggerDocument.parseFromJson(allocator, file_contents);
 }
@@ -61,11 +55,12 @@ fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
 test "dynamically convert all OpenAPI v3.0 JSON files to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
-    const openapi_dir = try std.fs.cwd().openDir("openapi/v3.0", .{ .iterate = true });
+    const openapi_dir = try std.Io.Dir.cwd().openDir(std.testing.io, "openapi/v3.0", .{ .iterate = true });
+    defer openapi_dir.close(std.testing.io);
     var iterator = openapi_dir.iterate();
     var successful_conversions: u32 = 0;
     var total_files: u32 = 0;
-    while (try iterator.next()) |entry| {
+    while (try iterator.next(std.testing.io)) |entry| {
         if (entry.kind != .file) continue;
         if (!std.mem.endsWith(u8, entry.name, ".json")) continue;
         total_files += 1;
@@ -85,11 +80,12 @@ test "dynamically convert all OpenAPI v3.0 JSON files to UnifiedDocument" {
 test "dynamically convert all Swagger v2.0 JSON files to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
-    const swagger_dir = try std.fs.cwd().openDir("openapi/v2.0", .{ .iterate = true });
+    const swagger_dir = try std.Io.Dir.cwd().openDir(std.testing.io, "openapi/v2.0", .{ .iterate = true });
+    defer swagger_dir.close(std.testing.io);
     var iterator = swagger_dir.iterate();
     var successful_conversions: u32 = 0;
     var total_files: u32 = 0;
-    while (try iterator.next()) |entry| {
+    while (try iterator.next(std.testing.io)) |entry| {
         if (entry.kind != .file) continue;
         if (!std.mem.endsWith(u8, entry.name, ".json")) continue;
         total_files += 1;

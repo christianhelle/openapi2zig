@@ -105,7 +105,7 @@ pub const Operation = struct {
         };
     }
     fn parseStringArray(allocator: std.mem.Allocator, value: json.Value) anyerror![][]const u8 {
-        var array_list = std.ArrayList([]const u8){};
+        var array_list = std.ArrayList([]const u8).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try allocator.dupe(u8, item.string));
@@ -124,7 +124,7 @@ pub const Operation = struct {
         return map;
     }
     fn parseParameters(allocator: std.mem.Allocator, value: json.Value) anyerror![]Parameter {
-        var array_list = std.ArrayList(Parameter){};
+        var array_list = std.ArrayList(Parameter).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try Parameter.parseFromJson(allocator, item));
@@ -132,7 +132,7 @@ pub const Operation = struct {
         return array_list.toOwnedSlice(allocator);
     }
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
-        var array_list = std.ArrayList(SecurityRequirement){};
+        var array_list = std.ArrayList(SecurityRequirement).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try SecurityRequirement.parseFromJson(allocator, item));

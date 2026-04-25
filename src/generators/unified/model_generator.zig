@@ -10,7 +10,7 @@ pub const UnifiedModelGenerator = struct {
     pub fn init(allocator: std.mem.Allocator) UnifiedModelGenerator {
         return UnifiedModelGenerator{
             .allocator = allocator,
-            .buffer = std.ArrayList(u8){},
+            .buffer = std.ArrayList(u8).empty,
         };
     }
 

@@ -279,7 +279,7 @@ pub const OpenApi31Converter = struct {
         const description = operation.description;
         const operationId = operation.operationId;
 
-        var parameters_list = std.ArrayList(Parameter){};
+        var parameters_list = std.ArrayList(Parameter).empty;
         defer parameters_list.deinit(self.allocator);
 
         if (operation.parameters) |params| {
