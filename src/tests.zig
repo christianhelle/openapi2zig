@@ -5,6 +5,8 @@ const swagger_v2_tests = @import("tests/swagger_v2_tests.zig");
 const unified_converter_tests = @import("tests/unified_converter_tests.zig");
 const comprehensive_converter_tests = @import("tests/comprehensive_converter_tests.zig");
 const test_input_loader = @import("tests/test_input_loader.zig");
+const resource_wrapper_tests = @import("tests/resource_wrapper_tests.zig");
+const model_typing_tests = @import("tests/model_typing_tests.zig");
 comptime {
     _ = openapi_v3_tests;
     _ = openapi_v31_tests;
@@ -13,4 +15,6 @@ comptime {
     _ = unified_converter_tests;
     _ = comprehensive_converter_tests;
     _ = test_input_loader;
+    _ = resource_wrapper_tests;
+    _ = model_typing_tests;
 }

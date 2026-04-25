@@ -1,10 +1,18 @@
 const std = @import("std");
 const version_info = @import("build_info");
 
+pub const ResourceWrapperMode = enum {
+    none,
+    tags,
+    paths,
+    hybrid,
+};
+
 pub const CliArgs = struct {
     input_path: []const u8,
     output_path: ?[]const u8 = null,
     base_url: ?[]const u8 = null,
+    resource_wrappers: ResourceWrapperMode = .paths,
 };
 
 pub const ParsedArgs = struct {
@@ -27,6 +35,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var input_path: ?[]const u8 = null;
     var output_path: ?[]const u8 = null;
     var base_url: ?[]const u8 = null;
+    var resource_wrappers: ResourceWrapperMode = .paths;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -56,6 +65,18 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
                 return error.InvalidArguments;
             }
             base_url = args[i];
+        } else if (std.mem.eql(u8, arg, "--resource-wrappers")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                std.debug.print("\nError: resource wrapper mode required\n", .{});
+                return error.InvalidArguments;
+            }
+            resource_wrappers = parseResourceWrapperMode(args[i]) orelse {
+                printUsage();
+                std.debug.print("\nError: invalid resource wrapper mode '{s}'\n", .{args[i]});
+                return error.InvalidArguments;
+            };
         }
     }
 
@@ -70,8 +91,17 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .input_path = input_path.?,
             .output_path = output_path,
             .base_url = base_url,
+            .resource_wrappers = resource_wrappers,
         },
     };
+}
+
+fn parseResourceWrapperMode(value: []const u8) ?ResourceWrapperMode {
+    if (std.mem.eql(u8, value, "none")) return .none;
+    if (std.mem.eql(u8, value, "tags")) return .tags;
+    if (std.mem.eql(u8, value, "paths")) return .paths;
+    if (std.mem.eql(u8, value, "hybrid")) return .hybrid;
+    return null;
 }
 
 fn printUsage() void {
@@ -86,6 +116,8 @@ fn printUsage() void {
         \\                              (default: generated.zig)
         \\   --base-url <url>           Base URL for the API client.
         \\                              (default: server URL from OpenAPI Specification)
+        \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
+        \\                              (default: paths)
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig

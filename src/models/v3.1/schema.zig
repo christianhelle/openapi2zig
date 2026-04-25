@@ -3,6 +3,49 @@ const json = std.json;
 const Reference = @import("reference.zig").Reference;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
 
+fn optionalFloat(value: ?json.Value) ?f64 {
+    const val = value orelse return null;
+    return switch (val) {
+        .integer => |i| @as(f64, @floatFromInt(i)),
+        .float => |f| f,
+        .number_string => |s| std.fmt.parseFloat(f64, s) catch null,
+        else => null,
+    };
+}
+
+fn optionalInteger(value: ?json.Value) ?i64 {
+    const val = value orelse return null;
+    return switch (val) {
+        .integer => |i| i,
+        .number_string => |s| std.fmt.parseInt(i64, s, 10) catch null,
+        else => null,
+    };
+}
+
+fn optionalBool(value: ?json.Value) ?bool {
+    const val = value orelse return null;
+    return switch (val) {
+        .bool => |b| b,
+        else => null,
+    };
+}
+
+fn cloneJsonValue(allocator: std.mem.Allocator, value: json.Value) !json.Value {
+    return switch (value) {
+        .string => |s| .{ .string = try allocator.dupe(u8, s) },
+        .number_string => |s| .{ .number_string = try allocator.dupe(u8, s) },
+        else => value,
+    };
+}
+
+fn deinitJsonValue(allocator: std.mem.Allocator, value: json.Value) void {
+    switch (value) {
+        .string => |s| allocator.free(s),
+        .number_string => |s| allocator.free(s),
+        else => {},
+    }
+}
+
 pub const XML = struct {
     name: ?[]const u8 = null,
     namespace: ?[]const u8 = null,
@@ -152,7 +195,7 @@ pub const Schema = struct {
         errdefer enum_list.deinit(allocator);
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
-                try enum_list.append(allocator, item);
+                try enum_list.append(allocator, try cloneJsonValue(allocator, item));
             }
         }
         var all_of_list = std.ArrayList(SchemaOrReference).empty;
@@ -206,19 +249,20 @@ pub const Schema = struct {
 
         return Schema{
             .title = if (obj.get("title")) |val| try allocator.dupe(u8, val.string) else null,
-            .multipleOf = if (obj.get("multipleOf")) |val| val.float else null,
-            .maximum = if (obj.get("maximum")) |val| val.float else null,
-            .exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| val.bool else null,
-            .minimum = if (obj.get("minimum")) |val| val.float else null,
-            .exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| val.bool else null,
-            .maxLength = if (obj.get("maxLength")) |val| val.integer else null,
-            .minLength = if (obj.get("minLength")) |val| val.integer else null,
+            .multipleOf = optionalFloat(obj.get("multipleOf")),
+            .maximum = optionalFloat(obj.get("maximum")),
+            .exclusiveMaximum = optionalBool(obj.get("exclusiveMaximum")),
+            .minimum = optionalFloat(obj.get("minimum")),
+            .exclusiveMinimum = optionalBool(obj.get("exclusiveMinimum")),
+            .maxLength = optionalInteger(obj.get("maxLength")),
+            .minLength = optionalInteger(obj.get("minLength")),
             .pattern = if (obj.get("pattern")) |val| try allocator.dupe(u8, val.string) else null,
-            .maxItems = if (obj.get("maxItems")) |val| val.integer else null,
-            .minItems = if (obj.get("minItems")) |val| val.integer else null,
-            .uniqueItems = if (obj.get("uniqueItems")) |val| val.bool else null,
-            .maxProperties = if (obj.get("maxProperties")) |val| val.integer else null,
-            .minProperties = if (obj.get("minProperties")) |val| val.integer else null,
+            .maxItems = optionalInteger(obj.get("maxItems")),
+            .minItems = optionalInteger(obj.get("minItems")),
+            .uniqueItems = optionalBool(obj.get("uniqueItems")),
+            .maxProperties = optionalInteger(obj.get("maxProperties")),
+            .minProperties = optionalInteger(obj.get("minProperties")),
+
             .required = if (required_list.items.len > 0) try required_list.toOwnedSlice(allocator) else null,
             .enum_values = if (enum_list.items.len > 0) try enum_list.toOwnedSlice(allocator) else null,
             .type = type_str,
@@ -311,6 +355,7 @@ pub const Schema = struct {
             externalDocs.deinit(allocator);
         }
         if (self.enum_values) |enum_values| {
+            for (enum_values) |value| deinitJsonValue(allocator, value);
             allocator.free(enum_values);
         }
         if (self.xml) |*xml| {

@@ -69,6 +69,7 @@ pub const SchemaType = enum {
     array,
     object,
     reference,
+    null,
 };
 
 pub const Schema = struct {
@@ -80,9 +81,14 @@ pub const Schema = struct {
     required: ?[][]const u8 = null,
     properties: ?std.StringHashMap(Schema) = null,
     items: ?*Schema = null,
-    enum_values: ?[]json.Value = null,
+    enum_values: ?[]const json.Value = null,
     default: ?json.Value = null,
     example: ?json.Value = null,
+    one_of_refs: ?[][]const u8 = null,
+    any_of_refs: ?[][]const u8 = null,
+    discriminator_property: ?[]const u8 = null,
+    one_of: ?[]Schema = null,
+    any_of: ?[]Schema = null,
     pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {
         if (self.required) |required| {
             allocator.free(required);
@@ -98,6 +104,23 @@ pub const Schema = struct {
         if (self.items) |items| {
             items.deinit(allocator);
             allocator.destroy(items);
+        }
+        if (self.one_of_refs) |refs| {
+            for (refs) |ref| allocator.free(ref);
+            allocator.free(refs);
+        }
+        if (self.any_of_refs) |refs| {
+            for (refs) |ref| allocator.free(ref);
+            allocator.free(refs);
+        }
+        if (self.discriminator_property) |property| allocator.free(property);
+        if (self.one_of) |variants| {
+            for (variants) |*variant| variant.deinit(allocator);
+            allocator.free(variants);
+        }
+        if (self.any_of) |variants| {
+            for (variants) |*variant| variant.deinit(allocator);
+            allocator.free(variants);
         }
     }
 };
