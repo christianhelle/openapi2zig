@@ -1,5 +1,5 @@
 const std = @import("std");
 
-pub fn createTestAllocator() std.heap.GeneralPurposeAllocator(.{}) {
-    return std.heap.GeneralPurposeAllocator(.{}){};
+pub fn createTestAllocator() std.heap.DebugAllocator(.{}) {
+    return std.heap.DebugAllocator(.{}){};
 }

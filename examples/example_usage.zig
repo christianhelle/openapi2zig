@@ -1,13 +1,12 @@
 const std = @import("std");
-const openapi2zig = @import("src/lib.zig");
+const openapi2zig = @import("openapi2zig");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     // Example 1: Parse and detect version
-    const openapi_content = try std.fs.cwd().readFileAlloc(allocator, "openapi/v3.0/petstore.json", 1024 * 1024);
+    const openapi_content = try std.Io.Dir.cwd().readFileAlloc(io, "openapi/v3.0/petstore.json", allocator, .limited(1024 * 1024));
     defer allocator.free(openapi_content);
 
     const version = try openapi2zig.detectVersion(allocator, openapi_content);

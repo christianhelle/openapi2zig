@@ -6,7 +6,7 @@ This document explains how to publish and use openapi2zig as a Zig package.
 
 ### Prerequisites
 
-1. Ensure you have Zig 0.15.2 installed
+1. Ensure you have Zig 0.16.0 installed
 2. All tests are passing: `zig build test`
 3. All builds work: `zig build -Doptimize=Debug`, `zig build -Doptimize=ReleaseFast`
 
@@ -101,7 +101,7 @@ From build.zig.zon `.paths`:
 
 ## Version Compatibility
 
-- **Zig Version**: Requires exactly Zig 0.15.2
+- **Zig Version**: Requires Zig 0.16.0 or newer
 - **Supported OpenAPI/Swagger Versions**:
   - Swagger v2.0
   - OpenAPI v3.0
@@ -118,7 +118,7 @@ From build.zig.zon `.paths`:
    ```
    error: invalid build.zig.zon
    ```
-   Solution: Use exactly Zig 0.15.2
+   Solution: Use Zig 0.16.0 or newer
 
 2. **Hash Mismatch**
    ```

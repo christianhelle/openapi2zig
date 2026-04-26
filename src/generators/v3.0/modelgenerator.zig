@@ -19,7 +19,7 @@ pub const ModelCodeGenerator = struct {
     }
 
     pub fn generate(self: *ModelCodeGenerator, document: models.OpenApiDocument) ![]const u8 {
-        var parts = std.ArrayList([]const u8){};
+        var parts = std.ArrayList([]const u8).empty;
         defer parts.deinit(self.allocator);
         try parts.append(self.allocator, "///////////////////////////////////////////\n");
         try parts.append(self.allocator, "// Generated Zig structures from OpenAPI\n");
@@ -42,7 +42,7 @@ fn generateSchemas(allocator: std.mem.Allocator, parts: *std.ArrayList([]const u
             .schema => |schema_ptr| {
                 try generateSchema(allocator, parts, schema_name, schema_ptr.*);
             },
-            .reference => |_| {},
+            .reference => {},
         }
     }
 }
@@ -88,7 +88,7 @@ fn generateField(allocator: std.mem.Allocator, parts: *std.ArrayList([]const u8)
                 try parts.append(allocator, " = null,\n");
             }
         },
-        .reference => |_| {
+        .reference => {
             try parts.append(allocator, "    ");
             try parts.append(allocator, name);
             try parts.append(allocator, ": ?[]const u8 = null,\n");

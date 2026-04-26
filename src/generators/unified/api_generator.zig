@@ -16,7 +16,7 @@ pub const UnifiedApiGenerator = struct {
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
             .allocator = allocator,
-            .buffer = std.ArrayList(u8){},
+            .buffer = std.ArrayList(u8).empty,
             .args = args,
         };
     }
@@ -91,9 +91,9 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "operation");
             try self.buffer.appendSlice(self.allocator, path[1..]); // Remove leading slash
         }
-        try self.buffer.appendSlice(self.allocator, "(allocator: std.mem.Allocator");
+        try self.buffer.appendSlice(self.allocator, "(allocator: std.mem.Allocator, io: std.Io");
         var has_body_param = false;
-        var path_parameters = std.ArrayList([]const u8){};
+        var path_parameters = std.ArrayList([]const u8).empty;
         defer path_parameters.deinit(self.allocator);
         if (operation.parameters) |params| {
             if (params.len > 0) try self.buffer.appendSlice(self.allocator, ", ");
@@ -162,7 +162,7 @@ pub const UnifiedApiGenerator = struct {
             }
         }
 
-        try self.buffer.appendSlice(self.allocator, "    var client = std.http.Client { .allocator = allocator };\n");
+        try self.buffer.appendSlice(self.allocator, "    var client: std.http.Client = .{ .allocator = allocator, .io = io };\n");
         try self.buffer.appendSlice(self.allocator, "    defer client.deinit();\n\n");
 
         try self.buffer.appendSlice(self.allocator, "    const headers = &[_]std.http.Header{\n");
@@ -173,7 +173,7 @@ pub const UnifiedApiGenerator = struct {
 
         if (operation.parameters) |parameters| {
             var new_path = path;
-            var allocated_paths = std.ArrayList([]u8){};
+            var allocated_paths = std.ArrayList([]u8).empty;
             defer {
                 for (allocated_paths.items) |allocated_path| {
                     self.allocator.free(allocated_path);
@@ -226,40 +226,50 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "\");\n");
         }
 
-        try self.buffer.appendSlice(self.allocator, "    var req = try client.request(std.http.Method.");
-        try self.buffer.appendSlice(self.allocator, method);
-        try self.buffer.appendSlice(self.allocator, ", uri, .{ .extra_headers = headers });\n");
-        try self.buffer.appendSlice(self.allocator, "    defer req.deinit();\n\n");
-
-        if (std.mem.eql(u8, method, "POST") or std.mem.eql(u8, method, "PUT") or std.mem.eql(u8, method, "PATCH")) {
-            if (operation.parameters) |params| {
-                for (params) |param| {
-                    if (param.location == .body) {
-                        try self.buffer.appendSlice(self.allocator, "    var str = std.ArrayList(u8){};\n");
-                        try self.buffer.appendSlice(self.allocator, "    defer str.deinit(allocator);\n\n");
-                        try self.buffer.appendSlice(self.allocator, "    try std.json.stringify(requestBody, .{}, str.writer());\n");
-                        try self.buffer.appendSlice(self.allocator, "    const payload = str.items;\n\n");
-                        try self.buffer.appendSlice(self.allocator, "    req.transfer_encoding = .{ .content_length = payload.len };\n");
-                        try self.buffer.appendSlice(self.allocator, "    try req.sendBodyComplete(payload);\n\n");
-                        break;
-                    }
+        var has_body_param = false;
+        if (operation.parameters) |params| {
+            for (params) |param| {
+                if (param.location == .body) {
+                    has_body_param = true;
+                    break;
                 }
             }
-        } else {
-            try self.buffer.appendSlice(self.allocator, "    try req.sendBodiless();\n");
+        }
+
+        if (has_body_param) {
+            try self.buffer.appendSlice(self.allocator, "    var str: std.Io.Writer.Allocating = .init(allocator);\n");
+            try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n\n");
+            try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
+            try self.buffer.appendSlice(self.allocator, "    const payload = str.written();\n\n");
         }
 
         const return_type = self.getReturnType(method, operation);
-        if (!std.mem.eql(u8, return_type, "void")) {
+        const has_return_value = !std.mem.eql(u8, return_type, "void");
+        if (has_return_value) {
+            try self.buffer.appendSlice(self.allocator, "    var response_body: std.Io.Writer.Allocating = .init(allocator);\n");
+            try self.buffer.appendSlice(self.allocator, "    defer response_body.deinit();\n\n");
+        }
+
+        try self.buffer.appendSlice(self.allocator, "    const result = try client.fetch(.{\n");
+        try self.buffer.appendSlice(self.allocator, "        .location = .{ .uri = uri },\n");
+        try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, method);
+        try self.buffer.appendSlice(self.allocator, ",\n");
+        try self.buffer.appendSlice(self.allocator, "        .extra_headers = headers,\n");
+        if (has_body_param) {
+            try self.buffer.appendSlice(self.allocator, "        .payload = payload,\n");
+        }
+        if (has_return_value) {
+            try self.buffer.appendSlice(self.allocator, "        .response_writer = &response_body.writer,\n");
+        }
+        try self.buffer.appendSlice(self.allocator, "    });\n");
+        try self.buffer.appendSlice(self.allocator, "    if (result.status.class() != .success) {\n");
+        try self.buffer.appendSlice(self.allocator, "        return error.ResponseError;\n");
+        try self.buffer.appendSlice(self.allocator, "    }\n");
+
+        if (has_return_value) {
             try self.buffer.appendSlice(self.allocator, "\n");
-            try self.buffer.appendSlice(self.allocator, "    var response = try req.receiveHead(&.{});\n");
-            try self.buffer.appendSlice(self.allocator, "    if (response.head.status != .ok) {\n");
-            try self.buffer.appendSlice(self.allocator, "        return error.ResponseError;\n");
-            try self.buffer.appendSlice(self.allocator, "    }\n\n");
-            try self.buffer.appendSlice(self.allocator, "    var reader_buffer: [100]u8 = undefined;\n");
-            try self.buffer.appendSlice(self.allocator, "    const body_reader = response.reader(&reader_buffer);\n");
-            try self.buffer.appendSlice(self.allocator, "    const body = try body_reader.readAlloc(allocator, response.head.content_length orelse 1024 * 1024 * 4);\n");
-            try self.buffer.appendSlice(self.allocator, "    defer allocator.free(body);\n\n");
+            try self.buffer.appendSlice(self.allocator, "    const body = response_body.written();\n");
             try self.buffer.appendSlice(self.allocator, "    const parsed = try std.json.parseFromSlice(");
             try self.buffer.appendSlice(self.allocator, return_type);
             try self.buffer.appendSlice(self.allocator, ", allocator, body, .{});\n");

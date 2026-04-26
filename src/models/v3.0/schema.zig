@@ -138,35 +138,35 @@ pub const Schema = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Schema {
         const obj = value.object;
-        var required_list = std.ArrayList([]const u8){};
+        var required_list = std.ArrayList([]const u8).empty;
         errdefer required_list.deinit(allocator);
         if (obj.get("required")) |req_val| {
             for (req_val.array.items) |item| {
                 try required_list.append(allocator, try allocator.dupe(u8, item.string));
             }
         }
-        var enum_list = std.ArrayList(json.Value){};
+        var enum_list = std.ArrayList(json.Value).empty;
         errdefer enum_list.deinit(allocator);
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
                 try enum_list.append(allocator, item);
             }
         }
-        var all_of_list = std.ArrayList(SchemaOrReference){};
+        var all_of_list = std.ArrayList(SchemaOrReference).empty;
         errdefer all_of_list.deinit(allocator);
         if (obj.get("allOf")) |all_of_val| {
             for (all_of_val.array.items) |item| {
                 try all_of_list.append(allocator, try SchemaOrReference.parseFromJson(allocator, item));
             }
         }
-        var one_of_list = std.ArrayList(SchemaOrReference){};
+        var one_of_list = std.ArrayList(SchemaOrReference).empty;
         errdefer one_of_list.deinit(allocator);
         if (obj.get("oneOf")) |one_of_val| {
             for (one_of_val.array.items) |item| {
                 try one_of_list.append(allocator, try SchemaOrReference.parseFromJson(allocator, item));
             }
         }
-        var any_of_list = std.ArrayList(SchemaOrReference){};
+        var any_of_list = std.ArrayList(SchemaOrReference).empty;
         errdefer any_of_list.deinit(allocator);
         if (obj.get("anyOf")) |any_of_val| {
             for (any_of_val.array.items) |item| {

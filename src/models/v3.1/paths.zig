@@ -21,14 +21,14 @@ pub const PathItem = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!PathItem {
         const obj = value.object;
-        var parameters_list = std.ArrayList(ParameterOrReference){};
+        var parameters_list = std.ArrayList(ParameterOrReference).empty;
         errdefer parameters_list.deinit(allocator);
         if (obj.get("parameters")) |params_val| {
             for (params_val.array.items) |item| {
                 try parameters_list.append(allocator, try ParameterOrReference.parseFromJson(allocator, item));
             }
         }
-        var servers_list = std.ArrayList(Server){};
+        var servers_list = std.ArrayList(Server).empty;
         errdefer servers_list.deinit(allocator);
         if (obj.get("servers")) |servers_val| {
             for (servers_val.array.items) |item| {

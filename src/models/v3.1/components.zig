@@ -47,7 +47,7 @@ pub const Components = struct {
     _allocated_strings: std.ArrayList([]const u8),
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Components {
-        var _allocated_strings = std.ArrayList([]const u8){};
+        var _allocated_strings = std.ArrayList([]const u8).empty;
         errdefer _allocated_strings.deinit(allocator);
         const obj = value.object;
         var schemas_map = std.StringHashMap(SchemaOrReference).init(allocator);

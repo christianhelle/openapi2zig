@@ -19,7 +19,7 @@ pub const ModelCodeGenerator = struct {
     }
 
     pub fn generate(self: *ModelCodeGenerator, document: models.SwaggerDocument) ![]const u8 {
-        var parts = std.ArrayList([]const u8){};
+        var parts = std.ArrayList([]const u8).empty;
         defer parts.deinit(self.allocator);
         try parts.append(self.allocator, "///////////////////////////////////////////\n");
         try parts.append(self.allocator, "// Generated Zig structures from Swagger v2.0\n");

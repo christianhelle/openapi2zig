@@ -4,10 +4,7 @@ const std = @import("std");
 const test_utils = @import("test_utils.zig");
 
 fn loadOpenApi31Document(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApi31Document {
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-    try file.seekBy(0);
-    const file_contents = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
     defer allocator.free(file_contents);
     return try models.OpenApi31Document.parseFromJson(allocator, file_contents);
 }
@@ -186,11 +183,12 @@ test "can convert all v3.1 JSON OpenAPI specifications to UnifiedDocument" {
 test "dynamically convert all OpenAPI v3.1 JSON files to UnifiedDocument" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
-    const openapi_dir = try std.fs.cwd().openDir("openapi/v3.1", .{ .iterate = true });
+    const openapi_dir = try std.Io.Dir.cwd().openDir(std.testing.io, "openapi/v3.1", .{ .iterate = true });
+    defer openapi_dir.close(std.testing.io);
     var iterator = openapi_dir.iterate();
     var successful_conversions: u32 = 0;
     var total_files: u32 = 0;
-    while (try iterator.next()) |entry| {
+    while (try iterator.next(std.testing.io)) |entry| {
         if (entry.kind != .file) continue;
         if (!std.mem.endsWith(u8, entry.name, ".json")) continue;
         total_files += 1;

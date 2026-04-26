@@ -3,7 +3,8 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const build_info = createBuildInfoOptions(b);
+    const run_integration_tests = b.option(bool, "run-integration", "Run network integration tests") orelse false;
+    const build_info = createBuildInfoOptions(b, run_integration_tests);
     const package_snapshot_step = createPackageSnapshotStep(b);
 
     // Library module for external packages
@@ -123,6 +124,16 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
 
+    const generated_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("generated/compile_generated.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_generated_tests = b.addRunArtifact(generated_tests);
+    test_step.dependOn(&run_generated_tests.step);
+
     const test_package_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "build" });
     test_package_cmd.step.dependOn(package_snapshot_step);
     test_package_cmd.setCwd(b.path(".zig-cache/issue43-package-snapshot/examples/package_consumer"));
@@ -138,18 +149,20 @@ pub fn build(b: *std.Build) void {
     install_test_step.dependOn(&test_artifact.step);
 }
 
-fn createBuildInfoOptions(b: *std.Build) *std.Build.Step.Options {
+fn createBuildInfoOptions(b: *std.Build, run_integration_tests: bool) *std.Build.Step.Options {
     const options = b.addOptions();
-    const package_version = getPackageVersion(b.allocator) orelse "unknown";
-    const git_tag = getGitOutput(b.allocator, &.{ "git", "describe", "--tags", "--abbrev=0" }) orelse b.fmt("v{s}", .{package_version});
-    const git_commit = getGitOutput(b.allocator, &.{ "git", "rev-parse", "--short", "HEAD" }) orelse "unknown";
+    const io = b.graph.io;
+    const package_version = getPackageVersion(b.allocator, io) orelse "unknown";
+    const git_tag = getGitOutput(b.allocator, io, &.{ "git", "describe", "--tags", "--abbrev=0" }) orelse b.fmt("v{s}", .{package_version});
+    const git_commit = getGitOutput(b.allocator, io, &.{ "git", "rev-parse", "--short", "HEAD" }) orelse "unknown";
     const version = if (std.mem.startsWith(u8, git_tag, "v")) git_tag[1..] else git_tag;
-    const build_date = getBuildDate(b.allocator) orelse "unknown";
+    const build_date = getBuildDate(b.allocator, io) orelse "unknown";
 
     options.addOption([]const u8, "VERSION", version);
     options.addOption([]const u8, "GIT_TAG", git_tag);
     options.addOption([]const u8, "GIT_COMMIT", git_commit);
     options.addOption([]const u8, "BUILD_DATE", build_date);
+    options.addOption(bool, "RUN_INTEGRATION_TESTS", run_integration_tests);
 
     return options;
 }
@@ -169,33 +182,34 @@ fn makePackageSnapshot(step: *std.Build.Step, options: std.Build.Step.MakeOption
     _ = options;
     const b = step.owner;
     const allocator = b.allocator;
-    const cwd = std.fs.cwd();
+    const io = b.graph.io;
+    const cwd = std.Io.Dir.cwd();
     const snapshot_root = ".zig-cache/issue43-package-snapshot";
 
-    try cwd.deleteTree(snapshot_root);
-    try cwd.makePath(snapshot_root);
+    try cwd.deleteTree(io, snapshot_root);
+    try cwd.createDirPath(io, snapshot_root);
 
-    const repo_files = getPackageSnapshotFiles(allocator) orelse return error.UnableToPreparePackageSnapshot;
+    const repo_files = getPackageSnapshotFiles(allocator, io) orelse return error.UnableToPreparePackageSnapshot;
     defer allocator.free(repo_files);
 
     var lines = std.mem.tokenizeScalar(u8, repo_files, '\n');
     while (lines.next()) |line| {
-        const repo_path = std.mem.trimRight(u8, line, "\r");
+        const repo_path = std.mem.trimEnd(u8, line, "\r");
         if (repo_path.len == 0) continue;
 
         const destination_path = try std.fs.path.join(allocator, &.{ snapshot_root, repo_path });
         defer allocator.free(destination_path);
 
         if (std.fs.path.dirname(destination_path)) |dest_dir| {
-            try cwd.makePath(dest_dir);
+            try cwd.createDirPath(io, dest_dir);
         }
 
-        try cwd.copyFile(repo_path, cwd, destination_path, .{});
+        try cwd.copyFile(repo_path, cwd, destination_path, io, .{});
     }
 }
 
-fn getBuildDate(allocator: std.mem.Allocator) ?[]const u8 {
-    const timestamp = std.time.timestamp();
+fn getBuildDate(allocator: std.mem.Allocator, io: std.Io) ?[]const u8 {
+    const timestamp = std.Io.Clock.real.now(io).toSeconds();
     const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = @as(u64, @intCast(timestamp)) };
     const epoch_day = epoch_seconds.getEpochDay();
     const day_seconds = epoch_seconds.getDaySeconds();
@@ -212,8 +226,8 @@ fn getBuildDate(allocator: std.mem.Allocator) ?[]const u8 {
     }) catch null;
 }
 
-fn getPackageVersion(allocator: std.mem.Allocator) ?[]const u8 {
-    const content = std.fs.cwd().readFileAlloc(allocator, "build.zig.zon", 64 * 1024) catch return null;
+fn getPackageVersion(allocator: std.mem.Allocator, io: std.Io) ?[]const u8 {
+    const content = std.Io.Dir.cwd().readFileAlloc(io, "build.zig.zon", allocator, .limited(64 * 1024)) catch return null;
     const marker = ".version = \"";
     const start = std.mem.indexOf(u8, content, marker) orelse return null;
     const version_start = start + marker.len;
@@ -221,8 +235,8 @@ fn getPackageVersion(allocator: std.mem.Allocator) ?[]const u8 {
     return content[version_start..version_end];
 }
 
-fn getPackageSnapshotFiles(allocator: std.mem.Allocator) ?[]const u8 {
-    return getGitOutput(allocator, &.{
+fn getPackageSnapshotFiles(allocator: std.mem.Allocator, io: std.Io) ?[]const u8 {
+    return getGitOutput(allocator, io, &.{
         "git",
         "ls-files",
         "--cached",
@@ -232,38 +246,32 @@ fn getPackageSnapshotFiles(allocator: std.mem.Allocator) ?[]const u8 {
         "build.zig",
         "build.zig.zon",
         "src",
+        "generated",
         "LICENSE",
         "README.md",
         "examples/package_consumer",
     });
 }
 
-fn getGitOutput(allocator: std.mem.Allocator, argv: []const []const u8) ?[]const u8 {
-    var child = std.process.Child.init(argv, allocator);
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Pipe;
-    child.spawn() catch return null;
-    const stdout = child.stdout.?.readToEndAlloc(allocator, 1024 * 1024) catch return null;
-    const stderr = child.stderr.?.readToEndAlloc(allocator, 16 * 1024) catch {
-        allocator.free(stdout);
-        return null;
-    };
-    defer allocator.free(stderr);
-    const term = child.wait() catch {
-        allocator.free(stdout);
-        return null;
-    };
-    switch (term) {
-        .Exited => |code| {
+fn getGitOutput(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8) ?[]const u8 {
+    const result = std.process.run(allocator, io, .{
+        .argv = argv,
+        .stdout_limit = .limited(1024 * 1024),
+        .stderr_limit = .limited(16 * 1024),
+    }) catch return null;
+    defer allocator.free(result.stderr);
+
+    switch (result.term) {
+        .exited => |code| {
             if (code == 0) {
-                return std.mem.trim(u8, stdout, " \t\n\r");
+                return std.mem.trim(u8, result.stdout, " \t\n\r");
             } else {
-                allocator.free(stdout);
+                allocator.free(result.stdout);
                 return null;
             }
         },
         else => {
-            allocator.free(stdout);
+            allocator.free(result.stdout);
             return null;
         },
     }

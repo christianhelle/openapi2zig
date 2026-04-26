@@ -70,7 +70,7 @@ pub const PathItem = struct {
         };
     }
     fn parseParameters(allocator: std.mem.Allocator, value: json.Value) anyerror![]Parameter {
-        var array_list = std.ArrayList(Parameter){};
+        var array_list = std.ArrayList(Parameter).empty;
         errdefer array_list.deinit(allocator);
         for (value.array.items) |item| {
             try array_list.append(allocator, try Parameter.parseFromJson(allocator, item));

@@ -19,23 +19,17 @@ const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
 /// Loads input from either a file path or HTTP/HTTPS URL
 /// Caller owns the returned memory and must free it with allocator.free()
-pub fn loadInput(allocator: std.mem.Allocator, source: InputSource) ![]const u8 {
+pub fn loadInput(allocator: std.mem.Allocator, io: std.Io, source: InputSource) ![]const u8 {
     return switch (source) {
-        .file_path => |path| try loadFromFile(allocator, path),
-        .url => |url| try loadFromUrl(allocator, url),
+        .file_path => |path| try loadFromFile(allocator, io, path),
+        .url => |url| try loadFromUrl(allocator, io, url),
     };
 }
 
 /// Loads content from a file path
 /// Caller owns the returned memory and must free it with allocator.free()
-pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
-    const file = std.fs.cwd().openFile(path, .{}) catch |err| {
-        std.debug.print("Failed to open file '{s}': {}\n", .{ path, err });
-        return err;
-    };
-    defer file.close();
-
-    const contents = file.readToEndAlloc(allocator, MAX_BODY_BYTES) catch |err| {
+pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]const u8 {
+    const contents = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(MAX_BODY_BYTES)) catch |err| {
         std.debug.print("Failed to read file '{s}': {}\n", .{ path, err });
         return err;
     };
@@ -45,7 +39,7 @@ pub fn loadFromFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 
 
 /// Loads content from an HTTP or HTTPS URL
 /// Caller owns the returned memory and must free it with allocator.free()
-pub fn loadFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {
+pub fn loadFromUrl(allocator: std.mem.Allocator, io: std.Io, url: []const u8) ![]const u8 {
     // Parse URI
     const uri = std.Uri.parse(url) catch |err| {
         std.debug.print("Invalid URL '{s}': {}\n", .{ url, err });
@@ -59,7 +53,7 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {
         return LoadError.InvalidUrl;
     }
 
-    var client = std.http.Client{ .allocator = allocator };
+    var client: std.http.Client = .{ .allocator = allocator, .io = io };
     defer client.deinit();
 
     // Create and send request
@@ -96,7 +90,7 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {
     const max_size = MAX_BODY_BYTES;
     var transfer_buffer: [4096]u8 = undefined;
     const reader = response.reader(&transfer_buffer);
-    const body = reader.allocRemaining(allocator, std.io.Limit.limited(max_size)) catch |err| {
+    const body = reader.allocRemaining(allocator, .limited(max_size)) catch |err| {
         std.debug.print("Failed to read HTTP response body from '{s}': {}\n", .{ url, err });
         return LoadError.InvalidResponse;
     };
