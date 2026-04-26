@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Upgrade to Zig 0.16.0 [\#45](https://github.com/christianhelle/openapi2zig/pull/45) ([h0rv](https://github.com/h0rv))
 - Add support for using remote URL with --input [\#44](https://github.com/christianhelle/openapi2zig/pull/44) ([christianhelle](https://github.com/christianhelle))
 - Add OpenAPI 3.2 specification support [\#40](https://github.com/christianhelle/openapi2zig/pull/40) ([christianhelle](https://github.com/christianhelle))
 - Fix missing requestBody when converting OpenAPI v3 to Unified OpenAPI Document [\#33](https://github.com/christianhelle/openapi2zig/pull/33) ([christianhelle](https://github.com/christianhelle))
