@@ -37,6 +37,7 @@ const Paths31 = @import("../../models/v3.1/paths.zig").Paths;
 
 pub const OpenApi31Converter = struct {
     allocator: std.mem.Allocator,
+    source_schemas: ?*const std.StringHashMap(SchemaOrReference31) = null,
 
     pub fn init(allocator: std.mem.Allocator) OpenApi31Converter {
         return OpenApi31Converter{ .allocator = allocator };
@@ -146,6 +147,10 @@ pub const OpenApi31Converter = struct {
     fn convertSchemas(self: *OpenApi31Converter, components: Components31) !std.StringHashMap(Schema) {
         var schemas = std.StringHashMap(Schema).init(self.allocator);
         if (components.schemas) |schemas_map| {
+            const previous_source_schemas = self.source_schemas;
+            self.source_schemas = &schemas_map;
+            defer self.source_schemas = previous_source_schemas;
+
             var schema_iterator = schemas_map.iterator();
             while (schema_iterator.next()) |entry| {
                 const key = try self.allocator.dupe(u8, entry.key_ptr.*);
@@ -168,7 +173,246 @@ pub const OpenApi31Converter = struct {
         }
     }
 
+    fn refName(ref: []const u8) []const u8 {
+        if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
+            return ref[last_slash + 1 ..];
+        }
+        return ref;
+    }
+
+    fn convertResolvedSchemaReference(self: *OpenApi31Converter, ref: []const u8) anyerror!?Schema {
+        const source_schemas = self.source_schemas orelse return null;
+        const schema_or_ref = source_schemas.get(refName(ref)) orelse return null;
+        return try self.convertSchemaOrReference(schema_or_ref);
+    }
+
+    fn mergeRequired(self: *OpenApi31Converter, required_list: *std.ArrayList([]const u8), required: ?[][]const u8) !void {
+        if (required) |items| {
+            for (items) |item| {
+                var exists = false;
+                for (required_list.items) |existing| {
+                    if (std.mem.eql(u8, existing, item)) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) try required_list.append(self.allocator, item);
+            }
+        }
+    }
+
+    fn cloneSchema(self: *OpenApi31Converter, schema: Schema) anyerror!Schema {
+        const required = if (schema.required) |items| blk: {
+            const cloned = try self.allocator.alloc([]const u8, items.len);
+            @memcpy(cloned, items);
+            break :blk cloned;
+        } else null;
+
+        const properties = if (schema.properties) |props| blk: {
+            var cloned_props = std.StringHashMap(Schema).init(self.allocator);
+            var iterator = props.iterator();
+            while (iterator.next()) |entry| {
+                const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                try cloned_props.put(key, try self.cloneSchema(entry.value_ptr.*));
+            }
+            break :blk cloned_props;
+        } else null;
+
+        const items = if (schema.items) |item| blk: {
+            const cloned_item = try self.allocator.create(Schema);
+            cloned_item.* = try self.cloneSchema(item.*);
+            break :blk cloned_item;
+        } else null;
+
+        const one_of_refs = if (schema.one_of_refs) |refs| try self.cloneStringList(refs) else null;
+        const any_of_refs = if (schema.any_of_refs) |refs| try self.cloneStringList(refs) else null;
+        const discriminator_property = if (schema.discriminator_property) |property| try self.allocator.dupe(u8, property) else null;
+        const one_of = if (schema.one_of) |variants| try self.cloneSchemaList(variants) else null;
+        const any_of = if (schema.any_of) |variants| try self.cloneSchemaList(variants) else null;
+
+        return Schema{
+            .type = schema.type,
+            .ref = schema.ref,
+            .title = schema.title,
+            .description = schema.description,
+            .format = schema.format,
+            .required = required,
+            .properties = properties,
+            .items = items,
+            .enum_values = schema.enum_values,
+            .default = schema.default,
+            .example = schema.example,
+            .one_of_refs = one_of_refs,
+            .any_of_refs = any_of_refs,
+            .discriminator_property = discriminator_property,
+            .one_of = one_of,
+            .any_of = any_of,
+        };
+    }
+
+    fn cloneSchemaList(self: *OpenApi31Converter, values: []const Schema) anyerror![]Schema {
+        const cloned = try self.allocator.alloc(Schema, values.len);
+        errdefer self.allocator.free(cloned);
+        for (values, 0..) |value, i| cloned[i] = try self.cloneSchema(value);
+        return cloned;
+    }
+
+    fn cloneStringList(self: *OpenApi31Converter, values: []const []const u8) ![][]const u8 {
+        const cloned = try self.allocator.alloc([]const u8, values.len);
+        errdefer self.allocator.free(cloned);
+        for (values, 0..) |value, i| cloned[i] = try self.allocator.dupe(u8, value);
+        return cloned;
+    }
+
+    fn mergeProperties(self: *OpenApi31Converter, merged: *std.StringHashMap(Schema), part: Schema) !void {
+        if (part.properties) |props| {
+            var iterator = props.iterator();
+            while (iterator.next()) |entry| {
+                const cloned = try self.cloneSchema(entry.value_ptr.*);
+                if (merged.getEntry(entry.key_ptr.*)) |existing| {
+                    existing.value_ptr.deinit(self.allocator);
+                    existing.value_ptr.* = cloned;
+                } else {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    try merged.put(key, cloned);
+                }
+            }
+        }
+    }
+
+    fn convertAllOfSchema(self: *OpenApi31Converter, schema: Schema31) anyerror!Schema {
+        var merged_properties = std.StringHashMap(Schema).init(self.allocator);
+        var required_list = std.ArrayList([]const u8).empty;
+
+        if (schema.allOf) |all_of| {
+            for (all_of) |item| {
+                var converted = switch (item) {
+                    .reference => |ref| (try self.convertResolvedSchemaReference(ref.ref)) orelse Schema{ .type = .reference, .ref = ref.ref },
+                    .schema => |child| try self.convertSchema(child.*),
+                };
+                try self.mergeProperties(&merged_properties, converted);
+                try self.mergeRequired(&required_list, converted.required);
+                converted.deinit(self.allocator);
+            }
+        }
+
+        if (schema.properties) |props| {
+            var prop_iterator = props.iterator();
+            while (prop_iterator.next()) |entry| {
+                const prop_schema = try self.convertSchemaOrReference(entry.value_ptr.*);
+                if (merged_properties.getEntry(entry.key_ptr.*)) |existing| {
+                    existing.value_ptr.deinit(self.allocator);
+                    existing.value_ptr.* = prop_schema;
+                } else {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    try merged_properties.put(key, prop_schema);
+                }
+            }
+        }
+
+        if (schema.required) |required| {
+            for (required) |item| try required_list.append(self.allocator, item);
+        }
+
+        const required = if (required_list.items.len > 0) try required_list.toOwnedSlice(self.allocator) else null;
+        const has_properties = merged_properties.count() > 0;
+        if (!has_properties) {
+            merged_properties.deinit();
+        }
+
+        return Schema{
+            .type = .object,
+            .ref = null,
+            .title = schema.title,
+            .description = schema.description,
+            .format = schema.format,
+            .required = required,
+            .properties = if (has_properties) merged_properties else null,
+            .items = null,
+            .enum_values = schema.enum_values,
+            .default = schema.default,
+            .example = schema.example,
+        };
+    }
+
+    fn convertUnionVariants(self: *OpenApi31Converter, variants: []const SchemaOrReference31) ![]Schema {
+        const converted = try self.allocator.alloc(Schema, variants.len);
+        errdefer self.allocator.free(converted);
+        for (variants, 0..) |variant, i| {
+            converted[i] = try self.convertSchemaOrReference(variant);
+        }
+        return converted;
+    }
+
+    fn convertUnionRefs(self: *OpenApi31Converter, variants: []const SchemaOrReference31) !?[][]const u8 {
+        var refs = try self.allocator.alloc([]const u8, variants.len);
+        errdefer {
+            for (refs[0..]) |ref| if (ref.len != 0) self.allocator.free(ref);
+            self.allocator.free(refs);
+        }
+        for (refs) |*ref| ref.* = "";
+
+        for (variants, 0..) |variant, i| {
+            switch (variant) {
+                .reference => |reference| refs[i] = try self.allocator.dupe(u8, refName(reference.ref)),
+                .schema => {
+                    for (refs) |ref| if (ref.len != 0) self.allocator.free(ref);
+                    self.allocator.free(refs);
+                    return null;
+                },
+            }
+        }
+        return refs;
+    }
+
+    fn convertUnionSchema(self: *OpenApi31Converter, schema: Schema31) anyerror!Schema {
+        const discriminator = schema.discriminator;
+
+        if (schema.oneOf) |one_of| {
+            const variants = try self.convertUnionVariants(one_of);
+            if (discriminator) |disc| {
+                if (try self.convertUnionRefs(one_of)) |refs| {
+                    return Schema{
+                        .type = .object,
+                        .one_of_refs = refs,
+                        .discriminator_property = try self.allocator.dupe(u8, disc.propertyName),
+                        .one_of = variants,
+                    };
+                }
+            }
+            return Schema{ .type = .object, .one_of = variants };
+        }
+
+        if (schema.anyOf) |any_of| {
+            const variants = try self.convertUnionVariants(any_of);
+            if (discriminator) |disc| {
+                if (try self.convertUnionRefs(any_of)) |refs| {
+                    return Schema{
+                        .type = .object,
+                        .any_of_refs = refs,
+                        .discriminator_property = try self.allocator.dupe(u8, disc.propertyName),
+                        .any_of = variants,
+                    };
+                }
+            }
+            return Schema{ .type = .object, .any_of = variants };
+        }
+
+        return Schema{
+            .type = .object,
+            .description = "OpenAPI oneOf with discriminator could not be generated safely; generator currently uses std.json.Value.",
+        };
+    }
+
     fn convertSchema(self: *OpenApi31Converter, schema: Schema31) anyerror!Schema {
+        if (schema.allOf != null) {
+            return try self.convertAllOfSchema(schema);
+        }
+
+        if ((schema.oneOf != null or schema.anyOf != null) and schema.properties == null) {
+            return try self.convertUnionSchema(schema);
+        }
+
         // Handle type_array (e.g. ["string", "null"]) by using the first non-null type
         const schema_type = blk: {
             if (schema.type) |type_str| {
@@ -218,7 +462,7 @@ pub const OpenApi31Converter = struct {
             .required = required,
             .properties = properties,
             .items = items,
-            .enum_values = null,
+            .enum_values = schema.enum_values,
             .default = schema.default,
             .example = schema.example,
         };
@@ -232,6 +476,7 @@ pub const OpenApi31Converter = struct {
         if (std.mem.eql(u8, type_str, "boolean")) return .boolean;
         if (std.mem.eql(u8, type_str, "array")) return .array;
         if (std.mem.eql(u8, type_str, "object")) return .object;
+        if (std.mem.eql(u8, type_str, "null")) return .null;
         return .string;
     }
 
@@ -341,7 +586,11 @@ pub const OpenApi31Converter = struct {
     fn convertRequestBody(self: *OpenApi31Converter, requestBody: *const RequestBody31) !Parameter {
         var mut_request_body = requestBody.*;
         var schema: ?Schema = null;
-        if (mut_request_body.content.count() > 0) {
+        if (mut_request_body.content.get("application/json")) |media_type| {
+            if (media_type.schema) |schema_or_ref| {
+                schema = try self.convertSchemaOrReference(schema_or_ref);
+            }
+        } else if (mut_request_body.content.count() > 0) {
             var it = mut_request_body.content.iterator();
             if (it.next()) |entry| {
                 if (entry.value_ptr.schema) |schema_or_ref| {
@@ -426,10 +675,16 @@ pub const OpenApi31Converter = struct {
         const description = response.description;
         var schema: ?Schema = null;
         if (response.content) |content| {
-            var content_iterator = content.iterator();
-            if (content_iterator.next()) |entry| {
-                if (entry.value_ptr.schema) |schema_or_ref| {
+            if (content.get("application/json")) |media_type| {
+                if (media_type.schema) |schema_or_ref| {
                     schema = try self.convertSchemaOrReference(schema_or_ref);
+                }
+            } else {
+                var content_iterator = content.iterator();
+                if (content_iterator.next()) |entry| {
+                    if (entry.value_ptr.schema) |schema_or_ref| {
+                        schema = try self.convertSchemaOrReference(schema_or_ref);
+                    }
                 }
             }
         }
