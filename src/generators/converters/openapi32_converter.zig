@@ -339,7 +339,11 @@ pub const OpenApi32Converter = struct {
     fn convertRequestBody(self: *OpenApi32Converter, requestBody: *const RequestBody32) !Parameter {
         var mut_request_body = requestBody.*;
         var schema: ?Schema = null;
-        if (mut_request_body.content.count() > 0) {
+        if (mut_request_body.content.get("application/json")) |media_type| {
+            if (media_type.schema) |schema_or_ref| {
+                schema = try self.convertSchemaOrReference(schema_or_ref);
+            }
+        } else if (mut_request_body.content.count() > 0) {
             var it = mut_request_body.content.iterator();
             if (it.next()) |entry| {
                 if (entry.value_ptr.schema) |schema_or_ref| {
@@ -424,10 +428,16 @@ pub const OpenApi32Converter = struct {
         const description = response.description;
         var schema: ?Schema = null;
         if (response.content) |content| {
-            var content_iterator = content.iterator();
-            if (content_iterator.next()) |entry| {
-                if (entry.value_ptr.schema) |schema_or_ref| {
+            if (content.get("application/json")) |media_type| {
+                if (media_type.schema) |schema_or_ref| {
                     schema = try self.convertSchemaOrReference(schema_or_ref);
+                }
+            } else {
+                var content_iterator = content.iterator();
+                if (content_iterator.next()) |entry| {
+                    if (entry.value_ptr.schema) |schema_or_ref| {
+                        schema = try self.convertSchemaOrReference(schema_or_ref);
+                    }
                 }
             }
         }
