@@ -462,10 +462,10 @@ zig build</code></pre>
           <ul>
             <li>Schema declarations such as <code>Pet</code>, <code>Order</code>, and helper types.</li>
             <li>A reusable <code>Client</code> that owns <code>std.http.Client</code>.</li>
-            <li><code>Owned(T)</code>, <code>RawResponse</code>, and <code>ApiResult(T)</code> wrappers.</li>
+            <li><code>Owned(T)</code>, <code>RawResponse</code>, <code>ParseErrorResponse</code>, and <code>ApiResult(T)</code> wrappers.</li>
             <li>Endpoint triplets: <code>operation</code>, <code>operationRaw</code>, and <code>operationResult</code>.</li>
             <li>Percent-encoded query parameters and loose JSON response parsing.</li>
-            <li>Bounded SSE helpers and default path-based resource wrappers.</li>
+            <li>Bounded raw/typed SSE helpers, OpenAI stream helpers when matching operation IDs exist, and default path-based resource wrappers.</li>
             <li>OpenAPI 3.1 composite-schema metadata is stronger than earlier converters, but unsupported ambiguous shapes still use <code>std.json.Value</code>.</li>
           </ul>
 

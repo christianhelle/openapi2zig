@@ -522,20 +522,14 @@ client.withBaseUrl("https://petstore3.swagger.io/api/v3");
 
 var pet = try api.getPetById(&client, 1);
 defer pet.deinit();
-std.debug.print("pet name: {s}
-", .{pet.value().name});
+std.debug.print("pet name: {s}\n", .{pet.value().name});
 
 var result = try api.getPetByIdResult(&client, 1);
 defer result.deinit();
 switch (result) {
-    .ok => |*ok| std.debug.print("pet id: {?}
-", .{ok.value().id}),
-    .api_error => |raw| std.debug.print("HTTP status: {}
-{s}
-", .{ raw.status, raw.body }),
-    .parse_error => |parse| std.debug.print("parse error: {s}
-{s}
-", .{ parse.error_name, parse.raw.body }),
+    .ok => |*ok| std.debug.print("pet id: {?}\n", .{ok.value().id}),
+    .api_error => |raw| std.debug.print("HTTP status: {}\n{s}\n", .{ raw.status, raw.body }),
+    .parse_error => |parse| std.debug.print("parse error: {s}\n{s}\n", .{ parse.error_name, parse.raw.body }),
 }
 
 // Default path resource wrappers are also exported:
