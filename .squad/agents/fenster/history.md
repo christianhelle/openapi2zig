@@ -51,3 +51,18 @@
 - Test brittleness: external API tests should use version-agnostic assertions
 - 10MB size limit reasonable for OpenAPI specs (typical: 10-500KB)
 
+
+### PR #46 generated-code documentation brief (2026-04-28T23:01:58.137+02:00)
+
+- PR #46 (`Fix real-world OpenAPI code generation`, merge `4e8bc19`) substantially changed the generated output contract: generated files now start with `const std = @import("std");`, model declarations, then a reusable API runtime and endpoint/resource wrappers.
+- Current CLI usage is `openapi2zig generate -i <PATH_OR_URL> [-o <file>] [--base-url <url>] [--resource-wrappers none|tags|paths|hybrid]`; default output file is `generated.zig`, and resource wrappers default to `paths`.
+- Build sample generation now emits four files: `generated/generated_v2.zig`, `generated/generated_v3.zig`, `generated/generated_v31.zig`, and `generated/generated_v32.zig`; `generated/compile_generated.zig` refAllDecls all four and tests generated runtime helpers.
+- Generated clients use `Client.init(allocator, io, api_key)`, borrowed `default_headers`, optional `organization`/`project`, bearer auth, and `withBaseUrl()` override. Endpoint calls take `client: *Client`, not allocator/io directly.
+- Successful parsed responses return `Owned(T)` with `deinit()` and `value()`; low-level `RawResponse`, `ParseErrorResponse`, and `ApiResult(T)` preserve response status/body and parse failures. Endpoint families are `op()`, `opRaw()`, and `opResult()` when a return type exists.
+- Generated runtime includes percent-encoded query helper functions, optional query params as nullable `?T`, `.ignore_unknown_fields = true` response parsing, dynamic raw JSON helpers, and bounded SSE parsing plus typed SSE callbacks.
+- Generated models now quote invalid/reserved Zig identifiers, emit object schemas as structs, required fields without defaults, optional fields as `?T = null`, arrays as `[]const T` when known, and `std.json.Value` only for genuinely ambiguous/open JSON shapes.
+- OpenAPI 3.1 conversion merges `allOf` object/ref object properties, preserves `oneOf`/`anyOf` variants/discriminators in the unified schema, and supports nullable unions collapsing to `?T`.
+- Union output can be `union(enum)` with typed variants and `raw: std.json.Value` fallback, including discriminator unions, structural trial-parse unions, primitive mixed unions, and string enum variants. Unsafe discriminator cases still fall back with a comment.
+- OpenAI-specific generation hooks exist for `extra_body` flattening on `CreateResponse`/`CreateChatCompletionRequest`, `reasoning_details` on assistant messages, JSON-value-backed schema unions, typed filters/tools/annotations/audio, and stream helpers `streamChatCompletion`/`streamResponse`.
+- README is stale around usage and examples: it still says CLI generation is under development, describes `-o` as output directory, and shows old no-Client API examples returning bare values/dangling parsed data.
+- Current local environment cannot run Zig because `C:\Users\chris\AppData\Local\Microsoft\WinGet\Links\zig.exe` fails to launch; source inspection and checked-in generated files were used instead of regenerating locally.
