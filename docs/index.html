@@ -383,24 +383,17 @@ zig build</code></pre>
         <div class="container">
           <h2>Usage</h2>
 
-          <div class="status-note">
-            <strong>Note:</strong> The CLI interface is currently under
-            development. The tool currently includes OpenAPI parsing
-            functionality and will be extended with code generation
-            capabilities.
-          </div>
-
           <div class="usage-example">
             <h3>Command-line Interface</h3>
+            <p>
+              The <code>generate</code> command reads a JSON OpenAPI/Swagger
+              document from a local file or <code>http</code>/<code>https</code>
+              URL, auto-detects the spec version, and writes one Zig source file.
+            </p>
             <div class="code-block">
               <div class="code-header">
                 <span class="code-title">Shell</span>
-                <button
-                  class="copy-btn"
-                  data-code="openapi2zig generate [options]"
-                >
-                  📋
-                </button>
+                <button class="copy-btn" data-code="openapi2zig generate [options]">📋</button>
               </div>
               <pre><code>openapi2zig generate [options]</code></pre>
             </div>
@@ -416,37 +409,41 @@ zig build</code></pre>
             </thead>
             <tbody>
               <tr>
-                <td><code>-i, --input &lt;path&gt;</code></td>
-                <td>Path to the OpenAPI Specification file (JSON or YAML).</td>
+                <td><code>-i, --input &lt;PATH_OR_URL&gt;</code></td>
+                <td>OpenAPI/Swagger JSON spec from a file path or URL. Required.</td>
               </tr>
               <tr>
                 <td><code>-o, --output &lt;path&gt;</code></td>
-                <td>
-                  Path to the output directory for the generated Zig code
-                  (default: current directory).
-                </td>
+                <td>Output file for generated Zig code. Defaults to <code>generated.zig</code>.</td>
               </tr>
               <tr>
                 <td><code>--base-url &lt;url&gt;</code></td>
-                <td>
-                  Base URL for the API client (default: server URL from OpenAPI
-                  Specification).
-                </td>
+                <td>Base URL baked into the generated <code>Client</code>; defaults to the spec server URL.</td>
+              </tr>
+              <tr>
+                <td><code>--resource-wrappers &lt;mode&gt;</code></td>
+                <td>Resource wrapper mode: <code>none</code>, <code>tags</code>, <code>paths</code>, or <code>hybrid</code>. Defaults to <code>paths</code>.</td>
               </tr>
             </tbody>
           </table>
 
+          <h3>Examples</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-title">Shell</span>
+              <button class="copy-btn" data-code="openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --base-url https://petstore3.swagger.io/api/v3">📋</button>
+            </div>
+            <pre><code>openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --base-url https://petstore3.swagger.io/api/v3</code></pre>
+          </div>
+
           <h3>Current Capabilities</h3>
           <ul>
-            <li>✅ Swagger v2.0 specification parsing</li>
-            <li>✅ OpenAPI v3.0 specification parsing</li>
-            <li>✅ OpenAPI v3.1 specification parsing</li>
-            <li>✅ OpenAPI v3.2 specification parsing</li>
-            <li>✅ Comprehensive data model structures for all versions</li>
-            <li>✅ Comprehensive test suite for parsing functionality</li>
-            <li>✅ CLI interface for code generation</li>
-            <li>✅ Zig client code generation</li>
-            <li>✅ Support for complex schemas</li>
+            <li>✅ Swagger v2.0 specification parsing and generation</li>
+            <li>✅ OpenAPI v3.0, v3.1, and v3.2 parsing and generation</li>
+            <li>✅ Local files and remote <code>http</code>/<code>https</code> JSON specs</li>
+            <li>✅ Generated <code>Client</code> with base URL, API key, and headers</li>
+            <li>✅ Raw/result helpers that preserve response bodies</li>
+            <li>✅ Resource wrapper namespaces generated from paths, tags, or hybrid metadata</li>
           </ul>
         </div>
       </section>
@@ -455,217 +452,211 @@ zig build</code></pre>
         <div class="container">
           <h2>Example Generated Code</h2>
           <p>
-            Below is an example of the Zig code generated from an OpenAPI
-            specification.
+            These snippets match the current <code>generated/generated_v3.zig</code>
+            style produced by <code>zig build run-generate-v3</code>.
           </p>
+
+          <h3>Generated output structure</h3>
+          <ul>
+            <li>Schema declarations such as <code>Pet</code>, <code>Order</code>, and helper types.</li>
+            <li>A reusable <code>Client</code> that owns <code>std.http.Client</code>.</li>
+            <li><code>Owned(T)</code>, <code>RawResponse</code>, and <code>ApiResult(T)</code> wrappers.</li>
+            <li>Endpoint triplets: <code>operation</code>, <code>operationRaw</code>, and <code>operationResult</code>.</li>
+            <li>Bounded SSE helpers and default path-based resource wrappers.</li>
+          </ul>
 
           <h3>Models</h3>
           <div class="code-block">
             <div class="code-header">
               <span class="code-title">Zig</span>
-              <button
-                class="copy-btn"
-                data-code="///////////////////////////////////////////
-// Generated Zig structures from OpenAPI
-///////////////////////////////////////////
-
-pub const Order = struct {
-    status: ?[]const u8 = null,
-    petId: ?i64 = null,
-    complete: ?bool = null,
+              <button class="copy-btn" data-code="pub const Tag = struct {
     id: ?i64 = null,
-    quantity: ?i64 = null,
-    shipDate: ?[]const u8 = null,
+    name: ?[]const u8 = null,
+};
+
+pub const Category = struct {
+    id: ?i64 = null,
+    name: ?[]const u8 = null,
 };
 
 pub const Pet = struct {
     status: ?[]const u8 = null,
-    tags: ?[]const u8 = null,
-    category: ?[]const u8 = null,
+    tags: ?[]const Tag = null,
+    category: ?Category = null,
     id: ?i64 = null,
     name: []const u8,
-    photoUrls: []const u8,
-};
-"
-              >
-                📋
-              </button>
+    photoUrls: []const []const u8,
+};">📋</button>
             </div>
-            <pre><code>///////////////////////////////////////////
-// Generated Zig structures from OpenAPI
-///////////////////////////////////////////
-
-pub const Order = struct {
-    status: ?[]const u8 = null,
-    petId: ?i64 = null,
-    complete: ?bool = null,
+            <pre><code>pub const Tag = struct {
     id: ?i64 = null,
-    quantity: ?i64 = null,
-    shipDate: ?[]const u8 = null,
-}
+    name: ?[]const u8 = null,
+};
+
+pub const Category = struct {
+    id: ?i64 = null,
+    name: ?[]const u8 = null,
+};
 
 pub const Pet = struct {
     status: ?[]const u8 = null,
-    tags: ?[]const u8 = null,
-    category: ?[]const u8 = null,
+    tags: ?[]const Tag = null,
+    category: ?Category = null,
     id: ?i64 = null,
     name: []const u8,
-    photoUrls: []const u8,
-};
-</code></pre>
+    photoUrls: []const []const u8,
+};</code></pre>
           </div>
 
-          <h3>API Client</h3>
+          <h3>Client</h3>
           <div class="code-block">
             <div class="code-header">
               <span class="code-title">Zig</span>
-              <button
-                class="copy-btn"
-                data-code='///////////////////////////////////////////
-// Generated Zig API client from OpenAPI
-///////////////////////////////////////////
+              <button class="copy-btn" data-code="pub const Client = struct {
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    http: std.http.Client,
+    api_key: []const u8,
+    base_url: []const u8 = &quot;https://petstore3.swagger.io/api/v3&quot;,
+    organization: ?[]const u8 = null,
+    project: ?[]const u8 = null,
+    default_headers: []const std.http.Header = &amp;.{},
 
-const std = @import("std");
-
-/////////////////
-// Summary:
-// Place an order for a pet
-//
-// Description:
-// Place a new order in the store
-//
-pub fn placeOrder(allocator: std.mem.Allocator, io: std.Io, requestBody: Order) !void {
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
-    defer client.deinit();
-
-    const uri = try std.Uri.parse("https://petstore.swagger.io/api/v3/store/order");
-    var req = try client.request(.POST, uri, .{});
-    defer req.deinit();
-
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-
-    try std.json.Stringify.value(requestBody, .{}, &str.writer);
-    const body = str.written();
-
-    try req.sendBodyComplete(body);
-}
-
-/////////////////
-// Summary:
-// Find pet by ID
-//
-// Description:
-// Returns a single pet
-//
-pub fn getPetById(allocator: std.mem.Allocator, io: std.Io, petId: []const u8) !Pet {
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
-    defer client.deinit();
-
-    const headers = &[_]std.http.Header{
-        .{ .name = "Content-Type", .value = "application/json" },
-        .{ .name = "Accept", .value = "application/json" },
-    };
-
-    const uri_str = try std.fmt.allocPrint(allocator, "https://petstore3.swagger.io/api/v3/pet/{s}", .{petId});
-    defer allocator.free(uri_str);
-    const uri = try std.Uri.parse(uri_str);
-    var req = try client.request(std.http.Method.GET, uri, .{ .extra_headers = headers });
-    defer req.deinit();
-
-    try req.sendBodiless();
-
-    var redirect_buffer: [1024]u8 = undefined;
-    var response = try req.receiveHead(&redirect_buffer);
-    if (response.head.status != .ok) {
-        return error.ResponseError;
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, api_key: []const u8) Client {
+        return .{
+            .allocator = allocator,
+            .io = io,
+            .http = .{ .allocator = allocator, .io = io },
+            .api_key = api_key,
+        };
     }
 
-    var reader_buffer: [100]u8 = undefined;
-    const body_reader = response.reader(&reader_buffer);
-    const body = try body_reader.readAlloc(allocator, response.head.content_length orelse 1024 * 1024 * 4);
-    defer allocator.free(body);
+    pub fn deinit(self: *Client) void {
+        self.http.deinit();
+    }
 
-    const parsed = try std.json.parseFromSlice(Pet, allocator, body, .{});
-    defer parsed.deinit();
-
-    return parsed.value;
-}
-'
-              >
-                📋
-              </button>
+    pub fn withBaseUrl(self: *Client, base_url: []const u8) void {
+        self.base_url = base_url;
+    }
+};">📋</button>
             </div>
-            <pre><code>///////////////////////////////////////////
-// Generated Zig API client from OpenAPI
-///////////////////////////////////////////
+            <pre><code>pub const Client = struct {
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    http: std.http.Client,
+    api_key: []const u8,
+    base_url: []const u8 = &quot;https://petstore3.swagger.io/api/v3&quot;,
+    organization: ?[]const u8 = null,
+    project: ?[]const u8 = null,
+    default_headers: []const std.http.Header = &amp;.{},
 
-const std = @import("std");
-
-/////////////////
-// Summary:
-// Place an order for a pet
-//
-// Description:
-// Place a new order in the store
-//
-pub fn placeOrder(allocator: std.mem.Allocator, io: std.Io, requestBody: Order) !void {
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
-    defer client.deinit();
-
-    const uri = try std.Uri.parse("/store/order");
-    var req = try client.request(.POST, uri, .{});
-    defer req.deinit();
-
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-
-    try std.json.Stringify.value(requestBody, .{}, &str.writer);
-    const body = str.written();
-
-    try req.sendBodyComplete(body);
-}
-
-/////////////////
-// Summary:
-// Find pet by ID
-//
-// Description:
-// Returns a single pet
-//
-pub fn getPetById(allocator: std.mem.Allocator, io: std.Io, petId: []const u8) !Pet {
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
-    defer client.deinit();
-
-    const headers = &[_]std.http.Header{
-        .{ .name = "Content-Type", .value = "application/json" },
-        .{ .name = "Accept", .value = "application/json" },
-    };
-
-    const uri_str = try std.fmt.allocPrint(allocator, "https://petstore3.swagger.io/api/v3/pet/{s}", .{petId});
-    defer allocator.free(uri_str);
-    const uri = try std.Uri.parse(uri_str);
-    var req = try client.request(std.http.Method.GET, uri, .{ .extra_headers = headers });
-    defer req.deinit();
-
-    try req.sendBodiless();
-
-    var redirect_buffer: [1024]u8 = undefined;
-    var response = try req.receiveHead(&redirect_buffer);
-    if (response.head.status != .ok) {
-        return error.ResponseError;
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, api_key: []const u8) Client {
+        return .{
+            .allocator = allocator,
+            .io = io,
+            .http = .{ .allocator = allocator, .io = io },
+            .api_key = api_key,
+        };
     }
 
-    var reader_buffer: [100]u8 = undefined;
-    const body_reader = response.reader(&reader_buffer);
-    const body = try body_reader.readAlloc(allocator, response.head.content_length orelse 1024 * 1024 * 4);
-    defer allocator.free(body);
+    pub fn deinit(self: *Client) void {
+        self.http.deinit();
+    }
 
-    const parsed = try std.json.parseFromSlice(Pet, allocator, body, .{});
-    defer parsed.deinit();
+    pub fn withBaseUrl(self: *Client, base_url: []const u8) void {
+        self.base_url = base_url;
+    }
+};</code></pre>
+          </div>
 
-    return parsed.value;
+          <h3>Endpoint helpers</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-title">Zig</span>
+              <button class="copy-btn" data-code="pub fn getPetById(client: *Client, petId: i64) !Owned(Pet) {
+    var result = try getPetByIdResult(client, petId);
+    switch (result) {
+        .ok =&gt; |ok| return ok,
+        .api_error =&gt; |*err| {
+            err.deinit();
+            return error.ResponseError;
+        },
+        .parse_error =&gt; |*err| {
+            err.raw.deinit();
+            return error.ResponseParseError;
+        },
+    }
+}
+
+pub fn getPetByIdRaw(client: *Client, petId: i64) !RawResponse {
+    const allocator = client.allocator;
+    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
+    defer uri_buf.deinit();
+    try uri_buf.writer.print(&quot;{s}/pet/{d}&quot;, .{ client.base_url, petId });
+    const payload: ?[]const u8 = null;
+
+    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
+}
+
+pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
+    return parseRawResponse(Pet, try getPetByIdRaw(client, petId));
+}">📋</button>
+            </div>
+            <pre><code>pub fn getPetById(client: *Client, petId: i64) !Owned(Pet) {
+    var result = try getPetByIdResult(client, petId);
+    switch (result) {
+        .ok =&gt; |ok| return ok,
+        .api_error =&gt; |*err| {
+            err.deinit();
+            return error.ResponseError;
+        },
+        .parse_error =&gt; |*err| {
+            err.raw.deinit();
+            return error.ResponseParseError;
+        },
+    }
+}
+
+pub fn getPetByIdRaw(client: *Client, petId: i64) !RawResponse {
+    const allocator = client.allocator;
+    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
+    defer uri_buf.deinit();
+    try uri_buf.writer.print(&quot;{s}/pet/{d}&quot;, .{ client.base_url, petId });
+    const payload: ?[]const u8 = null;
+
+    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
+}
+
+pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
+    return parseRawResponse(Pet, try getPetByIdRaw(client, petId));
 }</code></pre>
+          </div>
+
+          <h3>Calling generated code</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-title">Zig</span>
+              <button class="copy-btn" data-code="var client = api.Client.init(allocator, io, &quot;&quot;);
+defer client.deinit();
+client.withBaseUrl(&quot;https://petstore3.swagger.io/api/v3&quot;);
+
+var pet = try api.getPetById(&amp;client, 1);
+defer pet.deinit();
+std.debug.print(&quot;pet name: {s}\n&quot;, .{pet.value().name});
+
+var wrapped = try api.pet.get(&amp;client, 1);
+defer wrapped.deinit();">📋</button>
+            </div>
+            <pre><code>var client = api.Client.init(allocator, io, &quot;&quot;);
+defer client.deinit();
+client.withBaseUrl(&quot;https://petstore3.swagger.io/api/v3&quot;);
+
+var pet = try api.getPetById(&amp;client, 1);
+defer pet.deinit();
+std.debug.print(&quot;pet name: {s}\n&quot;, .{pet.value().name});
+
+var wrapped = try api.pet.get(&amp;client, 1);
+defer wrapped.deinit();</code></pre>
           </div>
         </div>
       </section>
