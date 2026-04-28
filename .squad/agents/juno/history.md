@@ -64,3 +64,9 @@ Users can now provide OpenAPI specs via remote URLs in addition to local file pa
 - **Generated client shape:** current output includes `Client`, `Owned(T)`, `RawResponse`, `ApiResult(T)`, raw/result endpoint helpers, bounded SSE helpers, and path-based resource wrappers.
 - **Docs touched:** `README.md`, `docs/index.html`, `docs/json-value-typing-policy.md`, and `docs/openai-generation-issues.md` were updated to match PR #46 behavior.
 - **Validation note:** local `zig.exe` was present only as a broken WinGet link, so validation was static against source, build targets, and generated files rather than executing Zig commands.
+
+### Lando/Fenster Handoff Follow-up (2026-04-28T23:01:58.137+02:00)
+
+- Read `.squad/decisions/inbox/lando-pr46-doc-impact.md` and `.squad/decisions/inbox/fenster-pr46-codegen-docs.md` before finalizing docs.
+- Added remaining docs gaps from handoff: query percent-encoding, borrowed `default_headers`, OpenAI stream helper names, resource wrapper naming caveat, validation commands, and OpenAPI 3.1 composite-schema caveat.
+- Kept documentation scoped to README and `docs/`; did not stage other agents' `.squad` history changes.
