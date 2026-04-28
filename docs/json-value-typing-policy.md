@@ -17,11 +17,10 @@ The unified model generator maps schemas roughly as follows:
 - unknown schema => `std.json.Value`.
 - string enums currently stay string aliases/types, not closed Zig enums.
 - OpenAPI 3.1 `allOf` object/ref-to-object schemas are merged during conversion when possible.
-- OpenAPI 3.1 `oneOf` / `anyOf` with a discriminator and safe object variants emit `union(enum)` with generated parsing and a `raw: std.json.Value` fallback.
-- Non-discriminator `oneOf` / `anyOf` schemas can emit structural unions when variants can be trial-parsed safely and include a `raw: std.json.Value` fallback.
-- Unsafe or ambiguous `oneOf` / `anyOf` schemas still fall back to `std.json.Value`.
+- OpenAPI 3.1 `oneOf` / `anyOf` with a discriminator and all-ref object variants emit `union(enum)` with generated discriminator parsing and a `raw: std.json.Value` fallback.
+- Other `oneOf` / `anyOf` schemas still fall back to `std.json.Value`.
 
-The API generator also falls back to `std.json.Value` for ambiguous request/response schemas and for object/array cases where no named schema exists. OpenAPI 3.1 currently has the strongest composite-schema conversion: object/ref `allOf` members can be merged, `oneOf`/`anyOf` metadata is preserved for union generation, and JSON Schema nullable type arrays can collapse downstream to `?T`. Do not assume every version-specific converter has identical composite-schema support.
+The API generator also falls back to `std.json.Value` for ambiguous request/response schemas and for object/array cases where no named schema exists.
 
 ## Desired mapping
 
@@ -35,8 +34,7 @@ The API generator also falls back to `std.json.Value` for ambiguous request/resp
 | Numeric/boolean enum | Underlying scalar or `std.json.Value` if mixed |
 | `additionalProperties: true` / free-form object | `std.json.Value` now, future map type possible |
 | `additionalProperties: {schema}` | Future `std.StringHashMap(T)` or equivalent owned map |
-| `oneOf` / `anyOf` without discriminator and safely distinguishable variants | Structural `union(enum)` with trial-parse and `raw` fallback |
-| `oneOf` / `anyOf` without discriminator and ambiguous variants | `std.json.Value` |
+| `oneOf` / `anyOf` without discriminator | `std.json.Value` |
 | `oneOf` / `anyOf` with discriminator and safe object refs | `union(enum)` with custom parse/stringify and `raw` fallback |
 | `oneOf` / `anyOf` with discriminator but unsafe variants | `std.json.Value` with comment |
 | `allOf` where all members are objects or refs to objects | Merged generated `struct` |
@@ -47,7 +45,7 @@ The API generator also falls back to `std.json.Value` for ambiguous request/resp
 
 ## `oneOf` / `anyOf` policy
 
-Discriminator unions become Zig `union(enum)` declarations when variants can be generated safely. Object variants usually use discriminator tags or sanitized schema names for variant names.
+Discriminator unions become Zig `union(enum)` declarations when all variants are object refs and each target object has a single string enum value for the discriminator property.
 
 Generated unions include:
 
@@ -63,7 +61,7 @@ Unsafe discriminator unions still emit a comment and fall back to `std.json.Valu
 // OpenAPI oneOf with discriminator could not be generated safely; generator currently uses std.json.Value.
 ```
 
-Without a discriminator, generate a structural `union(enum)` only when the variants can be trial-parsed in a stable order without losing raw pass-through behavior. Ambiguous cases use `std.json.Value`.
+Without a discriminator, use `std.json.Value` to preserve pass-through behavior.
 
 ## `extra_body` policy
 
