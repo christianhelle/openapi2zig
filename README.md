@@ -240,7 +240,15 @@ zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated
 zig build run-generate      # runs all of the above
 ```
 
-`generated/main.zig` imports the v2 and v3 petstore outputs, initializes `Client` values, and exercises memory-managed endpoint calls.
+`generated/main.zig` imports the v2 and v3 petstore outputs, initializes `Client` values, and exercises memory-managed endpoint calls. When Zig is available, validate generated examples with:
+
+```bash
+zig build run-generate
+zig build test
+zig test generated/compile_generated.zig
+zig build-exe generated/main.zig -fno-emit-bin
+zig build test-package
+```
 
 ## Using as a Library
 
@@ -357,17 +365,18 @@ pub fn main(init: std.process.Init) !void {
 Generated files are self-contained Zig source files. The current unified generator emits:
 
 - Schema declarations such as `Pet`, `Order`, and nested helper types.
-- A reusable `Client` struct with allocator, `std.Io`, `std.http.Client`, API key, base URL, optional organization/project headers, and borrowed `default_headers`.
+- A reusable `Client` struct with allocator, `std.Io`, `std.http.Client`, API key, base URL, optional organization/project headers, and borrowed `default_headers`. `default_headers` and all header name/value storage must stay alive while requests use them.
 - Memory-safe response wrappers: `Owned(T)`, `RawResponse`, `ParseErrorResponse`, and `ApiResult(T)`.
 - Endpoint triplets when a response schema is known:
   - `operation(...) !Owned(T)` for convenience parsed responses.
   - `operationRaw(...) !RawResponse` for status/body inspection.
   - `operationResult(...) !ApiResult(T)` for parsed success plus preserved API/parse-error bodies.
 - Generic helpers such as `requestRaw`, `getRaw`, `postJsonRaw`, `getJsonResult`, and `postJsonResult`.
-- Bounded SSE parsing helpers: `parseSseBytes`, `parseSseReader`, `parseSseBytesTyped`, and `parseSseReaderTyped`.
-- Resource wrapper namespaces by default, for example `pet.get(...)` and `store.order.get(...)`, derived from paths unless `--resource-wrappers` changes the mode.
+- Query parameter helpers that percent-encode names and string values with `std.Uri.Component.percentEncode`; optional query parameters are nullable.
+- Bounded SSE parsing helpers: `parseSseBytes`, `parseSseReader`, `parseSseBytesTyped`, and `parseSseReaderTyped`. OpenAI-style stream helpers such as `streamChatCompletion`, `streamChatCompletionEvents`, `streamResponse`, and `streamResponseEvents` are generated when matching operation IDs exist in the input spec.
+- Resource wrapper namespaces by default, for example `pet.get(...)` and `store.order.get(...)`, derived from paths unless `--resource-wrappers` changes the mode. Wrapper names are sanitized generated conveniences, not hand-designed SDK names.
 
-Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`; see [`docs/json-value-typing-policy.md`](docs/json-value-typing-policy.md) for the current policy.
+Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`; see [`docs/json-value-typing-policy.md`](docs/json-value-typing-policy.md) for the current policy. For OpenAPI 3.1, the converter has stronger composite-schema handling for object/ref `allOf`, preserved `oneOf`/`anyOf` metadata, and nullable type arrays; do not assume every converter has identical composite support.
 
 ## Example Generated Code
 

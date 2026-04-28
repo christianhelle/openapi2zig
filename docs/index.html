@@ -441,8 +441,10 @@ zig build</code></pre>
             <li>✅ Swagger v2.0 specification parsing and generation</li>
             <li>✅ OpenAPI v3.0, v3.1, and v3.2 parsing and generation</li>
             <li>✅ Local files and remote <code>http</code>/<code>https</code> JSON specs</li>
-            <li>✅ Generated <code>Client</code> with base URL, API key, and headers</li>
+            <li>✅ Generated <code>Client</code> with base URL, API key, and borrowed headers</li>
+            <li>✅ Percent-encoded query parameters and loose response parsing</li>
             <li>✅ Raw/result helpers that preserve response bodies</li>
+            <li>✅ Bounded raw and typed SSE parser helpers</li>
             <li>✅ Resource wrapper namespaces generated from paths, tags, or hybrid metadata</li>
           </ul>
         </div>
@@ -462,7 +464,9 @@ zig build</code></pre>
             <li>A reusable <code>Client</code> that owns <code>std.http.Client</code>.</li>
             <li><code>Owned(T)</code>, <code>RawResponse</code>, and <code>ApiResult(T)</code> wrappers.</li>
             <li>Endpoint triplets: <code>operation</code>, <code>operationRaw</code>, and <code>operationResult</code>.</li>
+            <li>Percent-encoded query parameters and loose JSON response parsing.</li>
             <li>Bounded SSE helpers and default path-based resource wrappers.</li>
+            <li>OpenAPI 3.1 composite-schema metadata is stronger than earlier converters, but unsupported ambiguous shapes still use <code>std.json.Value</code>.</li>
           </ul>
 
           <h3>Models</h3>

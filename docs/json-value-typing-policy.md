@@ -21,7 +21,7 @@ The unified model generator maps schemas roughly as follows:
 - Non-discriminator `oneOf` / `anyOf` schemas can emit structural unions when variants can be trial-parsed safely and include a `raw: std.json.Value` fallback.
 - Unsafe or ambiguous `oneOf` / `anyOf` schemas still fall back to `std.json.Value`.
 
-The API generator also falls back to `std.json.Value` for ambiguous request/response schemas and for object/array cases where no named schema exists.
+The API generator also falls back to `std.json.Value` for ambiguous request/response schemas and for object/array cases where no named schema exists. OpenAPI 3.1 currently has the strongest composite-schema conversion: object/ref `allOf` members can be merged, `oneOf`/`anyOf` metadata is preserved for union generation, and JSON Schema nullable type arrays can collapse downstream to `?T`. Do not assume every version-specific converter has identical composite-schema support.
 
 ## Desired mapping
 
