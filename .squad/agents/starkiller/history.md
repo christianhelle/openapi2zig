@@ -22,6 +22,14 @@
 
 ## Learnings
 
+### PR #46 documentation verification (2026-04-28T23:01:58.137+02:00)
+
+**Verification result:** README and docs now match the current generated runtime shape after a small correction. Static checks compared `README.md` and `docs/index.html` against `src/cli.zig`, `src/generator.zig`, `generated/generated_v2.zig`, `generated/generated_v3.zig`, `generated/generated_v31.zig`, `generated/generated_v32.zig`, `generated/compile_generated.zig`, and `generated/main.zig`.
+
+**Blocked validations:** `zig version`, `zig build run-generate`, `zig build test`, `zig test generated\compile_generated.zig`, and `zig build-exe generated\main.zig -fno-emit-bin` are blocked locally because `C:\Users\chris\AppData\Local\Microsoft\WinGet\Links\zig.exe` fails to start with "No application is associated with the specified file for this operation."
+
+**Docs fixed:** `README.md` had invalid Zig string literals in the generated-code calling example because `\n` escapes had become literal line breaks inside strings. `docs/index.html` now names `ParseErrorResponse` and describes raw/typed SSE plus OpenAI stream helpers consistently with the PR #46 acceptance criteria.
+
 ### Input Loader Testing Strategy (2026-03-20)
 
 **Test File:** `src/tests/test_input_loader.zig`
