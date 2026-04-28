@@ -191,31 +191,56 @@ zig build -Dtarget=aarch64-linux
 
 ## Usage
 
-> **Note**: The CLI interface is currently under development. The tool currently includes OpenAPI parsing functionality and will be extended with code generation capabilities.
-
 ```bash
 openapi2zig generate [options]
 ```
 
+The `generate` command reads a JSON OpenAPI/Swagger document from a local file or `http`/`https` URL, auto-detects the spec version, and writes one Zig source file containing models, runtime helpers, and API functions.
+
 ### Options
 
-| Flag                           | Description                                                                           |
-| :----------------------------- | :------------------------------------------------------------------------------------ |
-| `-i`, `--input <PATH_OR_URL>`  | OpenAPI/Swagger spec (file path or http/https URL).                                   |
-| `-o`, `--output <path>`        | Path to the output directory for the generated Zig code (default: current directory). |
-| `--base-url <url>`             | Base URL for the API client (default: server URL from OpenAPI Specification).         |
+| Flag | Description |
+| :--- | :--- |
+| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger JSON spec from a file path or `http`/`https` URL. Required. |
+| `-o`, `--output <path>` | Output file for the generated Zig code. Defaults to `generated.zig`. Parent directories are created when needed. |
+| `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
+| `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`. |
 
 ### Examples
 
 **From a local file:**
 ```bash
-openapi2zig generate -i ./openapi/petstore.json -o api.zig
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig
 ```
 
 **From a remote URL:**
 ```bash
 openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
 ```
+
+**Override the generated client's base URL:**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --base-url https://petstore3.swagger.io/api/v3
+```
+
+**Disable resource wrapper namespaces and keep only flat endpoint functions:**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --resource-wrappers none
+```
+
+### Generated sample files
+
+The build script includes sample generation targets used by the test suite:
+
+```bash
+zig build run-generate-v2   # openapi/v2.0/petstore.json  -> generated/generated_v2.zig
+zig build run-generate-v3   # openapi/v3.0/petstore.json  -> generated/generated_v3.zig
+zig build run-generate-v31  # openapi/v3.1/webhook-example.json -> generated/generated_v31.zig
+zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated_v32.zig
+zig build run-generate      # runs all of the above
+```
+
+`generated/main.zig` imports the v2 and v3 petstore outputs, initializes `Client` values, and exercises memory-managed endpoint calls.
 
 ## Using as a Library
 
@@ -327,109 +352,186 @@ pub fn main(init: std.process.Init) !void {
 - `OpenApi32Document` - OpenAPI v3.2 specific document structure
 - `DocumentInfo`, `Schema`, `Operation`, etc. - Various OpenAPI components
 
+## Generated Output Structure
+
+Generated files are self-contained Zig source files. The current unified generator emits:
+
+- Schema declarations such as `Pet`, `Order`, and nested helper types.
+- A reusable `Client` struct with allocator, `std.Io`, `std.http.Client`, API key, base URL, optional organization/project headers, and borrowed `default_headers`.
+- Memory-safe response wrappers: `Owned(T)`, `RawResponse`, `ParseErrorResponse`, and `ApiResult(T)`.
+- Endpoint triplets when a response schema is known:
+  - `operation(...) !Owned(T)` for convenience parsed responses.
+  - `operationRaw(...) !RawResponse` for status/body inspection.
+  - `operationResult(...) !ApiResult(T)` for parsed success plus preserved API/parse-error bodies.
+- Generic helpers such as `requestRaw`, `getRaw`, `postJsonRaw`, `getJsonResult`, and `postJsonResult`.
+- Bounded SSE parsing helpers: `parseSseBytes`, `parseSseReader`, `parseSseBytesTyped`, and `parseSseReaderTyped`.
+- Resource wrapper namespaces by default, for example `pet.get(...)` and `store.order.get(...)`, derived from paths unless `--resource-wrappers` changes the mode.
+
+Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`; see [`docs/json-value-typing-policy.md`](docs/json-value-typing-policy.md) for the current policy.
+
 ## Example Generated Code
 
-Below is an example of the Zig code generated from an OpenAPI specification.
+The snippets below reflect the current output from `zig build run-generate-v3`.
 
 ### Models
 
 ```zig
-const std = @import("std");
-
-///////////////////////////////////////////
-// Generated Zig structures from OpenAPI
-///////////////////////////////////////////
-
-pub const Order = struct {
-    status: ?[]const u8 = null,
-    petId: ?i64 = null,
-    complete: ?bool = null,
+pub const Tag = struct {
     id: ?i64 = null,
-    quantity: ?i64 = null,
-    shipDate: ?[]const u8 = null,
+    name: ?[]const u8 = null,
+};
+
+pub const Category = struct {
+    id: ?i64 = null,
+    name: ?[]const u8 = null,
 };
 
 pub const Pet = struct {
     status: ?[]const u8 = null,
-    tags: ?[]const u8 = null,
-    category: ?[]const u8 = null,
+    tags: ?[]const Tag = null,
+    category: ?Category = null,
     id: ?i64 = null,
     name: []const u8,
-    photoUrls: []const u8,
+    photoUrls: []const []const u8,
 };
 ```
 
-### API Client
+### Client and response wrappers
 
 ```zig
-///////////////////////////////////////////
-// Generated Zig API client from OpenAPI
-///////////////////////////////////////////
+pub fn Owned(comptime T: type) type {
+    return struct {
+        allocator: std.mem.Allocator,
+        body: []u8,
+        parsed: std.json.Parsed(T),
 
-/////////////////
-// Summary:
-// Place an order for a pet
-//
-// Description:
-// Place a new order in the store
-//
-pub fn placeOrder(allocator: std.mem.Allocator, io: std.Io, requestBody: Order) !void {
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
-    defer client.deinit();
+        pub fn deinit(self: *@This()) void {
+            self.parsed.deinit();
+            self.allocator.free(self.body);
+        }
 
-    const uri = try std.Uri.parse("https://petstore.swagger.io/api/v3/store/order");
-    var req = try client.request(.POST, uri, .{});
-    defer req.deinit();
-
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-
-    try std.json.Stringify.value(requestBody, .{}, &str.writer);
-    const body = str.written();
-
-    try req.sendBodyComplete(body);
+        pub fn value(self: *@This()) *T {
+            return &self.parsed.value;
+        }
+    };
 }
 
-/////////////////
-// Summary:
-// Find pet by ID
-//
-// Description:
-// Returns a single pet
-//
-pub fn getPetById(allocator: std.mem.Allocator, io: std.Io, petId: []const u8) !Pet {
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
-    defer client.deinit();
+pub const RawResponse = struct {
+    allocator: std.mem.Allocator,
+    status: std.http.Status,
+    body: []u8,
 
-    const headers = &[_]std.http.Header{
-        .{ .name = "Content-Type", .value = "application/json" },
-        .{ .name = "Accept", .value = "application/json" },
+    pub fn deinit(self: *@This()) void {
+        self.allocator.free(self.body);
+    }
+};
+
+pub fn ApiResult(comptime T: type) type {
+    return union(enum) {
+        ok: Owned(T),
+        api_error: RawResponse,
+        parse_error: ParseErrorResponse,
+
+        pub fn deinit(self: *@This()) void {
+            switch (self.*) {
+                .ok => |*value| value.deinit(),
+                .api_error => |*value| value.deinit(),
+                .parse_error => |*value| value.raw.deinit(),
+            }
+        }
     };
+}
 
-    const uri_str = try std.fmt.allocPrint(allocator, "https://petstore3.swagger.io/api/v3/pet/{s}", .{petId});
-    defer allocator.free(uri_str);
-    const uri = try std.Uri.parse(uri_str);
-    var req = try client.request(std.http.Method.GET, uri, .{ .extra_headers = headers });
-    defer req.deinit();
+pub const Client = struct {
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    http: std.http.Client,
+    api_key: []const u8,
+    base_url: []const u8 = "https://petstore3.swagger.io/api/v3",
+    organization: ?[]const u8 = null,
+    project: ?[]const u8 = null,
+    default_headers: []const std.http.Header = &.{},
 
-    try req.sendBodiless();
-
-    var redirect_buffer: [1024]u8 = undefined;
-    var response = try req.receiveHead(&redirect_buffer);
-    if (response.head.status != .ok) {
-        return error.ResponseError;
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, api_key: []const u8) Client {
+        return .{
+            .allocator = allocator,
+            .io = io,
+            .http = .{ .allocator = allocator, .io = io },
+            .api_key = api_key,
+        };
     }
 
-    var reader_buffer: [100]u8 = undefined;
-    const body_reader = response.reader(&reader_buffer);
-    const body = try body_reader.readAlloc(allocator, response.head.content_length orelse 1024 * 1024 * 4);
-    defer allocator.free(body);
+    pub fn deinit(self: *Client) void {
+        self.http.deinit();
+    }
 
-    const parsed = try std.json.parseFromSlice(Pet, allocator, body, .{});
-    defer parsed.deinit();
+    pub fn withBaseUrl(self: *Client, base_url: []const u8) void {
+        self.base_url = base_url;
+    }
+};
+```
 
-    return parsed.value;
+### Endpoint functions
+
+```zig
+pub fn getPetById(client: *Client, petId: i64) !Owned(Pet) {
+    var result = try getPetByIdResult(client, petId);
+    switch (result) {
+        .ok => |ok| return ok,
+        .api_error => |*err| {
+            err.deinit();
+            return error.ResponseError;
+        },
+        .parse_error => |*err| {
+            err.raw.deinit();
+            return error.ResponseParseError;
+        },
+    }
 }
+
+pub fn getPetByIdRaw(client: *Client, petId: i64) !RawResponse {
+    const allocator = client.allocator;
+    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
+    defer uri_buf.deinit();
+    try uri_buf.writer.print("{s}/pet/{d}", .{ client.base_url, petId });
+    const payload: ?[]const u8 = null;
+
+    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
+}
+
+pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
+    return parseRawResponse(Pet, try getPetByIdRaw(client, petId));
+}
+```
+
+### Calling generated code
+
+```zig
+var client = api.Client.init(allocator, io, "");
+defer client.deinit();
+client.withBaseUrl("https://petstore3.swagger.io/api/v3");
+
+var pet = try api.getPetById(&client, 1);
+defer pet.deinit();
+std.debug.print("pet name: {s}
+", .{pet.value().name});
+
+var result = try api.getPetByIdResult(&client, 1);
+defer result.deinit();
+switch (result) {
+    .ok => |*ok| std.debug.print("pet id: {?}
+", .{ok.value().id}),
+    .api_error => |raw| std.debug.print("HTTP status: {}
+{s}
+", .{ raw.status, raw.body }),
+    .parse_error => |parse| std.debug.print("parse error: {s}
+{s}
+", .{ parse.error_name, parse.raw.body }),
+}
+
+// Default path resource wrappers are also exported:
+var wrapped = try api.pet.get(&client, 1);
+defer wrapped.deinit();
 ```
 
 ## Contributing
