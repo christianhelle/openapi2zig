@@ -157,3 +157,16 @@ jobs:
         run: |
           zig build run-generate
           zig run generated/main.zig
+
+      - name: Run broad smoke-test script
+        run: ./smoke-tests.ps1
+        working-directory: test
+        shell: pwsh
+
+      - name: Upload smoke-test outputs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-output
+          path: test/output/
+          retention-days: 7

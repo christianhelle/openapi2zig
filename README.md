@@ -174,6 +174,25 @@ zig fmt --check src/
 zig fmt --check build.zig
 ```
 
+### Smoke tests
+
+Run the broad smoke-test script to validate code generation against every supported sample specification:
+
+```bash
+pwsh test/smoke-tests.ps1
+```
+
+What it does:
+
+- Validates all eligible JSON API specs under `openapi/v2.0`, `openapi/v3.0`, `openapi/v3.1`, and `openapi/v3.2`.
+- Runs each spec through every resource-wrapper mode: `none`, `tags`, `paths`, and `hybrid`.
+- Skips YAML files and the meta-schema documents under `openapi/json-schema/`.
+- Writes generated outputs to `test/output/` (gitignored), with paths and filenames that include the resource-wrapper mode so variants do not collide.
+- Continues through individual failures and prints a final summary listing every failing spec/mode combination, then exits non-zero if any case failed.
+- Honors a temporary denylist for known-unsupported spec/mode combinations so the PR gate can stay green while generator gaps are tracked explicitly.
+
+In CI, the same script runs in the `smoke-tests` job on pull requests and `main`, alongside the existing `zig build run-generate` + `zig run generated/main.zig` petstore harness. When the smoke-tests job fails, `test/output/` is uploaded as a workflow artifact for triage.
+
 ### Cross-compilation
 
 Build for different targets:
