@@ -52,8 +52,9 @@ function Test-IsOpenApiExampleSpec {
     )
 
     # The json-schema folder contains reference schemas, not API examples that openapi2zig can generate clients from.
+    $normalizedPath = $File.FullName.Replace('\', '/')
     return $Extensions -contains $File.Extension.ToLowerInvariant() -and
-        $File.FullName -notmatch "[\\/]json-schema[\\/]"
+        $normalizedPath -notlike "*/json-schema/*"
 }
 
 function Get-OpenApiSpecs {
@@ -118,14 +119,18 @@ try {
     }
     New-Item -Path $outputRootPath -ItemType Directory -Force | Out-Null
 
-    $specs = @(Get-OpenApiSpecs -OpenApiRoot $openApiRoot -IncludeYamlSpecs $IncludeYaml.IsPresent)
+    $allSpecs = @(Get-OpenApiSpecs -OpenApiRoot $openApiRoot -IncludeYamlSpecs $true)
+    $specs = if ($IncludeYaml) {
+        $allSpecs
+    } else {
+        @($allSpecs | Where-Object { $_.Extension.ToLowerInvariant() -eq ".json" })
+    }
     if ($specs.Count -eq 0) {
         throw "No OpenAPI specification examples found under $openApiRoot"
     }
 
     if (-not $IncludeYaml) {
-        $yamlExtensions = @(".yaml", ".yml")
-        $yamlCount = @(Get-ChildItem -Path $openApiRoot -Recurse -File | Where-Object { Test-IsOpenApiExampleSpec -File $_ -Extensions $yamlExtensions }).Count
+        $yamlCount = @($allSpecs | Where-Object { $_.Extension.ToLowerInvariant() -in @(".yaml", ".yml") }).Count
         if ($yamlCount -gt 0) {
             Write-Host "Skipping $yamlCount YAML specs because YAML input has not been implemented by openapi2zig yet. Use -IncludeYaml to verify YAML support when it is available."
         }
