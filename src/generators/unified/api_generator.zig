@@ -104,6 +104,39 @@ fn isPathParam(segment: []const u8) bool {
     return segment.len >= 2 and segment[0] == '{' and segment[segment.len - 1] == '}';
 }
 
+fn escapeFormatStringPath(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
+    var out = std.ArrayList(u8).empty;
+    errdefer out.deinit(allocator);
+
+    var i: usize = 0;
+    while (i < path.len) {
+        if (std.mem.startsWith(u8, path[i..], "{s}")) {
+            try out.appendSlice(allocator, "{s}");
+            i += 3;
+            continue;
+        }
+        if (std.mem.startsWith(u8, path[i..], "{d}")) {
+            try out.appendSlice(allocator, "{d}");
+            i += 3;
+            continue;
+        }
+        if (std.mem.startsWith(u8, path[i..], "{any}")) {
+            try out.appendSlice(allocator, "{any}");
+            i += 5;
+            continue;
+        }
+
+        switch (path[i]) {
+            '{' => try out.appendSlice(allocator, "{{"),
+            '}' => try out.appendSlice(allocator, "}}"),
+            else => try out.append(allocator, path[i]),
+        }
+        i += 1;
+    }
+
+    return try out.toOwnedSlice(allocator);
+}
+
 pub const UnifiedApiGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
@@ -704,10 +737,13 @@ pub const UnifiedApiGenerator = struct {
             }
         }
 
+        const escaped_path = try escapeFormatStringPath(self.allocator, new_path);
+        defer self.allocator.free(escaped_path);
+
         try self.buffer.appendSlice(self.allocator, "    var uri_buf: std.Io.Writer.Allocating = .init(allocator);\n");
         try self.buffer.appendSlice(self.allocator, "    defer uri_buf.deinit();\n");
         try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.print(\"{s}");
-        try self.buffer.appendSlice(self.allocator, new_path);
+        try self.buffer.appendSlice(self.allocator, escaped_path);
         try self.buffer.appendSlice(self.allocator, "\", .{client.base_url");
         if (operation.parameters) |parameters| {
             for (parameters) |parameter| {
@@ -1380,10 +1416,13 @@ pub const UnifiedApiGenerator = struct {
             }
         }
 
+        const escaped_path = try escapeFormatStringPath(self.allocator, new_path);
+        defer self.allocator.free(escaped_path);
+
         try self.buffer.appendSlice(self.allocator, "    var uri_buf: std.Io.Writer.Allocating = .init(allocator);\n");
         try self.buffer.appendSlice(self.allocator, "    defer uri_buf.deinit();\n");
         try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.print(\"{s}");
-        try self.buffer.appendSlice(self.allocator, new_path);
+        try self.buffer.appendSlice(self.allocator, escaped_path);
         try self.buffer.appendSlice(self.allocator, "\", .{client.base_url");
         if (operation.parameters) |parameters| {
             for (parameters) |parameter| {

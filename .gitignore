@@ -28,6 +28,7 @@ generated/swagger-petstore-expanded.zig
 generated/swagger-petstore.zig
 generated/petstore_v2_unified.zig
 generated/petstore_v3_unified.zig
+generated/smoke/
 # Squad: ignore runtime state (logs, inbox, sessions)
 .squad/orchestration-log/
 .squad/log/

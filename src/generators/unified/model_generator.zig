@@ -69,6 +69,10 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn appendIdentifier(self: *UnifiedModelGenerator, name: []const u8) !void {
+        if (name.len == 0) {
+            try self.buffer.appendSlice(self.allocator, "__empty");
+            return;
+        }
         if (isBareIdentifier(name)) {
             try self.buffer.appendSlice(self.allocator, name);
             return;
@@ -271,14 +275,16 @@ pub const UnifiedModelGenerator = struct {
         return try std.fmt.allocPrint(self.allocator, "{s}Variant{d}", .{ union_name, index });
     }
 
-    fn appendTitleIdentPart(self: *UnifiedModelGenerator, out: *std.ArrayList(u8), value: []const u8) !void {
+    fn appendTitleIdentPart(self: *UnifiedModelGenerator, out: *std.ArrayList(u8), value: []const u8, capitalize_first: bool) !void {
+        if (value.len == 0) {
+            try out.appendSlice(self.allocator, if (capitalize_first or out.items.len > 0) "Empty" else "empty");
+            return;
+        }
         var capitalize_next = true;
-        for (value, 0..) |c, i| {
+        for (value) |c| {
             if (std.ascii.isAlphanumeric(c)) {
-                const prev = if (i > 0) value[i - 1] else 0;
-                const camel_boundary = std.ascii.isUpper(c) and i > 0 and (std.ascii.isLower(prev) or std.ascii.isDigit(prev));
-                const lower = std.ascii.toLower(c);
-                try out.append(self.allocator, if (capitalize_next or camel_boundary) std.ascii.toUpper(lower) else lower);
+                const should_capitalize = capitalize_next and (capitalize_first or out.items.len > 0);
+                try out.append(self.allocator, if (should_capitalize) std.ascii.toUpper(c) else c);
                 capitalize_next = false;
             } else {
                 capitalize_next = true;
@@ -289,8 +295,8 @@ pub const UnifiedModelGenerator = struct {
     fn fieldTypeNameAlloc(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8) ![]const u8 {
         var out = std.ArrayList(u8).empty;
         errdefer out.deinit(self.allocator);
-        try self.appendTitleIdentPart(&out, owner_name);
-        try self.appendTitleIdentPart(&out, field_name);
+        try self.appendTitleIdentPart(&out, owner_name, false);
+        try self.appendTitleIdentPart(&out, field_name, true);
         if (out.items.len == 0 or !isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
         return try out.toOwnedSlice(self.allocator);
     }

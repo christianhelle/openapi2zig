@@ -174,6 +174,23 @@ zig fmt --check src/
 zig fmt --check build.zig
 ```
 
+### Smoke tests
+
+Run the full smoke suite against every supported JSON OpenAPI/Swagger example under `openapi/`:
+
+```powershell
+pwsh -File test/smoke-tests.ps1
+```
+
+The smoke tests:
+
+- build `openapi2zig` once
+- generate one Zig client per example specification
+- compile each generated client individually through a tiny Zig test harness
+- exclude YAML examples and `openapi/json-schema/**`, which are not currently supported smoke-test inputs
+
+The script defaults to `ReleaseFast` optimization. Pass `-Optimize Debug` if you want a debug build locally. The pull request workflow runs the same script in `ReleaseFast`.
+
 ### Cross-compilation
 
 Build for different targets:
