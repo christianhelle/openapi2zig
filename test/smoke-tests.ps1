@@ -102,6 +102,7 @@ try {
     $openapi2zig = "openapi2zig"
     if (-not $UseInstalled) {
         Write-Host "`n=== Building openapi2zig ===`n"
+        Write-Host "Initial Zig builds can take several minutes; do not cancel this step."
         Invoke-NativeCommand -FilePath "zig" -Arguments @("build", "-Doptimize=Debug") -FailureMessage "Failed to build openapi2zig"
 
         $isWindowsPlatform = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
@@ -126,7 +127,7 @@ try {
         $yamlExtensions = @(".yaml", ".yml")
         $yamlCount = @(Get-ChildItem -Path $openApiRoot -Recurse -File | Where-Object { Test-IsOpenApiExampleSpec -File $_ -Extensions $yamlExtensions }).Count
         if ($yamlCount -gt 0) {
-            Write-Host "Skipping $yamlCount YAML specs because YAML input is not implemented by openapi2zig yet. Use -IncludeYaml to verify YAML support when it is available."
+            Write-Host "Skipping $yamlCount YAML specs because YAML input has not been implemented by openapi2zig yet. Use -IncludeYaml to verify YAML support when it is available."
         }
     }
 
@@ -158,6 +159,7 @@ test "generated client compiles" {
 '@ | Set-Content -Path $compileFile -Encoding utf8NoBOM
 
         Write-Host "[$($i + 1)/$($specs.Count)] Compiling generated Zig for $relativeSpec"
+        Write-Host "Generated code compilation can take several minutes across all specifications; do not cancel this step."
         Invoke-NativeCommand `
             -FilePath "zig" `
             -Arguments @("test", $compileFile) `
