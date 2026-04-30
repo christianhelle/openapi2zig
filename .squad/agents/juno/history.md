@@ -70,3 +70,61 @@ Users can now provide OpenAPI specs via remote URLs in addition to local file pa
 - Read `.squad/decisions/inbox/lando-pr46-doc-impact.md` and `.squad/decisions/inbox/fenster-pr46-codegen-docs.md` before finalizing docs.
 - Added remaining docs gaps from handoff: query percent-encoding, borrowed `default_headers`, OpenAI stream helper names, resource wrapper naming caveat, validation commands, and OpenAPI 3.1 composite-schema caveat.
 - Kept documentation scoped to README and `docs/`; did not stage other agents' `.squad` history changes.
+
+### Smoke Test Investigation (2026-04-30T16:31:22.685+02:00)
+
+**Scope:** User wants comprehensive smoke tests (`test/smoke-tests.ps1`) to generate + compile all 24 OpenAPI specs, integrated into PR verification.
+
+**Key findings:**
+- **24 specs available** across v2.0 (8), v3.0 (9), v3.1 (2), v3.2 (2); exclude json-schema/ utilities
+- **Current test coverage:** Only v2.0 + v3.0 petstore (2 specs); too narrow
+- **Refitter reference:** 880-line PowerShell script with phase-based generation/build pattern; proves approach works at scale
+- **CLI is mature:** Already supports `-i <PATH|URL>`, `-o <file>`, `--base-url`, `--resource-wrappers`; **no changes needed** for smoke testing
+- **No UX issues:** Script can use existing CLI as-is
+
+**Recommendation (MVP):**
+1. Create `test/smoke-tests.ps1` (~250 lines): discover specs, generate sequentially, compile each with `zig run`, report per-spec pass/fail
+2. Call from `.github/workflows/ci.yml` or new `smoke-tests-comprehensive.yml` 
+3. Output format: `[PASS]/[FAIL] <spec>` per line, summary, exit code 0/1
+4. Update README with smoke test docs
+5. **No CLI modifications required**
+
+**Clarifying questions for Christian:**
+- Test `--resource-wrappers` variants (4× tests) or single mode?
+- Skip json-schema/ utilities?
+- Block PR on failures or warnings?
+- Sequential or parallel generation?
+- Temp file location: `generated/smoke-test/` or elsewhere?
+
+**Detailed plan:** `.squad/decisions/inbox/juno-smoke-test-plan.md`
+
+### Smoke Test CI + Docs Wiring (2026-04-30T16:31:22.685+02:00)
+
+**Scope:** Wired the approved broad smoke-test plan into CI and README without touching `test/smoke-tests.ps1` (Fenster owns that script).
+
+**CI changes (`.github/workflows/ci.yml` smoke-tests job):**
+- Kept the existing petstore harness step (`zig build run-generate` + `zig run generated/main.zig`) untouched.
+- Added a step `Run broad smoke-test script` mirroring Refitter's style: `run: ./smoke-tests.ps1`, `working-directory: test`, `shell: pwsh`.
+- Added a final step `Upload smoke-test outputs on failure` gated on `if: failure()`, uploading `test/output/` as artifact `smoke-test-output` with 7-day retention (matches existing `test-binaries` retention).
+- Job still gated on PR or `main`; no change to triggers, runner, caches, or `needs`.
+
+**README changes:**
+- Added a new `### Smoke tests` subsection under `## Quick Start` → `### Development`, between formatting and cross-compilation.
+- Documented: `pwsh test/smoke-tests.ps1`, scope (v2.0/v3.0/v3.1/v3.2 JSON), four resource-wrapper modes, YAML/json-schema exclusions, output to `test/output/`, continue-through-failure with summary, temporary denylist, and CI behavior + artifact upload.
+
+**Conventions reused from Refitter (`christianhelle/refitter/.github/workflows/smoke-tests.yml`):**
+- `working-directory: test` + relative `./smoke-tests.ps1` invocation, `shell: pwsh`.
+
+**Validation:**
+- YAML parsed cleanly via Python `yaml.safe_load`.
+- Did not run the smoke script (Fenster's `test/smoke-tests.ps1` not yet on disk at task time).
+- Did not touch `.gitignore` — task said the plan adds `test/output/` to gitignore, but coordinating that lives with Fenster's script PR.
+
+**Coordination notes:**
+- Smoke job assumes script path `test/smoke-tests.ps1` and output dir `test/output/`; if Fenster picks different paths, both the CI step's `working-directory` and the artifact `path` need to match.
+- Artifact upload `path: test/output/` is relative to repo root (correct for `actions/upload-artifact`), even though the run step uses `working-directory: test`.
+
+## 2026-04-30 — Smoke-test harness shipped
+- Designed/implemented/validated 	est/smoke-tests.ps1 (88 cases: 22 specs × 4 wrapper modes), CI job updated with failure-only artifact upload, README documented.
+- Initial denylist: ingram-micro.json (duplicate pub const emissions in unified model generator — follow-up backend work).
+- Decision recorded in decisions.md (2026-04-30 entry). Session-scoped directive: agents use Claude Opus 4.7 for this session only.

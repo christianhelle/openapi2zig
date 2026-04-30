@@ -52,6 +52,45 @@
 - 10MB size limit reasonable for OpenAPI specs (typical: 10-500KB)
 
 
+### Smoke Test Investigation — Generated File Compilation (2026-04-30)
+
+**Context:** Investigated how a PowerShell smoke-test script should invoke openapi2zig and verify each generated Zig file compiles.
+
+**CLI invocation (confirmed):**
+- Build executable once: `zig build -Doptimize=ReleaseFast` → `zig-out/bin/openapi2zig`
+- Per-spec generation: `./zig-out/bin/openapi2zig generate -i <spec.json> -o <output.zig>`
+- Default output if `-o` omitted: `generated.zig`
+
+**Generated file structure (critical):**
+- Every generated file starts with `const std = @import("std");` and exports `pub const` structs + functions
+- **NO `main()` function** — they are library modules, not executables
+- Therefore: **`zig run <generated.zig>` does NOT work** (no entry point) — Juno's suggestion is incorrect
+- **Correct compile verification:** `zig test <generated.zig>` — compiles the file, reports "All 0 tests passed" (valid!). No harness needed.
+- Alternative: `zig build-obj <generated.zig>` works but creates `.o` files requiring cleanup
+
+**Spec inventory (corrected from Juno's count):**
+- `openapi/v2.0/`: 8 JSON API specs
+- `openapi/v3.0/`: **10** JSON API specs (Juno missed `ingram-micro.json`)
+- `openapi/v3.1/`: 2 JSON specs
+- `openapi/v3.2/`: 2 JSON specs
+- `openapi/json-schema/`: 2 files — **skip** (JSON Schema meta-specs, not OpenAPI; detector returns `Unsupported`)
+- Total testable: **22 API specs**
+
+**Unsupported inputs (confirmed in `generator.zig`):**
+- `.yaml`/`.yml` files → `GeneratorErrors.UnsupportedExtension` (non-zero exit)
+- Spec with no `openapi` or `swagger` root field → detector returns `Unsupported` → non-zero exit
+- json-schema files fall in this category
+
+**Output directory recommendation:**
+- Write to `generated/smoke-test/<version>-<basename>.zig` pattern (e.g., `v3.0-petstore.zig`)
+- Never use `/tmp/` (runtime-blocked)
+- Clean the directory before each run, and after success
+
+**Existing CI coverage gap:**
+- Current `smoke-tests` job only runs `zig build run-generate` (4 petstore specs) then `zig run generated/main.zig`
+- 18 specs are completely untested during CI
+- `compile_generated.zig` harness already demonstrates the `refAllDecls` pattern for the 4 petstore specs
+
 ### PR #46 generated-code documentation brief (2026-04-28T23:01:58.137+02:00)
 
 - PR #46 (`Fix real-world OpenAPI code generation`, merge `4e8bc19`) substantially changed the generated output contract: generated files now start with `const std = @import("std");`, model declarations, then a reusable API runtime and endpoint/resource wrappers.
@@ -66,3 +105,27 @@
 - OpenAI-specific generation hooks exist for `extra_body` flattening on `CreateResponse`/`CreateChatCompletionRequest`, `reasoning_details` on assistant messages, JSON-value-backed schema unions, typed filters/tools/annotations/audio, and stream helpers `streamChatCompletion`/`streamResponse`.
 - README is stale around usage and examples: it still says CLI generation is under development, describes `-o` as output directory, and shows old no-Client API examples returning bare values/dangling parsed data.
 - Current local environment cannot run Zig because `C:\Users\chris\AppData\Local\Microsoft\WinGet\Links\zig.exe` fails to launch; source inspection and checked-in generated files were used instead of regenerating locally.
+
+### Smoke-test script implementation (2026-04-30)
+
+- 	est/smoke-tests.ps1 resolves repo root via $PSScriptRoot/.. and Set-Locations there, so it works from any CWD on PowerShell 7 (Windows + Linux + macOS GitHub runners).
+- Uses Get-Command zig for tooling discovery, prints zig version, then builds once with zig build -Doptimize=ReleaseFast. Executable path uses \True to pick openapi2zig.exe vs openapi2zig.
+- Spec discovery: enumerates openapi/v2.0, openapi/v3.0, openapi/v3.1, openapi/v3.2 for *.json. YAML files are counted as skipped (visibility) but never run. openapi/json-schema/ is excluded by not being in the include list.
+- Output layout: 	est/output/<version>/<basename>__<mode>.zig. Double underscore prevents collision when basenames already contain a dash. Cleaned each run unless -KeepOutput.
+- Compile check uses zig test <output> (NOT zig run) because generated files are library modules. Confirmed locally: emits All 0 tests passed and exits 0.
+- Denylist is a list of @{ Spec; Mode; Reason } hashtables; * wildcards both fields. Currently empty — keep it that way until CI signal proves a gap.
+- Continues past failures, captures stdout+stderr per case via 2>&1, prints a final pass/fail/skip summary, and lists failing cases with phase (generate vs compile) before xit 1.
+- Verified locally: focused run (-Filter v3.0/petstore.json) all 4 modes → 4/4 PASS in ~30s. Full 22 specs × 4 modes = 88 cases not run locally (too expensive); CI is expected to be the first full-matrix execution.
+- Did NOT touch CI workflow or README — those are Juno's surfaces per the charter.
+
+### Smoke-test denylist — ingram-micro v3.0 (2026-04-30)
+
+- Starkiller's full sweep was 84/88; the only failures were `openapi/v3.0/ingram-micro.json` in the compile phase across all four wrapper modes (none, tags, paths, hybrid). Root cause: unified model generator emits duplicate `pub const X = struct` declarations for shared/nested schemas — same root cause for every mode, not a wrapper-specific bug.
+- Denylist updated with a single wildcard-mode entry: `@{ Spec = "openapi/v3.0/ingram-micro.json"; Mode = "*"; Reason = "duplicate `pub const` emissions from unified model generator (all wrapper modes)" }`. Mode="*" keeps the list compact and reflects the shared root cause; if a fix lands per-mode, split entries then.
+- Verified locally with `pwsh -NoProfile -File test/smoke-tests.ps1 -Filter "v3.0/ingram-micro.json"` → 0 pass / 0 fail / 4 skip, exit 0. Petstore filter still PASSes normally — denylist does not leak into other specs.
+- Reminder for next denylist entry: keep `Reason` concise, mention the gap (not the symptom alone), and prefer Mode="*" when the failure is mode-independent. Remove entries the moment the underlying generator gap closes.
+
+## 2026-04-30 — Smoke-test harness shipped
+- Designed/implemented/validated 	est/smoke-tests.ps1 (88 cases: 22 specs × 4 wrapper modes), CI job updated with failure-only artifact upload, README documented.
+- Initial denylist: ingram-micro.json (duplicate pub const emissions in unified model generator — follow-up backend work).
+- Decision recorded in decisions.md (2026-04-30 entry). Session-scoped directive: agents use Claude Opus 4.7 for this session only.
