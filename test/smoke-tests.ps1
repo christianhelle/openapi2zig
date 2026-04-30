@@ -29,6 +29,10 @@ function Invoke-NativeCommand {
         $FailureMessage = "Native command failed"
     )
 
+    if (-not (Get-Command $FilePath -ErrorAction SilentlyContinue)) {
+        throw "$FailureMessage. Command not found: $FilePath"
+    }
+
     Write-Host "> $FilePath $($Arguments -join ' ')"
     & $FilePath @Arguments
     if ($LASTEXITCODE -ne 0) {
@@ -111,7 +115,7 @@ try {
         }
     }
 
-    Write-Host "`n=== Smoke testing $($specs.Count) OpenAPI JSON specification examples ===`n"
+    Write-Host "`n=== Smoke testing $($specs.Count) OpenAPI specification examples ===`n"
 
     for ($i = 0; $i -lt $specs.Count; $i++) {
         $spec = $specs[$i]
