@@ -101,6 +101,15 @@
 - Known limitation (acknowledged in plan): zig test relies on Zig's lazy analysis; deeply unused decls may escape compile-check. Acceptable for v1; can harden later with explicit efAllDeclsRecursive wrapper if generator gaps slip through.
 - Reminder for staging: `test/smoke-tests.ps1` is currently untracked; it must be added in the same commit as the CI change.
 
+## 2026-04-30 — Smoke-test commit strategy
+
+**Commit strategy learning:**
+- Three logical groups is the right granularity for a feature like this: infrastructure (script + gitignore), CI wiring, documentation. Each group is independently reviewable and revertable.
+- The `.squad/` state was already committed in a prior session (4812b92), so Group 4 was correctly skipped — always verify actual git status before assuming a group has changes.
+- Untracked files (like `test/smoke-tests.ps1`) must be staged with `git add` explicitly; relying on `-a` would have mixed groups. Use per-file staging to keep groups clean.
+- Commit messages benefit from the "what + why + scope" structure: first line is the imperative summary, body enumerates the specific behavioral changes, not just file names.
+- The `Co-authored-by` trailer belongs on every commit regardless of group size; it is a project invariant, not optional.
+
 ## 2026-04-30 — Smoke-test harness shipped
 - Designed/implemented/validated 	est/smoke-tests.ps1 (88 cases: 22 specs × 4 wrapper modes), CI job updated with failure-only artifact upload, README documented.
 - Initial denylist: ingram-micro.json (duplicate pub const emissions in unified model generator — follow-up backend work).
