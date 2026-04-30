@@ -103,7 +103,7 @@ try {
     $openapi2zig = "openapi2zig"
     if (-not $UseInstalled) {
         Write-Host "`n=== Building openapi2zig ===`n"
-        Write-Host "Initial Zig builds and generated code compilation can take several minutes; do not cancel these steps."
+        Write-Host "Initial Zig builds can take 2-5 minutes, and generated code compilation across all specs can take several more minutes; do not cancel these steps."
         Invoke-NativeCommand -FilePath "zig" -Arguments @("build", "-Doptimize=Debug") -FailureMessage "Failed to build openapi2zig"
 
         $isWindowsPlatform = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
@@ -137,7 +137,7 @@ try {
     }
 
     Write-Host "`n=== Smoke testing $($specs.Count) OpenAPI specification examples ===`n"
-    Write-Host "Generated code compilation can take several minutes across all specifications; do not cancel this step."
+    Write-Host "Generated code compilation runs once per specification and can take several minutes across the full suite; CI allows up to 15 minutes for this job."
 
     for ($i = 0; $i -lt $specs.Count; $i++) {
         $spec = $specs[$i]
