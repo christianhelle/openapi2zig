@@ -40,6 +40,21 @@ function Invoke-NativeCommand {
     }
 }
 
+function Test-IsOpenApiExampleSpec {
+    param (
+        [Parameter(Mandatory=$true)]
+        [System.IO.FileInfo]
+        $File,
+
+        [Parameter(Mandatory=$true)]
+        [string[]]
+        $Extensions
+    )
+
+    return $Extensions -contains $File.Extension.ToLowerInvariant() -and
+        $File.FullName -notmatch "[\\/]json-schema[\\/]"
+}
+
 function Get-OpenApiSpecs {
     param (
         [Parameter(Mandatory=$true)]
@@ -57,10 +72,7 @@ function Get-OpenApiSpecs {
     }
 
     Get-ChildItem -Path $OpenApiRoot -Recurse -File |
-        Where-Object {
-            $extensions -contains $_.Extension.ToLowerInvariant() -and
-            $_.FullName -notmatch "[\\/]json-schema[\\/]"
-        } |
+        Where-Object { Test-IsOpenApiExampleSpec -File $_ -Extensions $extensions } |
         Sort-Object FullName
 }
 
@@ -91,7 +103,8 @@ try {
         Write-Host "`n=== Building openapi2zig ===`n"
         Invoke-NativeCommand -FilePath "zig" -Arguments @("build", "-Doptimize=Debug") -FailureMessage "Failed to build openapi2zig"
 
-        $binaryName = if ($IsWindows) { "openapi2zig.exe" } else { "openapi2zig" }
+        $isWindowsPlatform = $PSVersionTable.Platform -eq "Win32NT" -or $env:OS -eq "Windows_NT"
+        $binaryName = if ($isWindowsPlatform) { "openapi2zig.exe" } else { "openapi2zig" }
         $openapi2zig = Join-Path $repoRoot (Join-Path "zig-out/bin" $binaryName)
         if (-not (Test-Path -Path $openapi2zig -PathType Leaf)) {
             throw "Built openapi2zig binary not found: $openapi2zig"
@@ -109,7 +122,8 @@ try {
     }
 
     if (-not $IncludeYaml) {
-        $yamlCount = @(Get-ChildItem -Path $openApiRoot -Recurse -File -Include "*.yaml", "*.yml" | Where-Object { $_.FullName -notmatch "[\\/]json-schema[\\/]" }).Count
+        $yamlExtensions = @(".yaml", ".yml")
+        $yamlCount = @(Get-ChildItem -Path $openApiRoot -Recurse -File | Where-Object { Test-IsOpenApiExampleSpec -File $_ -Extensions $yamlExtensions }).Count
         if ($yamlCount -gt 0) {
             Write-Host "Skipping $yamlCount YAML specs because YAML input is not implemented by openapi2zig yet. Use -IncludeYaml to verify YAML support when it is available."
         }
