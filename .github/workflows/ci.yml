@@ -155,4 +155,5 @@ jobs:
 
       - name: Run smoke tests
         shell: pwsh
+        timeout-minutes: 15
         run: ./test/smoke-tests.ps1
