@@ -250,6 +250,16 @@ zig build-exe generated/main.zig -fno-emit-bin
 zig build test-package
 ```
 
+### Smoke tests
+
+The pull request workflow runs `test/smoke-tests.ps1` to generate Zig clients from each supported JSON OpenAPI example under `openapi/` one at a time and compile each generated file. The script prints the current specification before generation and compilation so failures identify the exact input file.
+
+```powershell
+pwsh ./test/smoke-tests.ps1
+```
+
+YAML examples are skipped by default because YAML input is not implemented yet. Use `-IncludeYaml` when YAML generation support is added.
+
 ## Using as a Library
 
 openapi2zig can also be used as a Zig library for parsing OpenAPI/Swagger specifications and generating code programmatically.
