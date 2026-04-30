@@ -252,7 +252,7 @@ zig build test-package
 
 ### Smoke tests
 
-The pull request workflow runs `test/smoke-tests.ps1` to generate Zig clients from each supported JSON OpenAPI example under `openapi/` one at a time and compile each generated file. The script prints the current specification before generation and compilation, making it easy to identify which input file caused a failure.
+The pull request workflow runs `test/smoke-tests.ps1` to generate and compile Zig clients from each supported JSON OpenAPI example under `openapi/`. The script prints the current specification before each operation, making it easy to identify which input file caused a failure.
 
 ```powershell
 pwsh ./test/smoke-tests.ps1

@@ -51,6 +51,7 @@ function Test-IsOpenApiExampleSpec {
         $Extensions
     )
 
+    # The json-schema folder contains reference schemas, not API examples that openapi2zig can generate clients from.
     return $Extensions -contains $File.Extension.ToLowerInvariant() -and
         $File.FullName -notmatch "[\\/]json-schema[\\/]"
 }
@@ -83,7 +84,7 @@ function Get-SafeName {
         $Value
     )
 
-    return ($Value -replace '[^A-Za-z0-9_.-]', '_')
+    return ($Value -replace '[^A-Za-z0-9_]', '_')
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -103,7 +104,7 @@ try {
         Write-Host "`n=== Building openapi2zig ===`n"
         Invoke-NativeCommand -FilePath "zig" -Arguments @("build", "-Doptimize=Debug") -FailureMessage "Failed to build openapi2zig"
 
-        $isWindowsPlatform = $PSVersionTable.Platform -eq "Win32NT" -or $env:OS -eq "Windows_NT"
+        $isWindowsPlatform = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
         $binaryName = if ($isWindowsPlatform) { "openapi2zig.exe" } else { "openapi2zig" }
         $openapi2zig = Join-Path $repoRoot (Join-Path "zig-out/bin" $binaryName)
         if (-not (Test-Path -Path $openapi2zig -PathType Leaf)) {
