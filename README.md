@@ -16,7 +16,7 @@ This tool supports the following OpenAPI and Swagger specifications:
 - **OpenAPI v3.1** - Full support
 - **OpenAPI v3.2** - Full support
 
-All specifications are supported in JSON format. YAML support may be added in future releases.
+All specifications are supported in JSON and YAML format.
 
 ## Features
 
@@ -220,7 +220,7 @@ The `generate` command reads a JSON OpenAPI/Swagger document from a local file o
 
 | Flag | Description |
 | :--- | :--- |
-| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger JSON spec from a file path or `http`/`https` URL. Required. |
+| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger JSON or YAML spec from a file path or `http`/`https` URL. Required. |
 | `-o`, `--output <path>` | Output file for the generated Zig code. Defaults to `generated.zig`. Parent directories are created when needed. |
 | `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
 | `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`. |
@@ -230,6 +230,11 @@ The `generate` command reads a JSON OpenAPI/Swagger document from a local file o
 **From a local file:**
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig
+```
+
+**From a local YAML file:**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.yaml -o api.zig
 ```
 
 **From a remote URL:**
@@ -346,16 +351,21 @@ pub fn main(init: std.process.Init) !void {
 
 #### Version Detection
 
-- `detectVersion(allocator, json_content)` - Detect OpenAPI/Swagger version
+- `detectVersion(allocator, json_content)` - Detect OpenAPI/Swagger version from JSON
+- `detectVersionFromYaml(allocator, yaml_content)` - Detect OpenAPI/Swagger version from YAML
 - `ApiVersion` - Enum representing supported API versions (.v2_0, .v3_0, .v3_1, .v3_2, .Unsupported)
 
 #### Parsing Functions
 
-- `parseToUnified(allocator, json_content)` - Parse any supported version (v2.0, v3.0, v3.1, v3.2) to unified representation
+- `parseToUnified(allocator, json_content)` - Parse any supported JSON version (v2.0, v3.0, v3.1, v3.2) to unified representation
 - `parseOpenApi(allocator, json_content)` - Parse OpenAPI v3.0 specifically
+- `parseOpenApiYaml(allocator, yaml_content)` - Parse OpenAPI v3.0 YAML specifically
 - `parseOpenApi31(allocator, json_content)` - Parse OpenAPI v3.1 specifically
+- `parseOpenApi31Yaml(allocator, yaml_content)` - Parse OpenAPI v3.1 YAML specifically
 - `parseOpenApi32(allocator, json_content)` - Parse OpenAPI v3.2 specifically
+- `parseOpenApi32Yaml(allocator, yaml_content)` - Parse OpenAPI v3.2 YAML specifically
 - `parseSwagger(allocator, json_content)` - Parse Swagger v2.0 specifically
+- `parseSwaggerYaml(allocator, yaml_content)` - Parse Swagger v2.0 YAML specifically
 
 #### Code Generation
 

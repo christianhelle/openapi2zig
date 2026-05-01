@@ -3,6 +3,7 @@ const cli = @import("cli.zig");
 const detector = @import("detector.zig");
 const models = @import("models.zig");
 const input_loader = @import("input_loader.zig");
+const yaml_loader = @import("yaml_loader.zig");
 const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
 const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
 const OpenApi32Converter = @import("generators/converters/openapi32_converter.zig").OpenApi32Converter;
@@ -47,49 +48,59 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs)
     const file_contents = try input_loader.loadInput(allocator, io, source);
     defer allocator.free(file_contents);
 
-    switch (extension) {
-        .YAML => {
-            std.debug.print("YAML support is not yet implemented\n", .{});
-            return GeneratorErrors.UnsupportedExtension;
-        },
-        .JSON => {
-            const version = detector.getOpenApiVersion(allocator, file_contents) catch |err| {
-                std.debug.print("Failed to parse OpenAPI version: {}\n", .{err});
+    var normalized_yaml_json: ?[]const u8 = null;
+    defer if (normalized_yaml_json) |json_contents| allocator.free(json_contents);
+
+    const json_contents = switch (extension) {
+        .YAML => blk: {
+            normalized_yaml_json = yaml_loader.yamlToJson(allocator, file_contents) catch |err| {
+                std.debug.print("Failed to parse YAML OpenAPI document: {}\n", .{err});
                 return err;
             };
+            break :blk normalized_yaml_json.?;
+        },
+        .JSON => file_contents,
+    };
 
-            std.debug.print("Detected OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
+    try generateCodeFromJsonContents(allocator, io, json_contents, args);
+}
 
-            switch (version) {
-                .v2_0 => {
-                    var swagger = try models.SwaggerDocument.parseFromJson(allocator, file_contents);
-                    defer swagger.deinit(allocator);
-                    std.debug.print("Successfully parsed Swagger v2.0 document\n", .{});
-                    try generateCodeFromSwaggerDocument(allocator, io, swagger, args);
-                },
-                .v3_0 => {
-                    var openapi = try models.OpenApiDocument.parseFromJson(allocator, file_contents);
-                    defer openapi.deinit(allocator);
-                    std.debug.print("Successfully parsed OpenAPI v3.0 document\n", .{});
-                    try generateCodeFromOpenApiDocument(allocator, io, openapi, args);
-                },
-                .v3_1 => {
-                    var openapi31 = try models.OpenApi31Document.parseFromJson(allocator, file_contents);
-                    defer openapi31.deinit(allocator);
-                    std.debug.print("Successfully parsed OpenAPI v3.1 document\n", .{});
-                    try generateCodeFromOpenApi31Document(allocator, io, openapi31, args);
-                },
-                .v3_2 => {
-                    var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, file_contents);
-                    defer openapi32.deinit(allocator);
-                    std.debug.print("Successfully parsed OpenAPI v3.2 document\n", .{});
-                    try generateCodeFromOpenApi32Document(allocator, io, openapi32, args);
-                },
-                else => {
-                    std.debug.print("Unsupported OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
-                    return GeneratorErrors.UnsupportedExtension;
-                },
-            }
+fn generateCodeFromJsonContents(allocator: std.mem.Allocator, io: std.Io, json_contents: []const u8, args: cli.CliArgs) !void {
+    const version = detector.getOpenApiVersion(allocator, json_contents) catch |err| {
+        std.debug.print("Failed to parse OpenAPI version: {}\n", .{err});
+        return err;
+    };
+
+    std.debug.print("Detected OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
+
+    switch (version) {
+        .v2_0 => {
+            var swagger = try models.SwaggerDocument.parseFromJson(allocator, json_contents);
+            defer swagger.deinit(allocator);
+            std.debug.print("Successfully parsed Swagger v2.0 document\n", .{});
+            try generateCodeFromSwaggerDocument(allocator, io, swagger, args);
+        },
+        .v3_0 => {
+            var openapi = try models.OpenApiDocument.parseFromJson(allocator, json_contents);
+            defer openapi.deinit(allocator);
+            std.debug.print("Successfully parsed OpenAPI v3.0 document\n", .{});
+            try generateCodeFromOpenApiDocument(allocator, io, openapi, args);
+        },
+        .v3_1 => {
+            var openapi31 = try models.OpenApi31Document.parseFromJson(allocator, json_contents);
+            defer openapi31.deinit(allocator);
+            std.debug.print("Successfully parsed OpenAPI v3.1 document\n", .{});
+            try generateCodeFromOpenApi31Document(allocator, io, openapi31, args);
+        },
+        .v3_2 => {
+            var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, json_contents);
+            defer openapi32.deinit(allocator);
+            std.debug.print("Successfully parsed OpenAPI v3.2 document\n", .{});
+            try generateCodeFromOpenApi32Document(allocator, io, openapi32, args);
+        },
+        else => {
+            std.debug.print("Unsupported OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
+            return GeneratorErrors.UnsupportedExtension;
         },
     }
 }

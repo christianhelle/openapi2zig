@@ -29,6 +29,7 @@
 //! ```
 
 const std = @import("std");
+const yaml_loader = @import("yaml_loader.zig");
 
 // Core version detection
 pub const ApiVersion = @import("detector.zig").OpenApiVersion;
@@ -70,6 +71,7 @@ pub const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").
 
 // CLI argument types for code generation
 pub const CliArgs = @import("cli.zig").CliArgs;
+pub const yamlToJson = yaml_loader.yamlToJson;
 
 /// Parse a JSON string containing an OpenAPI or Swagger specification and convert it to a unified document representation.
 /// The caller is responsible for calling `deinit()` on the returned document.
@@ -123,6 +125,45 @@ pub fn parseToUnified(allocator: std.mem.Allocator, json_content: []const u8) !U
             return error.UnsupportedApiVersion;
         },
     }
+}
+
+/// Detect the OpenAPI/Swagger version from a YAML specification.
+pub fn detectVersionFromYaml(allocator: std.mem.Allocator, yaml_content: []const u8) !ApiVersion {
+    const json_content = try yamlToJson(allocator, yaml_content);
+    defer allocator.free(json_content);
+    return try detectVersion(allocator, json_content);
+}
+
+/// Parse a YAML string containing an OpenAPI v3.0 specification.
+/// The caller is responsible for calling `deinit()` on the returned document.
+pub fn parseOpenApiYaml(allocator: std.mem.Allocator, yaml_content: []const u8) !OpenApiDocument {
+    const json_content = try yamlToJson(allocator, yaml_content);
+    defer allocator.free(json_content);
+    return try OpenApiDocument.parseFromJson(allocator, json_content);
+}
+
+/// Parse a YAML string containing an OpenAPI v3.1 specification.
+/// The caller is responsible for calling `deinit()` on the returned document.
+pub fn parseOpenApi31Yaml(allocator: std.mem.Allocator, yaml_content: []const u8) !OpenApi31Document {
+    const json_content = try yamlToJson(allocator, yaml_content);
+    defer allocator.free(json_content);
+    return try OpenApi31Document.parseFromJson(allocator, json_content);
+}
+
+/// Parse a YAML string containing an OpenAPI v3.2 specification.
+/// The caller is responsible for calling `deinit()` on the returned document.
+pub fn parseOpenApi32Yaml(allocator: std.mem.Allocator, yaml_content: []const u8) !OpenApi32Document {
+    const json_content = try yamlToJson(allocator, yaml_content);
+    defer allocator.free(json_content);
+    return try OpenApi32Document.parseFromJson(allocator, json_content);
+}
+
+/// Parse a YAML string containing a Swagger v2.0 specification.
+/// The caller is responsible for calling `deinit()` on the returned document.
+pub fn parseSwaggerYaml(allocator: std.mem.Allocator, yaml_content: []const u8) !SwaggerDocument {
+    const json_content = try yamlToJson(allocator, yaml_content);
+    defer allocator.free(json_content);
+    return try SwaggerDocument.parseFromJson(allocator, json_content);
 }
 
 /// Parse a JSON string containing an OpenAPI v3.0 specification.

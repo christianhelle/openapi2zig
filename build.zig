@@ -6,6 +6,10 @@ pub fn build(b: *std.Build) void {
     const run_integration_tests = b.option(bool, "run-integration", "Run network integration tests") orelse false;
     const build_info = createBuildInfoOptions(b, run_integration_tests);
     const package_snapshot_step = createPackageSnapshotStep(b);
+    const yaml_dep = b.dependency("yaml", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     // Library module for external packages
     const openapi2zig_mod = b.addModule("openapi2zig", .{
@@ -15,6 +19,7 @@ pub fn build(b: *std.Build) void {
     });
     openapi2zig_mod.addIncludePath(b.path("src"));
     openapi2zig_mod.addOptions("build_info", build_info);
+    openapi2zig_mod.addImport("yaml", yaml_dep.module("yaml"));
 
     // CLI executable
     const exe_root_module = b.createModule(.{
@@ -23,6 +28,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe_root_module.addOptions("build_info", build_info);
+    exe_root_module.addImport("yaml", yaml_dep.module("yaml"));
     const exe = b.addExecutable(.{
         .name = "openapi2zig",
         .root_module = exe_root_module,
@@ -37,6 +43,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     lib_root_module.addOptions("build_info", build_info);
+    lib_root_module.addImport("yaml", yaml_dep.module("yaml"));
     const lib = b.addLibrary(.{
         .name = "openapi2zig",
         .root_module = lib_root_module,
@@ -115,6 +122,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     tests_mod.addOptions("build_info", build_info);
+    tests_mod.addImport("yaml", yaml_dep.module("yaml"));
 
     const exe_unit_tests = b.addTest(.{
         .root_module = tests_mod,
@@ -246,7 +254,9 @@ fn getPackageSnapshotFiles(allocator: std.mem.Allocator, io: std.Io) ?[]const u8
         "build.zig",
         "build.zig.zon",
         "src",
+        "openapi",
         "generated",
+        "vendor/zig-yaml",
         "LICENSE",
         "README.md",
         "examples/package_consumer",
