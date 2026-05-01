@@ -4,6 +4,7 @@ const yaml = @import("yaml");
 const YamlValue = yaml.Yaml.Value;
 const lbrace_placeholder = "__openapi2zig_lbrace__";
 const rbrace_placeholder = "__openapi2zig_rbrace__";
+const unquoted_scalar_placeholder = "__openapi2zig_unquoted_scalar__";
 
 pub const YamlToJsonError = error{
     EmptyYamlDocument,
@@ -21,7 +22,10 @@ pub fn yamlToJson(allocator: std.mem.Allocator, yaml_content: []const u8) ![]con
     const normalized_yaml = try normalizeQuotedMapKeys(allocator, folded_yaml);
     defer allocator.free(normalized_yaml);
 
-    var parsed: yaml.Yaml = .{ .source = normalized_yaml };
+    const marked_yaml = try markOriginallyUnquotedScalars(allocator, normalized_yaml);
+    defer allocator.free(marked_yaml);
+
+    var parsed: yaml.Yaml = .{ .source = marked_yaml };
     defer parsed.deinit(allocator);
 
     try parsed.load(allocator);
@@ -62,6 +66,7 @@ fn foldBlockScalars(allocator: std.mem.Allocator, yaml_content: []const u8) ![]c
             line_index += 1;
             var block_indent: ?usize = null;
             var first_block_line = true;
+            var folded_paragraph_break = false;
             while (line_index < source_lines.items.len) {
                 const block_line = source_lines.items[line_index];
                 const trimmed_block_line = std.mem.trim(u8, block_line, " \t\r");
@@ -69,7 +74,13 @@ fn foldBlockScalars(allocator: std.mem.Allocator, yaml_content: []const u8) ![]c
                 if (trimmed_block_line.len != 0 and indent <= header.parent_indent) break;
 
                 if (trimmed_block_line.len == 0) {
-                    if (!first_block_line and header.style == '|') try appendYamlDoubleQuotedChar(allocator, &out, '\n');
+                    if (!first_block_line and header.style == '|') {
+                        try appendYamlDoubleQuotedChar(allocator, &out, '\n');
+                    } else if (!first_block_line and header.style == '>') {
+                        try appendYamlDoubleQuotedChar(allocator, &out, '\n');
+                        try appendYamlDoubleQuotedChar(allocator, &out, '\n');
+                        folded_paragraph_break = true;
+                    }
                     line_index += 1;
                     continue;
                 }
@@ -80,12 +91,13 @@ fn foldBlockScalars(allocator: std.mem.Allocator, yaml_content: []const u8) ![]c
                 if (!first_block_line) {
                     if (header.style == '|') {
                         try appendYamlDoubleQuotedChar(allocator, &out, '\n');
-                    } else {
+                    } else if (!folded_paragraph_break) {
                         try out.append(allocator, ' ');
                     }
                 }
                 try appendYamlDoubleQuotedContent(allocator, &out, content);
                 first_block_line = false;
+                folded_paragraph_break = false;
                 line_index += 1;
             }
 
@@ -136,6 +148,7 @@ fn appendYamlDoubleQuotedChar(allocator: std.mem.Allocator, out: *std.ArrayList(
     switch (char) {
         '\n' => try out.appendSlice(allocator, "\\n"),
         '\t' => try out.appendSlice(allocator, "\\t"),
+        '\\' => try out.appendSlice(allocator, "\\\\"),
         '"' => try out.appendSlice(allocator, "\\\""),
         else => try out.append(allocator, char),
     }
@@ -282,6 +295,68 @@ fn appendKeyWithEscapedBraces(allocator: std.mem.Allocator, out: *std.ArrayList(
     }
 }
 
+fn markOriginallyUnquotedScalars(allocator: std.mem.Allocator, yaml_content: []const u8) ![]const u8 {
+    var out = std.ArrayList(u8).empty;
+    errdefer out.deinit(allocator);
+
+    var lines = std.mem.splitScalar(u8, yaml_content, '\n');
+    var first_output_line = true;
+    while (lines.next()) |line| {
+        if (!first_output_line) try out.append(allocator, '\n');
+        first_output_line = false;
+        try appendMarkedLine(allocator, &out, line);
+    }
+
+    return try out.toOwnedSlice(allocator);
+}
+
+fn appendMarkedLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line: []const u8) !void {
+    const colon_index = std.mem.indexOfScalar(u8, line, ':') orelse {
+        try out.appendSlice(allocator, line);
+        return;
+    };
+
+    var value_start = colon_index + 1;
+    while (value_start < line.len and (line[value_start] == ' ' or line[value_start] == '\t')) : (value_start += 1) {}
+
+    if (value_start >= line.len) {
+        try out.appendSlice(allocator, line);
+        return;
+    }
+
+    const comment_index = findInlineCommentStart(line[value_start..]) orelse line[value_start..].len;
+    const scalar_end = value_start + comment_index;
+    const scalar = std.mem.trimEnd(u8, line[value_start..scalar_end], " \t\r");
+    if (!shouldMarkOriginallyUnquotedScalar(scalar)) {
+        try out.appendSlice(allocator, line);
+        return;
+    }
+
+    try out.appendSlice(allocator, line[0..value_start]);
+    try out.appendSlice(allocator, unquoted_scalar_placeholder);
+    try out.appendSlice(allocator, line[value_start..]);
+}
+
+fn findInlineCommentStart(value: []const u8) ?usize {
+    for (value, 0..) |char, index| {
+        if (char == '#' and (index == 0 or value[index - 1] == ' ' or value[index - 1] == '\t')) {
+            return index;
+        }
+    }
+    return null;
+}
+
+fn shouldMarkOriginallyUnquotedScalar(value: []const u8) bool {
+    if (value.len == 0) return false;
+
+    switch (value[0]) {
+        '"', '\'', '|', '>', '[', '{', '&', '*', '!' => return false,
+        else => {},
+    }
+
+    return isNullScalar(value) or parseBoolScalar(value) != null or isJsonNumber(value);
+}
+
 fn writeJsonValue(allocator: std.mem.Allocator, writer: *std.Io.Writer, value: YamlValue, current_key: ?[]const u8) !void {
     switch (value) {
         .empty => try writer.writeAll("null"),
@@ -313,31 +388,48 @@ fn writeJsonValue(allocator: std.mem.Allocator, writer: *std.Io.Writer, value: Y
 }
 
 fn writeJsonScalar(writer: *std.Io.Writer, scalar: []const u8, current_key: ?[]const u8) !void {
-    const trimmed = std.mem.trim(u8, scalar, " \t\r\n");
+    const scalar_info = stripOriginallyUnquotedScalarMarker(scalar);
+    const trimmed = std.mem.trim(u8, scalar_info.value, " \t\r\n");
 
-    if (isNullScalar(trimmed)) {
-        try writer.writeAll("null");
-        return;
-    }
-
-    if (parseBoolScalar(trimmed)) |boolean| {
-        try writer.writeAll(if (boolean) "true" else "false");
-        return;
-    }
-
-    if (current_key) |key| {
-        if (isFloatSchemaKeyword(key) and isJsonNumber(trimmed)) {
-            try writer.writeAll(trimmed);
-            if (!hasFractionOrExponent(trimmed)) try writer.writeAll(".0");
+    if (scalar_info.originally_unquoted) {
+        if (isNullScalar(trimmed)) {
+            try writer.writeAll("null");
             return;
         }
-        if (isIntegerSchemaKeyword(key) and isJsonNumber(trimmed)) {
-            try writer.writeAll(trimmed);
+
+        if (parseBoolScalar(trimmed)) |boolean| {
+            try writer.writeAll(if (boolean) "true" else "false");
             return;
+        }
+
+        if (current_key) |key| {
+            if (isFloatSchemaKeyword(key) and isJsonNumber(trimmed)) {
+                try writer.writeAll(trimmed);
+                if (!hasFractionOrExponent(trimmed)) try writer.writeAll(".0");
+                return;
+            }
+            if (isIntegerSchemaKeyword(key) and isJsonNumber(trimmed)) {
+                try writer.writeAll(trimmed);
+                return;
+            }
         }
     }
 
-    try std.json.Stringify.value(scalar, .{}, writer);
+    try std.json.Stringify.value(scalar_info.value, .{}, writer);
+}
+
+fn stripOriginallyUnquotedScalarMarker(value: []const u8) struct { value: []const u8, originally_unquoted: bool } {
+    if (std.mem.startsWith(u8, value, unquoted_scalar_placeholder)) {
+        return .{
+            .value = value[unquoted_scalar_placeholder.len..],
+            .originally_unquoted = true,
+        };
+    }
+
+    return .{
+        .value = value,
+        .originally_unquoted = false,
+    };
 }
 
 fn normalizeYamlKey(allocator: std.mem.Allocator, raw_key: []const u8) ![]const u8 {
