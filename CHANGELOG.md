@@ -10,6 +10,7 @@
 
 **Merged pull requests:**
 
+- Add YAML verification to Smoke Tests [\#51](https://github.com/christianhelle/openapi2zig/pull/51) ([christianhelle](https://github.com/christianhelle))
 - Add Smoke Tests as part of PR verification [\#47](https://github.com/christianhelle/openapi2zig/pull/47) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.2.0](https://github.com/christianhelle/openapi2zig/tree/v0.2.0) (2026-04-28)
