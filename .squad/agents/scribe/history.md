@@ -27,3 +27,9 @@ Initial setup complete.
 - Designed/implemented/validated 	est/smoke-tests.ps1 (88 cases: 22 specs × 4 wrapper modes), CI job updated with failure-only artifact upload, README documented.
 - Initial denylist: ingram-micro.json (duplicate pub const emissions in unified model generator — follow-up backend work).
 - Decision recorded in decisions.md (2026-04-30 entry). Session-scoped directive: agents use Claude Opus 4.7 for this session only.
+
+## 2026-05-01T09:50:14Z — YAML smoke scribe closeout
+
+- Pre-check recorded `decisions.md` at 8263 bytes with 4 decision inbox files.
+- Archive gate did not trigger; decisions stayed below 20480 bytes.
+- Merged and deduplicated YAML smoke decisions, deleted processed inbox files, wrote orchestration/session logs, and checked the history summarization gate.

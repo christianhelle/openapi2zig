@@ -140,3 +140,8 @@
 
 - Scribe merged Fenster's YAML smoke decisions into `decisions.md`: keep the two smoke layers separate, use `<basename>__<format>__<mode>.zig` output names, and allow deterministic parse-phase YAML denylist entries with `Mode = "*"`.
 - The closeout keeps the YAML parser/normalization blocker explicit so backend follow-up can retire those denylist entries intentionally instead of hiding them behind JSON-only behavior.
+
+### 2026-05-01T09:50:14Z — Scribe closeout
+
+- Scribe recorded the YAML smoke release as shipped from commits `ac9ed97`, `e6f07ee`, and `55c260e`, preserving the two-layer split between the broad PowerShell sweep and the curated generated harness.
+- The shared decision log now carries the collision-safe `__<format>__` smoke filename rule and the explicit wildcard denylist policy for deterministic pre-wrapper YAML parse failures.

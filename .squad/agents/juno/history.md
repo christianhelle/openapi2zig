@@ -138,3 +138,7 @@ Users can now provide OpenAPI specs via remote URLs in addition to local file pa
 
 - Scribe recorded Juno's docs closeout: README now distinguishes the broad JSON+YAML smoke sweep from the curated harness, keeps `v3.2` JSON-only, and the doc work landed as commits `de53aaa` and `8e87cbe`.
 - Closeout notes preserve the `__json__` / `__yaml__` output naming rule in the docs so artifact descriptions stay aligned with the smoke script.
+
+### 2026-05-01T09:50:14Z — Scribe closeout
+
+- Scribe merged Juno's docs guidance into the shared decision log: README smoke docs must separate the broad JSON+YAML sweep from the curated harness, avoid implying JSON/YAML sibling pairs are required, and keep `openapi/v3.2` described as JSON-only today.

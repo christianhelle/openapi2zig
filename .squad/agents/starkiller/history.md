@@ -40,3 +40,13 @@
 
 - Scribe recorded Starkiller's final gate: JSON/YAML naming and generated-import collision protections are in place, but broad YAML smoke still needs normalization/denylist work before sign-off.
 - The closeout preserves the testing rule that `generated/main.zig` is only a compile/init sanity check; the PowerShell sweep remains the authoritative YAML acceptance gate.
+
+### 2026-05-01T11:50:14.189+02:00 — Reviewer verdict on YAML smoke scope
+
+- Verdict for the user request **"Update smoke tests to also test YAML files"**: **approve**.
+- Reason: YAML is now exercised in both smoke layers, curated YAML artifacts for v2/v3/v3.1 are checked in, `v3.2` correctly stays JSON-only, collision-safe smoke filenames prevent JSON/YAML overwrites, alias names stay distinct in generated harness imports, and smoke discovery still includes YAML-only roots such as `openapi/v3.0/bot.paths.yaml`.
+- Remaining denylisted YAML parser/normalization gaps are acceptable for this request because they are explicitly tracked as unsupported smoke cases rather than silently skipped, and the reported green validation (`14 pass / 2 skip / 0 fail` focused, `128 pass / 28 skip / 0 fail` full) matches the scoped acceptance criteria.
+
+### 2026-05-01T09:50:14Z — Scribe closeout
+
+- Scribe recorded Starkiller's acceptance gate: YAML is exercised in both smoke layers, `openapi/v3.2` remains JSON-only, and the remaining denylisted YAML parser/normalization gaps are follow-up backend work rather than blockers for this scoped smoke-coverage release.

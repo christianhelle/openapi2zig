@@ -55,5 +55,6 @@
 - **Validation gate:** Do not call YAML smoke coverage complete until the broad JSON+YAML PowerShell sweep is green; the curated `zig build run-generate` + `zig run generated/main.zig` path is a compile/init sanity check only.
 - **Temporary failure policy:** When YAML failures are deterministic in the pre-wrapper parse/normalization phase, track them as explicit broad-smoke denylist entries with `Mode = "*"` rather than hiding them behind JSON-only rules.
 - **Documentation contract:** README smoke docs must distinguish the broad sweep from the curated harness and state that `v3.2` is currently JSON-only.
+- **Release gate:** Lando and Starkiller approved release as scoped: YAML is exercised in both smoke layers, and remaining denylisted YAML parser/normalization gaps stay explicit follow-up backend work rather than blocking this smoke-coverage expansion.
 - **Session-scoped directive:** Use GPT-5.5 for the rest of this session only.
-- **Sources merged:** `copilot-directive-2026-05-01T11-50-14.md`, `lando-yaml-smoke-scope.md`, `fenster-yaml-smoke.md`, `juno-yaml-smoke-docs.md`, `starkiller-yaml-validation.md`.
+- **Sources merged:** `copilot-directive-2026-05-01T11-50-14.md`, `fenster-yaml-smoke.md`, `juno-yaml-smoke-docs.md`, `lando-yaml-smoke-verdict.md`, `starkiller-yaml-validation.md`.

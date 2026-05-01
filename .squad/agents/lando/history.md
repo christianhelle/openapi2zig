@@ -126,7 +126,18 @@ efAllDeclsRecursive wrapper if generator gaps slip through.
 - Discovery guardrail: do not equate “has JSON sibling” with “is a valid YAML smoke candidate”; `openapi/v3.0/bot.paths.yaml` is YAML-only and should not be silently excluded by a sibling-only heuristic.
 - Key review files for this decision: `test/smoke-tests.ps1`, `build.zig`, `generated/compile_generated.zig`, `generated/main.zig`, `README.md`, `openapi/v2.0/petstore.yaml`, `openapi/v3.0/petstore.yaml`, `openapi/v3.1/webhook-example.yaml`, `openapi/v3.0/bot.paths.yaml`.
 
+### 2026-05-01T11:50:14.189+02:00 — YAML smoke implementation verdict
+
+- Release verdict: approve as scoped. The implementation reaches both smoke layers, keeps the architecture split intact, and does not overreach into parser rewrites.
+- The denylist is acceptable at release time because the skipped YAML cases are explicit, path-scoped, and described as parser/normalization gaps rather than being silently omitted from discovery.
+- Commit boundaries were sound: broad sweep behavior, curated harness wiring with checked-in YAML artifacts, then README clarifications.
+- `openapi/v3.2` remaining JSON-only is architecturally correct because the repository still lacks a canonical v3.2 YAML root fixture.
+
 ### 2026-05-01T11:50:14.189+02:00 — Scribe closeout
 
 - Scribe recorded Lando's rule set for YAML smoke scope: both smoke layers stay in scope, the curated harness remains curated, and `openapi/v3.2` stays JSON-only until a real YAML root fixture exists.
 - This closeout merged the scope decision into `decisions.md` and linked the follow-up review surface across `test/smoke-tests.ps1`, `build.zig`, `generated/compile_generated.zig`, `generated/main.zig`, and `README.md`.
+
+### 2026-05-01T09:50:14Z — Scribe closeout
+
+- Scribe recorded Lando's release approval: the curated-vs-broad smoke split holds, JSON/YAML sibling output collisions are prevented by format-aware names, and the `openapi/v3.2` boundary stays JSON-only until a real YAML root fixture exists.
