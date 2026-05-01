@@ -144,7 +144,7 @@ pub fn build(b: *std.Build) void {
 
     const test_package_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "build" });
     test_package_cmd.step.dependOn(package_snapshot_step);
-    test_package_cmd.setCwd(b.path(".zig-cache/issue43-package-snapshot/examples/package_consumer"));
+    test_package_cmd.setCwd(b.path(".zig-cache/package-snapshot/examples/package_consumer"));
     const test_package_step = b.step("test-package", "Build downstream package consumer example");
     test_package_step.dependOn(&test_package_cmd.step);
     test_step.dependOn(&test_package_cmd.step);
@@ -192,7 +192,7 @@ fn makePackageSnapshot(step: *std.Build.Step, options: std.Build.Step.MakeOption
     const allocator = b.allocator;
     const io = b.graph.io;
     const cwd = std.Io.Dir.cwd();
-    const snapshot_root = ".zig-cache/issue43-package-snapshot";
+    const snapshot_root = ".zig-cache/package-snapshot";
 
     try cwd.deleteTree(io, snapshot_root);
     try cwd.createDirPath(io, snapshot_root);
