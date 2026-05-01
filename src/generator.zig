@@ -18,7 +18,10 @@ const Extension = enum {
     JSON,
 };
 
-const GeneratorErrors = error{UnsupportedExtension};
+const GeneratorErrors = error{
+    UnsupportedExtension,
+    UnsupportedOpenAPIVersion,
+};
 
 pub fn validateExtension(input_file_path: []const u8) !Extension {
     var buf: [std.fs.max_path_bytes]u8 = undefined;
@@ -100,7 +103,7 @@ fn generateCodeFromJsonContents(allocator: std.mem.Allocator, io: std.Io, json_c
         },
         else => {
             std.debug.print("Unsupported OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
-            return GeneratorErrors.UnsupportedExtension;
+            return GeneratorErrors.UnsupportedOpenAPIVersion;
         },
     }
 }
@@ -156,4 +159,29 @@ fn generateCodeFromOpenApi32Document(allocator: std.mem.Allocator, io: std.Io, o
     var unified_doc = try openapi32_converter.convert(openapi);
     defer unified_doc.deinit(allocator);
     try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
+}
+
+test "unsupported OpenAPI versions return a distinct generator error" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json_contents =
+        \\{
+        \\  "openapi": "9.9.9",
+        \\  "info": {
+        \\    "title": "Unsupported",
+        \\    "version": "1.0.0"
+        \\  },
+        \\  "paths": {}
+        \\}
+    ;
+
+    try std.testing.expectError(
+        GeneratorErrors.UnsupportedOpenAPIVersion,
+        generateCodeFromJsonContents(allocator, std.testing.io, json_contents, .{
+            .input_path = "unsupported.json",
+        }),
+    );
 }

@@ -86,6 +86,19 @@ pub fn build(b: *std.Build) void {
     const run_generate_v2_step = b.step("run-generate-v2", "Run the app with generate command");
     run_generate_v2_step.dependOn(&run_generate_v2_cmd.step);
 
+    const run_generate_v2_yaml_cmd = b.addRunArtifact(exe);
+    run_generate_v2_yaml_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v2.0/petstore.yaml",
+        "-o",
+        "generated/generated_v2_yaml.zig",
+        "--base-url",
+        "https://petstore.swagger.io/v2",
+    });
+    const run_generate_v2_yaml_step = b.step("run-generate-v2-yaml", "Run the app with generate command for Swagger v2.0 YAML");
+    run_generate_v2_yaml_step.dependOn(&run_generate_v2_yaml_cmd.step);
+
     const run_generate_v32_cmd = b.addRunArtifact(exe);
     run_generate_v32_cmd.addArgs(&.{
         "generate",
@@ -110,11 +123,38 @@ pub fn build(b: *std.Build) void {
     const run_generate_v31_step = b.step("run-generate-v31", "Run the app with generate command for OpenAPI v3.1");
     run_generate_v31_step.dependOn(&run_generate_v31_cmd.step);
 
+    const run_generate_v31_yaml_cmd = b.addRunArtifact(exe);
+    run_generate_v31_yaml_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.1/webhook-example.yaml",
+        "-o",
+        "generated/generated_v31_yaml.zig",
+    });
+    const run_generate_v31_yaml_step = b.step("run-generate-v31-yaml", "Run the app with generate command for OpenAPI v3.1 YAML");
+    run_generate_v31_yaml_step.dependOn(&run_generate_v31_yaml_cmd.step);
+
+    const run_generate_v3_yaml_cmd = b.addRunArtifact(exe);
+    run_generate_v3_yaml_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.yaml",
+        "-o",
+        "generated/generated_v3_yaml.zig",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_yaml_step = b.step("run-generate-v3-yaml", "Run the app with generate command for OpenAPI v3.0 YAML");
+    run_generate_v3_yaml_step.dependOn(&run_generate_v3_yaml_cmd.step);
+
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
+    run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
+    run_generate.dependOn(&run_generate_v2_yaml_cmd.step);
     run_generate.dependOn(&run_generate_v32_cmd.step);
     run_generate.dependOn(&run_generate_v31_cmd.step);
+    run_generate.dependOn(&run_generate_v31_yaml_cmd.step);
 
     const tests_mod = b.createModule(.{
         .root_source_file = b.path("src/tests.zig"),

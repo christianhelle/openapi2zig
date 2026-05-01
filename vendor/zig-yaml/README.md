@@ -15,17 +15,17 @@ issues.
 ## Basic installation
 
 The library can be installed using the Zig tools. First, you need to fetch the required release of the library into your project. 
-```
+```sh
 zig fetch --save https://github.com/kubkon/zig-yaml/archive/refs/tags/[RELEASE_VERSION].tar.gz
 ```
 
 It's more convenient to save the library with a desired name, for example, like this (assuming you are targeting latest release of Zig):
-```
+```sh
 zig fetch --save=yaml https://github.com/kubkon/zig-yaml/archive/refs/tags/0.1.1.tar.gz
 ```
 
 And then add those lines to your project's `build.zig` file:
-```
+```zig
 // add that code after "b.installArtifact(exe)" line
 const yaml = b.dependency("yaml", .{
   .target = target,
@@ -76,11 +76,11 @@ defer yaml.deinit(gpa);
 1. For untyped, raw representation of YAML, use `Yaml.load`:
 
 ```zig
-try yaml.load(gpa, source);
+try yaml.load(gpa);
 
-try std.testing.expectEqual(untyped.docs.items.len, 1);
+try std.testing.expectEqual(yaml.docs.items.len, 1);
 
-const map = untyped.docs.items[0].map;
+const map = yaml.docs.items[0].map;
 try std.testing.expect(map.contains("names"));
 try std.testing.expectEqual(map.get("names").?.list.len, 3);
 ```

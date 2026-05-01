@@ -12,6 +12,10 @@ source: "template"
 
 ## Patterns
 
+### Smoke-test documentation split
+
+When documenting verification, describe the broad `pwsh test/smoke-tests.ps1` sweep separately from the curated `zig build run-generate*` sample targets. Mirror the exact artifact names each layer produces, and call out source-format suffixes when JSON/YAML sibling fixtures would otherwise collide.
+
 ### [Pattern Name]
 
 Describe a key convention or practice used in this codebase. Be specific about what to do and why.

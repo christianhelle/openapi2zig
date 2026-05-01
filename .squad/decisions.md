@@ -46,3 +46,15 @@
 - **Follow-up (out of scope):** Track and fix the unified model generator's duplicate `pub const` emission for shared/nested schemas; remove the ingram-micro denylist entry in the same PR.
 - **Session-scoped directive (2026-04-30T16:31:22.685+02:00, Christian Helle via Copilot):** All agents use Claude Opus 4.7 for the rest of this session only.
 - **Sources merged:** lando-smoke-test-plan.md, starkiller-smoke-test-plan.md, juno-smoke-test-plan.md, juno-smoke-ci-docs.md, fenster-smoke-test-plan.md, fenster-smoke-implementation.md, fenster-smoke-denylist-ingram-micro.md, starkiller-smoke-validation.md, copilot-directive-2026-04-30T16-31-22-685+02-00.md.
+
+### 2026-05-01: YAML smoke coverage scope and acceptance gate
+
+- **Decision:** YAML smoke coverage must exist in both current smoke layers while preserving the split: `test/smoke-tests.ps1` remains the broad dynamic sweep, and `build.zig` + `generated/compile_generated.zig` + `generated/main.zig` remain the curated harness.
+- **Broad sweep contract:** Discover `.json`, `.yaml`, and `.yml` fixtures under `openapi/v2.0`, `openapi/v3.0`, `openapi/v3.1`, and `openapi/v3.2` without requiring JSON/YAML sibling pairs; keep YAML-only roots such as `openapi/v3.0/bot.paths.yaml`; write smoke outputs as `<basename>__<format>__<mode>.zig` to prevent sibling collisions.
+- **Curated harness contract:** Check in YAML-generated harness artifacts only for real fixture roots that exist today (`generated_v2_yaml.zig`, `generated_v3_yaml.zig`, `generated_v31_yaml.zig`); `openapi/v3.2` remains JSON-only until the repo has a real YAML fixture.
+- **Validation gate:** Do not call YAML smoke coverage complete until the broad JSON+YAML PowerShell sweep is green; the curated `zig build run-generate` + `zig run generated/main.zig` path is a compile/init sanity check only.
+- **Temporary failure policy:** When YAML failures are deterministic in the pre-wrapper parse/normalization phase, track them as explicit broad-smoke denylist entries with `Mode = "*"` rather than hiding them behind JSON-only rules.
+- **Documentation contract:** README smoke docs must distinguish the broad sweep from the curated harness and state that `v3.2` is currently JSON-only.
+- **Release gate:** Lando and Starkiller approved release as scoped: YAML is exercised in both smoke layers, and remaining denylisted YAML parser/normalization gaps stay explicit follow-up backend work rather than blocking this smoke-coverage expansion.
+- **Session-scoped directive:** Use GPT-5.5 for the rest of this session only.
+- **Sources merged:** `copilot-directive-2026-05-01T11-50-14.md`, `fenster-yaml-smoke.md`, `juno-yaml-smoke-docs.md`, `lando-yaml-smoke-verdict.md`, `starkiller-yaml-validation.md`.

@@ -56,6 +56,9 @@ test "simple" {
 
             if (!mem.eql(u8, self.nested.some, other.nested.some)) return false;
             if (!mem.eql(u8, self.nested.wick, other.nested.wick)) return false;
+            if (self.nested.ok != other.nested.ok) return false;
+            if (self.isyaml != other.isyaml) return false;
+            if (self.hasBoolean != other.hasBoolean) return false;
 
             return true;
         }
@@ -111,9 +114,16 @@ const LibTbd = struct {
     pub fn eql(self: LibTbd, other: LibTbd) bool {
         if (self.tbd_version != other.tbd_version) return false;
         if (self.targets.len != other.targets.len) return false;
+        if (self.uuids.len != other.uuids.len) return false;
 
         for (self.targets, 0..) |target, i| {
             if (!mem.eql(u8, target, other.targets[i])) return false;
+        }
+
+        for (self.uuids, 0..) |uuid, i| {
+            const o_uuid = other.uuids[i];
+            if (!mem.eql(u8, uuid.target, o_uuid.target)) return false;
+            if (!mem.eql(u8, uuid.value, o_uuid.value)) return false;
         }
 
         if (!mem.eql(u8, self.install_name, other.install_name)) return false;
@@ -149,6 +159,8 @@ const LibTbd = struct {
                     if (!mem.eql(u8, library, o_library)) return false;
                 }
             }
+        } else if (other.reexported_libraries != null) {
+            return false;
         }
 
         if (self.parent_umbrella) |parent_umbrella| {
@@ -167,6 +179,8 @@ const LibTbd = struct {
 
                 if (!mem.eql(u8, pumbrella.umbrella, o_pumbrella.umbrella)) return false;
             }
+        } else if (other.parent_umbrella != null) {
+            return false;
         }
 
         if (self.exports.len != other.exports.len) return false;
@@ -326,6 +340,7 @@ test "multi lib tbd" {
         },
     };
 
+    try testing.expectEqual(expected.len, result.len);
     for (result, 0..) |lib, i| {
         try testing.expect(lib.eql(expected[i]));
     }
