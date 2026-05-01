@@ -596,7 +596,6 @@ This project is in active development with solid foundation for OpenAPI/Swagger 
 
 Planned features and enhancements:
 
-- YAML specification format support
 - Enhanced authentication/authorization client support
 - Automatic API documentation generation
 - Performance optimizations for large specifications
