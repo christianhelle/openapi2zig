@@ -2,22 +2,37 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.1.1...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.2.0...HEAD)
+
+**Implemented enhancements:**
+
+- Add YAML OpenAPI parsing [\#50](https://github.com/christianhelle/openapi2zig/pull/50) ([christianhelle](https://github.com/christianhelle))
+
+**Merged pull requests:**
+
+- Add Smoke Tests as part of PR verification [\#47](https://github.com/christianhelle/openapi2zig/pull/47) ([christianhelle](https://github.com/christianhelle))
+
+## [v0.2.0](https://github.com/christianhelle/openapi2zig/tree/v0.2.0) (2026-04-28)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.1.1...v0.2.0)
 
 **Implemented enhancements:**
 
 - Fix real-world OpenAPI code generation [\#46](https://github.com/christianhelle/openapi2zig/pull/46) ([h0rv](https://github.com/h0rv))
 - Upgrade to Zig 0.16.0 [\#45](https://github.com/christianhelle/openapi2zig/pull/45) ([h0rv](https://github.com/h0rv))
+- Add support for using remote URL with --input [\#44](https://github.com/christianhelle/openapi2zig/pull/44) ([christianhelle](https://github.com/christianhelle))
 - Add OpenAPI 3.2 specification support [\#40](https://github.com/christianhelle/openapi2zig/pull/40) ([christianhelle](https://github.com/christianhelle))
 - Fix missing requestBody when converting OpenAPI v3 to Unified OpenAPI Document [\#33](https://github.com/christianhelle/openapi2zig/pull/33) ([christianhelle](https://github.com/christianhelle))
 - Fix incorrect generated function return types [\#31](https://github.com/christianhelle/openapi2zig/pull/31) ([christianhelle](https://github.com/christianhelle))
 - Expose OpenAPI/Swagger parsing as library and documentation updates [\#30](https://github.com/christianhelle/openapi2zig/pull/30) ([christianhelle](https://github.com/christianhelle))
+- Cleanup AI Agent code mess [\#27](https://github.com/christianhelle/openapi2zig/pull/27) ([christianhelle](https://github.com/christianhelle))
 - House Keeping [\#26](https://github.com/christianhelle/openapi2zig/pull/26) ([christianhelle](https://github.com/christianhelle))
 - Add tests for unified document conversion [\#25](https://github.com/christianhelle/openapi2zig/pull/25) ([christianhelle](https://github.com/christianhelle))
 - Unified OpenAPI Document [\#24](https://github.com/christianhelle/openapi2zig/pull/24) ([christianhelle](https://github.com/christianhelle))
 - Fix missing memory leaks in generated code example [\#23](https://github.com/christianhelle/openapi2zig/pull/23) ([christianhelle](https://github.com/christianhelle))
 - Fix memory leaks and improve resource management [\#22](https://github.com/christianhelle/openapi2zig/pull/22) ([christianhelle](https://github.com/christianhelle))
 - Fix Memory Leaks when generating code from Swagger v2.0 [\#21](https://github.com/christianhelle/openapi2zig/pull/21) ([christianhelle](https://github.com/christianhelle))
+- Setup Dev Container [\#20](https://github.com/christianhelle/openapi2zig/pull/20) ([christianhelle](https://github.com/christianhelle))
 - Restructure code generation and tests [\#18](https://github.com/christianhelle/openapi2zig/pull/18) ([christianhelle](https://github.com/christianhelle))
 
 **Closed issues:**
@@ -53,6 +68,7 @@
 
 - Update code examples in docs [\#14](https://github.com/christianhelle/openapi2zig/pull/14) ([christianhelle](https://github.com/christianhelle))
 - Add support for specifying the base URL for all requests [\#12](https://github.com/christianhelle/openapi2zig/pull/12) ([christianhelle](https://github.com/christianhelle))
+- fix: add extension validation [\#11](https://github.com/christianhelle/openapi2zig/pull/11) ([rafaelsousa](https://github.com/rafaelsousa))
 
 ## [v0.1.0](https://github.com/christianhelle/openapi2zig/tree/v0.1.0) (2025-07-15)
 
