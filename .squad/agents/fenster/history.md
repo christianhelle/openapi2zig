@@ -135,3 +135,8 @@
 - `test/smoke-tests.ps1` now discovers `.json`, `.yaml`, and `.yml` fixtures under `openapi/v2.0`, `v3.0`, `v3.1`, and `v3.2`, and writes smoke outputs as `test/output/<version>/<basename>__<format>__<mode>.zig` so JSON/YAML siblings never overwrite each other.
 - The curated harness remains separate: `build.zig` now generates `generated/generated_v2_yaml.zig`, `generated/generated_v3_yaml.zig`, and `generated/generated_v31_yaml.zig`; `generated/compile_generated.zig` and `generated/main.zig` import those YAML artifacts beside the existing JSON ones. `openapi/v3.2` stays JSON-only because there is no checked-in YAML fixture.
 - Broad YAML smoke currently passes with targeted denylist entries for six mode-independent YAML `ParseFailure` fixtures: `openapi/v2.0/petstore-expanded.yaml`, `openapi/v2.0/uber.yaml`, `openapi/v3.0/api-with-examples.yaml`, `openapi/v3.0/bot.paths.yaml`, `openapi/v3.0/petstore-expanded.yaml`, and `openapi/v3.0/uspto.yaml`.
+
+### 2026-05-01T11:50:14.189+02:00 — Scribe closeout
+
+- Scribe merged Fenster's YAML smoke decisions into `decisions.md`: keep the two smoke layers separate, use `<basename>__<format>__<mode>.zig` output names, and allow deterministic parse-phase YAML denylist entries with `Mode = "*"`.
+- The closeout keeps the YAML parser/normalization blocker explicit so backend follow-up can retire those denylist entries intentionally instead of hiding them behind JSON-only behavior.

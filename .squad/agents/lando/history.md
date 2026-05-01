@@ -98,7 +98,8 @@
 - Implementation matches all four confirmed decisions (temp denylist, all 4 wrapper modes, keep petstore harness, output under test/output/).
 - Cross-platform handling is sound: repo-root via $PSCommandPath, $IsWindows for exe suffix, slash normalization after Resolve-Path -Relative, `shell: pwsh` in CI.
 - CI scoping is correct: appended to existing smoke-tests job; artifact upload guarded by if: failure(); petstore harness preserved.
-- Known limitation (acknowledged in plan): zig test relies on Zig's lazy analysis; deeply unused decls may escape compile-check. Acceptable for v1; can harden later with explicit efAllDeclsRecursive wrapper if generator gaps slip through.
+- Known limitation (acknowledged in plan): zig test relies on Zig's lazy analysis; deeply unused decls may escape compile-check. Acceptable for v1; can harden later with explicit 
+efAllDeclsRecursive wrapper if generator gaps slip through.
 - Reminder for staging: `test/smoke-tests.ps1` is currently untracked; it must be added in the same commit as the CI change.
 
 ## 2026-04-30 — Smoke-test commit strategy
@@ -114,3 +115,18 @@
 - Designed/implemented/validated 	est/smoke-tests.ps1 (88 cases: 22 specs × 4 wrapper modes), CI job updated with failure-only artifact upload, README documented.
 - Initial denylist: ingram-micro.json (duplicate pub const emissions in unified model generator — follow-up backend work).
 - Decision recorded in decisions.md (2026-04-30 entry). Session-scoped directive: agents use Claude Opus 4.7 for this session only.
+
+### 2026-05-01T11:50:14.189+02:00 — YAML smoke-test scope review
+
+- Scope confirmation: YAML must be exercised in both smoke layers, but the architecture split stays the same — `test/smoke-tests.ps1` is the dynamic sweep, and `build.zig` + `generated/compile_generated.zig` + `generated/main.zig` remain the curated harness.
+- Commit boundary pattern: safest order is (1) broad smoke script behavior, (2) curated harness wiring plus new checked-in generated YAML artifacts, (3) README updates after validation.
+- Naming rule: smoke outputs need a source-format segment (`__json__` / `__yaml__`) because many fixtures exist as JSON/YAML siblings under the same version directory (`petstore`, `petstore-expanded`, `api-with-examples`, `webhook-example`, etc.).
+- Harness risk: import aliases and generated filenames must stay unique; adding YAML fixtures beside `generated_v2.zig`, `generated_v3.zig`, `generated_v31.zig`, `generated_v32.zig` requires distinct names such as `generated_v2_yaml.zig`.
+- Scope guardrail: do not invent a new v3.2 YAML sample just to force parity — `openapi/v3.2` currently only ships JSON canonical fixtures.
+- Discovery guardrail: do not equate “has JSON sibling” with “is a valid YAML smoke candidate”; `openapi/v3.0/bot.paths.yaml` is YAML-only and should not be silently excluded by a sibling-only heuristic.
+- Key review files for this decision: `test/smoke-tests.ps1`, `build.zig`, `generated/compile_generated.zig`, `generated/main.zig`, `README.md`, `openapi/v2.0/petstore.yaml`, `openapi/v3.0/petstore.yaml`, `openapi/v3.1/webhook-example.yaml`, `openapi/v3.0/bot.paths.yaml`.
+
+### 2026-05-01T11:50:14.189+02:00 — Scribe closeout
+
+- Scribe recorded Lando's rule set for YAML smoke scope: both smoke layers stay in scope, the curated harness remains curated, and `openapi/v3.2` stays JSON-only until a real YAML root fixture exists.
+- This closeout merged the scope decision into `decisions.md` and linked the follow-up review surface across `test/smoke-tests.ps1`, `build.zig`, `generated/compile_generated.zig`, `generated/main.zig`, and `README.md`.
