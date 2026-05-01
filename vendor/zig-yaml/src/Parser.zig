@@ -706,6 +706,11 @@ fn parseDoubleQuoted(self: *Parser, gpa: Allocator, raw: []const u8) ParseError!
                     self.string_bytes.appendAssumeCapacity('\t');
                     string.len += 1;
                 },
+                '\\' => {
+                    state = .start;
+                    self.string_bytes.appendAssumeCapacity('\\');
+                    string.len += 1;
+                },
                 '"' => {
                     state = .start;
                     self.string_bytes.appendAssumeCapacity('"');
