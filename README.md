@@ -191,7 +191,7 @@ What it does:
 - Continues through individual failures and prints a final summary listing every failing spec/mode combination, then exits non-zero if any case failed.
 - Honors a temporary denylist for known-unsupported spec/mode combinations so the PR gate can stay green while generator gaps are tracked explicitly.
 
-In CI, the same script runs in the `smoke-tests` job on pull requests and `main`, alongside the existing `zig build run-generate` + `zig run generated/main.zig` curated sample harness. When the smoke-tests job fails, `test/output/` is uploaded as a workflow artifact for triage.
+In CI, the same script runs in the `smoke-tests` job on pull requests and `main`, alongside the existing `zig build run-generate` + `zig run generated/main.zig` curated sample harness. The broad smoke discovery does not require JSON/YAML twins: YAML-only roots such as `openapi/v3.0/bot.paths.yaml` are still included when they live under the covered version folders. When the smoke-tests job fails, `test/output/` is uploaded as a workflow artifact for triage.
 
 ### Cross-compilation
 
@@ -214,7 +214,7 @@ zig build -Dtarget=aarch64-linux
 openapi2zig generate [options]
 ```
 
-The `generate` command reads a JSON OpenAPI/Swagger document from a local file or `http`/`https` URL, auto-detects the spec version, and writes one Zig source file containing models, runtime helpers, and API functions.
+The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a local file or `http`/`https` URL, auto-detects the spec version, and writes one Zig source file containing models, runtime helpers, and API functions.
 
 ### Options
 
@@ -258,13 +258,16 @@ The build script also includes curated sample-generation targets used by the che
 
 ```bash
 zig build run-generate-v2   # openapi/v2.0/petstore.json  -> generated/generated_v2.zig
+zig build run-generate-v2-yaml  # openapi/v2.0/petstore.yaml -> generated/generated_v2_yaml.zig
 zig build run-generate-v3   # openapi/v3.0/petstore.json  -> generated/generated_v3.zig
+zig build run-generate-v3-yaml  # openapi/v3.0/petstore.yaml -> generated/generated_v3_yaml.zig
 zig build run-generate-v31  # openapi/v3.1/webhook-example.json -> generated/generated_v31.zig
+zig build run-generate-v31-yaml # openapi/v3.1/webhook-example.yaml -> generated/generated_v31_yaml.zig
 zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated_v32.zig
 zig build run-generate      # runs all of the above
 ```
 
-These targets currently emit the curated JSON-backed fixtures above; the broader JSON+YAML coverage lives in `pwsh test/smoke-tests.ps1`. `generated/main.zig` imports the v2 and v3 petstore outputs, initializes `Client` values, and exercises memory-managed endpoint calls. When Zig is available, validate generated examples with:
+This quick harness is intentionally selective: it covers the curated v2/v3 petstore JSON+YAML outputs, the v3.1 webhook JSON+YAML outputs, and the v3.2 JSON output. `openapi/v3.2` remains JSON-only here because the repository does not currently ship a v3.2 YAML root fixture. For broader JSON+YAML fixture coverage across the sample tree, use `pwsh test/smoke-tests.ps1`. `generated/main.zig` imports the curated v2/v3 JSON+YAML modules plus the v3.1 YAML module, initializes `Client` values, and exercises memory-managed endpoint calls. `generated/compile_generated.zig` extends compile coverage across all curated generated artifacts. When Zig is available, validate generated examples with:
 
 ```bash
 zig build run-generate

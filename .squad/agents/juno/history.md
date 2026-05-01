@@ -131,5 +131,5 @@ Users can now provide OpenAPI specs via remote URLs in addition to local file pa
 
 ## 2026-05-01T11:50:14.189+02:00 — YAML smoke docs alignment
 - Broad smoke coverage lives in `test/smoke-tests.ps1`; it should treat YAML as first-class input and encode source format in artifact names such as `__json__` / `__yaml__` to avoid sibling collisions.
-- README smoke docs should distinguish the broad PowerShell sweep from the smaller curated sample harness in `build.zig` and `generated/main.zig`, which still documents the checked-in JSON-backed sample artifacts by exact filename until the curated YAML harness work lands.
+- README smoke docs should distinguish the broad PowerShell sweep from the smaller curated sample harness in `build.zig` and `generated/main.zig`; broad discovery must not imply JSON/YAML twin files are required, and the curated harness should call out that `v3.2` is still JSON-only because the repo has no `v3.2` YAML root fixture.
 - Useful review paths for this topic: `README.md`, `test/smoke-tests.ps1`, `build.zig`, `generated/main.zig`, and YAML fixture roots like `openapi/v2.0/petstore.yaml`, `openapi/v3.0/petstore.yaml`, `openapi/v3.1/webhook-example.yaml`, `openapi/v3.0/bot.paths.yaml`.
