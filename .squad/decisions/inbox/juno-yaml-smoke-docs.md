@@ -1,0 +1,4 @@
+### 2026-05-01T11:50:14.189+02:00: README should separate broad YAML smoke coverage from curated sample generation
+**By:** Juno
+**What:** Document `pwsh test/smoke-tests.ps1` as the broad JSON+YAML sweep, including source-format-aware output names like `<basename>__json__<mode>.zig` / `<basename>__yaml__<mode>.zig`, while keeping the `zig build run-generate*` section explicitly scoped to the currently checked-in curated JSON-backed sample artifacts (`generated_v2.zig`, `generated_v3.zig`, `generated_v31.zig`, `generated_v32.zig`).
+**Why:** Users should understand that there are two smoke layers: a broad matrix sweep and a smaller curated harness. Separating them keeps the docs truthful to the committed commands and artifact names today, while still making the new YAML smoke coverage discoverable before any separate curated-harness YAML changes land.

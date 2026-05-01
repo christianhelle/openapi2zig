@@ -184,14 +184,14 @@ pwsh test/smoke-tests.ps1
 
 What it does:
 
-- Validates all eligible JSON API specs under `openapi/v2.0`, `openapi/v3.0`, `openapi/v3.1`, and `openapi/v3.2`.
+- Validates all eligible JSON and YAML API specs under `openapi/v2.0`, `openapi/v3.0`, `openapi/v3.1`, and `openapi/v3.2`.
 - Runs each spec through every resource-wrapper mode: `none`, `tags`, `paths`, and `hybrid`.
-- Skips YAML files and the meta-schema documents under `openapi/json-schema/`.
-- Writes generated outputs to `test/output/` (gitignored), with paths and filenames that include the resource-wrapper mode so variants do not collide.
+- Ignores the meta-schema documents under `openapi/json-schema/`, which are outside the smoke-test discovery roots.
+- Writes generated outputs to `test/output/` (gitignored), with filenames shaped like `<basename>__<format>__<mode>.zig` so JSON/YAML sibling fixtures do not collide.
 - Continues through individual failures and prints a final summary listing every failing spec/mode combination, then exits non-zero if any case failed.
 - Honors a temporary denylist for known-unsupported spec/mode combinations so the PR gate can stay green while generator gaps are tracked explicitly.
 
-In CI, the same script runs in the `smoke-tests` job on pull requests and `main`, alongside the existing `zig build run-generate` + `zig run generated/main.zig` petstore harness. When the smoke-tests job fails, `test/output/` is uploaded as a workflow artifact for triage.
+In CI, the same script runs in the `smoke-tests` job on pull requests and `main`, alongside the existing `zig build run-generate` + `zig run generated/main.zig` curated sample harness. When the smoke-tests job fails, `test/output/` is uploaded as a workflow artifact for triage.
 
 ### Cross-compilation
 
@@ -254,7 +254,7 @@ openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --resource-wrapper
 
 ### Generated sample files
 
-The build script includes sample generation targets used by the test suite:
+The build script also includes curated sample-generation targets used by the checked-in generated harness:
 
 ```bash
 zig build run-generate-v2   # openapi/v2.0/petstore.json  -> generated/generated_v2.zig
@@ -264,7 +264,7 @@ zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated
 zig build run-generate      # runs all of the above
 ```
 
-`generated/main.zig` imports the v2 and v3 petstore outputs, initializes `Client` values, and exercises memory-managed endpoint calls. When Zig is available, validate generated examples with:
+These targets currently emit the curated JSON-backed fixtures above; the broader JSON+YAML coverage lives in `pwsh test/smoke-tests.ps1`. `generated/main.zig` imports the v2 and v3 petstore outputs, initializes `Client` values, and exercises memory-managed endpoint calls. When Zig is available, validate generated examples with:
 
 ```bash
 zig build run-generate
