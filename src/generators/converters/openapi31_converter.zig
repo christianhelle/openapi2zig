@@ -586,18 +586,32 @@ pub const OpenApi31Converter = struct {
     fn convertRequestBody(self: *OpenApi31Converter, requestBody: *const RequestBody31) !Parameter {
         var mut_request_body = requestBody.*;
         var schema: ?Schema = null;
+        var selected_key: ?[]const u8 = null;
         if (mut_request_body.content.get("application/json")) |media_type| {
+            selected_key = "application/json";
             if (media_type.schema) |schema_or_ref| {
                 schema = try self.convertSchemaOrReference(schema_or_ref);
+            }
+        } else if (selectJsonSuffixKey31(mut_request_body.content)) |key| {
+            if (mut_request_body.content.get(key)) |media_type| {
+                selected_key = key;
+                if (media_type.schema) |schema_or_ref| {
+                    schema = try self.convertSchemaOrReference(schema_or_ref);
+                }
             }
         } else if (mut_request_body.content.count() > 0) {
             var it = mut_request_body.content.iterator();
             if (it.next()) |entry| {
+                selected_key = entry.key_ptr.*;
                 if (entry.value_ptr.schema) |schema_or_ref| {
                     schema = try self.convertSchemaOrReference(schema_or_ref);
                 }
             }
         }
+        const content_type: ?[]const u8 = if (selected_key) |k|
+            (if (k.len == 0) null else try self.allocator.dupe(u8, k))
+        else
+            null;
         return Parameter{
             .name = "body",
             .location = .body,
@@ -606,7 +620,17 @@ pub const OpenApi31Converter = struct {
             .schema = schema,
             .type = null,
             .format = null,
+            .content_type = content_type,
         };
+    }
+
+    fn selectJsonSuffixKey31(content: std.StringHashMap(@import("../../models/v3.1/media.zig").MediaType)) ?[]const u8 {
+        var it = content.iterator();
+        while (it.next()) |entry| {
+            const key = entry.key_ptr.*;
+            if (std.mem.endsWith(u8, key, "+json")) return key;
+        }
+        return null;
     }
 
     fn convertParameters(self: *OpenApi31Converter, parameters: []const ParameterOrReference31) ![]Parameter {

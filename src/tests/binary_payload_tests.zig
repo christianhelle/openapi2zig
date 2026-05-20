@@ -8,6 +8,8 @@ const UnifiedDocument = document.UnifiedDocument;
 const Operation = document.Operation;
 const models = @import("../models.zig");
 const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
+const OpenApi31Converter = @import("../generators/converters/openapi31_converter.zig").OpenApi31Converter;
+const OpenApi32Converter = @import("../generators/converters/openapi32_converter.zig").OpenApi32Converter;
 
 fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
     const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
@@ -196,4 +198,73 @@ test "v3.0 converter :: vendor +json suffix selected over non-json" {
     const op = findOperation(&unified, "/x", .post) orelse return error.OperationNotFound;
     const body = findBodyParameter(op) orelse return error.BodyNotFound;
     try testing.expectEqualStrings("application/vnd.acme+json", body.content_type.?);
+}
+
+test "v3.1 converter :: octet-stream body captures content_type" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const spec =
+        \\{
+        \\  "openapi": "3.1.0",
+        \\  "info": { "title": "T", "version": "1" },
+        \\  "paths": {
+        \\    "/upload": {
+        \\      "post": {
+        \\        "operationId": "doUpload",
+        \\        "requestBody": {
+        \\          "content": {
+        \\            "application/octet-stream": { "schema": { "type": "string", "format": "binary" } }
+        \\          }
+        \\        },
+        \\        "responses": { "200": { "description": "ok" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+    var parsed = try models.OpenApi31Document.parseFromJson(allocator, spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApi31Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const op = findOperation(&unified, "/upload", .post) orelse return error.OperationNotFound;
+    const body = findBodyParameter(op) orelse return error.BodyNotFound;
+    try testing.expectEqualStrings("application/octet-stream", body.content_type.?);
+}
+
+test "v3.2 converter :: JSON wins over XML" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const spec =
+        \\{
+        \\  "openapi": "3.2.0",
+        \\  "info": { "title": "T", "version": "1" },
+        \\  "paths": {
+        \\    "/x": {
+        \\      "post": {
+        \\        "operationId": "doX",
+        \\        "requestBody": {
+        \\          "content": {
+        \\            "application/xml": { "schema": { "type": "string" } },
+        \\            "application/json": { "schema": { "type": "object" } }
+        \\          }
+        \\        },
+        \\        "responses": { "200": { "description": "ok" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+    var parsed = try models.OpenApi32Document.parseFromJson(allocator, spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApi32Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const op = findOperation(&unified, "/x", .post) orelse return error.OperationNotFound;
+    const body = findBodyParameter(op) orelse return error.BodyNotFound;
+    try testing.expectEqualStrings("application/json", body.content_type.?);
 }
