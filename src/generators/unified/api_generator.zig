@@ -320,7 +320,8 @@ pub const UnifiedApiGenerator = struct {
             \\    const allocator = client.allocator;
             \\    var headers = std.ArrayList(std.http.Header).empty;
             \\    defer headers.deinit(allocator);
-            \\    const auth_header = try appendClientHeaders(allocator, &headers, client, payload != null, "application/json");
+            \\    const content_type: ?[]const u8 = if (payload != null) "application/json" else null;
+            \\    const auth_header = try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
             \\    defer if (auth_header) |value| allocator.free(value);
             \\
             \\    const uri = try std.Uri.parse(url);
@@ -502,7 +503,7 @@ pub const UnifiedApiGenerator = struct {
             \\
             \\    var headers = std.ArrayList(std.http.Header).empty;
             \\    defer headers.deinit(allocator);
-            \\    const auth_header = try appendClientHeaders(allocator, &headers, client, true, "text/event-stream");
+            \\    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/json", "text/event-stream");
             \\    defer if (auth_header) |value| allocator.free(value);
             \\
             \\    const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
@@ -533,9 +534,9 @@ pub const UnifiedApiGenerator = struct {
             \\    };
             \\}
             \\
-            \\fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, include_content_type: bool, accept: []const u8) !?[]u8 {
-            \\    if (include_content_type) {
-            \\        try headers.append(allocator, .{ .name = "Content-Type", .value = "application/json" });
+            \\fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, content_type: ?[]const u8, accept: []const u8) !?[]u8 {
+            \\    if (content_type) |ct| {
+            \\        try headers.append(allocator, .{ .name = "Content-Type", .value = ct });
             \\    }
             \\    try headers.append(allocator, .{ .name = "Accept", .value = accept });
             \\
@@ -1376,7 +1377,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    var headers = std.ArrayList(std.http.Header).empty;\n");
         try self.buffer.appendSlice(self.allocator, "    defer headers.deinit(allocator);\n");
         try self.buffer.appendSlice(self.allocator, "    const auth_header = try appendClientHeaders(allocator, &headers, client, ");
-        try self.buffer.appendSlice(self.allocator, if (has_body_param) "true" else "false");
+        try self.buffer.appendSlice(self.allocator, if (has_body_param) "\"application/json\"" else "null");
         try self.buffer.appendSlice(self.allocator, ", \"application/json\");\n");
         try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n\n");
 
