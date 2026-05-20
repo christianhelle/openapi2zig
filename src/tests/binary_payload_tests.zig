@@ -7,6 +7,7 @@ const ParameterLocation = document.ParameterLocation;
 const UnifiedDocument = document.UnifiedDocument;
 const Operation = document.Operation;
 const models = @import("../models.zig");
+const SwaggerConverter = @import("../generators/converters/swagger_converter.zig").SwaggerConverter;
 const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
 const OpenApi31Converter = @import("../generators/converters/openapi31_converter.zig").OpenApi31Converter;
 const OpenApi32Converter = @import("../generators/converters/openapi32_converter.zig").OpenApi32Converter;
@@ -15,6 +16,12 @@ fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !mod
     const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
     defer allocator.free(file_contents);
     return try models.OpenApiDocument.parseFromJson(allocator, file_contents);
+}
+
+fn loadSwaggerDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.SwaggerDocument {
+    const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
+    defer allocator.free(file_contents);
+    return try models.SwaggerDocument.parseFromJson(allocator, file_contents);
 }
 
 fn parseAndConvertV3(allocator: std.mem.Allocator, json: []const u8) !UnifiedDocument {
@@ -266,5 +273,37 @@ test "v3.2 converter :: JSON wins over XML" {
 
     const op = findOperation(&unified, "/x", .post) orelse return error.OperationNotFound;
     const body = findBodyParameter(op) orelse return error.BodyNotFound;
+    try testing.expectEqualStrings("application/json", body.content_type.?);
+}
+
+test "v2.0 converter :: operation-level consumes octet-stream wins over spec-level json" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var parsed = try loadSwaggerDocument(allocator, "openapi/v2.0/binary-upload.json");
+    defer parsed.deinit(allocator);
+    var converter = SwaggerConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const op = findOperation(&unified, "/upload", .post) orelse return error.OperationNotFound;
+    const body = findBodyParameter(op) orelse return error.BodyNotFound;
+    try testing.expect(body.content_type != null);
+    try testing.expectEqualStrings("application/octet-stream", body.content_type.?);
+}
+
+test "v2.0 converter :: spec-level consumes inherits when operation omits consumes" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var parsed = try loadSwaggerDocument(allocator, "openapi/v2.0/binary-upload.json");
+    defer parsed.deinit(allocator);
+    var converter = SwaggerConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const op = findOperation(&unified, "/echo", .post) orelse return error.OperationNotFound;
+    const body = findBodyParameter(op) orelse return error.BodyNotFound;
+    try testing.expect(body.content_type != null);
     try testing.expectEqualStrings("application/json", body.content_type.?);
 }

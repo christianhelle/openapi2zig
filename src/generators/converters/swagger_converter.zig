@@ -32,6 +32,7 @@ const Paths2 = @import("../../models/v2.0/paths.zig").Paths;
 
 pub const SwaggerConverter = struct {
     allocator: std.mem.Allocator,
+    spec_consumes: ?[]const []const u8 = null,
 
     pub fn init(allocator: std.mem.Allocator) SwaggerConverter {
         return SwaggerConverter{ .allocator = allocator };
@@ -40,6 +41,8 @@ pub const SwaggerConverter = struct {
     pub fn convert(self: *SwaggerConverter, swagger: SwaggerDocument) !UnifiedDocument {
         const version = swagger.swagger; // Reference, don't duplicate
         const info = self.convertInfo(swagger.info);
+        if (swagger.consumes) |c| self.spec_consumes = c;
+        defer self.spec_consumes = null;
         const paths = try self.convertPaths(swagger.paths);
         const servers = try self.createServersFromHostAndBasePath(swagger.host, swagger.basePath, swagger.schemes);
         const security = if (swagger.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -156,7 +159,7 @@ pub const SwaggerConverter = struct {
         var param_iterator = parameters.iterator();
         while (param_iterator.next()) |entry| {
             const key = try self.allocator.dupe(u8, entry.key_ptr.*);
-            const param = try self.convertParameter(entry.value_ptr.*);
+            const param = try self.convertParameter(entry.value_ptr.*, null);
             try converted_params.put(key, param);
         }
         return converted_params;
@@ -247,7 +250,7 @@ pub const SwaggerConverter = struct {
         const options = if (pathItem.options) |op| try self.convertOperation(op) else null;
         const head = if (pathItem.head) |op| try self.convertOperation(op) else null;
         const patch = if (pathItem.patch) |op| try self.convertOperation(op) else null;
-        const parameters = if (pathItem.parameters) |params| try self.convertParameters(params) else null;
+        const parameters = if (pathItem.parameters) |params| try self.convertParameters(params, null) else null;
         return PathItem{
             .get = get,
             .put = put,
@@ -271,7 +274,8 @@ pub const SwaggerConverter = struct {
         const summary = operation.summary; // Reference, don't duplicate
         const description = operation.description; // Reference, don't duplicate
         const operationId = operation.operationId; // Reference, don't duplicate
-        const parameters = if (operation.parameters) |params| try self.convertParameters(params) else null;
+        const op_consumes: ?[]const []const u8 = if (operation.consumes) |c| c else self.spec_consumes;
+        const parameters = if (operation.parameters) |params| try self.convertParameters(params, op_consumes) else null;
         var responses = std.StringHashMap(Response).init(self.allocator);
         var resp_iterator = operation.responses.iterator();
         while (resp_iterator.next()) |entry| {
@@ -292,15 +296,15 @@ pub const SwaggerConverter = struct {
         };
     }
 
-    fn convertParameters(self: *SwaggerConverter, parameters: []Parameter2) ![]Parameter {
+    fn convertParameters(self: *SwaggerConverter, parameters: []Parameter2, consumes: ?[]const []const u8) ![]Parameter {
         var converted_params = try self.allocator.alloc(Parameter, parameters.len);
         for (parameters, 0..) |param, i| {
-            converted_params[i] = try self.convertParameter(param);
+            converted_params[i] = try self.convertParameter(param, consumes);
         }
         return converted_params;
     }
 
-    fn convertParameter(self: *SwaggerConverter, parameter: Parameter2) !Parameter {
+    fn convertParameter(self: *SwaggerConverter, parameter: Parameter2, consumes: ?[]const []const u8) !Parameter {
         const name = parameter.name; // Reference, don't duplicate
         const location = self.convertParameterLocation(parameter.in);
         const description = parameter.description; // Reference, don't duplicate
@@ -311,6 +315,16 @@ pub const SwaggerConverter = struct {
         } else null;
         const param_type = if (parameter.type) |type_val| self.convertParameterType(type_val) else null;
         const format = parameter.format; // Reference, don't duplicate
+        var content_type: ?[]const u8 = null;
+        if (location == .body) {
+            if (consumes) |list| {
+                if (selectConsumesMedia(list)) |selected| {
+                    if (selected.len > 0) {
+                        content_type = try self.allocator.dupe(u8, selected);
+                    }
+                }
+            }
+        }
         return Parameter{
             .name = name,
             .location = location,
@@ -319,7 +333,19 @@ pub const SwaggerConverter = struct {
             .schema = schema,
             .type = param_type,
             .format = format,
+            .content_type = content_type,
         };
+    }
+
+    fn selectConsumesMedia(list: []const []const u8) ?[]const u8 {
+        if (list.len == 0) return null;
+        for (list) |m| {
+            if (std.mem.eql(u8, m, "application/json")) return m;
+        }
+        for (list) |m| {
+            if (std.mem.endsWith(u8, m, "+json")) return m;
+        }
+        return list[0];
     }
 
     fn convertParameterLocation(self: *SwaggerConverter, location: ParameterLocation2) ParameterLocation {
