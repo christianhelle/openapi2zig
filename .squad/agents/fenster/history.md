@@ -145,3 +145,7 @@
 
 - Scribe recorded the YAML smoke release as shipped from commits `ac9ed97`, `e6f07ee`, and `55c260e`, preserving the two-layer split between the broad PowerShell sweep and the curated generated harness.
 - The shared decision log now carries the collision-safe `__<format>__` smoke filename rule and the explicit wildcard denylist policy for deterministic pre-wrapper YAML parse failures.
+
+### 2026-05-20T15:40:56Z — Binary request-body support (issue #53) — 8 atomic commits
+
+- Implemented all converters + API generator changes for binary request-body support: added `Parameter.content_type` field, updated v2.0/v3.0/v3.1/v3.2 converters to capture media-type strings, introduced `BodyKind` classifier, parameterized `appendClientHeaders` for dynamic Content-Type, and emitted `[]const u8` for binary/text bodies. All 8 commits approved by Lando on `support-binary-payloads-opus` branch. Validation: `zig build test` ✓, `zig build run-generate` ✓, generated `uploadFile` now emits `requestBody: []const u8` + `Content-Type: application/octet-stream`. JSON paths byte-identical.
