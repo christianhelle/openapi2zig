@@ -9,6 +9,35 @@ fn isIdentStart(c: u8) bool {
     return std.ascii.isAlphabetic(c) or c == '_';
 }
 
+const BodyKind = enum { none, json, binary, text, form };
+
+fn startsWithIgnoreCase(haystack: []const u8, prefix: []const u8) bool {
+    if (haystack.len < prefix.len) return false;
+    return std.ascii.eqlIgnoreCase(haystack[0..prefix.len], prefix);
+}
+
+fn endsWithIgnoreCase(haystack: []const u8, suffix: []const u8) bool {
+    if (haystack.len < suffix.len) return false;
+    return std.ascii.eqlIgnoreCase(haystack[haystack.len - suffix.len ..], suffix);
+}
+
+fn classifyBody(content_type: ?[]const u8) BodyKind {
+    const ct = content_type orelse return .json;
+    if (ct.len == 0) return .json;
+    if (std.ascii.eqlIgnoreCase(ct, "application/json")) return .json;
+    if (endsWithIgnoreCase(ct, "+json")) return .json;
+    if (std.ascii.eqlIgnoreCase(ct, "application/x-www-form-urlencoded")) return .form;
+    if (startsWithIgnoreCase(ct, "multipart/")) return .form;
+    if (startsWithIgnoreCase(ct, "text/")) return .text;
+    if (std.ascii.eqlIgnoreCase(ct, "application/octet-stream")) return .binary;
+    if (startsWithIgnoreCase(ct, "image/")) return .binary;
+    if (startsWithIgnoreCase(ct, "audio/")) return .binary;
+    if (startsWithIgnoreCase(ct, "video/")) return .binary;
+    if (std.ascii.eqlIgnoreCase(ct, "*/*")) return .binary;
+    if (startsWithIgnoreCase(ct, "application/")) return .binary;
+    return .binary;
+}
+
 fn isIdentContinue(c: u8) bool {
     return std.ascii.isAlphanumeric(c) or c == '_';
 }
@@ -1565,3 +1594,22 @@ pub const UnifiedApiGenerator = struct {
         });
     }
 };
+
+test "BodyKind :: classifyBody routes media types correctly" {
+    const t = std.testing;
+    try t.expectEqual(BodyKind.json, classifyBody(null));
+    try t.expectEqual(BodyKind.json, classifyBody(""));
+    try t.expectEqual(BodyKind.json, classifyBody("application/json"));
+    try t.expectEqual(BodyKind.json, classifyBody("application/vnd.api+json"));
+    try t.expectEqual(BodyKind.binary, classifyBody("application/octet-stream"));
+    try t.expectEqual(BodyKind.binary, classifyBody("image/png"));
+    try t.expectEqual(BodyKind.binary, classifyBody("audio/mpeg"));
+    try t.expectEqual(BodyKind.binary, classifyBody("video/mp4"));
+    try t.expectEqual(BodyKind.binary, classifyBody("*/*"));
+    try t.expectEqual(BodyKind.binary, classifyBody("application/xml"));
+    try t.expectEqual(BodyKind.binary, classifyBody("application/pdf"));
+    try t.expectEqual(BodyKind.text, classifyBody("text/plain"));
+    try t.expectEqual(BodyKind.text, classifyBody("text/csv"));
+    try t.expectEqual(BodyKind.form, classifyBody("application/x-www-form-urlencoded"));
+    try t.expectEqual(BodyKind.form, classifyBody("multipart/form-data"));
+}
