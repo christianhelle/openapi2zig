@@ -410,6 +410,12 @@ Generated files are self-contained Zig source files. The current unified generat
 
 Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`; see [`docs/json-value-typing-policy.md`](docs/json-value-typing-policy.md) for the current policy. For OpenAPI 3.1, the converter has stronger composite-schema handling for object/ref `allOf`, preserved `oneOf`/`anyOf` metadata, and nullable type arrays; do not assume every converter has identical composite support.
 
+### Request body content types
+
+The generator inspects each operation's request body (or Swagger 2.0 `consumes`) and picks the first JSON-flavoured media type when one is available. Bodies classified as binary (`application/octet-stream`, `image/*`, `audio/*`, `video/*`, `*/*`, other `application/*`) or text (`text/*`) generate a `requestBody: []const u8` parameter that is passed straight to `std.http.Client.fetch` with the matching `Content-Type` header — no JSON encoding is applied.
+
+**Known limitations:** `multipart/form-data` and `application/x-www-form-urlencoded` request bodies are not yet supported. Operations declaring those media types currently fall back to JSON encoding and emit a `TODO(#53-followup)` comment in the generated source; full multipart support is tracked as follow-up work.
+
 ## Example Generated Code
 
 The snippets below reflect the current output from `zig build run-generate-v3`.
