@@ -495,13 +495,30 @@ pub fn uploadFileRaw(client: *Client, petId: i64, additionalMetadata: ?[]const u
     if (additionalMetadata) |value| {
         try appendQueryParam(&uri_buf.writer, &first_query, "additionalMetadata", value);
     }
+    const payload: ?[]const u8 = requestBody;
 
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);
-    const payload: ?[]const u8 = str.written();
+    var headers = std.ArrayList(std.http.Header).empty;
+    defer headers.deinit(allocator);
+    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/octet-stream", "application/json");
+    defer if (auth_header) |value| allocator.free(value);
 
-    return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
+    const uri = try std.Uri.parse(uri_buf.written());
+    var response_body: std.Io.Writer.Allocating = .init(allocator);
+    defer response_body.deinit();
+
+    const result = try client.http.fetch(.{
+        .location = .{ .uri = uri },
+        .method = std.http.Method.POST,
+        .extra_headers = headers.items,
+        .payload = payload,
+        .response_writer = &response_body.writer,
+    });
+
+    return .{
+        .allocator = allocator,
+        .status = result.status,
+        .body = try response_body.toOwnedSlice(),
+    };
 }
 
 pub fn uploadFileResult(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(ApiResponse) {

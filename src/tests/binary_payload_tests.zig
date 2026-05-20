@@ -307,3 +307,31 @@ test "v2.0 converter :: spec-level consumes inherits when operation omits consum
     try testing.expect(body.content_type != null);
     try testing.expectEqualStrings("application/json", body.content_type.?);
 }
+
+test "generated v3.0 :: uploadFile takes []const u8 requestBody and emits octet-stream Content-Type" {
+    const allocator = testing.allocator;
+    const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, "generated/generated_v3.zig", allocator, .unlimited);
+    defer allocator.free(file_contents);
+
+    try testing.expect(std.mem.indexOf(u8, file_contents, "pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8)") != null);
+    try testing.expect(std.mem.indexOf(u8, file_contents, "pub fn uploadFileRaw(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8)") != null);
+    // The uploadFileRaw block must NOT JSON-stringify the body.
+    const upload_idx = std.mem.indexOf(u8, file_contents, "pub fn uploadFileRaw").?;
+    const upload_end = std.mem.indexOfPos(u8, file_contents, upload_idx, "pub fn uploadFileResult").?;
+    const upload_block = file_contents[upload_idx..upload_end];
+    try testing.expect(std.mem.indexOf(u8, upload_block, "std.json.Stringify.value(requestBody") == null);
+    try testing.expect(std.mem.indexOf(u8, upload_block, "const payload: ?[]const u8 = requestBody;") != null);
+    try testing.expect(std.mem.indexOf(u8, upload_block, "\"application/octet-stream\", \"application/json\"") != null);
+}
+
+test "generated v3.0 :: addPet still uses JSON encoding for application/json body" {
+    const allocator = testing.allocator;
+    const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, "generated/generated_v3.zig", allocator, .unlimited);
+    defer allocator.free(file_contents);
+
+    const idx = std.mem.indexOf(u8, file_contents, "pub fn addPetRaw").?;
+    const end = std.mem.indexOfPos(u8, file_contents, idx, "pub fn addPetResult").?;
+    const block = file_contents[idx..end];
+    try testing.expect(std.mem.indexOf(u8, block, "std.json.Stringify.value(requestBody") != null);
+    try testing.expect(std.mem.indexOf(u8, block, "requestBody: Pet") != null);
+}

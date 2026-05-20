@@ -4,6 +4,7 @@ const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocum
 const Operation = @import("../../models/common/document.zig").Operation;
 const Schema = @import("../../models/common/document.zig").Schema;
 const SchemaType = @import("../../models/common/document.zig").SchemaType;
+const Parameter = @import("../../models/common/document.zig").Parameter;
 
 fn isIdentStart(c: u8) bool {
     return std.ascii.isAlphabetic(c) or c == '_';
@@ -36,6 +37,20 @@ fn classifyBody(content_type: ?[]const u8) BodyKind {
     if (std.ascii.eqlIgnoreCase(ct, "*/*")) return .binary;
     if (startsWithIgnoreCase(ct, "application/")) return .binary;
     return .binary;
+}
+
+fn findBodyParam(operation: Operation) ?Parameter {
+    if (operation.parameters) |params| {
+        for (params) |p| {
+            if (p.location == .body) return p;
+        }
+    }
+    return null;
+}
+
+fn bodyKindFor(operation: Operation) BodyKind {
+    const param = findBodyParam(operation) orelse return .none;
+    return classifyBody(param.content_type);
 }
 
 fn isIdentContinue(c: u8) bool {
@@ -629,6 +644,8 @@ pub const UnifiedApiGenerator = struct {
         const raw_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id});
         defer self.allocator.free(raw_name);
 
+        const kind = bodyKindFor(operation);
+
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.appendIdentifier(raw_name);
         try self.buffer.appendSlice(self.allocator, "(client: *Client");
@@ -638,18 +655,67 @@ pub const UnifiedApiGenerator = struct {
         try self.appendUnusedParameters(operation);
         try self.appendUrlConstruction(path, operation);
 
-        if (self.hasBodyParameter(operation)) {
-            try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
-            try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n");
-            try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
-            try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = str.written();\n");
-        } else {
-            try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = null;\n");
+        switch (kind) {
+            .json => {
+                try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
+                try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n");
+                try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
+                try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = str.written();\n");
+                try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
+                try self.buffer.appendSlice(self.allocator, method);
+                try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload);\n");
+                try self.buffer.appendSlice(self.allocator, "}\n\n");
+                return;
+            },
+            .form => {
+                try self.buffer.appendSlice(self.allocator, "    // TODO(#53-followup): multipart/form-data and x-www-form-urlencoded request bodies are not yet supported; falling back to JSON encoding.\n");
+                try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
+                try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n");
+                try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
+                try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = str.written();\n");
+                try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
+                try self.buffer.appendSlice(self.allocator, method);
+                try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload);\n");
+                try self.buffer.appendSlice(self.allocator, "}\n\n");
+                return;
+            },
+            .none => {
+                try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = null;\n");
+                try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
+                try self.buffer.appendSlice(self.allocator, method);
+                try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload);\n");
+                try self.buffer.appendSlice(self.allocator, "}\n\n");
+                return;
+            },
+            .binary, .text => {},
         }
 
-        try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
+        const body_param = findBodyParam(operation) orelse unreachable;
+        const ct = body_param.content_type orelse "application/octet-stream";
+        try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = requestBody;\n");
+        try self.buffer.appendSlice(self.allocator, "\n    var headers = std.ArrayList(std.http.Header).empty;\n");
+        try self.buffer.appendSlice(self.allocator, "    defer headers.deinit(allocator);\n");
+        try self.buffer.appendSlice(self.allocator, "    const auth_header = try appendClientHeaders(allocator, &headers, client, \"");
+        try self.buffer.appendSlice(self.allocator, ct);
+        try self.buffer.appendSlice(self.allocator, "\", \"application/json\");\n");
+        try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n");
+        try self.buffer.appendSlice(self.allocator, "\n    const uri = try std.Uri.parse(uri_buf.written());\n");
+        try self.buffer.appendSlice(self.allocator, "    var response_body: std.Io.Writer.Allocating = .init(allocator);\n");
+        try self.buffer.appendSlice(self.allocator, "    defer response_body.deinit();\n");
+        try self.buffer.appendSlice(self.allocator, "\n    const result = try client.http.fetch(.{\n");
+        try self.buffer.appendSlice(self.allocator, "        .location = .{ .uri = uri },\n");
+        try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
         try self.buffer.appendSlice(self.allocator, method);
-        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload);\n");
+        try self.buffer.appendSlice(self.allocator, ",\n");
+        try self.buffer.appendSlice(self.allocator, "        .extra_headers = headers.items,\n");
+        try self.buffer.appendSlice(self.allocator, "        .payload = payload,\n");
+        try self.buffer.appendSlice(self.allocator, "        .response_writer = &response_body.writer,\n");
+        try self.buffer.appendSlice(self.allocator, "    });\n");
+        try self.buffer.appendSlice(self.allocator, "\n    return .{\n");
+        try self.buffer.appendSlice(self.allocator, "        .allocator = allocator,\n");
+        try self.buffer.appendSlice(self.allocator, "        .status = result.status,\n");
+        try self.buffer.appendSlice(self.allocator, "        .body = try response_body.toOwnedSlice(),\n");
+        try self.buffer.appendSlice(self.allocator, "    };\n");
         try self.buffer.appendSlice(self.allocator, "}\n\n");
     }
 
@@ -673,7 +739,10 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendIdentifier(name);
                 try self.buffer.appendSlice(self.allocator, ": ");
                 if (param.location == .body) {
-                    if (param.schema) |schema| {
+                    const kind = classifyBody(param.content_type);
+                    if (kind == .binary or kind == .text) {
+                        try self.buffer.appendSlice(self.allocator, "[]const u8");
+                    } else if (param.schema) |schema| {
                         try self.appendZigTypeFromSchema(schema);
                     } else {
                         try self.buffer.appendSlice(self.allocator, "std.json.Value");
@@ -1066,7 +1135,10 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendParameterName(name, forbidden_names);
                 try self.buffer.appendSlice(self.allocator, ": ");
                 if (param.location == .body) {
-                    if (param.schema) |schema| {
+                    const kind = classifyBody(param.content_type);
+                    if (kind == .binary or kind == .text) {
+                        try self.buffer.appendSlice(self.allocator, "[]const u8");
+                    } else if (param.schema) |schema| {
                         try self.appendZigTypeFromSchema(schema);
                     } else {
                         try self.buffer.appendSlice(self.allocator, "std.json.Value");
@@ -1289,7 +1361,10 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendIdentifier(name);
                 try self.buffer.appendSlice(self.allocator, ": ");
                 if (param.location == .body) {
-                    if (param.schema) |schema| {
+                    const kind = classifyBody(param.content_type);
+                    if (kind == .binary or kind == .text) {
+                        try self.buffer.appendSlice(self.allocator, "[]const u8");
+                    } else if (param.schema) |schema| {
                         try self.appendZigTypeFromSchema(schema);
                     } else {
                         try self.buffer.appendSlice(self.allocator, "std.json.Value");
@@ -1363,6 +1438,9 @@ pub const UnifiedApiGenerator = struct {
                 }
             }
         }
+        const direct_kind = bodyKindFor(operation);
+        const direct_body_param = findBodyParam(operation);
+        const direct_ct: []const u8 = if (direct_body_param) |p| (p.content_type orelse "application/json") else "application/json";
 
         if (operation.parameters) |parameters| {
             for (parameters) |parameter| {
@@ -1377,7 +1455,13 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    var headers = std.ArrayList(std.http.Header).empty;\n");
         try self.buffer.appendSlice(self.allocator, "    defer headers.deinit(allocator);\n");
         try self.buffer.appendSlice(self.allocator, "    const auth_header = try appendClientHeaders(allocator, &headers, client, ");
-        try self.buffer.appendSlice(self.allocator, if (has_body_param) "\"application/json\"" else "null");
+        if (has_body_param) {
+            try self.buffer.appendSlice(self.allocator, "\"");
+            try self.buffer.appendSlice(self.allocator, direct_ct);
+            try self.buffer.appendSlice(self.allocator, "\"");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "null");
+        }
         try self.buffer.appendSlice(self.allocator, ", \"application/json\");\n");
         try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n\n");
 
@@ -1459,10 +1543,24 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    const uri = try std.Uri.parse(uri_buf.written());\n");
 
         if (has_body_param) {
-            try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
-            try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n\n");
-            try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
-            try self.buffer.appendSlice(self.allocator, "    const payload = str.written();\n");
+            switch (direct_kind) {
+                .binary, .text => {
+                    try self.buffer.appendSlice(self.allocator, "\n    const payload: []const u8 = requestBody;\n");
+                },
+                .form => {
+                    try self.buffer.appendSlice(self.allocator, "    // TODO(#53-followup): multipart/form-data and x-www-form-urlencoded request bodies are not yet supported; falling back to JSON encoding.\n");
+                    try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
+                    try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n\n");
+                    try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
+                    try self.buffer.appendSlice(self.allocator, "    const payload = str.written();\n");
+                },
+                else => {
+                    try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
+                    try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n\n");
+                    try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
+                    try self.buffer.appendSlice(self.allocator, "    const payload = str.written();\n");
+                },
+            }
         }
 
         const has_return_value = self.hasReturnValue(method, operation);
