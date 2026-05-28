@@ -2,6 +2,7 @@ const ModelCodeGenerator = @import("../generators/v3.0/modelgenerator.zig").Mode
 const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
 const models = @import("../models.zig");
 const std = @import("std");
+const json = std.json;
 const test_utils = @import("test_utils.zig");
 
 fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
@@ -25,6 +26,22 @@ test "can deserialize petstore into OpenApiDocument" {
     defer parsed.deinit(allocator);
     try std.testing.expectEqualStrings("3.0.2", parsed.openapi);
     try std.testing.expectEqualStrings("Swagger Petstore", parsed.info.title);
+}
+
+test "schema numeric bounds accept integer and number_string values" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    var object = json.ObjectMap.init(allocator);
+    defer object.deinit();
+    try object.put("type", .{ .string = "number" });
+    try object.put("multipleOf", .{ .integer = 2 });
+    try object.put("maximum", .{ .integer = 10 });
+    try object.put("minimum", .{ .number_string = "1.5" });
+    var schema = try models.v3.Schema.parseFromJson(allocator, .{ .object = object });
+    defer schema.deinit(allocator);
+    try std.testing.expectEqual(@as(f64, 2.0), schema.multipleOf.?);
+    try std.testing.expectEqual(@as(f64, 10.0), schema.maximum.?);
+    try std.testing.expectEqual(@as(f64, 1.5), schema.minimum.?);
 }
 
 test "can generate data structures from petstore OpenAPI specification" {
