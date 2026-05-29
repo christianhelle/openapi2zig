@@ -25,7 +25,7 @@ fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     try std.testing.expect(unified.version.len > 0);
     try std.testing.expect(unified.info.title.len > 0);
     try std.testing.expect(std.mem.startsWith(u8, unified.version, "3."));
-    std.debug.print("OpenAPI v3.0 -> UnifiedDocument: {s} ({s})\n", .{ unified.info.title, unified.version });
+    std.log.info("OpenAPI v3.0 -> UnifiedDocument: {s} ({s})\n", .{ unified.info.title, unified.version });
 }
 
 fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_path: []const u8) !void {
@@ -37,7 +37,7 @@ fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     try std.testing.expect(unified.version.len > 0);
     try std.testing.expect(unified.info.title.len > 0);
     try std.testing.expectEqualStrings("2.0", unified.version);
-    std.debug.print("Swagger v2.0 -> UnifiedDocument: {s} ({s})\n", .{ unified.info.title, unified.version });
+    std.log.info("Swagger v2.0 -> UnifiedDocument: {s} ({s})\n", .{ unified.info.title, unified.version });
 }
 
 test "convert all OpenAPI v3.0 JSON specifications to UnifiedDocument" {
@@ -58,12 +58,12 @@ test "convert all OpenAPI v3.0 JSON specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testOpenApiToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert OpenAPI v3.0 {s}: {}\n", .{ file_path, err });
+            std.log.info("Failed to convert OpenAPI v3.0 {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;
     }
-    std.debug.print("Successfully converted {d}/{d} OpenAPI v3.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
+    std.log.info("Successfully converted {d}/{d} OpenAPI v3.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
     try std.testing.expect(successful_conversions == json_files.len);
 }
 
@@ -82,12 +82,12 @@ test "convert all Swagger v2.0 JSON specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testSwaggerToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert Swagger v2.0 {s}: {}\n", .{ file_path, err });
+            std.log.info("Failed to convert Swagger v2.0 {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;
     }
-    std.debug.print("Successfully converted {d}/{d} Swagger v2.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
+    std.log.info("Successfully converted {d}/{d} Swagger v2.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
     try std.testing.expect(successful_conversions == json_files.len);
 }
 
@@ -110,5 +110,5 @@ test "unified conversion compatibility between Swagger v2.0 and OpenAPI v3.0" {
     try std.testing.expectEqualStrings("3.0.2", openapi_unified.version);
     try std.testing.expect(swagger_unified.paths.count() > 0);
     try std.testing.expect(openapi_unified.paths.count() > 0);
-    std.debug.print("Unified conversion test passed: Swagger v2.0 ({d} paths) and OpenAPI v3.0 ({d} paths) both converted successfully\n", .{ swagger_unified.paths.count(), openapi_unified.paths.count() });
+    std.log.info("Unified conversion test passed: Swagger v2.0 ({d} paths) and OpenAPI v3.0 ({d} paths) both converted successfully\n", .{ swagger_unified.paths.count(), openapi_unified.paths.count() });
 }

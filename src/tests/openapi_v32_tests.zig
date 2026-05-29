@@ -14,7 +14,7 @@ fn testOpenApi32DocumentParsing(allocator: std.mem.Allocator, file_path: []const
     defer parsed.deinit(allocator);
     try std.testing.expect(parsed.openapi.len > 0);
     try std.testing.expect(parsed.info.title.len > 0);
-    std.debug.print("Successfully parsed OpenAPI 3.2 document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.openapi });
+    std.log.info("Successfully parsed OpenAPI 3.2 document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.openapi });
 }
 
 test "can deserialize petstore into OpenApi32Document" {
@@ -156,12 +156,12 @@ test "can parse all v3.2 JSON OpenAPI specifications" {
     var successful_parses: u32 = 0;
     for (json_files) |file_path| {
         testOpenApi32DocumentParsing(allocator, file_path) catch |err| {
-            std.debug.print("Failed to parse {s}: {}\n", .{ file_path, err });
+            std.log.info("Failed to parse {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_parses += 1;
     }
-    std.debug.print("Successfully parsed {d}/{d} JSON OpenAPI 3.2 specifications\n", .{ successful_parses, json_files.len });
+    std.log.info("Successfully parsed {d}/{d} JSON OpenAPI 3.2 specifications\n", .{ successful_parses, json_files.len });
     try std.testing.expect(successful_parses == json_files.len);
 }
 
@@ -174,7 +174,7 @@ fn testOpenApi32ToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_p
     try std.testing.expect(unified.version.len > 0);
     try std.testing.expect(unified.info.title.len > 0);
     try std.testing.expect(std.mem.startsWith(u8, unified.version, "3.2"));
-    std.debug.print("Successfully converted OpenAPI 3.2 document from {s}: {s} (version: {s})\n", .{ file_path, unified.info.title, unified.version });
+    std.log.info("Successfully converted OpenAPI 3.2 document from {s}: {s} (version: {s})\n", .{ file_path, unified.info.title, unified.version });
 }
 
 test "can convert petstore.json to UnifiedDocument" {
@@ -290,12 +290,12 @@ test "can convert all v3.2 JSON OpenAPI specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testOpenApi32ToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert {s}: {}\n", .{ file_path, err });
+            std.log.info("Failed to convert {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;
     }
-    std.debug.print("Successfully converted {d}/{d} JSON OpenAPI v3.2 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
+    std.log.info("Successfully converted {d}/{d} JSON OpenAPI v3.2 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
     try std.testing.expect(successful_conversions == json_files.len);
 }
 
@@ -314,12 +314,12 @@ test "dynamically convert all OpenAPI v3.2 JSON files to UnifiedDocument" {
         var path_buffer: [256]u8 = undefined;
         const full_path = try std.fmt.bufPrint(path_buffer[0..], "openapi/v3.2/{s}", .{entry.name});
         testOpenApi32ToUnifiedDocumentConversion(allocator, full_path) catch |err| {
-            std.debug.print("✗ Failed to convert OpenAPI v3.2 {s}: {}\n", .{ full_path, err });
+            std.log.info("✗ Failed to convert OpenAPI v3.2 {s}: {}\n", .{ full_path, err });
             continue;
         };
         successful_conversions += 1;
     }
-    std.debug.print("Dynamic OpenAPI v3.2 test: {d}/{d} files converted successfully\n", .{ successful_conversions, total_files });
+    std.log.info("Dynamic OpenAPI v3.2 test: {d}/{d} files converted successfully\n", .{ successful_conversions, total_files });
     try std.testing.expect(successful_conversions == total_files);
     try std.testing.expect(total_files > 0);
 }
@@ -338,8 +338,8 @@ test "memory leak stress test for v3.2 converter" {
             try std.testing.expect(unified.info.title.len > 0);
         }
         if ((i + 1) % 10 == 0) {
-            std.debug.print("Completed {d}/{d} v3.2 stress test iterations\n", .{ i + 1, iterations });
+            std.log.info("Completed {d}/{d} v3.2 stress test iterations\n", .{ i + 1, iterations });
         }
     }
-    std.debug.print("✓ v3.2 memory leak stress test passed: {d} iterations completed successfully\n", .{iterations});
+    std.log.info("✓ v3.2 memory leak stress test passed: {d} iterations completed successfully\n", .{iterations});
 }

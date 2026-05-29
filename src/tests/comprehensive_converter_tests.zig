@@ -31,7 +31,7 @@ fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
             try std.testing.expect(entry.key_ptr.*.len > 0);
         }
     }
-    std.debug.print("✓ OpenAPI v3.0 -> UnifiedDocument: {s} ({s}) - {d} paths\n", .{ unified.info.title, unified.version, unified.paths.count() });
+    std.log.info("✓ OpenAPI v3.0 -> UnifiedDocument: {s} ({s}) - {d} paths\n", .{ unified.info.title, unified.version, unified.paths.count() });
 }
 
 fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_path: []const u8) !void {
@@ -49,7 +49,7 @@ fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
             try std.testing.expect(entry.key_ptr.*.len > 0);
         }
     }
-    std.debug.print("✓ Swagger v2.0 -> UnifiedDocument: {s} ({s}) - {d} paths\n", .{ unified.info.title, unified.version, unified.paths.count() });
+    std.log.info("✓ Swagger v2.0 -> UnifiedDocument: {s} ({s}) - {d} paths\n", .{ unified.info.title, unified.version, unified.paths.count() });
 }
 
 test "dynamically convert all OpenAPI v3.0 JSON files to UnifiedDocument" {
@@ -67,12 +67,12 @@ test "dynamically convert all OpenAPI v3.0 JSON files to UnifiedDocument" {
         var path_buffer: [256]u8 = undefined;
         const full_path = try std.fmt.bufPrint(path_buffer[0..], "openapi/v3.0/{s}", .{entry.name});
         testOpenApiToUnifiedDocumentConversion(allocator, full_path) catch |err| {
-            std.debug.print("✗ Failed to convert OpenAPI v3.0 {s}: {}\n", .{ full_path, err });
+            std.log.info("✗ Failed to convert OpenAPI v3.0 {s}: {}\n", .{ full_path, err });
             continue;
         };
         successful_conversions += 1;
     }
-    std.debug.print("Dynamic OpenAPI v3.0 test: {d}/{d} files converted successfully\n", .{ successful_conversions, total_files });
+    std.log.info("Dynamic OpenAPI v3.0 test: {d}/{d} files converted successfully\n", .{ successful_conversions, total_files });
     try std.testing.expect(successful_conversions == total_files);
     try std.testing.expect(total_files > 0);
 }
@@ -92,12 +92,12 @@ test "dynamically convert all Swagger v2.0 JSON files to UnifiedDocument" {
         var path_buffer: [256]u8 = undefined;
         const full_path = try std.fmt.bufPrint(path_buffer[0..], "openapi/v2.0/{s}", .{entry.name});
         testSwaggerToUnifiedDocumentConversion(allocator, full_path) catch |err| {
-            std.debug.print("✗ Failed to convert Swagger v2.0 {s}: {}\n", .{ full_path, err });
+            std.log.info("✗ Failed to convert Swagger v2.0 {s}: {}\n", .{ full_path, err });
             continue;
         };
         successful_conversions += 1;
     }
-    std.debug.print("Dynamic Swagger v2.0 test: {d}/{d} files converted successfully\n", .{ successful_conversions, total_files });
+    std.log.info("Dynamic Swagger v2.0 test: {d}/{d} files converted successfully\n", .{ successful_conversions, total_files });
     try std.testing.expect(successful_conversions == total_files);
     try std.testing.expect(total_files > 0);
 }
@@ -124,8 +124,8 @@ test "memory leak stress test for converters" {
             try std.testing.expect(unified.info.title.len > 0);
         }
         if ((i + 1) % 10 == 0) {
-            std.debug.print("Completed {d}/{d} stress test iterations\n", .{ i + 1, iterations });
+            std.log.info("Completed {d}/{d} stress test iterations\n", .{ i + 1, iterations });
         }
     }
-    std.debug.print("✓ Memory leak stress test passed: {d} iterations completed successfully\n", .{iterations});
+    std.log.info("✓ Memory leak stress test passed: {d} iterations completed successfully\n", .{iterations});
 }

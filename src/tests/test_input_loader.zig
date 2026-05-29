@@ -45,7 +45,7 @@ test "loadFromFile loads OpenAPI v3.0 petstore spec" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -63,7 +63,7 @@ test "loadFromFile loads Swagger v2.0 petstore spec" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -81,7 +81,7 @@ test "loadFromFile returns error for non-existent file" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -99,7 +99,7 @@ test "loadInput with file_path source loads v3.0 spec" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -117,7 +117,7 @@ test "loadInput with file_path source loads v2.0 spec" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -139,7 +139,7 @@ test "loadFromUrl returns InvalidUrl for invalid URL syntax" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -153,7 +153,7 @@ test "loadFromUrl returns InvalidUrl for unsupported scheme" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -174,7 +174,7 @@ test "loadFromUrl returns ConnectionFailed for unreachable host" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -232,25 +232,25 @@ fn testFullPipelineFromFile(allocator: std.mem.Allocator, file_path: []const u8,
             var swagger = try models.SwaggerDocument.parseFromJson(allocator, contents);
             defer swagger.deinit(allocator);
             try std.testing.expect(swagger.info.title.len > 0);
-            std.debug.print("✓ Full pipeline (file): {s} - Swagger v2.0\n", .{swagger.info.title});
+            std.log.info("✓ Full pipeline (file): {s} - Swagger v2.0\n", .{swagger.info.title});
         },
         .v3_0 => {
             var openapi = try models.OpenApiDocument.parseFromJson(allocator, contents);
             defer openapi.deinit(allocator);
             try std.testing.expect(openapi.info.title.len > 0);
-            std.debug.print("✓ Full pipeline (file): {s} - OpenAPI v3.0\n", .{openapi.info.title});
+            std.log.info("✓ Full pipeline (file): {s} - OpenAPI v3.0\n", .{openapi.info.title});
         },
         .v3_1 => {
             var openapi31 = try models.OpenApi31Document.parseFromJson(allocator, contents);
             defer openapi31.deinit(allocator);
             try std.testing.expect(openapi31.info.title.len > 0);
-            std.debug.print("✓ Full pipeline (file): {s} - OpenAPI v3.1\n", .{openapi31.info.title});
+            std.log.info("✓ Full pipeline (file): {s} - OpenAPI v3.1\n", .{openapi31.info.title});
         },
         .v3_2 => {
             var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, contents);
             defer openapi32.deinit(allocator);
             try std.testing.expect(openapi32.info.title.len > 0);
-            std.debug.print("✓ Full pipeline (file): {s} - OpenAPI v3.2\n", .{openapi32.info.title});
+            std.log.info("✓ Full pipeline (file): {s} - OpenAPI v3.2\n", .{openapi32.info.title});
         },
         .Unsupported => return error.UnsupportedVersion,
     }
@@ -262,7 +262,7 @@ test "full pipeline: file load -> parse -> validate (v3.0 petstore)" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -275,7 +275,7 @@ test "full pipeline: file load -> parse -> validate (v2.0 petstore)" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -288,7 +288,7 @@ test "full pipeline: file load -> parse -> validate (v3.0 api-with-examples)" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -301,7 +301,7 @@ test "full pipeline: file load -> parse -> validate (v2.0 api-with-examples)" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in test!\n", .{});
+            @panic("Memory leak detected in test!");
         }
     }
 
@@ -338,28 +338,28 @@ fn testFullPipelineFromUrl(allocator: std.mem.Allocator, url: []const u8, expect
             var swagger = try models.SwaggerDocument.parseFromJson(allocator, contents);
             defer swagger.deinit(allocator);
             try std.testing.expect(swagger.info.title.len > 0);
-            std.debug.print("✓ Full pipeline (URL): {s} - Swagger v2.0 from {s}\n", .{ swagger.info.title, url });
+            std.log.info("✓ Full pipeline (URL): {s} - Swagger v2.0 from {s}\n", .{ swagger.info.title, url });
         },
         .v3_0 => {
             var openapi = try models.OpenApiDocument.parseFromJson(allocator, contents);
             defer openapi.deinit(allocator);
             try std.testing.expect(openapi.info.title.len > 0);
-            std.debug.print("✓ Full pipeline (URL): {s} - OpenAPI v3.0 from {s}\n", .{ openapi.info.title, url });
+            std.log.info("✓ Full pipeline (URL): {s} - OpenAPI v3.0 from {s}\n", .{ openapi.info.title, url });
         },
         .v3_1 => {
             var openapi31 = try models.OpenApi31Document.parseFromJson(allocator, contents);
             defer openapi31.deinit(allocator);
             try std.testing.expect(openapi31.info.title.len > 0);
-            std.debug.print("✓ Full pipeline (URL): {s} - OpenAPI v3.1 from {s}\n", .{ openapi31.info.title, url });
+            std.log.info("✓ Full pipeline (URL): {s} - OpenAPI v3.1 from {s}\n", .{ openapi31.info.title, url });
         },
         .v3_2 => {
             var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, contents);
             defer openapi32.deinit(allocator);
             try std.testing.expect(openapi32.info.title.len > 0);
-            std.debug.print("✓ Full pipeline (URL): {s} - OpenAPI v3.2 from {s}\n", .{ openapi32.info.title, url });
+            std.log.info("✓ Full pipeline (URL): {s} - OpenAPI v3.2 from {s}\n", .{ openapi32.info.title, url });
         },
         .Unsupported => {
-            std.debug.print("✗ Unsupported OpenAPI version detected from URL: {s}\n", .{url});
+            std.log.info("✗ Unsupported OpenAPI version detected from URL: {s}\n", .{url});
             return error.UnsupportedVersion;
         },
     }
@@ -377,7 +377,7 @@ test "integration: load OpenAPI v3.0 from public petstore URL" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in integration test!\n", .{});
+            @panic("Memory leak detected in integration test!");
         }
     }
 
@@ -398,7 +398,7 @@ test "integration: load Swagger v2.0 from public petstore URL" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in integration test!\n", .{});
+            @panic("Memory leak detected in integration test!");
         }
     }
 
@@ -419,13 +419,13 @@ test "integration: loadFromUrl handles 404 not found" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in integration test!\n", .{});
+            @panic("Memory leak detected in integration test!");
         }
     }
 
     const result = input_loader.loadFromUrl(allocator, std.testing.io, "https://petstore3.swagger.io/api/v3/nonexistent.json");
     try std.testing.expectError(input_loader.LoadError.HttpNotFound, result);
-    std.debug.print("✓ 404 error handling verified\n", .{});
+    std.log.info("✓ 404 error handling verified\n", .{});
 }
 
 // ============================================================================
@@ -441,7 +441,7 @@ test "file and URL loading produce equivalent results for v3.0" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in comparison test!\n", .{});
+            @panic("Memory leak detected in comparison test!");
         }
     }
 
@@ -467,7 +467,7 @@ test "file and URL loading produce equivalent results for v3.0" {
     try std.testing.expect(file_doc.info.title.len > 0);
     try std.testing.expect(url_doc.info.title.len > 0);
 
-    std.debug.print("✓ File and URL loading consistency verified for v3.0\n", .{});
+    std.log.info("✓ File and URL loading consistency verified for v3.0\n", .{});
 }
 
 test "file and URL loading produce equivalent results for v2.0" {
@@ -479,7 +479,7 @@ test "file and URL loading produce equivalent results for v2.0" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in comparison test!\n", .{});
+            @panic("Memory leak detected in comparison test!");
         }
     }
 
@@ -505,7 +505,7 @@ test "file and URL loading produce equivalent results for v2.0" {
     try std.testing.expect(file_doc.info.title.len > 0);
     try std.testing.expect(url_doc.info.title.len > 0);
 
-    std.debug.print("✓ File and URL loading consistency verified for v2.0\n", .{});
+    std.log.info("✓ File and URL loading consistency verified for v2.0\n", .{});
 }
 
 // ============================================================================
@@ -518,7 +518,7 @@ test "loadFromFile handles large files without memory issues" {
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
-            std.debug.print("Memory leak detected in large file test!\n", .{});
+            @panic("Memory leak detected in large file test!");
         }
     }
 
@@ -530,7 +530,7 @@ test "loadFromFile handles large files without memory issues" {
     var parsed = try models.OpenApiDocument.parseFromJson(allocator, contents);
     defer parsed.deinit(allocator);
 
-    std.debug.print("✓ Large file handling verified ({d} bytes)\n", .{contents.len});
+    std.log.info("✓ Large file handling verified ({d} bytes)\n", .{contents.len});
 }
 
 test "InputSource discriminates between file_path and url correctly" {
