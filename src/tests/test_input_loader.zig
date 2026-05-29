@@ -161,7 +161,14 @@ test "loadFromUrl returns InvalidUrl for unsupported scheme" {
     try std.testing.expectError(input_loader.LoadError.InvalidUrl, result);
 }
 
+// @slow - Performs a real TCP connection attempt, so it is gated behind the
+// integration flag to keep the default unit test run deterministic and free of
+// network side effects (a lingering connect attempt can otherwise time out and
+// crash the test process during shutdown on some platforms, e.g. Windows).
 test "loadFromUrl returns ConnectionFailed for unreachable host" {
+    const skip_integration = skipIntegrationTests();
+    if (skip_integration) return error.SkipZigTest;
+
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     defer {
