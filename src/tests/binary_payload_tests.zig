@@ -309,7 +309,10 @@ test "v2.0 converter :: spec-level consumes inherits when operation omits consum
 }
 
 test "generated v3.0 :: uploadFile takes []const u8 requestBody and emits octet-stream Content-Type" {
-    const allocator = testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, "generated/generated_v3.zig", allocator, .unlimited);
     defer allocator.free(file_contents);
 
@@ -325,7 +328,10 @@ test "generated v3.0 :: uploadFile takes []const u8 requestBody and emits octet-
 }
 
 test "generated v3.0 :: addPet still uses JSON encoding for application/json body" {
-    const allocator = testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, "generated/generated_v3.zig", allocator, .unlimited);
     defer allocator.free(file_contents);
 
