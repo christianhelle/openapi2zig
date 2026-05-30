@@ -14,6 +14,7 @@ const ParameterLocation = @import("../../models/common/document.zig").ParameterL
 const Response = @import("../../models/common/document.zig").Response;
 const Operation = @import("../../models/common/document.zig").Operation;
 const PathItem = @import("../../models/common/document.zig").PathItem;
+const mime = @import("../../media_type.zig");
 const SwaggerDocument = @import("../../models/v2.0/swagger.zig").SwaggerDocument;
 const Info2 = @import("../../models/v2.0/info.zig").Info;
 const Contact2 = @import("../../models/v2.0/info.zig").Contact;
@@ -339,11 +340,14 @@ pub const SwaggerConverter = struct {
 
     fn selectConsumesMedia(list: []const []const u8) ?[]const u8 {
         if (list.len == 0) return null;
+        // Prefer JSON, then a "+json" suffix, comparing on the normalized base
+        // media type (parameters stripped, case-insensitive) while returning
+        // the original string so it can be emitted verbatim as a header.
         for (list) |m| {
-            if (std.mem.eql(u8, m, "application/json")) return m;
+            if (mime.isJson(m)) return m;
         }
         for (list) |m| {
-            if (std.mem.endsWith(u8, m, "+json")) return m;
+            if (mime.isJsonSuffix(m)) return m;
         }
         return list[0];
     }

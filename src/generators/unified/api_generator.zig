@@ -5,6 +5,7 @@ const Operation = @import("../../models/common/document.zig").Operation;
 const Schema = @import("../../models/common/document.zig").Schema;
 const SchemaType = @import("../../models/common/document.zig").SchemaType;
 const Parameter = @import("../../models/common/document.zig").Parameter;
+const media_type = @import("../../media_type.zig");
 
 fn isIdentStart(c: u8) bool {
     return std.ascii.isAlphabetic(c) or c == '_';
@@ -23,7 +24,8 @@ fn endsWithIgnoreCase(haystack: []const u8, suffix: []const u8) bool {
 }
 
 fn classifyBody(content_type: ?[]const u8) BodyKind {
-    const ct = content_type orelse return .json;
+    const raw = content_type orelse return .json;
+    const ct = media_type.baseMediaType(raw);
     if (ct.len == 0) return .json;
     if (std.ascii.eqlIgnoreCase(ct, "application/json")) return .json;
     if (endsWithIgnoreCase(ct, "+json")) return .json;
@@ -1440,7 +1442,13 @@ pub const UnifiedApiGenerator = struct {
         }
         const direct_kind = bodyKindFor(operation);
         const direct_body_param = findBodyParam(operation);
-        const direct_ct: []const u8 = if (direct_body_param) |p| (p.content_type orelse "application/json") else "application/json";
+        // Form bodies fall back to JSON encoding (multipart/form-data and
+        // x-www-form-urlencoded are not yet supported), so the Content-Type
+        // header must reflect the actual JSON payload rather than the declared
+        // form media type.
+        const direct_ct: []const u8 = if (direct_kind == .form)
+            "application/json"
+        else if (direct_body_param) |p| (p.content_type orelse "application/json") else "application/json";
 
         if (operation.parameters) |parameters| {
             for (parameters) |parameter| {
@@ -1711,4 +1719,9 @@ test "BodyKind :: classifyBody routes media types correctly" {
     try t.expectEqual(BodyKind.text, classifyBody("text/csv"));
     try t.expectEqual(BodyKind.form, classifyBody("application/x-www-form-urlencoded"));
     try t.expectEqual(BodyKind.form, classifyBody("multipart/form-data"));
+    // Media types with parameters must be classified by their base type.
+    try t.expectEqual(BodyKind.json, classifyBody("application/json; charset=utf-8"));
+    try t.expectEqual(BodyKind.json, classifyBody("application/vnd.api+json; charset=utf-8"));
+    try t.expectEqual(BodyKind.text, classifyBody("text/plain; charset=utf-8"));
+    try t.expectEqual(BodyKind.form, classifyBody("multipart/form-data; boundary=abc"));
 }

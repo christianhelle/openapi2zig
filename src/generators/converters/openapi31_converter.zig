@@ -14,6 +14,7 @@ const ParameterLocation = @import("../../models/common/document.zig").ParameterL
 const Response = @import("../../models/common/document.zig").Response;
 const Operation = @import("../../models/common/document.zig").Operation;
 const PathItem = @import("../../models/common/document.zig").PathItem;
+const mime = @import("../../media_type.zig");
 const OpenApi31Document = @import("../../models/v3.1/openapi.zig").OpenApi31Document;
 const Info31 = @import("../../models/v3.1/info.zig").Info;
 const Contact31 = @import("../../models/v3.1/info.zig").Contact;
@@ -586,24 +587,10 @@ pub const OpenApi31Converter = struct {
     fn convertRequestBody(self: *OpenApi31Converter, requestBody: *const RequestBody31) !Parameter {
         var mut_request_body = requestBody.*;
         var schema: ?Schema = null;
-        var selected_key: ?[]const u8 = null;
-        if (mut_request_body.content.get("application/json")) |media_type| {
-            selected_key = "application/json";
-            if (media_type.schema) |schema_or_ref| {
-                schema = try self.convertSchemaOrReference(schema_or_ref);
-            }
-        } else if (selectJsonSuffixKey31(mut_request_body.content)) |key| {
-            if (mut_request_body.content.get(key)) |media_type| {
-                selected_key = key;
-                if (media_type.schema) |schema_or_ref| {
-                    schema = try self.convertSchemaOrReference(schema_or_ref);
-                }
-            }
-        } else if (mut_request_body.content.count() > 0) {
-            var it = mut_request_body.content.iterator();
-            if (it.next()) |entry| {
-                selected_key = entry.key_ptr.*;
-                if (entry.value_ptr.schema) |schema_or_ref| {
+        const selected_key = mime.selectBestJsonKey(@TypeOf(mut_request_body.content), mut_request_body.content);
+        if (selected_key) |key| {
+            if (mut_request_body.content.get(key)) |media| {
+                if (media.schema) |schema_or_ref| {
                     schema = try self.convertSchemaOrReference(schema_or_ref);
                 }
             }
@@ -622,15 +609,6 @@ pub const OpenApi31Converter = struct {
             .format = null,
             .content_type = content_type,
         };
-    }
-
-    fn selectJsonSuffixKey31(content: std.StringHashMap(@import("../../models/v3.1/media.zig").MediaType)) ?[]const u8 {
-        var it = content.iterator();
-        while (it.next()) |entry| {
-            const key = entry.key_ptr.*;
-            if (std.mem.endsWith(u8, key, "+json")) return key;
-        }
-        return null;
     }
 
     fn convertParameters(self: *OpenApi31Converter, parameters: []const ParameterOrReference31) ![]Parameter {

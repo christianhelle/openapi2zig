@@ -9,6 +9,7 @@ const yaml_loader_tests = @import("tests/yaml_loader_tests.zig");
 const resource_wrapper_tests = @import("tests/resource_wrapper_tests.zig");
 const model_typing_tests = @import("tests/model_typing_tests.zig");
 const binary_payload_tests = @import("tests/binary_payload_tests.zig");
+const media_type = @import("media_type.zig");
 const generator = @import("generator.zig");
 comptime {
     _ = openapi_v3_tests;
@@ -22,5 +23,6 @@ comptime {
     _ = resource_wrapper_tests;
     _ = model_typing_tests;
     _ = binary_payload_tests;
+    _ = media_type;
     _ = generator;
 }

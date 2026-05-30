@@ -308,6 +308,40 @@ test "v2.0 converter :: spec-level consumes inherits when operation omits consum
     try testing.expectEqualStrings("application/json", body.content_type.?);
 }
 
+test "v3.0 converter :: JSON wins even when media type has parameters" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const spec =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "T", "version": "1" },
+        \\  "paths": {
+        \\    "/x": {
+        \\      "post": {
+        \\        "operationId": "doX",
+        \\        "requestBody": {
+        \\          "content": {
+        \\            "application/octet-stream": { "schema": { "type": "string" } },
+        \\            "application/json; charset=utf-8": { "schema": { "type": "object" } }
+        \\          }
+        \\        },
+        \\        "responses": { "200": { "description": "ok" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+    var unified = try parseAndConvertV3(allocator, spec);
+    defer unified.deinit(allocator);
+
+    const op = findOperation(&unified, "/x", .post) orelse return error.OperationNotFound;
+    const body = findBodyParameter(op) orelse return error.BodyNotFound;
+    try testing.expect(body.content_type != null);
+    try testing.expectEqualStrings("application/json; charset=utf-8", body.content_type.?);
+}
+
 test "generated v3.0 :: uploadFile takes []const u8 requestBody and emits octet-stream Content-Type" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
