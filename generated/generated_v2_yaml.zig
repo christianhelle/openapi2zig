@@ -19,7 +19,7 @@ pub const Pet = struct {
 };
 
 pub const ApiResponse = struct {
-    @"type": ?[]const u8 = null,
+    type: ?[]const u8 = null,
     message: ?[]const u8 = null,
     code: ?i64 = null,
 };
