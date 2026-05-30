@@ -11,6 +11,7 @@ const SwaggerConverter = @import("../generators/converters/swagger_converter.zig
 const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
 const OpenApi31Converter = @import("../generators/converters/openapi31_converter.zig").OpenApi31Converter;
 const OpenApi32Converter = @import("../generators/converters/openapi32_converter.zig").OpenApi32Converter;
+const UnifiedApiGenerator = @import("../generators/unified/api_generator.zig").UnifiedApiGenerator;
 
 fn loadOpenApiDocument(allocator: std.mem.Allocator, file_path: []const u8) !models.OpenApiDocument {
     const file_contents = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, file_path, allocator, .unlimited);
@@ -340,6 +341,43 @@ test "v3.0 converter :: JSON wins even when media type has parameters" {
     const body = findBodyParameter(op) orelse return error.BodyNotFound;
     try testing.expect(body.content_type != null);
     try testing.expectEqualStrings("application/json; charset=utf-8", body.content_type.?);
+}
+
+test "generated v3.0 :: vendor +json body propagates Content-Type to requestRaw" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const spec =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "T", "version": "1" },
+        \\  "paths": {
+        \\    "/x": {
+        \\      "post": {
+        \\        "operationId": "doX",
+        \\        "requestBody": {
+        \\          "content": {
+        \\            "application/vnd.api+json": { "schema": { "type": "object" } }
+        \\          }
+        \\        },
+        \\        "responses": { "200": { "description": "ok" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+    var unified = try parseAndConvertV3(allocator, spec);
+    defer unified.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    // The non-application/json JSON media type must flow through to the request
+    // helper rather than being hard-coded to application/json.
+    try testing.expect(std.mem.indexOf(u8, code, "requestRawWithContentType(client, std.http.Method.POST, uri_buf.written(), payload, \"application/vnd.api+json\")") != null);
 }
 
 test "generated v3.0 :: uploadFile takes []const u8 requestBody and emits octet-stream Content-Type" {

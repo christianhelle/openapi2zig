@@ -132,10 +132,14 @@ fn appendQueryParam(writer: *std.Io.Writer, first_query: *bool, name: []const u8
 }
 
 pub fn requestRaw(client: *Client, method: std.http.Method, url: []const u8, payload: ?[]const u8) !RawResponse {
+    return requestRawWithContentType(client, method, url, payload, "application/json");
+}
+
+pub fn requestRawWithContentType(client: *Client, method: std.http.Method, url: []const u8, payload: ?[]const u8, content_type_value: []const u8) !RawResponse {
     const allocator = client.allocator;
     var headers = std.ArrayList(std.http.Header).empty;
     defer headers.deinit(allocator);
-    const content_type: ?[]const u8 = if (payload != null) "application/json" else null;
+    const content_type: ?[]const u8 = if (payload != null) content_type_value else null;
     const auth_header = try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
     defer if (auth_header) |value| allocator.free(value);
 

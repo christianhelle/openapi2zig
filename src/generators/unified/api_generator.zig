@@ -334,10 +334,14 @@ pub const UnifiedApiGenerator = struct {
             \\}
             \\
             \\pub fn requestRaw(client: *Client, method: std.http.Method, url: []const u8, payload: ?[]const u8) !RawResponse {
+            \\    return requestRawWithContentType(client, method, url, payload, "application/json");
+            \\}
+            \\
+            \\pub fn requestRawWithContentType(client: *Client, method: std.http.Method, url: []const u8, payload: ?[]const u8, content_type_value: []const u8) !RawResponse {
             \\    const allocator = client.allocator;
             \\    var headers = std.ArrayList(std.http.Header).empty;
             \\    defer headers.deinit(allocator);
-            \\    const content_type: ?[]const u8 = if (payload != null) "application/json" else null;
+            \\    const content_type: ?[]const u8 = if (payload != null) content_type_value else null;
             \\    const auth_header = try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
             \\    defer if (auth_header) |value| allocator.free(value);
             \\
@@ -659,13 +663,22 @@ pub const UnifiedApiGenerator = struct {
 
         switch (kind) {
             .json => {
+                const json_ct: []const u8 = if (findBodyParam(operation)) |bp| (bp.content_type orelse "application/json") else "application/json";
                 try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
                 try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n");
                 try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
                 try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = str.written();\n");
-                try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
-                try self.buffer.appendSlice(self.allocator, method);
-                try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload);\n");
+                if (std.mem.eql(u8, json_ct, "application/json")) {
+                    try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
+                    try self.buffer.appendSlice(self.allocator, method);
+                    try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload);\n");
+                } else {
+                    try self.buffer.appendSlice(self.allocator, "\n    return requestRawWithContentType(client, std.http.Method.");
+                    try self.buffer.appendSlice(self.allocator, method);
+                    try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, \"");
+                    try self.buffer.appendSlice(self.allocator, json_ct);
+                    try self.buffer.appendSlice(self.allocator, "\");\n");
+                }
                 try self.buffer.appendSlice(self.allocator, "}\n\n");
                 return;
             },
