@@ -50,3 +50,15 @@
 ### 2026-05-01T09:50:14Z — Scribe closeout
 
 - Scribe recorded Starkiller's acceptance gate: YAML is exercised in both smoke layers, `openapi/v3.2` remains JSON-only, and the remaining denylisted YAML parser/normalization gaps are follow-up backend work rather than blockers for this scoped smoke-coverage release.
+
+### 2026-05-20T17:03:44+02:00 — Binary payload (#53) test plan drafted
+
+- Anticipatory draft for binary-payload support landed at `.squad/decisions/inbox/starkiller-binary-payload-test-plan.md`.
+- Spec inventory: v3 has petstore `uploadFile` (octet-stream), `api-with-examples` (`*/*`), and hubspot specs as realism checks. **Gap:** no v2.0 spec uses `consumes: [application/octet-stream]` — only `multipart/form-data` (petstore) or `*/*` (api-with-examples). Plan asks Fenster to add `openapi/v2.0/binary-upload.{json,yaml}` and `openapi/v3.0/binary-upload.{json,yaml}` minimal fixtures.
+- Test layers identified: (A) unified-IR converter assertions, (B) generated-code substring assertions following the `openapi_v3_tests.zig` / `resource_wrapper_tests.zig` pattern, (C) memory loop test under `test_utils.createTestAllocator()`, (D) smoke harness + `generated/main.zig`, (E) negative/edge (multi-content priority, global vs operation `consumes`, `*/*` default header, multipart unchanged).
+- Open questions parked for Fenster: IR field name for body-kind, default Content-Type for `*/*`, multi-content priority rule, generated binary parameter name.
+- Quality-gate rule reaffirmed: no new smoke denylist entries permitted for this PR; new fixtures must auto-flow through `comprehensive_converter_tests.zig` directory iteration and `test/smoke-tests.ps1` discovery.
+
+### 2026-05-20T15:40:56Z — Binary request-body support (issue #53) — test plan locked
+
+- Confirmed test-plan contract for Fenster's 8-commit implementation: 31 test cases across IR (A1–A10), code-gen output shape (B1–B10), memory safety (C1–C2), smoke/E2E (D1–D4), and edge cases (E1–E5). All A-series assertions map cleanly to converter commits; all B-series output assertions align with generation commits. Validation gates: `zig build test` green, `smoke-tests.ps1` 88-case sweep unchanged (no new denylist entries), no memory leaks under `createTestAllocator()`. Ready for implementation validation post-merge.

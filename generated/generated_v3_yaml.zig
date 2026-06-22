@@ -184,10 +184,15 @@ fn appendQueryParam(writer: *std.Io.Writer, first_query: *bool, name: []const u8
 }
 
 pub fn requestRaw(client: *Client, method: std.http.Method, url: []const u8, payload: ?[]const u8) !RawResponse {
+    return requestRawWithContentType(client, method, url, payload, "application/json");
+}
+
+pub fn requestRawWithContentType(client: *Client, method: std.http.Method, url: []const u8, payload: ?[]const u8, content_type_value: []const u8) !RawResponse {
     const allocator = client.allocator;
     var headers = std.ArrayList(std.http.Header).empty;
     defer headers.deinit(allocator);
-    const auth_header = try appendClientHeaders(allocator, &headers, client, payload != null, "application/json");
+    const content_type: ?[]const u8 = if (payload != null) content_type_value else null;
+    const auth_header = try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
     defer if (auth_header) |value| allocator.free(value);
 
     const uri = try std.Uri.parse(url);
@@ -369,7 +374,7 @@ fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback:
 
     var headers = std.ArrayList(std.http.Header).empty;
     defer headers.deinit(allocator);
-    const auth_header = try appendClientHeaders(allocator, &headers, client, true, "text/event-stream");
+    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/json", "text/event-stream");
     defer if (auth_header) |value| allocator.free(value);
 
     const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
@@ -400,9 +405,9 @@ fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback:
     };
 }
 
-fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, include_content_type: bool, accept: []const u8) !?[]u8 {
-    if (include_content_type) {
-        try headers.append(allocator, .{ .name = "Content-Type", .value = "application/json" });
+fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, content_type: ?[]const u8, accept: []const u8) !?[]u8 {
+    if (content_type) |ct| {
+        try headers.append(allocator, .{ .name = "Content-Type", .value = ct });
     }
     try headers.append(allocator, .{ .name = "Accept", .value = accept });
 
@@ -494,13 +499,30 @@ pub fn uploadFileRaw(client: *Client, petId: i64, additionalMetadata: ?[]const u
     if (additionalMetadata) |value| {
         try appendQueryParam(&uri_buf.writer, &first_query, "additionalMetadata", value);
     }
+    const payload: ?[]const u8 = requestBody;
 
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);
-    const payload: ?[]const u8 = str.written();
+    var headers = std.ArrayList(std.http.Header).empty;
+    defer headers.deinit(allocator);
+    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/octet-stream", "application/json");
+    defer if (auth_header) |value| allocator.free(value);
 
-    return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
+    const uri = try std.Uri.parse(uri_buf.written());
+    var response_body: std.Io.Writer.Allocating = .init(allocator);
+    defer response_body.deinit();
+
+    const result = try client.http.fetch(.{
+        .location = .{ .uri = uri },
+        .method = std.http.Method.POST,
+        .extra_headers = headers.items,
+        .payload = payload,
+        .response_writer = &response_body.writer,
+    });
+
+    return .{
+        .allocator = allocator,
+        .status = result.status,
+        .body = try response_body.toOwnedSlice(),
+    };
 }
 
 pub fn uploadFileResult(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(ApiResponse) {

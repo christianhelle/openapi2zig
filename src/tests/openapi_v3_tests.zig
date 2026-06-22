@@ -15,7 +15,7 @@ fn testOpenApiDocumentParsing(allocator: std.mem.Allocator, file_path: []const u
     defer parsed.deinit(allocator);
     try std.testing.expect(parsed.openapi.len > 0);
     try std.testing.expect(parsed.info.title.len > 0);
-    std.debug.print("Successfully parsed OpenAPI document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.openapi });
+    std.log.info("Successfully parsed OpenAPI document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.openapi });
 }
 
 test "can deserialize petstore into OpenApiDocument" {
@@ -119,12 +119,12 @@ test "can parse all v3.0 JSON OpenAPI specifications" {
     var successful_parses: u32 = 0;
     for (json_files) |file_path| {
         testOpenApiDocumentParsing(allocator, file_path) catch |err| {
-            std.debug.print("Failed to parse {s}: {}\n", .{ file_path, err });
+            std.log.info("Failed to parse {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_parses += 1;
     }
-    std.debug.print("Successfully parsed {d}/{d} JSON OpenAPI specifications\n", .{ successful_parses, json_files.len });
+    std.log.info("Successfully parsed {d}/{d} JSON OpenAPI specifications\n", .{ successful_parses, json_files.len });
     try std.testing.expect(successful_parses > 0);
 }
 
@@ -136,7 +136,7 @@ fn testOpenApiToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     defer unified.deinit(allocator);
     try std.testing.expect(unified.version.len > 0);
     try std.testing.expect(unified.info.title.len > 0);
-    std.debug.print("Successfully converted OpenAPI document from {s}: {s} (version: {s})\n", .{ file_path, unified.info.title, unified.version });
+    std.log.info("Successfully converted OpenAPI document from {s}: {s} (version: {s})\n", .{ file_path, unified.info.title, unified.version });
 }
 
 test "can convert api-with-examples.json to UnifiedDocument" {
@@ -217,11 +217,11 @@ test "can convert all v3.0 JSON OpenAPI specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testOpenApiToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert {s}: {}\n", .{ file_path, err });
+            std.log.info("Failed to convert {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;
     }
-    std.debug.print("Successfully converted {d}/{d} JSON OpenAPI v3.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
+    std.log.info("Successfully converted {d}/{d} JSON OpenAPI v3.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
     try std.testing.expect(successful_conversions > 0);
 }

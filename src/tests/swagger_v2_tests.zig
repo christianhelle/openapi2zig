@@ -14,7 +14,7 @@ fn testSwaggerDocumentParsing(allocator: std.mem.Allocator, file_path: []const u
     defer parsed.deinit(allocator);
     try std.testing.expect(parsed.swagger.len > 0);
     try std.testing.expect(parsed.info.title.len > 0);
-    std.debug.print("Successfully parsed Swagger document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.swagger });
+    std.log.info("Successfully parsed Swagger document from {s}: {s} (version: {s})\n", .{ file_path, parsed.info.title, parsed.swagger });
 }
 
 test "can deserialize v2.0 petstore into SwaggerDocument" {
@@ -83,12 +83,12 @@ test "can parse all v2.0 JSON Swagger specifications" {
     var successful_parses: u32 = 0;
     for (json_files) |file_path| {
         testSwaggerDocumentParsing(allocator, file_path) catch |err| {
-            std.debug.print("Failed to parse {s}: {}\n", .{ file_path, err });
+            std.log.info("Failed to parse {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_parses += 1;
     }
-    std.debug.print("Successfully parsed {d}/{d} JSON Swagger v2.0 specifications\n", .{ successful_parses, json_files.len });
+    std.log.info("Successfully parsed {d}/{d} JSON Swagger v2.0 specifications\n", .{ successful_parses, json_files.len });
     try std.testing.expect(successful_parses > 0);
 }
 
@@ -100,7 +100,7 @@ fn testSwaggerToUnifiedDocumentConversion(allocator: std.mem.Allocator, file_pat
     defer unified.deinit(allocator);
     try std.testing.expect(unified.version.len > 0);
     try std.testing.expect(unified.info.title.len > 0);
-    std.debug.print("Successfully converted Swagger document from {s}: {s} (version: {s})\n", .{ file_path, unified.info.title, unified.version });
+    std.log.info("Successfully converted Swagger document from {s}: {s} (version: {s})\n", .{ file_path, unified.info.title, unified.version });
 }
 
 test "can convert v2.0 api-with-examples.json to UnifiedDocument" {
@@ -160,11 +160,11 @@ test "can convert all v2.0 JSON Swagger specifications to UnifiedDocument" {
     var successful_conversions: u32 = 0;
     for (json_files) |file_path| {
         testSwaggerToUnifiedDocumentConversion(allocator, file_path) catch |err| {
-            std.debug.print("Failed to convert {s}: {}\n", .{ file_path, err });
+            std.log.info("Failed to convert {s}: {}\n", .{ file_path, err });
             continue;
         };
         successful_conversions += 1;
     }
-    std.debug.print("Successfully converted {d}/{d} JSON Swagger v2.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
+    std.log.info("Successfully converted {d}/{d} JSON Swagger v2.0 specifications to UnifiedDocument\n", .{ successful_conversions, json_files.len });
     try std.testing.expect(successful_conversions > 0);
 }

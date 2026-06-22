@@ -14,6 +14,7 @@ const ParameterLocation = @import("../../models/common/document.zig").ParameterL
 const Response = @import("../../models/common/document.zig").Response;
 const Operation = @import("../../models/common/document.zig").Operation;
 const PathItem = @import("../../models/common/document.zig").PathItem;
+const mime = @import("../../media_type.zig");
 const OpenApi32Document = @import("../../models/v3.2/openapi.zig").OpenApi32Document;
 const Info32 = @import("../../models/v3.2/info.zig").Info;
 const Contact32 = @import("../../models/v3.2/info.zig").Contact;
@@ -339,18 +340,18 @@ pub const OpenApi32Converter = struct {
     fn convertRequestBody(self: *OpenApi32Converter, requestBody: *const RequestBody32) !Parameter {
         var mut_request_body = requestBody.*;
         var schema: ?Schema = null;
-        if (mut_request_body.content.get("application/json")) |media_type| {
-            if (media_type.schema) |schema_or_ref| {
-                schema = try self.convertSchemaOrReference(schema_or_ref);
-            }
-        } else if (mut_request_body.content.count() > 0) {
-            var it = mut_request_body.content.iterator();
-            if (it.next()) |entry| {
-                if (entry.value_ptr.schema) |schema_or_ref| {
+        const selected_key = mime.selectBestJsonKey(@TypeOf(mut_request_body.content), mut_request_body.content);
+        if (selected_key) |key| {
+            if (mut_request_body.content.get(key)) |media| {
+                if (media.schema) |schema_or_ref| {
                     schema = try self.convertSchemaOrReference(schema_or_ref);
                 }
             }
         }
+        const content_type: ?[]const u8 = if (selected_key) |k|
+            (if (k.len == 0) null else try self.allocator.dupe(u8, k))
+        else
+            null;
         return Parameter{
             .name = "body",
             .location = .body,
@@ -359,6 +360,7 @@ pub const OpenApi32Converter = struct {
             .schema = schema,
             .type = null,
             .format = null,
+            .content_type = content_type,
         };
     }
 

@@ -35,7 +35,6 @@ pub fn validateExtension(input_file_path: []const u8) !Extension {
         return Extension.JSON;
     }
 
-    std.debug.print("Invalid file extension. Only json and yaml are supported: \n", .{});
     return GeneratorErrors.UnsupportedExtension;
 }
 
@@ -57,7 +56,6 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs)
     const json_contents = switch (extension) {
         .YAML => blk: {
             normalized_yaml_json = yaml_loader.yamlToJson(allocator, file_contents) catch |err| {
-                std.debug.print("Failed to parse YAML OpenAPI document: {}\n", .{err});
                 return err;
             };
             break :blk normalized_yaml_json.?;
@@ -70,39 +68,37 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs)
 
 fn generateCodeFromJsonContents(allocator: std.mem.Allocator, io: std.Io, json_contents: []const u8, args: cli.CliArgs) !void {
     const version = detector.getOpenApiVersion(allocator, json_contents) catch |err| {
-        std.debug.print("Failed to parse OpenAPI version: {}\n", .{err});
         return err;
     };
 
-    std.debug.print("Detected OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
+    std.log.info("Detected OpenAPI version: {s}", .{detector.getOpenApiVersionString(version)});
 
     switch (version) {
         .v2_0 => {
             var swagger = try models.SwaggerDocument.parseFromJson(allocator, json_contents);
             defer swagger.deinit(allocator);
-            std.debug.print("Successfully parsed Swagger v2.0 document\n", .{});
+            std.log.info("Successfully parsed Swagger v2.0 document", .{});
             try generateCodeFromSwaggerDocument(allocator, io, swagger, args);
         },
         .v3_0 => {
             var openapi = try models.OpenApiDocument.parseFromJson(allocator, json_contents);
             defer openapi.deinit(allocator);
-            std.debug.print("Successfully parsed OpenAPI v3.0 document\n", .{});
+            std.log.info("Successfully parsed OpenAPI v3.0 document", .{});
             try generateCodeFromOpenApiDocument(allocator, io, openapi, args);
         },
         .v3_1 => {
             var openapi31 = try models.OpenApi31Document.parseFromJson(allocator, json_contents);
             defer openapi31.deinit(allocator);
-            std.debug.print("Successfully parsed OpenAPI v3.1 document\n", .{});
+            std.log.info("Successfully parsed OpenAPI v3.1 document", .{});
             try generateCodeFromOpenApi31Document(allocator, io, openapi31, args);
         },
         .v3_2 => {
             var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, json_contents);
             defer openapi32.deinit(allocator);
-            std.debug.print("Successfully parsed OpenAPI v3.2 document\n", .{});
+            std.log.info("Successfully parsed OpenAPI v3.2 document", .{});
             try generateCodeFromOpenApi32Document(allocator, io, openapi32, args);
         },
         else => {
-            std.debug.print("Unsupported OpenAPI version: {s}\n", .{detector.getOpenApiVersionString(version)});
             return GeneratorErrors.UnsupportedOpenAPIVersion;
         },
     }
@@ -130,7 +126,7 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     const output_file = try cwd.createFile(io, output_path, .{});
     defer output_file.close(io);
     try output_file.writeStreamingAll(io, generated_code);
-    std.debug.print("Code generated successfully and written to '{s}'.\n", .{output_path});
+    std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
 }
 
 fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, io: std.Io, swagger: models.SwaggerDocument, args: cli.CliArgs) !void {

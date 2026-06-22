@@ -141,8 +141,12 @@ pub const Parameter = struct {
     schema: ?Schema = null,
     type: ?SchemaType = null,
     format: ?[]const u8 = null,
+    /// Declared media type for body parameters. Owned by `allocator` (duped at
+    /// converter time) when non-null. Always null for non-body parameters.
+    content_type: ?[]const u8 = null,
     pub fn deinit(self: *Parameter, allocator: std.mem.Allocator) void {
         if (self.schema) |*schema| schema.deinit(allocator);
+        if (self.content_type) |ct| allocator.free(ct);
     }
 };
 

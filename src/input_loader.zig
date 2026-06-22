@@ -30,7 +30,7 @@ pub fn loadInput(allocator: std.mem.Allocator, io: std.Io, source: InputSource) 
 /// Caller owns the returned memory and must free it with allocator.free()
 pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]const u8 {
     const contents = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(MAX_BODY_BYTES)) catch |err| {
-        std.debug.print("Failed to read file '{s}': {}\n", .{ path, err });
+        std.log.info("Failed to read file '{s}': {}", .{ path, err });
         return err;
     };
 
@@ -42,14 +42,14 @@ pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) 
 pub fn loadFromUrl(allocator: std.mem.Allocator, io: std.Io, url: []const u8) ![]const u8 {
     // Parse URI
     const uri = std.Uri.parse(url) catch |err| {
-        std.debug.print("Invalid URL '{s}': {}\n", .{ url, err });
+        std.log.info("Invalid URL '{s}': {}", .{ url, err });
         return LoadError.InvalidUrl;
     };
 
     // Verify scheme is http or https
     const scheme = uri.scheme;
     if (!std.mem.eql(u8, scheme, "http") and !std.mem.eql(u8, scheme, "https")) {
-        std.debug.print("Unsupported URL scheme '{s}'. Only http:// and https:// are supported.\n", .{scheme});
+        std.log.info("Unsupported URL scheme '{s}'. Only http:// and https:// are supported.", .{scheme});
         return LoadError.InvalidUrl;
     }
 
@@ -58,20 +58,20 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, io: std.Io, url: []const u8) ![
 
     // Create and send request
     var req = client.request(.GET, uri, .{}) catch |err| {
-        std.debug.print("Failed to create HTTP request to '{s}': {}\n", .{ url, err });
+        std.log.info("Failed to create HTTP request to '{s}': {}", .{ url, err });
         return LoadError.ConnectionFailed;
     };
     defer req.deinit();
 
     req.sendBodiless() catch |err| {
-        std.debug.print("Failed to send HTTP request to '{s}': {}\n", .{ url, err });
+        std.log.info("Failed to send HTTP request to '{s}': {}", .{ url, err });
         return LoadError.HttpRequestFailed;
     };
 
     // Receive response headers
     var redirect_buffer: [1024]u8 = undefined;
     var response = req.receiveHead(&redirect_buffer) catch |err| {
-        std.debug.print("Failed to receive HTTP response from '{s}': {}\n", .{ url, err });
+        std.log.info("Failed to receive HTTP response from '{s}': {}", .{ url, err });
         return LoadError.HttpRequestFailed;
     };
 
@@ -79,10 +79,10 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, io: std.Io, url: []const u8) ![
     const status = response.head.status;
     if (status != .ok) {
         if (status == .not_found) {
-            std.debug.print("HTTP 404: Resource not found at '{s}'\n", .{url});
+            std.log.info("HTTP 404: Resource not found at '{s}'", .{url});
             return LoadError.HttpNotFound;
         }
-        std.debug.print("HTTP request failed with status {}: {s}\n", .{ @intFromEnum(status), url });
+        std.log.info("HTTP request failed with status {}: {s}", .{ @intFromEnum(status), url });
         return LoadError.HttpRequestFailed;
     }
 
@@ -91,7 +91,7 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, io: std.Io, url: []const u8) ![
     var transfer_buffer: [4096]u8 = undefined;
     const reader = response.reader(&transfer_buffer);
     const body = reader.allocRemaining(allocator, .limited(max_size)) catch |err| {
-        std.debug.print("Failed to read HTTP response body from '{s}': {}\n", .{ url, err });
+        std.log.info("Failed to read HTTP response body from '{s}': {}", .{ url, err });
         return LoadError.InvalidResponse;
     };
 
