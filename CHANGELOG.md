@@ -6,7 +6,12 @@
 
 **Implemented enhancements:**
 
+- Add support for binary payloads [\#55](https://github.com/christianhelle/openapi2zig/pull/55) ([christianhelle](https://github.com/christianhelle))
 - Add YAML OpenAPI parsing [\#50](https://github.com/christianhelle/openapi2zig/pull/50) ([christianhelle](https://github.com/christianhelle))
+
+**Closed issues:**
+
+- application/octet-stream content [\#53](https://github.com/christianhelle/openapi2zig/issues/53)
 
 **Merged pull requests:**
 
