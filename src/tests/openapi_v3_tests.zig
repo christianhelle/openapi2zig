@@ -30,6 +30,10 @@ test "can deserialize petstore into OpenApiDocument" {
 
 test "schema numeric bounds accept integer and number_string values" {
     var gpa = test_utils.createTestAllocator();
+    defer {
+        const deinit_status = gpa.deinit();
+        std.debug.assert(deinit_status == .ok);
+    }
     const allocator = gpa.allocator();
     const schema_json =
         \\{
