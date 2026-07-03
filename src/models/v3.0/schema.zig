@@ -1,5 +1,6 @@
 const std = @import("std");
 const json = std.json;
+const json_helpers = @import("../json_helpers.zig");
 const Reference = @import("reference.zig").Reference;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
 
@@ -182,10 +183,10 @@ pub const Schema = struct {
         }
         return Schema{
             .title = if (obj.get("title")) |val| try allocator.dupe(u8, val.string) else null,
-            .multipleOf = if (obj.get("multipleOf")) |val| val.float else null,
-            .maximum = if (obj.get("maximum")) |val| val.float else null,
+            .multipleOf = json_helpers.optionalFloat(obj.get("multipleOf")),
+            .maximum = json_helpers.optionalFloat(obj.get("maximum")),
             .exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| val.bool else null,
-            .minimum = if (obj.get("minimum")) |val| val.float else null,
+            .minimum = json_helpers.optionalFloat(obj.get("minimum")),
             .exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| val.bool else null,
             .maxLength = if (obj.get("maxLength")) |val| val.integer else null,
             .minLength = if (obj.get("minLength")) |val| val.integer else null,
