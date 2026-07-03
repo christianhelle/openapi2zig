@@ -30,13 +30,17 @@ test "can deserialize petstore into OpenApi32Document" {
 test "schema numeric bounds accept integer and number_string values for v3.2" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
-    var object = json.ObjectMap.init(allocator);
-    defer object.deinit();
-    try object.put("type", .{ .string = "number" });
-    try object.put("multipleOf", .{ .integer = 2 });
-    try object.put("maximum", .{ .integer = 10 });
-    try object.put("minimum", .{ .number_string = "1.5" });
-    var schema = try models.v32.Schema.parseFromJson(allocator, .{ .object = object });
+    const schema_json =
+        \\{
+        \\  "type": "number",
+        \\  "multipleOf": 2,
+        \\  "maximum": 10,
+        \\  "minimum": "1.5"
+        \\}
+    ;
+    var parsed_json = try json.parseFromSlice(json.Value, allocator, schema_json, .{});
+    defer parsed_json.deinit();
+    var schema = try models.v32.Schema.parseFromJson(allocator, parsed_json.value);
     defer schema.deinit(allocator);
     try std.testing.expectEqual(@as(f64, 2.0), schema.multipleOf.?);
     try std.testing.expectEqual(@as(f64, 10.0), schema.maximum.?);
