@@ -6,11 +6,17 @@
 
 **Implemented enhancements:**
 
+- Optional schema numeric bound parsing [\#59](https://github.com/christianhelle/openapi2zig/pull/59) ([christianhelle](https://github.com/christianhelle))
 - Add support for binary payloads [\#55](https://github.com/christianhelle/openapi2zig/pull/55) ([christianhelle](https://github.com/christianhelle))
 - Add YAML OpenAPI parsing [\#50](https://github.com/christianhelle/openapi2zig/pull/50) ([christianhelle](https://github.com/christianhelle))
 
+**Fixed bugs:**
+
+- Schema parsing assume float when integer is active in JSON object union [\#52](https://github.com/christianhelle/openapi2zig/issues/52)
+
 **Merged pull requests:**
 
+- Remove Squad [\#58](https://github.com/christianhelle/openapi2zig/pull/58) ([christianhelle](https://github.com/christianhelle))
 - Add missing GPA deinit assertions to binary payload tests [\#56](https://github.com/christianhelle/openapi2zig/pull/56) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Add YAML verification to Smoke Tests [\#51](https://github.com/christianhelle/openapi2zig/pull/51) ([christianhelle](https://github.com/christianhelle))
 - Add Smoke Tests as part of PR verification [\#47](https://github.com/christianhelle/openapi2zig/pull/47) ([christianhelle](https://github.com/christianhelle))
