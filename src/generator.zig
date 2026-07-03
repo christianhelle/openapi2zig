@@ -110,13 +110,18 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     const generated_models = try model_generator.generate(unified_doc);
     defer allocator.free(generated_models);
 
-    var api_generator = UnifiedApiGenerator.init(allocator, args);
-    defer api_generator.deinit();
-    const generated_api = try api_generator.generate(unified_doc);
-    defer allocator.free(generated_api);
+    const generated_code = if (args.models_only)
+        generated_models
+    else blk: {
+        var api_generator = UnifiedApiGenerator.init(allocator, args);
+        defer api_generator.deinit();
+        const generated_api = try api_generator.generate(unified_doc);
+        defer allocator.free(generated_api);
 
-    const generated_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
-    defer allocator.free(generated_code);
+        const joined_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
+        break :blk joined_code;
+    };
+    defer if (!args.models_only) allocator.free(generated_code);
 
     const output_path = args.output_path orelse default_output_file;
     const cwd = std.Io.Dir.cwd();

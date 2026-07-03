@@ -11,6 +11,7 @@ const model_typing_tests = @import("tests/model_typing_tests.zig");
 const binary_payload_tests = @import("tests/binary_payload_tests.zig");
 const media_type = @import("media_type.zig");
 const generator = @import("generator.zig");
+const cli = @import("cli.zig");
 comptime {
     _ = openapi_v3_tests;
     _ = openapi_v31_tests;
@@ -25,4 +26,5 @@ comptime {
     _ = binary_payload_tests;
     _ = media_type;
     _ = generator;
+    _ = cli;
 }

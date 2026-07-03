@@ -13,6 +13,7 @@ pub const CliArgs = struct {
     output_path: ?[]const u8 = null,
     base_url: ?[]const u8 = null,
     resource_wrappers: ResourceWrapperMode = .paths,
+    models_only: bool = false,
 };
 
 pub const ParsedArgs = struct {
@@ -36,6 +37,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var output_path: ?[]const u8 = null;
     var base_url: ?[]const u8 = null;
     var resource_wrappers: ResourceWrapperMode = .paths;
+    var models_only = false;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -77,6 +79,8 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
                 std.debug.print("\nError: invalid resource wrapper mode '{s}'\n", .{args[i]});
                 return error.InvalidArguments;
             };
+        } else if (std.mem.eql(u8, arg, "--models-only")) {
+            models_only = true;
         }
     }
 
@@ -92,6 +96,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .output_path = output_path,
             .base_url = base_url,
             .resource_wrappers = resource_wrappers,
+            .models_only = models_only,
         },
     };
 }
@@ -118,11 +123,41 @@ fn printUsage() void {
         \\                              (default: server URL from OpenAPI Specification)
         \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
         \\                              (default: paths)
+        \\   --models-only              Generate only Zig models, skipping the API client.
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
+        \\   openapi2zig generate -i ./openapi/petstore.json -o models.zig --models-only
         \\   openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
         \\
         \\
     , .{ version_info.VERSION, version_info.GIT_COMMIT });
+}
+
+test "parse generate supports models-only flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--models-only",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expect(parsed.args.models_only);
+    try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
+}
+
+test "parse generate defaults to complete output" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expect(!parsed.args.models_only);
 }

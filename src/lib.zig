@@ -234,6 +234,11 @@ pub fn generateApi(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, a
 /// - String containing complete generated Zig code
 pub fn generateCode(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
     const models_code = try generateModels(allocator, unified_doc);
+    errdefer allocator.free(models_code);
+
+    if (args.models_only) {
+        return models_code;
+    }
     defer allocator.free(models_code);
 
     const api_code = try generateApi(allocator, unified_doc, args);
