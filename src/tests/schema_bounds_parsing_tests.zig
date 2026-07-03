@@ -265,6 +265,72 @@ test "v3.2 schema parses negative numeric bounds" {
     try std.testing.expectEqual(@as(f64, -10.0), schema.minimum.?);
 }
 
+test "v3.0 schema parses overflowing integer multipleOf via number_string" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    const source = "{\"multipleOf\": 999999999999999999999}";
+    var parsed = try parseJsonValue(allocator, source);
+    defer parsed.deinit();
+    var schema = try models.v3.Schema.parseFromJson(allocator, parsed.value);
+    defer schema.deinit(allocator);
+    try std.testing.expect(schema.multipleOf != null);
+}
+
+test "v3.0 schema parses overflowing integer maximum via number_string" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    const source = "{\"maximum\": 999999999999999999999}";
+    var parsed = try parseJsonValue(allocator, source);
+    defer parsed.deinit();
+    var schema = try models.v3.Schema.parseFromJson(allocator, parsed.value);
+    defer schema.deinit(allocator);
+    try std.testing.expect(schema.maximum != null);
+}
+
+test "v3.0 schema parses overflowing integer minimum via number_string" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    const source = "{\"minimum\": 999999999999999999999}";
+    var parsed = try parseJsonValue(allocator, source);
+    defer parsed.deinit();
+    var schema = try models.v3.Schema.parseFromJson(allocator, parsed.value);
+    defer schema.deinit(allocator);
+    try std.testing.expect(schema.minimum != null);
+}
+
+test "v3.2 schema parses overflowing integer multipleOf via number_string" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    const source = "{\"multipleOf\": 999999999999999999999}";
+    var parsed = try parseJsonValue(allocator, source);
+    defer parsed.deinit();
+    var schema = try models.v32.Schema.parseFromJson(allocator, parsed.value);
+    defer schema.deinit(allocator);
+    try std.testing.expect(schema.multipleOf != null);
+}
+
+test "v3.2 schema parses overflowing integer maximum via number_string" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    const source = "{\"maximum\": 999999999999999999999}";
+    var parsed = try parseJsonValue(allocator, source);
+    defer parsed.deinit();
+    var schema = try models.v32.Schema.parseFromJson(allocator, parsed.value);
+    defer schema.deinit(allocator);
+    try std.testing.expect(schema.maximum != null);
+}
+
+test "v3.2 schema parses overflowing integer minimum via number_string" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    const source = "{\"minimum\": 999999999999999999999}";
+    var parsed = try parseJsonValue(allocator, source);
+    defer parsed.deinit();
+    var schema = try models.v32.Schema.parseFromJson(allocator, parsed.value);
+    defer schema.deinit(allocator);
+    try std.testing.expect(schema.minimum != null);
+}
+
 test "v3.0 schema parses negative numeric bounds" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
