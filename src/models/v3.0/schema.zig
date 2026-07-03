@@ -1,17 +1,8 @@
 const std = @import("std");
 const json = std.json;
+const json_helpers = @import("../json_helpers.zig");
 const Reference = @import("reference.zig").Reference;
 const ExternalDocumentation = @import("externaldocs.zig").ExternalDocumentation;
-
-fn optionalFloat(value: ?json.Value) ?f64 {
-    const val = value orelse return null;
-    return switch (val) {
-        .integer => |i| @as(f64, @floatFromInt(i)),
-        .float => |f| f,
-        .number_string => |s| std.fmt.parseFloat(f64, s) catch null,
-        else => null,
-    };
-}
 
 pub const XML = struct {
     name: ?[]const u8 = null,
@@ -192,10 +183,10 @@ pub const Schema = struct {
         }
         return Schema{
             .title = if (obj.get("title")) |val| try allocator.dupe(u8, val.string) else null,
-            .multipleOf = optionalFloat(obj.get("multipleOf")),
-            .maximum = optionalFloat(obj.get("maximum")),
+            .multipleOf = json_helpers.optionalFloat(obj.get("multipleOf")),
+            .maximum = json_helpers.optionalFloat(obj.get("maximum")),
             .exclusiveMaximum = if (obj.get("exclusiveMaximum")) |val| val.bool else null,
-            .minimum = optionalFloat(obj.get("minimum")),
+            .minimum = json_helpers.optionalFloat(obj.get("minimum")),
             .exclusiveMinimum = if (obj.get("exclusiveMinimum")) |val| val.bool else null,
             .maxLength = if (obj.get("maxLength")) |val| val.integer else null,
             .minLength = if (obj.get("minLength")) |val| val.integer else null,
