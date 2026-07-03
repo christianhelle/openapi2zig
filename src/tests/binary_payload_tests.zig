@@ -84,6 +84,7 @@ test "Parameter.content_type defaults to null for non-body parameters" {
 test "v3.0 converter :: octet-stream uploadFile body captures content_type" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     var parsed = try loadOpenApiDocument(allocator, "openapi/v3.0/petstore.json");
     defer parsed.deinit(allocator);
@@ -100,6 +101,7 @@ test "v3.0 converter :: octet-stream uploadFile body captures content_type" {
 test "v3.0 converter :: addPet body prefers application/json content_type" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     var parsed = try loadOpenApiDocument(allocator, "openapi/v3.0/petstore.json");
     defer parsed.deinit(allocator);
@@ -116,6 +118,7 @@ test "v3.0 converter :: addPet body prefers application/json content_type" {
 test "v3.0 converter :: JSON wins when both JSON and XML present" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     const spec =
         \\{
@@ -148,6 +151,7 @@ test "v3.0 converter :: JSON wins when both JSON and XML present" {
 test "v3.0 converter :: XML-only body falls back to application/xml" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     const spec =
         \\{
@@ -179,6 +183,7 @@ test "v3.0 converter :: XML-only body falls back to application/xml" {
 test "v3.0 converter :: vendor +json suffix selected over non-json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     const spec =
         \\{
@@ -211,6 +216,7 @@ test "v3.0 converter :: vendor +json suffix selected over non-json" {
 test "v3.1 converter :: octet-stream body captures content_type" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     const spec =
         \\{
@@ -245,6 +251,7 @@ test "v3.1 converter :: octet-stream body captures content_type" {
 test "v3.2 converter :: JSON wins over XML" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     const spec =
         \\{
@@ -280,6 +287,7 @@ test "v3.2 converter :: JSON wins over XML" {
 test "v2.0 converter :: operation-level consumes octet-stream wins over spec-level json" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     var parsed = try loadSwaggerDocument(allocator, "openapi/v2.0/binary-upload.json");
     defer parsed.deinit(allocator);
@@ -296,6 +304,7 @@ test "v2.0 converter :: operation-level consumes octet-stream wins over spec-lev
 test "v2.0 converter :: spec-level consumes inherits when operation omits consumes" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     var parsed = try loadSwaggerDocument(allocator, "openapi/v2.0/binary-upload.json");
     defer parsed.deinit(allocator);
