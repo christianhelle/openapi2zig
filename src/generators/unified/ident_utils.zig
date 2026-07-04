@@ -32,3 +32,24 @@ pub fn isBareIdentifier(name: []const u8) bool {
     }
     return true;
 }
+
+pub fn appendIdentifier(buffer: *std.ArrayList(u8), allocator: std.mem.Allocator, name: []const u8) !void {
+    if (isBareIdentifier(name)) {
+        try buffer.appendSlice(allocator, name);
+        return;
+    }
+    try buffer.appendSlice(allocator, "@\"");
+    for (name) |c| {
+        switch (c) {
+            '\\', '"' => {
+                try buffer.append(allocator, '\\');
+                try buffer.append(allocator, c);
+            },
+            '\n' => try buffer.appendSlice(allocator, "\\n"),
+            '\r' => try buffer.appendSlice(allocator, "\\r"),
+            '\t' => try buffer.appendSlice(allocator, "\\t"),
+            else => try buffer.append(allocator, c),
+        }
+    }
+    try buffer.appendSlice(allocator, "\"");
+}

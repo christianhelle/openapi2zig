@@ -146,25 +146,7 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn appendIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
-        if (ident.isBareIdentifier(name)) {
-            try self.buffer.appendSlice(self.allocator, name);
-            return;
-        }
-
-        try self.buffer.appendSlice(self.allocator, "@\"");
-        for (name) |c| {
-            switch (c) {
-                '\\', '"' => {
-                    try self.buffer.append(self.allocator, '\\');
-                    try self.buffer.append(self.allocator, c);
-                },
-                '\n' => try self.buffer.appendSlice(self.allocator, "\\n"),
-                '\r' => try self.buffer.appendSlice(self.allocator, "\\r"),
-                '\t' => try self.buffer.appendSlice(self.allocator, "\\t"),
-                else => try self.buffer.append(self.allocator, c),
-            }
-        }
-        try self.buffer.appendSlice(self.allocator, "\"");
+        try ident.appendIdentifier(&self.buffer, self.allocator, name);
     }
 
     fn appendLineComment(self: *UnifiedApiGenerator, text: []const u8) !void {
