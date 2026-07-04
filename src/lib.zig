@@ -92,34 +92,22 @@ pub fn parseToUnified(allocator: std.mem.Allocator, json_content: []const u8) !U
         .v3_0 => {
             var openapi_doc = try OpenApiDocument.parseFromJson(allocator, json_content);
             defer openapi_doc.deinit(allocator);
-
-            var converter = OpenApiConverter.init(allocator);
-
-            return try converter.convert(openapi_doc);
+            return convertDocument(allocator, openapi_doc, OpenApiConverter);
         },
         .v2_0 => {
             var swagger_doc = try SwaggerDocument.parseFromJson(allocator, json_content);
             defer swagger_doc.deinit(allocator);
-
-            var converter = SwaggerConverter.init(allocator);
-
-            return try converter.convert(swagger_doc);
+            return convertDocument(allocator, swagger_doc, SwaggerConverter);
         },
         .v3_1 => {
             var openapi31_doc = try OpenApi31Document.parseFromJson(allocator, json_content);
             defer openapi31_doc.deinit(allocator);
-
-            var converter = OpenApi31Converter.init(allocator);
-
-            return try converter.convert(openapi31_doc);
+            return convertDocument(allocator, openapi31_doc, OpenApi31Converter);
         },
         .v3_2 => {
             var openapi32_doc = try OpenApi32Document.parseFromJson(allocator, json_content);
             defer openapi32_doc.deinit(allocator);
-
-            var converter = OpenApi32Converter.init(allocator);
-
-            return try converter.convert(openapi32_doc);
+            return convertDocument(allocator, openapi32_doc, OpenApi32Converter);
         },
         .Unsupported => {
             return error.UnsupportedApiVersion;
