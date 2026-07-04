@@ -29,7 +29,7 @@ All specifications are supported in JSON and YAML format.
 
 ## Prerequisites
 
-- [Zig](https://ziglang.org/download/) v0.16.0 or newer
+- [Zig](https://ziglang.org/download/) v0.16.0
 
 ## Development Environment
 
