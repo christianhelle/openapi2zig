@@ -9,6 +9,7 @@ const SecurityRequirement = @import("security.zig").SecurityRequirement;
 const Tag = @import("tag.zig").Tag;
 const Components = @import("components.zig").Components;
 const PathItemOrReference = @import("components.zig").PathItemOrReference;
+const parse = @import("../common/parse_helpers.zig");
 
 pub const OpenApi31Document = struct {
     openapi: []const u8,
@@ -94,30 +95,15 @@ pub const OpenApi31Document = struct {
     }
 
     fn parseServers(allocator: std.mem.Allocator, value: json.Value) anyerror![]Server {
-        var array_list = std.ArrayList(Server).empty;
-        errdefer array_list.deinit(allocator);
-        for (value.array.items) |item| {
-            try array_list.append(allocator, try Server.parseFromJson(allocator, item));
-        }
-        return array_list.toOwnedSlice(allocator);
+        return parse.parseArray(Server, allocator, value);
     }
 
     fn parseSecurityRequirements(allocator: std.mem.Allocator, value: json.Value) anyerror![]SecurityRequirement {
-        var array_list = std.ArrayList(SecurityRequirement).empty;
-        errdefer array_list.deinit(allocator);
-        for (value.array.items) |item| {
-            try array_list.append(allocator, try SecurityRequirement.parseFromJson(allocator, item));
-        }
-        return array_list.toOwnedSlice(allocator);
+        return parse.parseArray(SecurityRequirement, allocator, value);
     }
 
     fn parseTags(allocator: std.mem.Allocator, value: json.Value) anyerror![]const Tag {
-        var array_list = std.ArrayList(Tag).empty;
-        errdefer array_list.deinit(allocator);
-        for (value.array.items) |item| {
-            try array_list.append(allocator, try Tag.parseFromJson(allocator, item));
-        }
-        return array_list.toOwnedSlice(allocator);
+        return parse.parseArray(Tag, allocator, value);
     }
 
     fn parseWebhooks(allocator: std.mem.Allocator, value: json.Value) anyerror!std.StringHashMap(PathItemOrReference) {
