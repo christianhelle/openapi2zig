@@ -92,34 +92,22 @@ pub fn parseToUnified(allocator: std.mem.Allocator, json_content: []const u8) !U
         .v3_0 => {
             var openapi_doc = try OpenApiDocument.parseFromJson(allocator, json_content);
             defer openapi_doc.deinit(allocator);
-
-            var converter = OpenApiConverter.init(allocator);
-
-            return try converter.convert(openapi_doc);
+            return convertDocument(allocator, openapi_doc, OpenApiConverter);
         },
         .v2_0 => {
             var swagger_doc = try SwaggerDocument.parseFromJson(allocator, json_content);
             defer swagger_doc.deinit(allocator);
-
-            var converter = SwaggerConverter.init(allocator);
-
-            return try converter.convert(swagger_doc);
+            return convertDocument(allocator, swagger_doc, SwaggerConverter);
         },
         .v3_1 => {
             var openapi31_doc = try OpenApi31Document.parseFromJson(allocator, json_content);
             defer openapi31_doc.deinit(allocator);
-
-            var converter = OpenApi31Converter.init(allocator);
-
-            return try converter.convert(openapi31_doc);
+            return convertDocument(allocator, openapi31_doc, OpenApi31Converter);
         },
         .v3_2 => {
             var openapi32_doc = try OpenApi32Document.parseFromJson(allocator, json_content);
             defer openapi32_doc.deinit(allocator);
-
-            var converter = OpenApi32Converter.init(allocator);
-
-            return try converter.convert(openapi32_doc);
+            return convertDocument(allocator, openapi32_doc, OpenApi32Converter);
         },
         .Unsupported => {
             return error.UnsupportedApiVersion;
@@ -134,36 +122,34 @@ pub fn detectVersionFromYaml(allocator: std.mem.Allocator, yaml_content: []const
     return try detectVersion(allocator, json_content);
 }
 
+fn parseYaml(comptime T: type, allocator: std.mem.Allocator, yaml_content: []const u8) !T {
+    const json_content = try yamlToJson(allocator, yaml_content);
+    defer allocator.free(json_content);
+    return try T.parseFromJson(allocator, json_content);
+}
+
 /// Parse a YAML string containing an OpenAPI v3.0 specification.
 /// The caller is responsible for calling `deinit()` on the returned document.
 pub fn parseOpenApiYaml(allocator: std.mem.Allocator, yaml_content: []const u8) !OpenApiDocument {
-    const json_content = try yamlToJson(allocator, yaml_content);
-    defer allocator.free(json_content);
-    return try OpenApiDocument.parseFromJson(allocator, json_content);
+    return parseYaml(OpenApiDocument, allocator, yaml_content);
 }
 
 /// Parse a YAML string containing an OpenAPI v3.1 specification.
 /// The caller is responsible for calling `deinit()` on the returned document.
 pub fn parseOpenApi31Yaml(allocator: std.mem.Allocator, yaml_content: []const u8) !OpenApi31Document {
-    const json_content = try yamlToJson(allocator, yaml_content);
-    defer allocator.free(json_content);
-    return try OpenApi31Document.parseFromJson(allocator, json_content);
+    return parseYaml(OpenApi31Document, allocator, yaml_content);
 }
 
 /// Parse a YAML string containing an OpenAPI v3.2 specification.
 /// The caller is responsible for calling `deinit()` on the returned document.
 pub fn parseOpenApi32Yaml(allocator: std.mem.Allocator, yaml_content: []const u8) !OpenApi32Document {
-    const json_content = try yamlToJson(allocator, yaml_content);
-    defer allocator.free(json_content);
-    return try OpenApi32Document.parseFromJson(allocator, json_content);
+    return parseYaml(OpenApi32Document, allocator, yaml_content);
 }
 
 /// Parse a YAML string containing a Swagger v2.0 specification.
 /// The caller is responsible for calling `deinit()` on the returned document.
 pub fn parseSwaggerYaml(allocator: std.mem.Allocator, yaml_content: []const u8) !SwaggerDocument {
-    const json_content = try yamlToJson(allocator, yaml_content);
-    defer allocator.free(json_content);
-    return try SwaggerDocument.parseFromJson(allocator, json_content);
+    return parseYaml(SwaggerDocument, allocator, yaml_content);
 }
 
 /// Parse a JSON string containing an OpenAPI v3.0 specification.
@@ -257,6 +243,11 @@ pub fn generateCode(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, 
     return try std.fmt.allocPrint(allocator, "{s}{s}\n{s}", .{ header, models_code, api_code });
 }
 
+fn convertDocument(allocator: std.mem.Allocator, doc: anytype, comptime Converter: type) !UnifiedDocument {
+    var converter = Converter.init(allocator);
+    return try converter.convert(doc);
+}
+
 /// Convert a version-specific OpenAPI document to unified representation.
 ///
 /// Parameters:
@@ -266,9 +257,7 @@ pub fn generateCode(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, 
 /// Returns:
 /// - UnifiedDocument: Unified representation of the OpenAPI document
 pub fn convertOpenApiToUnified(allocator: std.mem.Allocator, openapi_doc: OpenApiDocument) !UnifiedDocument {
-    var converter = OpenApiConverter.init(allocator);
-
-    return try converter.convert(openapi_doc);
+    return convertDocument(allocator, openapi_doc, OpenApiConverter);
 }
 
 /// Convert a version-specific OpenAPI v3.1 document to unified representation.
@@ -280,9 +269,7 @@ pub fn convertOpenApiToUnified(allocator: std.mem.Allocator, openapi_doc: OpenAp
 /// Returns:
 /// - UnifiedDocument: Unified representation of the OpenAPI v3.1 document
 pub fn convertOpenApi31ToUnified(allocator: std.mem.Allocator, openapi31_doc: OpenApi31Document) !UnifiedDocument {
-    var converter = OpenApi31Converter.init(allocator);
-
-    return try converter.convert(openapi31_doc);
+    return convertDocument(allocator, openapi31_doc, OpenApi31Converter);
 }
 
 /// Convert a version-specific OpenAPI v3.2 document to unified representation.
@@ -294,9 +281,7 @@ pub fn convertOpenApi31ToUnified(allocator: std.mem.Allocator, openapi31_doc: Op
 /// Returns:
 /// - UnifiedDocument: Unified representation of the OpenAPI v3.2 document
 pub fn convertOpenApi32ToUnified(allocator: std.mem.Allocator, openapi32_doc: OpenApi32Document) !UnifiedDocument {
-    var converter = OpenApi32Converter.init(allocator);
-
-    return try converter.convert(openapi32_doc);
+    return convertDocument(allocator, openapi32_doc, OpenApi32Converter);
 }
 
 /// Convert a version-specific Swagger document to unified representation.
@@ -308,9 +293,7 @@ pub fn convertOpenApi32ToUnified(allocator: std.mem.Allocator, openapi32_doc: Op
 /// Returns:
 /// - UnifiedDocument: Unified representation of the Swagger document
 pub fn convertSwaggerToUnified(allocator: std.mem.Allocator, swagger_doc: SwaggerDocument) !UnifiedDocument {
-    var converter = SwaggerConverter.init(allocator);
-
-    return try converter.convert(swagger_doc);
+    return convertDocument(allocator, swagger_doc, SwaggerConverter);
 }
 
 // Version information

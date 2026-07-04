@@ -78,25 +78,25 @@ fn generateCodeFromJsonContents(allocator: std.mem.Allocator, io: std.Io, json_c
             var swagger = try models.SwaggerDocument.parseFromJson(allocator, json_contents);
             defer swagger.deinit(allocator);
             std.log.info("Successfully parsed Swagger v2.0 document", .{});
-            try generateCodeFromSwaggerDocument(allocator, io, swagger, args);
+            try generateCodeFromDocument(allocator, io, swagger, args, SwaggerConverter);
         },
         .v3_0 => {
             var openapi = try models.OpenApiDocument.parseFromJson(allocator, json_contents);
             defer openapi.deinit(allocator);
             std.log.info("Successfully parsed OpenAPI v3.0 document", .{});
-            try generateCodeFromOpenApiDocument(allocator, io, openapi, args);
+            try generateCodeFromDocument(allocator, io, openapi, args, OpenApiConverter);
         },
         .v3_1 => {
             var openapi31 = try models.OpenApi31Document.parseFromJson(allocator, json_contents);
             defer openapi31.deinit(allocator);
             std.log.info("Successfully parsed OpenAPI v3.1 document", .{});
-            try generateCodeFromOpenApi31Document(allocator, io, openapi31, args);
+            try generateCodeFromDocument(allocator, io, openapi31, args, OpenApi31Converter);
         },
         .v3_2 => {
             var openapi32 = try models.OpenApi32Document.parseFromJson(allocator, json_contents);
             defer openapi32.deinit(allocator);
             std.log.info("Successfully parsed OpenAPI v3.2 document", .{});
-            try generateCodeFromOpenApi32Document(allocator, io, openapi32, args);
+            try generateCodeFromDocument(allocator, io, openapi32, args, OpenApi32Converter);
         },
         else => {
             return GeneratorErrors.UnsupportedOpenAPIVersion;
@@ -134,30 +134,9 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
 }
 
-fn generateCodeFromSwaggerDocument(allocator: std.mem.Allocator, io: std.Io, swagger: models.SwaggerDocument, args: cli.CliArgs) !void {
-    var swagger_converter = SwaggerConverter.init(allocator);
-    var unified_doc = try swagger_converter.convert(swagger);
-    defer unified_doc.deinit(allocator);
-    try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
-}
-
-fn generateCodeFromOpenApiDocument(allocator: std.mem.Allocator, io: std.Io, openapi: models.OpenApiDocument, args: cli.CliArgs) !void {
-    var openapi_converter = OpenApiConverter.init(allocator);
-    var unified_doc = try openapi_converter.convert(openapi);
-    defer unified_doc.deinit(allocator);
-    try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
-}
-
-fn generateCodeFromOpenApi31Document(allocator: std.mem.Allocator, io: std.Io, openapi: models.OpenApi31Document, args: cli.CliArgs) !void {
-    var openapi31_converter = OpenApi31Converter.init(allocator);
-    var unified_doc = try openapi31_converter.convert(openapi);
-    defer unified_doc.deinit(allocator);
-    try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
-}
-
-fn generateCodeFromOpenApi32Document(allocator: std.mem.Allocator, io: std.Io, openapi: models.OpenApi32Document, args: cli.CliArgs) !void {
-    var openapi32_converter = OpenApi32Converter.init(allocator);
-    var unified_doc = try openapi32_converter.convert(openapi);
+fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anytype, args: cli.CliArgs, comptime Converter: type) !void {
+    var converter = Converter.init(allocator);
+    var unified_doc = try converter.convert(doc);
     defer unified_doc.deinit(allocator);
     try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
 }
