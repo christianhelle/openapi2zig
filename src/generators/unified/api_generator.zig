@@ -6,10 +6,7 @@ const Schema = @import("../../models/common/document.zig").Schema;
 const SchemaType = @import("../../models/common/document.zig").SchemaType;
 const Parameter = @import("../../models/common/document.zig").Parameter;
 const media_type = @import("../../media_type.zig");
-
-fn isIdentStart(c: u8) bool {
-    return std.ascii.isAlphabetic(c) or c == '_';
-}
+const ident = @import("ident_utils.zig");
 
 const BodyKind = enum { none, json, binary, text, form };
 
@@ -53,35 +50,6 @@ fn findBodyParam(operation: Operation) ?Parameter {
 fn bodyKindFor(operation: Operation) BodyKind {
     const param = findBodyParam(operation) orelse return .none;
     return classifyBody(param.content_type);
-}
-
-fn isIdentContinue(c: u8) bool {
-    return std.ascii.isAlphanumeric(c) or c == '_';
-}
-
-fn isReservedIdent(name: []const u8) bool {
-    const reserved = [_][]const u8{
-        "addrspace", "align",    "allowzero", "and",       "anyerror", "anyframe",    "anyopaque", "anytype",
-        "asm",       "async",    "await",     "bool",      "break",    "callconv",    "catch",     "comptime",
-        "const",     "continue", "defer",     "else",      "enum",     "errdefer",    "error",     "export",
-        "extern",    "false",    "fn",        "for",       "if",       "inline",      "isize",     "linksection",
-        "noalias",   "noreturn", "nosuspend", "null",      "opaque",   "or",          "orelse",    "packed",
-        "pub",       "resume",   "return",    "struct",    "suspend",  "switch",      "test",      "threadlocal",
-        "true",      "try",      "type",      "undefined", "union",    "unreachable", "usize",     "usingnamespace",
-        "var",       "void",     "volatile",  "while",
-    };
-    for (reserved) |word| {
-        if (std.mem.eql(u8, name, word)) return true;
-    }
-    return false;
-}
-
-fn isBareIdentifier(name: []const u8) bool {
-    if (name.len == 0 or !isIdentStart(name[0]) or isReservedIdent(name)) return false;
-    for (name[1..]) |c| {
-        if (!isIdentContinue(c)) return false;
-    }
-    return true;
 }
 
 const OperationRef = struct {
@@ -178,7 +146,7 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn appendIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
-        if (isBareIdentifier(name)) {
+        if (ident.isBareIdentifier(name)) {
             try self.buffer.appendSlice(self.allocator, name);
             return;
         }
@@ -1331,11 +1299,11 @@ pub const UnifiedApiGenerator = struct {
         errdefer out.deinit(self.allocator);
         for (value, 0..) |c, i| {
             const lower = std.ascii.toLower(c);
-            const valid = if (i == 0) isIdentStart(lower) else isIdentContinue(lower);
+            const valid = if (i == 0) ident.isIdentStart(lower) else ident.isIdentContinue(lower);
             try out.append(self.allocator, if (valid) lower else '_');
         }
-        if (out.items.len == 0 or !isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
-        if (isReservedIdent(out.items)) try out.appendSlice(self.allocator, "_");
+        if (out.items.len == 0 or !ident.isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
+        if (ident.isReservedIdent(out.items)) try out.appendSlice(self.allocator, "_");
         return try out.toOwnedSlice(self.allocator);
     }
 
