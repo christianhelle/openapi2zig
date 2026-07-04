@@ -7,6 +7,7 @@
 **Implemented enhancements:**
 
 - Optional schema numeric bound parsing [\#59](https://github.com/christianhelle/openapi2zig/pull/59) ([christianhelle](https://github.com/christianhelle))
+- feat: Add --models-only option [\#57](https://github.com/christianhelle/openapi2zig/pull/57) ([keeshux](https://github.com/keeshux))
 - Add support for binary payloads [\#55](https://github.com/christianhelle/openapi2zig/pull/55) ([christianhelle](https://github.com/christianhelle))
 - Add YAML OpenAPI parsing [\#50](https://github.com/christianhelle/openapi2zig/pull/50) ([christianhelle](https://github.com/christianhelle))
 
