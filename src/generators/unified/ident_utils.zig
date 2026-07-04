@@ -53,3 +53,48 @@ pub fn appendIdentifier(buffer: *std.ArrayList(u8), allocator: std.mem.Allocator
     }
     try buffer.appendSlice(allocator, "\"");
 }
+
+test "isIdentStart" {
+    try std.testing.expect(isIdentStart('a'));
+    try std.testing.expect(isIdentStart('Z'));
+    try std.testing.expect(isIdentStart('_'));
+    try std.testing.expect(!isIdentStart('0'));
+    try std.testing.expect(!isIdentStart('-'));
+}
+
+test "isIdentContinue" {
+    try std.testing.expect(isIdentContinue('a'));
+    try std.testing.expect(isIdentContinue('Z'));
+    try std.testing.expect(isIdentContinue('_'));
+    try std.testing.expect(isIdentContinue('0'));
+    try std.testing.expect(!isIdentContinue('-'));
+}
+
+test "isReservedIdent" {
+    try std.testing.expect(isReservedIdent("if"));
+    try std.testing.expect(isReservedIdent("return"));
+    try std.testing.expect(isReservedIdent("struct"));
+    try std.testing.expect(!isReservedIdent("foo"));
+    try std.testing.expect(!isReservedIdent(""));
+}
+
+test "isBareIdentifier" {
+    try std.testing.expect(isBareIdentifier("foo"));
+    try std.testing.expect(isBareIdentifier("_bar"));
+    try std.testing.expect(!isBareIdentifier(""));
+    try std.testing.expect(!isBareIdentifier("0foo"));
+    try std.testing.expect(!isBareIdentifier("if"));
+}
+
+test "appendIdentifier" {
+    var buf = std.ArrayList(u8).empty;
+    defer buf.deinit(std.testing.allocator);
+    try appendIdentifier(&buf, std.testing.allocator, "simple");
+    try std.testing.expectEqualStrings("simple", buf.items);
+    buf.clearRetainingCapacity();
+    try appendIdentifier(&buf, std.testing.allocator, "has space");
+    try std.testing.expectEqualStrings("@\"has space\"", buf.items);
+    buf.clearRetainingCapacity();
+    try appendIdentifier(&buf, std.testing.allocator, "quote\"here");
+    try std.testing.expectEqualStrings("@\"quote\\\"here\"", buf.items);
+}
