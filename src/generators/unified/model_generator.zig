@@ -1,39 +1,7 @@
 const std = @import("std");
 const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
 const Schema = @import("../../models/common/document.zig").Schema;
-
-fn isIdentStart(c: u8) bool {
-    return std.ascii.isAlphabetic(c) or c == '_';
-}
-
-fn isIdentContinue(c: u8) bool {
-    return std.ascii.isAlphanumeric(c) or c == '_';
-}
-
-fn isReservedIdent(name: []const u8) bool {
-    const reserved = [_][]const u8{
-        "addrspace", "align",    "allowzero", "and",       "anyerror", "anyframe",    "anyopaque", "anytype",
-        "asm",       "async",    "await",     "bool",      "break",    "callconv",    "catch",     "comptime",
-        "const",     "continue", "defer",     "else",      "enum",     "errdefer",    "error",     "export",
-        "extern",    "false",    "fn",        "for",       "if",       "inline",      "isize",     "linksection",
-        "noalias",   "noreturn", "nosuspend", "null",      "opaque",   "or",          "orelse",    "packed",
-        "pub",       "resume",   "return",    "struct",    "suspend",  "switch",      "test",      "threadlocal",
-        "true",      "try",      "type",      "undefined", "union",    "unreachable", "usize",     "usingnamespace",
-        "var",       "void",     "volatile",  "while",
-    };
-    for (reserved) |word| {
-        if (std.mem.eql(u8, name, word)) return true;
-    }
-    return false;
-}
-
-fn isBareIdentifier(name: []const u8) bool {
-    if (name.len == 0 or !isIdentStart(name[0]) or isReservedIdent(name)) return false;
-    for (name[1..]) |c| {
-        if (!isIdentContinue(c)) return false;
-    }
-    return true;
-}
+const ident = @import("ident_utils.zig");
 
 fn isExtensibleRequest(name: []const u8) bool {
     return std.mem.eql(u8, name, "CreateResponse") or
@@ -69,7 +37,7 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn appendIdentifier(self: *UnifiedModelGenerator, name: []const u8) !void {
-        if (isBareIdentifier(name)) {
+        if (ident.isBareIdentifier(name)) {
             try self.buffer.appendSlice(self.allocator, name);
             return;
         }
@@ -177,15 +145,15 @@ pub const UnifiedModelGenerator = struct {
             if (insert_word_break) try out.append(self.allocator, '_');
 
             const lower = std.ascii.toLower(c);
-            const valid = if (out.items.len == 0) isIdentStart(lower) else isIdentContinue(lower);
+            const valid = if (out.items.len == 0) ident.isIdentStart(lower) else ident.isIdentContinue(lower);
             const byte = if (valid) lower else '_';
             if (byte == '_' and prev_was_underscore) continue;
             try out.append(self.allocator, byte);
             prev_was_underscore = byte == '_';
         }
         while (out.items.len > 0 and out.items[out.items.len - 1] == '_') _ = out.pop();
-        if (out.items.len == 0 or !isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
-        if (isReservedIdent(out.items)) try out.appendSlice(self.allocator, "_");
+        if (out.items.len == 0 or !ident.isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
+        if (ident.isReservedIdent(out.items)) try out.appendSlice(self.allocator, "_");
         return try out.toOwnedSlice(self.allocator);
     }
 
@@ -291,7 +259,7 @@ pub const UnifiedModelGenerator = struct {
         errdefer out.deinit(self.allocator);
         try self.appendTitleIdentPart(&out, owner_name);
         try self.appendTitleIdentPart(&out, field_name);
-        if (out.items.len == 0 or !isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
+        if (out.items.len == 0 or !ident.isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
         return try out.toOwnedSlice(self.allocator);
     }
 
