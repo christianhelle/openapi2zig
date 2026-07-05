@@ -66,6 +66,7 @@ const ResourceWrapper = struct {
     path: []const u8,
     operation: Operation,
     collides: bool = false,
+    needs_alias: bool = false,
 };
 
 fn operationRefLessThan(_: void, lhs: OperationRef, rhs: OperationRef) bool {
@@ -909,6 +910,30 @@ pub const UnifiedApiGenerator = struct {
 
         std.mem.sort(ResourceWrapper, wrappers.items, {}, resourceWrapperLessThan);
 
+        // Detect when wrapper method name matches its containing struct name
+        for (wrappers.items) |*wrapper| {
+            const last_segment = wrapper.segments[wrapper.segments.len - 1];
+            if (std.mem.eql(u8, wrapper.method_name, last_segment)) {
+                wrapper.collides = true;
+                wrapper.needs_alias = true;
+            }
+        }
+
+        // Generate aliases for operations whose wrapper needs them
+        for (wrappers.items) |wrapper| {
+            if (wrapper.needs_alias) {
+                const alias_line = try std.fmt.allocPrint(self.allocator, "const _{s} = {s};\n", .{ wrapper.operation_id, wrapper.operation_id });
+                defer self.allocator.free(alias_line);
+                try self.buffer.appendSlice(self.allocator, alias_line);
+                if (self.hasReturnValue(wrapper.method, wrapper.operation)) {
+                    const result_line = try std.fmt.allocPrint(self.allocator, "const _{s}Result = {s}Result;\n", .{ wrapper.operation_id, wrapper.operation_id });
+                    defer self.allocator.free(result_line);
+                    try self.buffer.appendSlice(self.allocator, result_line);
+                }
+            }
+        }
+        if (wrappers.items.len > 0) try self.buffer.appendSlice(self.allocator, "\n");
+
         try self.buffer.appendSlice(self.allocator, "pub const resources = struct {\n");
         try self.generateResourceLevel(wrappers.items, 0, 1, &.{});
         try self.buffer.appendSlice(self.allocator, "};\n\n");
@@ -951,6 +976,14 @@ pub const UnifiedApiGenerator = struct {
         }
 
         for (children.items) |child| try declarations.append(self.allocator, child);
+
+        // Detect wrapper method name collision with ancestor/child struct names
+        for (wrappers) |*wrapper_at_depth| {
+            if (wrapper_at_depth.segments.len == depth and containsString(declarations.items, wrapper_at_depth.method_name)) {
+                wrapper_at_depth.collides = true;
+            }
+        }
+
         for (wrappers) |wrapper| {
             if (wrapper.segments.len == depth) {
                 const name = try self.resourceWrapperNameAlloc(wrapper);
@@ -1010,6 +1043,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, " {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
+        if (wrapper.needs_alias) try self.buffer.appendSlice(self.allocator, "_");
         try self.appendIdentifier(wrapper.operation_id);
         try self.appendWrapperCallArguments(wrapper.operation, forbidden_names);
         try self.buffer.appendSlice(self.allocator, ";\n");
@@ -1032,6 +1066,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, " {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
+        if (wrapper.needs_alias) try self.buffer.appendSlice(self.allocator, "_");
         try self.appendIdentifier(operation_result_name);
         try self.appendWrapperCallArguments(wrapper.operation, forbidden_names);
         try self.buffer.appendSlice(self.allocator, ";\n");
@@ -1178,12 +1213,19 @@ pub const UnifiedApiGenerator = struct {
         while (path_iterator.next()) |entry| {
             const path_item = entry.value_ptr.*;
             if (operationHasParameterNamed(self, path_item.get, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.get, "GET", alias)) return true;
             if (operationHasParameterNamed(self, path_item.post, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.post, "POST", alias)) return true;
             if (operationHasParameterNamed(self, path_item.put, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.put, "PUT", alias)) return true;
             if (operationHasParameterNamed(self, path_item.delete, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.delete, "DELETE", alias)) return true;
             if (operationHasParameterNamed(self, path_item.patch, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.patch, "PATCH", alias)) return true;
             if (operationHasParameterNamed(self, path_item.head, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.head, "HEAD", alias)) return true;
             if (operationHasParameterNamed(self, path_item.options, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.options, "OPTIONS", alias)) return true;
         }
         return false;
     }
@@ -1198,6 +1240,32 @@ pub const UnifiedApiGenerator = struct {
                 if (std.mem.eql(u8, sanitized, name)) return true;
             }
         }
+        return false;
+    }
+
+    fn operationDeclaresTopLevelName(self: *UnifiedApiGenerator, maybe_operation: ?Operation, method: []const u8, name: []const u8) bool {
+        const operation = maybe_operation orelse return false;
+        const operation_id = operation.operationId orelse return false;
+        if (std.mem.eql(u8, operation_id, name)) return true;
+
+        const raw_name = std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id}) catch return true;
+        defer self.allocator.free(raw_name);
+        if (std.mem.eql(u8, raw_name, name)) return true;
+
+        if (self.hasReturnValue(method, operation)) {
+            const result_name = std.fmt.allocPrint(self.allocator, "{s}Result", .{operation_id}) catch return true;
+            defer self.allocator.free(result_name);
+            if (std.mem.eql(u8, result_name, name)) return true;
+        }
+
+        if (self.streamFunctionName(operation_id)) |stream_name| {
+            if (std.mem.eql(u8, stream_name, name)) return true;
+
+            const events_name = std.fmt.allocPrint(self.allocator, "{s}Events", .{stream_name}) catch return true;
+            defer self.allocator.free(events_name);
+            if (std.mem.eql(u8, events_name, name)) return true;
+        }
+
         return false;
     }
 

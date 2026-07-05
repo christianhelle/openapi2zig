@@ -1032,6 +1032,7 @@ pub fn logoutUserRaw(client: *Client) !RawResponse {
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
 
+
 pub const resources = struct {
     pub const pet = struct {
         pub fn addpet(client: *Client, requestBody: Pet) !void {
@@ -1121,12 +1122,12 @@ pub const resources = struct {
             return updateUser(client, username, requestBody);
         }
         pub const createwitharray = struct {
-            pub fn create(client: *Client, requestBody: []const std.json.Value) !void {
+            pub fn createuserswitharrayinput_(client: *Client, requestBody: []const std.json.Value) !void {
                 return createUsersWithArrayInput(client, requestBody);
             }
         };
         pub const createwithlist = struct {
-            pub fn create(client: *Client, requestBody: []const std.json.Value) !void {
+            pub fn createuserswithlistinput_(client: *Client, requestBody: []const std.json.Value) !void {
                 return createUsersWithListInput(client, requestBody);
             }
         };

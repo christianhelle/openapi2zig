@@ -4,49 +4,217 @@ const std = @import("std");
 // Generated Zig structures from OpenAPI
 ///////////////////////////////////////////
 
-pub const Category = struct {
-    id: ?i64 = null,
-    name: ?[]const u8 = null,
+pub const LlmLoadConfig = struct {
+    context_length: i64,
+    flash_attention: ?bool = null,
+    eval_batch_size: ?i64 = null,
+    num_experts: ?i64 = null,
+    offload_kv_cache_to_gpu: ?bool = null,
 };
 
-pub const Pet = struct {
-    status: ?[]const u8 = null,
-    tags: ?[]const Tag = null,
-    category: ?Category = null,
-    id: ?i64 = null,
+pub const UnloadModelRequest = struct {
+    instance_id: []const u8,
+};
+
+pub const ReasoningOutput = struct {
+    @"type": []const u8,
+    content: []const u8,
+};
+
+pub const ListModelsResponse = struct {
+    models: []const ModelInfo,
+};
+
+pub const DownloadModelResponse = struct {
+    status: []const u8,
+    job_id: ?[]const u8 = null,
+    completed_at: ?[]const u8 = null,
+    total_size_bytes: ?i64 = null,
+    started_at: ?[]const u8 = null,
+};
+
+pub const ChatOutputItem = std.json.Value;
+
+pub const LoadedInstance = struct {
+    id: []const u8,
+    config: LoadedInstanceConfig,
+};
+
+pub const TextInput = struct {
+    @"type": []const u8,
+    content: []const u8,
+};
+
+pub const LoadModelRequest = struct {
+    context_length: ?i64 = null,
+    flash_attention: ?bool = null,
+    eval_batch_size: ?i64 = null,
+    num_experts: ?i64 = null,
+    offload_kv_cache_to_gpu: ?bool = null,
+    model: []const u8,
+    echo_load_config: ?bool = null,
+};
+
+pub const ModelInfoCapabilitiesReasoning = struct {
+    allowed_options: []const []const u8,
+    default: []const u8,
+};
+
+pub const ModelInfoCapabilities = struct {
+    trained_for_tool_use: ?bool = null,
+    reasoning: ?ModelInfoCapabilitiesReasoning = null,
+    vision: ?bool = null,
+};
+
+pub const ModelInfoQuantization = struct {
     name: []const u8,
-    photoUrls: []const []const u8,
+    bits_per_weight: f64,
 };
 
-pub const User = struct {
-    password: ?[]const u8 = null,
-    userStatus: ?i64 = null,
-    username: ?[]const u8 = null,
-    email: ?[]const u8 = null,
-    firstName: ?[]const u8 = null,
-    id: ?i64 = null,
-    lastName: ?[]const u8 = null,
-    phone: ?[]const u8 = null,
+pub const ModelInfo = struct {
+    params_string: ?[]const u8 = null,
+    publisher: []const u8,
+    key: []const u8,
+    format: []const u8,
+    variants: ?[]const []const u8 = null,
+    selected_variant: ?[]const u8 = null,
+    display_name: []const u8,
+    size_bytes: i64,
+    architecture: ?[]const u8 = null,
+    max_context_length: i64,
+    capabilities: ?ModelInfoCapabilities = null,
+    loaded_instances: []const LoadedInstance,
+    quantization: ?ModelInfoQuantization = null,
+    description: ?[]const u8 = null,
+    @"type": []const u8,
 };
 
-pub const Tag = struct {
-    id: ?i64 = null,
-    name: ?[]const u8 = null,
+pub const EmbeddingLoadConfig = struct {
+    context_length: i64,
 };
 
-pub const Order = struct {
-    status: ?[]const u8 = null,
-    petId: ?i64 = null,
-    complete: ?bool = null,
-    id: ?i64 = null,
-    quantity: ?i64 = null,
-    shipDate: ?[]const u8 = null,
+pub const DownloadStatusResponse = struct {
+    completed_at: ?[]const u8 = null,
+    bytes_per_second: ?i64 = null,
+    estimated_completion: ?[]const u8 = null,
+    total_size_bytes: ?i64 = null,
+    started_at: ?[]const u8 = null,
+    status: []const u8,
+    job_id: []const u8,
+    downloaded_bytes: ?i64 = null,
 };
 
-pub const ApiResponse = struct {
-    @"type": ?[]const u8 = null,
-    message: ?[]const u8 = null,
-    code: ?i64 = null,
+pub const PluginIntegration = struct {
+    allowed_tools: ?[]const []const u8 = null,
+    id: []const u8,
+    @"type": []const u8,
+};
+
+pub const ChatStats = struct {
+    input_tokens: i64,
+    reasoning_output_tokens: i64,
+    tokens_per_second: f64,
+    time_to_first_token_seconds: f64,
+    total_output_tokens: i64,
+    model_load_time_seconds: ?f64 = null,
+};
+
+pub const ChatResponse = struct {
+    stats: ChatStats,
+    response_id: ?[]const u8 = null,
+    model_instance_id: []const u8,
+    output: []const ChatOutputItem,
+};
+
+pub const DownloadModelRequest = struct {
+    quantization: ?[]const u8 = null,
+    model: []const u8,
+};
+
+pub const ChatRequest = struct {
+    integrations: ?[]const std.json.Value = null,
+    reasoning: ?[]const u8 = null,
+    temperature: ?f64 = null,
+    max_output_tokens: ?i64 = null,
+    store: ?bool = null,
+    model: []const u8,
+    stream: ?bool = null,
+    context_length: ?i64 = null,
+    repeat_penalty: ?f64 = null,
+    top_p: ?f64 = null,
+    top_k: ?i64 = null,
+    min_p: ?f64 = null,
+    previous_response_id: ?[]const u8 = null,
+    input: std.json.Value,
+    system_prompt: ?[]const u8 = null,
+};
+
+pub const MessageOutput = struct {
+    @"type": []const u8,
+    content: []const u8,
+};
+
+pub const LoadedInstanceConfig = struct {
+    context_length: i64,
+    num_experts: ?i64 = null,
+    flash_attention: ?bool = null,
+    eval_batch_size: ?i64 = null,
+    parallel: ?i64 = null,
+    offload_kv_cache_to_gpu: ?bool = null,
+};
+
+pub const ImageInput = struct {
+    data_url: []const u8,
+    @"type": []const u8,
+};
+
+pub const UnloadModelResponse = struct {
+    instance_id: []const u8,
+};
+
+pub const InvalidToolCallOutputMetadata = struct {
+    arguments: ?std.json.Value = null,
+    tool_name: []const u8,
+    @"type": []const u8,
+    provider_info: ?ProviderInfo = null,
+};
+
+pub const InvalidToolCallOutput = struct {
+    metadata: InvalidToolCallOutputMetadata,
+    reason: []const u8,
+    @"type": []const u8,
+};
+
+pub const LoadModelResponse = struct {
+    load_time_seconds: f64,
+    status: []const u8,
+    instance_id: []const u8,
+    load_config: ?std.json.Value = null,
+    @"type": []const u8,
+};
+
+pub const ProviderInfo = struct {
+    @"type": []const u8,
+    plugin_id: ?[]const u8 = null,
+    server_label: ?[]const u8 = null,
+};
+
+pub const ChatInputItem = std.json.Value;
+
+pub const EphemeralMcpIntegration = struct {
+    server_url: []const u8,
+    allowed_tools: ?[]const []const u8 = null,
+    @"type": []const u8,
+    headers: ?std.json.Value = null,
+    server_label: []const u8,
+};
+
+pub const ToolCallOutput = struct {
+    arguments: std.json.Value,
+    tool: []const u8,
+    output: []const u8,
+    @"type": []const u8,
+    provider_info: ProviderInfo,
 };
 
 
@@ -108,7 +276,7 @@ pub const Client = struct {
     io: std.Io,
     http: std.http.Client,
     api_key: []const u8,
-    base_url: []const u8 = "https://petstore3.swagger.io/api/v3",
+    base_url: []const u8 = "",
     organization: ?[]const u8 = null,
     project: ?[]const u8 = null,
     default_headers: []const std.http.Header = &.{},
@@ -417,13 +585,13 @@ fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std
 
 /////////////////
 // Summary:
-// Returns pet inventories by status
+// List your models
 //
 // Description:
-// Returns a map of status codes to quantities
+// Get a list of available models on your system, including both LLMs and embedding models.
 //
-pub fn getInventory(client: *Client) !Owned(std.json.Value) {
-    var result = try getInventoryResult(client);
+pub fn listModels(client: *Client) !Owned(ListModelsResponse) {
+    var result = try listModelsResult(client);
     switch (result) {
         .ok => |ok| return ok,
         .api_error => |*err| {
@@ -437,29 +605,29 @@ pub fn getInventory(client: *Client) !Owned(std.json.Value) {
     }
 }
 
-pub fn getInventoryRaw(client: *Client) !RawResponse {
+pub fn listModelsRaw(client: *Client) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/store/inventory", .{client.base_url});
+    try uri_buf.writer.print("{s}/api/v1/models", .{client.base_url});
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
 
-pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
-    return parseRawResponse(std.json.Value, try getInventoryRaw(client));
+pub fn listModelsResult(client: *Client) !ApiResult(ListModelsResponse) {
+    return parseRawResponse(ListModelsResponse, try listModelsRaw(client));
 }
 
 /////////////////
 // Summary:
-// Get user by user name
+// Download a model
 //
 // Description:
-// 
+// Download LLMs and embedding models.
 //
-pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
-    var result = try getUserByNameResult(client, username);
+pub fn downloadModel(client: *Client, requestBody: DownloadModelRequest) !Owned(DownloadModelResponse) {
+    var result = try downloadModelResult(client, requestBody);
     switch (result) {
         .ok => |ok| return ok,
         .api_error => |*err| {
@@ -473,47 +641,11 @@ pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
     }
 }
 
-pub fn getUserByNameRaw(client: *Client, username: []const u8) !RawResponse {
+pub fn downloadModelRaw(client: *Client, requestBody: DownloadModelRequest) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
-    const payload: ?[]const u8 = null;
-
-    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
-}
-
-pub fn getUserByNameResult(client: *Client, username: []const u8) !ApiResult(User) {
-    return parseRawResponse(User, try getUserByNameRaw(client, username));
-}
-
-/////////////////
-// Summary:
-// Place an order for a pet
-//
-// Description:
-// Place a new order in the store
-//
-pub fn placeOrder(client: *Client, requestBody: Order) !Owned(Order) {
-    var result = try placeOrderResult(client, requestBody);
-    switch (result) {
-        .ok => |ok| return ok,
-        .api_error => |*err| {
-            err.deinit();
-            return error.ResponseError;
-        },
-        .parse_error => |*err| {
-            err.raw.deinit();
-            return error.ResponseParseError;
-        },
-    }
-}
-
-pub fn placeOrderRaw(client: *Client, requestBody: Order) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/store/order", .{client.base_url});
+    try uri_buf.writer.print("{s}/api/v1/models/download", .{client.base_url});
 
     var str: std.Io.Writer.Allocating = .init(allocator);
     defer str.deinit();
@@ -523,19 +655,19 @@ pub fn placeOrderRaw(client: *Client, requestBody: Order) !RawResponse {
     return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
 }
 
-pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
-    return parseRawResponse(Order, try placeOrderRaw(client, requestBody));
+pub fn downloadModelResult(client: *Client, requestBody: DownloadModelRequest) !ApiResult(DownloadModelResponse) {
+    return parseRawResponse(DownloadModelResponse, try downloadModelRaw(client, requestBody));
 }
 
 /////////////////
 // Summary:
-// Create user
+// Get download status
 //
 // Description:
-// This can only be done by the logged in user.
+// Get the status of model downloads.
 //
-pub fn createUser(client: *Client, requestBody: User) !Owned(User) {
-    var result = try createUserResult(client, requestBody);
+pub fn getDownloadStatus(client: *Client, job_id: []const u8) !Owned(DownloadStatusResponse) {
+    var result = try getDownloadStatusResult(client, job_id);
     switch (result) {
         .ok => |ok| return ok,
         .api_error => |*err| {
@@ -549,11 +681,47 @@ pub fn createUser(client: *Client, requestBody: User) !Owned(User) {
     }
 }
 
-pub fn createUserRaw(client: *Client, requestBody: User) !RawResponse {
+pub fn getDownloadStatusRaw(client: *Client, job_id: []const u8) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user", .{client.base_url});
+    try uri_buf.writer.print("{s}/api/v1/models/download/status/{s}", .{client.base_url, job_id});
+    const payload: ?[]const u8 = null;
+
+    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
+}
+
+pub fn getDownloadStatusResult(client: *Client, job_id: []const u8) !ApiResult(DownloadStatusResponse) {
+    return parseRawResponse(DownloadStatusResponse, try getDownloadStatusRaw(client, job_id));
+}
+
+/////////////////
+// Summary:
+// Unload a model
+//
+// Description:
+// Unload a loaded model from memory.
+//
+pub fn unloadModel(client: *Client, requestBody: UnloadModelRequest) !Owned(UnloadModelResponse) {
+    var result = try unloadModelResult(client, requestBody);
+    switch (result) {
+        .ok => |ok| return ok,
+        .api_error => |*err| {
+            err.deinit();
+            return error.ResponseError;
+        },
+        .parse_error => |*err| {
+            err.raw.deinit();
+            return error.ResponseParseError;
+        },
+    }
+}
+
+pub fn unloadModelRaw(client: *Client, requestBody: UnloadModelRequest) !RawResponse {
+    const allocator = client.allocator;
+    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
+    defer uri_buf.deinit();
+    try uri_buf.writer.print("{s}/api/v1/models/unload", .{client.base_url});
 
     var str: std.Io.Writer.Allocating = .init(allocator);
     defer str.deinit();
@@ -563,19 +731,19 @@ pub fn createUserRaw(client: *Client, requestBody: User) !RawResponse {
     return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
 }
 
-pub fn createUserResult(client: *Client, requestBody: User) !ApiResult(User) {
-    return parseRawResponse(User, try createUserRaw(client, requestBody));
+pub fn unloadModelResult(client: *Client, requestBody: UnloadModelRequest) !ApiResult(UnloadModelResponse) {
+    return parseRawResponse(UnloadModelResponse, try unloadModelRaw(client, requestBody));
 }
 
 /////////////////
 // Summary:
-// Find pet by ID
+// Load a model
 //
 // Description:
-// Returns a single pet
+// Load an LLM or Embedding model into memory with custom configuration for inference.
 //
-pub fn getPetById(client: *Client, petId: i64) !Owned(Pet) {
-    var result = try getPetByIdResult(client, petId);
+pub fn loadModel(client: *Client, requestBody: LoadModelRequest) !Owned(LoadModelResponse) {
+    var result = try loadModelResult(client, requestBody);
     switch (result) {
         .ok => |ok| return ok,
         .api_error => |*err| {
@@ -589,71 +757,11 @@ pub fn getPetById(client: *Client, petId: i64) !Owned(Pet) {
     }
 }
 
-pub fn getPetByIdRaw(client: *Client, petId: i64) !RawResponse {
+pub fn loadModelRaw(client: *Client, requestBody: LoadModelRequest) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
-    const payload: ?[]const u8 = null;
-
-    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
-}
-
-pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
-    return parseRawResponse(Pet, try getPetByIdRaw(client, petId));
-}
-
-/////////////////
-// Summary:
-// Deletes a pet
-//
-// Description:
-// 
-//
-pub fn deletePet(client: *Client, api_key: []const u8, petId: i64) !void {
-    var raw = try deletePetRaw(client, api_key, petId);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
-}
-
-pub fn deletePetRaw(client: *Client, api_key: []const u8, petId: i64) !RawResponse {
-    const allocator = client.allocator;
-    _ = api_key;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
-    const payload: ?[]const u8 = null;
-
-    return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
-}
-
-/////////////////
-// Summary:
-// Add a new pet to the store
-//
-// Description:
-// Add a new pet to the store
-//
-pub fn addPet(client: *Client, requestBody: Pet) !Owned(Pet) {
-    var result = try addPetResult(client, requestBody);
-    switch (result) {
-        .ok => |ok| return ok,
-        .api_error => |*err| {
-            err.deinit();
-            return error.ResponseError;
-        },
-        .parse_error => |*err| {
-            err.raw.deinit();
-            return error.ResponseParseError;
-        },
-    }
-}
-
-pub fn addPetRaw(client: *Client, requestBody: Pet) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet", .{client.base_url});
+    try uri_buf.writer.print("{s}/api/v1/models/load", .{client.base_url});
 
     var str: std.Io.Writer.Allocating = .init(allocator);
     defer str.deinit();
@@ -663,19 +771,19 @@ pub fn addPetRaw(client: *Client, requestBody: Pet) !RawResponse {
     return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
 }
 
-pub fn addPetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
-    return parseRawResponse(Pet, try addPetRaw(client, requestBody));
+pub fn loadModelResult(client: *Client, requestBody: LoadModelRequest) !ApiResult(LoadModelResponse) {
+    return parseRawResponse(LoadModelResponse, try loadModelRaw(client, requestBody));
 }
 
 /////////////////
 // Summary:
-// Update an existing pet
+// Chat with a model
 //
 // Description:
-// Update an existing pet by Id
+// Send a message to a model and receive a response. Supports MCP integration.
 //
-pub fn updatePet(client: *Client, requestBody: Pet) !Owned(Pet) {
-    var result = try updatePetResult(client, requestBody);
+pub fn chat(client: *Client, requestBody: ChatRequest) !Owned(ChatResponse) {
+    var result = try chatResult(client, requestBody);
     switch (result) {
         .ok => |ok| return ok,
         .api_error => |*err| {
@@ -689,132 +797,79 @@ pub fn updatePet(client: *Client, requestBody: Pet) !Owned(Pet) {
     }
 }
 
-pub fn updatePetRaw(client: *Client, requestBody: Pet) !RawResponse {
+pub fn chatRaw(client: *Client, requestBody: ChatRequest) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet", .{client.base_url});
+    try uri_buf.writer.print("{s}/api/v1/chat", .{client.base_url});
 
     var str: std.Io.Writer.Allocating = .init(allocator);
     defer str.deinit();
     try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);
     const payload: ?[]const u8 = str.written();
 
-    return requestRaw(client, std.http.Method.PUT, uri_buf.written(), payload);
+    return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
 }
 
-pub fn updatePetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
-    return parseRawResponse(Pet, try updatePetRaw(client, requestBody));
+pub fn chatResult(client: *Client, requestBody: ChatRequest) !ApiResult(ChatResponse) {
+    return parseRawResponse(ChatResponse, try chatRaw(client, requestBody));
 }
 
-/////////////////
-// Summary:
-// Finds Pets by status
-//
-// Description:
-// Multiple status values can be provided with comma separated strings
-//
-pub fn findPetsByStatus(client: *Client, status: ?[]const u8) !Owned([]const std.json.Value) {
-    var result = try findPetsByStatusResult(client, status);
-    switch (result) {
-        .ok => |ok| return ok,
-        .api_error => |*err| {
-            err.deinit();
-            return error.ResponseError;
-        },
-        .parse_error => |*err| {
-            err.raw.deinit();
-            return error.ResponseParseError;
-        },
-    }
-}
-
-pub fn findPetsByStatusRaw(client: *Client, status: ?[]const u8) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/findByStatus", .{client.base_url});
-    var first_query = true;
-    if (status) |value| {
-        try appendQueryParam(&uri_buf.writer, &first_query, "status", value);
-    }
-    const payload: ?[]const u8 = null;
-
-    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
-}
-
-pub fn findPetsByStatusResult(client: *Client, status: ?[]const u8) !ApiResult([]const std.json.Value) {
-    return parseRawResponse([]const std.json.Value, try findPetsByStatusRaw(client, status));
-}
-
+const _chat = chat;
+const _chatResult = chatResult;
 
 pub const resources = struct {
-    pub const pet = struct {
-        pub fn addpet(client: *Client, requestBody: Pet) !Owned(Pet) {
-            return addPet(client, requestBody);
-        }
-        pub fn addpetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
-            return addPetResult(client, requestBody);
-        }
-        pub fn delete(client: *Client, api_key: []const u8, petId: i64) !void {
-            return deletePet(client, api_key, petId);
-        }
-        pub fn get(client: *Client, petId: i64) !Owned(Pet) {
-            return getPetById(client, petId);
-        }
-        pub fn getResult(client: *Client, petId: i64) !ApiResult(Pet) {
-            return getPetByIdResult(client, petId);
-        }
-        pub fn update(client: *Client, requestBody: Pet) !Owned(Pet) {
-            return updatePet(client, requestBody);
-        }
-        pub fn updateResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
-            return updatePetResult(client, requestBody);
-        }
-        pub const findbystatus = struct {
-            pub fn findpetsbystatus(client: *Client, status: ?[]const u8) !Owned([]const std.json.Value) {
-                return findPetsByStatus(client, status);
+    pub const api = struct {
+        pub const chat = struct {
+            pub fn chat_(client: *Client, requestBody: ChatRequest) !Owned(ChatResponse) {
+                return _chat(client, requestBody);
             }
-            pub fn findpetsbystatusResult(client: *Client, status: ?[]const u8) !ApiResult([]const std.json.Value) {
-                return findPetsByStatusResult(client, status);
+            pub fn chat_Result(client: *Client, requestBody: ChatRequest) !ApiResult(ChatResponse) {
+                return _chatResult(client, requestBody);
             }
         };
-    };
-    pub const store = struct {
-        pub const inventory = struct {
-            pub fn get(client: *Client) !Owned(std.json.Value) {
-                return getInventory(client);
+        pub const models = struct {
+            pub fn list(client: *Client) !Owned(ListModelsResponse) {
+                return listModels(client);
             }
-            pub fn getResult(client: *Client) !ApiResult(std.json.Value) {
-                return getInventoryResult(client);
+            pub fn listResult(client: *Client) !ApiResult(ListModelsResponse) {
+                return listModelsResult(client);
             }
+            pub const download = struct {
+                pub fn downloadmodel(client: *Client, requestBody: DownloadModelRequest) !Owned(DownloadModelResponse) {
+                    return downloadModel(client, requestBody);
+                }
+                pub fn downloadmodelResult(client: *Client, requestBody: DownloadModelRequest) !ApiResult(DownloadModelResponse) {
+                    return downloadModelResult(client, requestBody);
+                }
+                pub const status = struct {
+                    pub fn get(client: *Client, job_id: []const u8) !Owned(DownloadStatusResponse) {
+                        return getDownloadStatus(client, job_id);
+                    }
+                    pub fn getResult(client: *Client, job_id: []const u8) !ApiResult(DownloadStatusResponse) {
+                        return getDownloadStatusResult(client, job_id);
+                    }
+                };
+            };
+            pub const load = struct {
+                pub fn loadmodel(client: *Client, requestBody: LoadModelRequest) !Owned(LoadModelResponse) {
+                    return loadModel(client, requestBody);
+                }
+                pub fn loadmodelResult(client: *Client, requestBody: LoadModelRequest) !ApiResult(LoadModelResponse) {
+                    return loadModelResult(client, requestBody);
+                }
+            };
+            pub const unload = struct {
+                pub fn unloadmodel(client: *Client, requestBody: UnloadModelRequest) !Owned(UnloadModelResponse) {
+                    return unloadModel(client, requestBody);
+                }
+                pub fn unloadmodelResult(client: *Client, requestBody: UnloadModelRequest) !ApiResult(UnloadModelResponse) {
+                    return unloadModelResult(client, requestBody);
+                }
+            };
         };
-        pub const order = struct {
-            pub fn placeorder(client: *Client, requestBody: Order) !Owned(Order) {
-                return placeOrder(client, requestBody);
-            }
-            pub fn placeorderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
-                return placeOrderResult(client, requestBody);
-            }
-        };
-    };
-    pub const user = struct {
-        pub fn create(client: *Client, requestBody: User) !Owned(User) {
-            return createUser(client, requestBody);
-        }
-        pub fn createResult(client: *Client, requestBody: User) !ApiResult(User) {
-            return createUserResult(client, requestBody);
-        }
-        pub fn get(client: *Client, username: []const u8) !Owned(User) {
-            return getUserByName(client, username);
-        }
-        pub fn getResult(client: *Client, username: []const u8) !ApiResult(User) {
-            return getUserByNameResult(client, username);
-        }
     };
 };
 
-pub const pet = resources.pet;
-pub const store = resources.store;
-pub const user = resources.user;
+pub const api = resources.api;
 
