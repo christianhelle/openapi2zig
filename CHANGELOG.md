@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Fix resource wrapper method name collisions when segment equals operation ID [\#61](https://github.com/christianhelle/openapi2zig/pull/61) ([christianhelle](https://github.com/christianhelle))
 - Reduce code duplication [\#60](https://github.com/christianhelle/openapi2zig/pull/60) ([christianhelle](https://github.com/christianhelle))
 - Optional schema numeric bound parsing [\#59](https://github.com/christianhelle/openapi2zig/pull/59) ([christianhelle](https://github.com/christianhelle))
 - Add --models-only option [\#57](https://github.com/christianhelle/openapi2zig/pull/57) ([keeshux](https://github.com/keeshux))
