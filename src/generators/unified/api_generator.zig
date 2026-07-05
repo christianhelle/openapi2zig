@@ -1213,12 +1213,19 @@ pub const UnifiedApiGenerator = struct {
         while (path_iterator.next()) |entry| {
             const path_item = entry.value_ptr.*;
             if (operationHasParameterNamed(self, path_item.get, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.get, "GET", alias)) return true;
             if (operationHasParameterNamed(self, path_item.post, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.post, "POST", alias)) return true;
             if (operationHasParameterNamed(self, path_item.put, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.put, "PUT", alias)) return true;
             if (operationHasParameterNamed(self, path_item.delete, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.delete, "DELETE", alias)) return true;
             if (operationHasParameterNamed(self, path_item.patch, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.patch, "PATCH", alias)) return true;
             if (operationHasParameterNamed(self, path_item.head, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.head, "HEAD", alias)) return true;
             if (operationHasParameterNamed(self, path_item.options, alias)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.options, "OPTIONS", alias)) return true;
         }
         return false;
     }
@@ -1233,6 +1240,32 @@ pub const UnifiedApiGenerator = struct {
                 if (std.mem.eql(u8, sanitized, name)) return true;
             }
         }
+        return false;
+    }
+
+    fn operationDeclaresTopLevelName(self: *UnifiedApiGenerator, maybe_operation: ?Operation, method: []const u8, name: []const u8) bool {
+        const operation = maybe_operation orelse return false;
+        const operation_id = operation.operationId orelse return false;
+        if (std.mem.eql(u8, operation_id, name)) return true;
+
+        const raw_name = std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id}) catch return true;
+        defer self.allocator.free(raw_name);
+        if (std.mem.eql(u8, raw_name, name)) return true;
+
+        if (self.hasReturnValue(method, operation)) {
+            const result_name = std.fmt.allocPrint(self.allocator, "{s}Result", .{operation_id}) catch return true;
+            defer self.allocator.free(result_name);
+            if (std.mem.eql(u8, result_name, name)) return true;
+        }
+
+        if (self.streamFunctionName(operation_id)) |stream_name| {
+            if (std.mem.eql(u8, stream_name, name)) return true;
+
+            const events_name = std.fmt.allocPrint(self.allocator, "{s}Events", .{stream_name}) catch return true;
+            defer self.allocator.free(events_name);
+            if (std.mem.eql(u8, events_name, name)) return true;
+        }
+
         return false;
     }
 

@@ -13,9 +13,29 @@ fn responseMap(allocator: std.mem.Allocator, with_schema: bool) !std.StringHashM
     return responses;
 }
 
+fn dupTags(allocator: std.mem.Allocator, tags: []const []const u8) ![][]const u8 {
+    const out = try allocator.alloc([]const u8, tags.len);
+    for (tags, 0..) |tag, i| out[i] = tag;
+    return out;
+}
+
 fn op(allocator: std.mem.Allocator, operation_id: []const u8, method: []const u8, has_body: bool, has_path_param: bool, has_response: bool) !common.Operation {
+    return opWithTags(allocator, operation_id, method, has_body, has_path_param, has_response, null);
+}
+
+fn opWithTags(
+    allocator: std.mem.Allocator,
+    operation_id: []const u8,
+    method: []const u8,
+    has_body: bool,
+    has_path_param: bool,
+    has_response: bool,
+    tags: ?[]const []const u8,
+) !common.Operation {
     var params = std.ArrayList(common.Parameter).empty;
     errdefer params.deinit(allocator);
+    const owned_tags = if (tags) |provided_tags| try dupTags(allocator, provided_tags) else null;
+    errdefer if (owned_tags) |value| allocator.free(value);
 
     if (has_path_param) {
         try params.append(allocator, .{
@@ -36,6 +56,7 @@ fn op(allocator: std.mem.Allocator, operation_id: []const u8, method: []const u8
 
     _ = method;
     return .{
+        .tags = owned_tags,
         .operationId = operation_id,
         .parameters = if (params.items.len == 0) null else try params.toOwnedSlice(allocator),
         .responses = try responseMap(allocator, has_response),
@@ -56,6 +77,21 @@ fn buildFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     });
     try paths.put(try allocator.dupe(u8, "/chat/completions"), .{
         .post = try op(allocator, "createChatCompletion", "POST", true, false, true),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+fn buildOperationNameCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    try paths.put(try allocator.dupe(u8, "/api/v1/chat"), .{
+        .post = try opWithTags(allocator, "chat", "POST", true, false, true, &.{"chat"}),
     });
 
     return .{
@@ -104,4 +140,29 @@ test "resource wrappers derive from paths" {
     try std.testing.expect(std.mem.indexOf(u8, code, "return createChatCompletionResult(client, requestBody);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = resources.chat;") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const pets = resources.pets;") != null);
+}
+
+test "resource wrapper aliases skip top-level operation name collisions" {
+    const allocator = std.testing.allocator;
+    const modes = [_]cli.ResourceWrapperMode{ .tags, .hybrid };
+
+    for (modes) |mode| {
+        var document = try buildOperationNameCollisionFixture(allocator);
+        defer document.deinit(allocator);
+
+        var generator = UnifiedApiGenerator.init(allocator, .{
+            .input_path = "fixture.json",
+            .resource_wrappers = mode,
+        });
+        defer generator.deinit();
+
+        const code = try generator.generate(document);
+        defer allocator.free(code);
+
+        try std.testing.expect(std.mem.indexOf(u8, code, "const _chat = chat;") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "pub const resources = struct") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = struct") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chat_(client: *Client, requestBody: std.json.Value)") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = resources.chat;") == null);
+    }
 }
