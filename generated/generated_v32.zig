@@ -747,6 +747,7 @@ pub fn findPetsByStatusResult(client: *Client, status: ?[]const u8) !ApiResult([
     return parseRawResponse([]const std.json.Value, try findPetsByStatusRaw(client, status));
 }
 
+
 pub const resources = struct {
     pub const pet = struct {
         pub fn addpet(client: *Client, requestBody: Pet) !Owned(Pet) {

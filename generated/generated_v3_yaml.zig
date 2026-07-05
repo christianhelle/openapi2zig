@@ -1093,6 +1093,7 @@ pub fn logoutUserRaw(client: *Client) !RawResponse {
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
 
+
 pub const resources = struct {
     pub const pet = struct {
         pub fn addpet(client: *Client, requestBody: Pet) !Owned(Pet) {
@@ -1188,10 +1189,10 @@ pub const resources = struct {
             return updateUser(client, username, requestBody);
         }
         pub const createwithlist = struct {
-            pub fn create(client: *Client, requestBody: []const std.json.Value) !Owned(User) {
+            pub fn createuserswithlistinput_(client: *Client, requestBody: []const std.json.Value) !Owned(User) {
                 return createUsersWithListInput(client, requestBody);
             }
-            pub fn createResult(client: *Client, requestBody: []const std.json.Value) !ApiResult(User) {
+            pub fn createuserswithlistinput_Result(client: *Client, requestBody: []const std.json.Value) !ApiResult(User) {
                 return createUsersWithListInputResult(client, requestBody);
             }
         };
