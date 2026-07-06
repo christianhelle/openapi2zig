@@ -20,22 +20,41 @@ pub fn main(init: std.process.Init) !void {
         return;
     };
 
-    std.debug.print("Streaming chat with model: {s}\n\n", .{first_llm.key});
+    std.debug.print("Streaming chat with: {s}\n\n", .{first_llm.key});
 
-    const PrintCallback = struct {
+    const SseCallback = struct {
         pub fn event(_: *@This(), data: []const u8) !void {
-            std.debug.print("{s}\n", .{data});
+            if (std.mem.eql(u8, data, "[DONE]")) return;
+            const trimmed = std.mem.trim(u8, data, " \t\n\r");
+            if (std.json.parseFromSlice(std.json.Value, std.heap.page_allocator, trimmed, .{})) |parsed| {
+                defer parsed.deinit();
+                if (parsed.value.object.get("type")) |type_val| {
+                    const event_type = type_val.string;
+                    std.debug.print("[{s}] ", .{event_type});
+                    if (parsed.value.object.get("content")) |content| {
+                        std.debug.print("{s}", .{content.string});
+                    }
+                    std.debug.print("\n", .{});
+                }
+            } else |_| {}
         }
     };
 
-    var callback = PrintCallback{};
+    var callback = SseCallback{};
 
-    lmstudio.chatStreaming(&client, .{
+    var raw = try lmstudio.chatRaw(&client, .{
         .model = first_llm.key,
+        .stream = true,
         .input = .{ .string = "Hello, how are you?" },
-    }, &callback) catch |err| {
-        std.debug.print("\nStreaming error: {any}\n", .{err});
-    };
+    });
+    defer raw.deinit();
+
+    if (raw.status.class() != .success) {
+        std.debug.print("Error {any}: {s}\n", .{ raw.status, raw.body });
+        return;
+    }
+
+    try lmstudio.parseSseBytes(allocator, raw.body, &callback);
 
     std.debug.print("\nDone.\n", .{});
 }
