@@ -52,6 +52,7 @@ pub fn main(init: std.process.Init) !void {
 
     const StreamHandler = struct {
         allocator: std.mem.Allocator,
+        in_reasoning: bool,
 
         pub fn event(self: *@This(), data: []const u8) !void {
             var parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, data, .{ .ignore_unknown_fields = true });
@@ -61,14 +62,33 @@ pub fn main(init: std.process.Init) !void {
             if (value != .object) return;
             const event_type = value.object.get("type") orelse return;
             if (event_type != .string) return;
-            if (!std.mem.eql(u8, event_type.string, "message.delta")) return;
-            const content = value.object.get("content") orelse return;
-            if (content != .string) return;
-            std.debug.print("{s}", .{content.string});
+
+            if (std.mem.eql(u8, event_type.string, "reasoning.start")) {
+                self.in_reasoning = true;
+                std.debug.print("[reasoning]\n", .{});
+                return;
+            }
+            if (std.mem.eql(u8, event_type.string, "reasoning.end")) {
+                self.in_reasoning = false;
+                std.debug.print("\n[/reasoning]\n\n", .{});
+                return;
+            }
+            if (std.mem.eql(u8, event_type.string, "reasoning.delta")) {
+                const content = value.object.get("content") orelse return;
+                if (content != .string) return;
+                std.debug.print("{s}", .{content.string});
+                return;
+            }
+            if (std.mem.eql(u8, event_type.string, "message.delta")) {
+                const content = value.object.get("content") orelse return;
+                if (content != .string) return;
+                std.debug.print("{s}", .{content.string});
+                return;
+            }
         }
     };
 
-    var handler = StreamHandler{ .allocator = allocator };
+    var handler = StreamHandler{ .allocator = allocator, .in_reasoning = false };
     std.debug.print("Chat response:\n\n", .{});
     lmstudio.chatStreaming(&client, request, &handler) catch |err| {
         std.debug.print("\n\nStream error: {any}\n", .{err});
