@@ -563,11 +563,11 @@ pub const UnifiedApiGenerator = struct {
             try self.generateFunctionResult(method, path, operation);
         }
 
-        if (operation.operationId) |op_id| {
-            if (std.mem.eql(u8, method, "POST") and std.mem.eql(u8, op_id, "createChatCompletion")) {
-                try self.generateStreamFunction("streamChatCompletion", "CreateChatCompletionRequest", path);
-            } else if (std.mem.eql(u8, method, "POST") and std.mem.eql(u8, op_id, "createResponse")) {
-                try self.generateStreamFunction("streamResponse", "CreateResponse", path);
+        if (operation.streaming and std.mem.eql(u8, method, "POST")) {
+            if (operation.operationId) |op_id| {
+                const stream_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{op_id});
+                defer self.allocator.free(stream_name);
+                try self.generateStreamFunction(stream_name, path);
             }
         }
     }
@@ -827,12 +827,10 @@ pub const UnifiedApiGenerator = struct {
         return false;
     }
 
-    fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, request_type: []const u8, path: []const u8) !void {
+    fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path: []const u8) !void {
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.buffer.appendSlice(self.allocator, name);
-        try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: ");
-        try self.buffer.appendSlice(self.allocator, request_type);
-        try self.buffer.appendSlice(self.allocator, ", callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype) !void {\n");
         try self.buffer.appendSlice(self.allocator, "    return streamJson(client, \"");
         try self.buffer.appendSlice(self.allocator, path);
         try self.buffer.appendSlice(self.allocator, "\", requestBody, callback);\n");
@@ -840,9 +838,7 @@ pub const UnifiedApiGenerator = struct {
 
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.buffer.appendSlice(self.allocator, name);
-        try self.buffer.appendSlice(self.allocator, "Events(comptime Event: type, client: *Client, requestBody: ");
-        try self.buffer.appendSlice(self.allocator, request_type);
-        try self.buffer.appendSlice(self.allocator, ", callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "Events(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype) !void {\n");
         try self.buffer.appendSlice(self.allocator, "    return streamJsonTyped(Event, client, \"");
         try self.buffer.appendSlice(self.allocator, path);
         try self.buffer.appendSlice(self.allocator, "\", requestBody, callback);\n");
@@ -994,7 +990,7 @@ pub const UnifiedApiGenerator = struct {
                     try allocated_declarations.append(self.allocator, result_name);
                     try declarations.append(self.allocator, result_name);
                 }
-                if (self.streamFunctionName(wrapper.operation_id) != null) {
+                if (wrapper.operation.streaming) {
                     try declarations.append(self.allocator, "stream");
                     try declarations.append(self.allocator, "streamEvents");
                 }
@@ -1007,7 +1003,9 @@ pub const UnifiedApiGenerator = struct {
                 if (self.hasReturnValue(wrapper.method, wrapper.operation)) {
                     try self.generateResourceResultMethod(wrapper, declarations.items, indent);
                 }
-                if (self.streamFunctionName(wrapper.operation_id)) |stream_name| {
+                if (wrapper.operation.streaming) {
+                    const stream_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{wrapper.operation_id});
+                    defer self.allocator.free(stream_name);
                     try self.generateResourceStreamMethods(wrapper, stream_name, indent);
                 }
             }
@@ -1090,12 +1088,9 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, stream_name: []const u8, indent: usize) !void {
-        const request_type = self.bodyTypeName(wrapper.operation) orelse return;
-
+        _ = wrapper;
         try self.appendIndent(indent);
-        try self.buffer.appendSlice(self.allocator, "pub fn stream(client: *Client, requestBody: ");
-        try self.buffer.appendSlice(self.allocator, request_type);
-        try self.buffer.appendSlice(self.allocator, ", callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "pub fn stream(client: *Client, requestBody: anytype, callback: anytype) !void {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
         try self.buffer.appendSlice(self.allocator, stream_name);
@@ -1104,9 +1099,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "}\n");
 
         try self.appendIndent(indent);
-        try self.buffer.appendSlice(self.allocator, "pub fn streamEvents(comptime Event: type, client: *Client, requestBody: ");
-        try self.buffer.appendSlice(self.allocator, request_type);
-        try self.buffer.appendSlice(self.allocator, ", callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "pub fn streamEvents(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype) !void {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
         try self.buffer.appendSlice(self.allocator, stream_name);
@@ -1180,29 +1173,6 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
-    fn bodyTypeName(self: *UnifiedApiGenerator, operation: Operation) ?[]const u8 {
-        if (operation.parameters) |params| {
-            for (params) |param| {
-                if (param.location == .body) {
-                    if (param.schema) |schema| {
-                        if (schema.ref) |ref| {
-                            if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| return ref[last_slash + 1 ..];
-                        }
-                    }
-                }
-            }
-        }
-        _ = self;
-        return null;
-    }
-
-    fn streamFunctionName(self: *UnifiedApiGenerator, operation_id: []const u8) ?[]const u8 {
-        _ = self;
-        if (std.mem.eql(u8, operation_id, "createChatCompletion")) return "streamChatCompletion";
-        if (std.mem.eql(u8, operation_id, "createResponse")) return "streamResponse";
-        return null;
-    }
-
     fn resourceAliasConflicts(self: *UnifiedApiGenerator, alias: []const u8, document: UnifiedDocument) bool {
         const reserved_aliases = [_][]const u8{ "organization", "project", "value" };
         for (reserved_aliases) |reserved_alias| {
@@ -1258,7 +1228,9 @@ pub const UnifiedApiGenerator = struct {
             if (std.mem.eql(u8, result_name, name)) return true;
         }
 
-        if (self.streamFunctionName(operation_id)) |stream_name| {
+        if (operation.streaming) {
+            const stream_name = std.fmt.allocPrint(self.allocator, "{s}Streaming", .{operation_id}) catch return true;
+            defer self.allocator.free(stream_name);
             if (std.mem.eql(u8, stream_name, name)) return true;
 
             const events_name = std.fmt.allocPrint(self.allocator, "{s}Events", .{stream_name}) catch return true;
