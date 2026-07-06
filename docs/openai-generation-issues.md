@@ -65,9 +65,7 @@ Implemented in the generator after the initial `8195545` pass:
   - 256 KiB max line size
   - 1 MiB max event size
   - uses `streamDelimiterLimit`, so line size is not tied to the HTTP transfer buffer
-- OpenAI generation emits:
-  - `streamChatCompletion(client, requestBody, callback)`
-  - `streamResponse(client, requestBody, callback)`
+- Stream helpers are generated spec-driven: any POST operation with a `text/event-stream` response produces `{operationId}Streaming` and `{operationId}StreamingEvents`.
 - Stream helpers force `stream: true` in the JSON payload and send `Accept: text/event-stream`.
 - Live OpenRouter streaming smoke passed with `openrouter/free`.
 - `CreateChatCompletionRequest` and `CreateResponse` include flattened `extra_body`.

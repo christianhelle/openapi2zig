@@ -176,6 +176,7 @@ pub const Operation = struct {
     responses: std.StringHashMap(Response),
     deprecated: bool = false,
     security: ?[]SecurityRequirement = null,
+    streaming: bool = false,
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
         if (self.tags) |tags| {
             allocator.free(tags);

@@ -283,13 +283,16 @@ pub const OpenApiConverter = struct {
         const parameters = if (parameters_list.items.len > 0) try parameters_list.toOwnedSlice(self.allocator) else null;
 
         var responses = std.StringHashMap(Response).init(self.allocator);
+        var streaming = false;
         if (operation.responses.default) |default_response| {
+            if (hasEventStreamContent(default_response)) streaming = true;
             const response = try self.convertResponseOrReference(default_response);
             const default_key = try self.allocator.dupe(u8, "default");
             try responses.put(default_key, response);
         }
         var resp_iterator = operation.responses.status_codes.iterator();
         while (resp_iterator.next()) |entry| {
+            if (!streaming and hasEventStreamContent(entry.value_ptr.*)) streaming = true;
             const key = try self.allocator.dupe(u8, entry.key_ptr.*);
             const response = try self.convertResponseOrReference(entry.value_ptr.*);
             try responses.put(key, response);
@@ -304,6 +307,7 @@ pub const OpenApiConverter = struct {
             .responses = responses,
             .deprecated = operation.deprecated orelse false,
             .security = security,
+            .streaming = streaming,
         };
     }
 
@@ -437,3 +441,15 @@ pub const OpenApiConverter = struct {
         };
     }
 };
+
+fn hasEventStreamContent(resp_or_ref: ResponseOrReference3) bool {
+    switch (resp_or_ref) {
+        .reference => return false,
+        .response => |resp| {
+            if (resp.content) |content| {
+                if (content.get("text/event-stream") != null) return true;
+            }
+            return false;
+        },
+    }
+}
