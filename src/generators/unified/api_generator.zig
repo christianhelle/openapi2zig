@@ -912,8 +912,7 @@ pub const UnifiedApiGenerator = struct {
 
         // Detect when wrapper method name matches its containing struct name
         for (wrappers.items) |*wrapper| {
-            const last_segment = wrapper.segments[wrapper.segments.len - 1];
-            if (std.mem.eql(u8, wrapper.method_name, last_segment)) {
+            if (containsString(wrapper.segments, wrapper.operation_id)) {
                 wrapper.collides = true;
                 wrapper.needs_alias = true;
             }
@@ -922,13 +921,19 @@ pub const UnifiedApiGenerator = struct {
         // Generate aliases for operations whose wrapper needs them
         for (wrappers.items) |wrapper| {
             if (wrapper.needs_alias) {
-                const alias_line = try std.fmt.allocPrint(self.allocator, "const _{s} = {s};\n", .{ wrapper.operation_id, wrapper.operation_id });
-                defer self.allocator.free(alias_line);
-                try self.buffer.appendSlice(self.allocator, alias_line);
+                try self.buffer.appendSlice(self.allocator, "const ");
+                try self.appendWrapperAliasIdentifier(wrapper.operation_id);
+                try self.buffer.appendSlice(self.allocator, " = ");
+                try self.appendIdentifier(wrapper.operation_id);
+                try self.buffer.appendSlice(self.allocator, ";\n");
                 if (self.hasReturnValue(wrapper.method, wrapper.operation)) {
-                    const result_line = try std.fmt.allocPrint(self.allocator, "const _{s}Result = {s}Result;\n", .{ wrapper.operation_id, wrapper.operation_id });
-                    defer self.allocator.free(result_line);
-                    try self.buffer.appendSlice(self.allocator, result_line);
+                    const operation_result_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{wrapper.operation_id});
+                    defer self.allocator.free(operation_result_name);
+                    try self.buffer.appendSlice(self.allocator, "const ");
+                    try self.appendWrapperAliasIdentifier(operation_result_name);
+                    try self.buffer.appendSlice(self.allocator, " = ");
+                    try self.appendIdentifier(operation_result_name);
+                    try self.buffer.appendSlice(self.allocator, ";\n");
                 }
             }
         }
@@ -979,8 +984,13 @@ pub const UnifiedApiGenerator = struct {
 
         // Detect wrapper method name collision with ancestor/child struct names
         for (wrappers) |*wrapper_at_depth| {
-            if (wrapper_at_depth.segments.len == depth and containsString(declarations.items, wrapper_at_depth.method_name)) {
-                wrapper_at_depth.collides = true;
+            if (wrapper_at_depth.segments.len == depth) {
+                const method_name_collides = containsString(declarations.items, wrapper_at_depth.method_name);
+                const operation_id_collides = containsString(declarations.items, wrapper_at_depth.operation_id);
+                if (method_name_collides or operation_id_collides) {
+                    wrapper_at_depth.collides = true;
+                    wrapper_at_depth.needs_alias = true;
+                }
             }
         }
 
@@ -1043,8 +1053,11 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, " {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
-        if (wrapper.needs_alias) try self.buffer.appendSlice(self.allocator, "_");
-        try self.appendIdentifier(wrapper.operation_id);
+        if (wrapper.needs_alias) {
+            try self.appendWrapperAliasIdentifier(wrapper.operation_id);
+        } else {
+            try self.appendIdentifier(wrapper.operation_id);
+        }
         try self.appendWrapperCallArguments(wrapper.operation, forbidden_names);
         try self.buffer.appendSlice(self.allocator, ";\n");
         try self.appendIndent(indent);
@@ -1066,8 +1079,11 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, " {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
-        if (wrapper.needs_alias) try self.buffer.appendSlice(self.allocator, "_");
-        try self.appendIdentifier(operation_result_name);
+        if (wrapper.needs_alias) {
+            try self.appendWrapperAliasIdentifier(operation_result_name);
+        } else {
+            try self.appendIdentifier(operation_result_name);
+        }
         try self.appendWrapperCallArguments(wrapper.operation, forbidden_names);
         try self.buffer.appendSlice(self.allocator, ";\n");
         try self.appendIndent(indent);
@@ -1087,6 +1103,13 @@ pub const UnifiedApiGenerator = struct {
         const collision_name = try self.sanitizeIdentifierAlloc(wrapper.operation_id);
         defer self.allocator.free(collision_name);
         return try std.fmt.allocPrint(self.allocator, "{s}_", .{collision_name});
+    }
+
+    fn appendWrapperAliasIdentifier(self: *UnifiedApiGenerator, operation_name: []const u8) !void {
+        const alias_name = try self.sanitizeIdentifierAlloc(operation_name);
+        defer self.allocator.free(alias_name);
+        try self.buffer.appendSlice(self.allocator, "_");
+        try self.buffer.appendSlice(self.allocator, alias_name);
     }
 
     fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, stream_name: []const u8, indent: usize) !void {

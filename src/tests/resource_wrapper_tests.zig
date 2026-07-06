@@ -101,6 +101,21 @@ fn buildOperationNameCollisionFixture(allocator: std.mem.Allocator) !common.Unif
     };
 }
 
+fn buildNestedOperationNameCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    try paths.put(try allocator.dupe(u8, "/chat/responses"), .{
+        .post = try op(allocator, "responses", "POST", true, false, true),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
 test "resource wrappers derive from paths" {
     const allocator = std.testing.allocator;
     var document = try buildFixture(allocator);
@@ -160,9 +175,35 @@ test "resource wrapper aliases skip top-level operation name collisions" {
         defer allocator.free(code);
 
         try std.testing.expect(std.mem.indexOf(u8, code, "const _chat = chat;") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "const _chatresult = chatResult;") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const resources = struct") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = struct") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chat_(client: *Client, requestBody: std.json.Value)") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "return _chat(client, requestBody);") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "return _chatresult(client, requestBody);") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = resources.chat;") == null);
     }
+}
+
+test "resource wrappers alias nested operation id and struct-name collisions" {
+    const allocator = std.testing.allocator;
+    var document = try buildNestedOperationNameCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .paths,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _responses = responses;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _responsesresult = responsesResult;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const responses = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn responses_(client: *Client, requestBody: std.json.Value)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _responses(client, requestBody);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _responsesresult(client, requestBody);") != null);
 }
