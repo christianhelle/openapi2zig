@@ -5,6 +5,11 @@ pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
     const io = init.io;
 
+    var stdout_buf: [4096]u8 = undefined;
+    const stdout_file = std.Io.File.stdout();
+    var stdout_fw = std.Io.File.writer(stdout_file, io, &stdout_buf);
+    const stdout_w = &stdout_fw.interface;
+
     var client = lmstudio.Client.init(allocator, io, "");
     defer client.deinit();
     client.withBaseUrl("http://localhost:1234");
@@ -16,31 +21,34 @@ pub fn main(init: std.process.Init) !void {
     const first_llm = for (models.models) |*model| {
         if (std.mem.eql(u8, model.@"type", "llm")) break model;
     } else {
-        std.debug.print("No LLM models found\n", .{});
+        try stdout_w.print("No LLM models found\n", .{});
         return;
     };
 
-    std.debug.print("Streaming chat with: {s}\n\n", .{first_llm.key});
+    try stdout_w.print("Streaming chat with: {s}\n\n", .{first_llm.key});
+    try stdout_fw.flush();
 
     const SseCallback = struct {
-        pub fn event(_: *@This(), data: []const u8) !void {
+        w: *std.Io.Writer,
+
+        pub fn event(self: *@This(), data: []const u8) !void {
             if (std.mem.eql(u8, data, "[DONE]")) return;
             const trimmed = std.mem.trim(u8, data, " \t\n\r");
             if (std.json.parseFromSlice(std.json.Value, std.heap.page_allocator, trimmed, .{})) |parsed| {
                 defer parsed.deinit();
                 if (parsed.value.object.get("type")) |type_val| {
                     const event_type = type_val.string;
-                    std.debug.print("[{s}] ", .{event_type});
+                    try self.w.print("[{s}] ", .{event_type});
                     if (parsed.value.object.get("content")) |content| {
-                        std.debug.print("{s}", .{content.string});
+                        try self.w.print("{s}", .{content.string});
                     }
-                    std.debug.print("\n", .{});
+                    try self.w.print("\n", .{});
                 }
             } else |_| {}
         }
     };
 
-    var callback = SseCallback{};
+    var callback = SseCallback{ .w = stdout_w };
 
     var raw = try lmstudio.chatRaw(&client, .{
         .model = first_llm.key,
@@ -50,11 +58,13 @@ pub fn main(init: std.process.Init) !void {
     defer raw.deinit();
 
     if (raw.status.class() != .success) {
-        std.debug.print("Error {any}: {s}\n", .{ raw.status, raw.body });
+        try stdout_w.print("Error {any}: {s}\n", .{ raw.status, raw.body });
+        try stdout_fw.flush();
         return;
     }
 
     try lmstudio.parseSseBytes(allocator, raw.body, &callback);
 
-    std.debug.print("\nDone.\n", .{});
+    try stdout_w.print("\nDone.\n", .{});
+    try stdout_fw.flush();
 }
