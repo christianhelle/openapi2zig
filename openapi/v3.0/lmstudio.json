@@ -988,10 +988,68 @@
             "description": "The final configuration applied to the loaded model. Included only when echo_load_config is true",
             "oneOf": [
               {
-                "$ref": "#/components/schemas/LlmLoadConfig"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/LlmLoadConfig"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "eval_batch_size"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "flash_attention"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "num_experts"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "offload_kv_cache_to_gpu"
+                        ]
+                      }
+                    ]
+                  }
+                ]
               },
               {
-                "$ref": "#/components/schemas/EmbeddingLoadConfig"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/EmbeddingLoadConfig"
+                  },
+                  {
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "eval_batch_size"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "flash_attention"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "num_experts"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "offload_kv_cache_to_gpu"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
               }
             ]
           }
