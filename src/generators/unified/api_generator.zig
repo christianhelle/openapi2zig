@@ -910,7 +910,7 @@ pub const UnifiedApiGenerator = struct {
 
         std.mem.sort(ResourceWrapper, wrappers.items, {}, resourceWrapperLessThan);
 
-        // Detect when wrapper method name matches its containing struct name
+        // Detect when operation_id is shadowed by any resource segment in its wrapper chain.
         for (wrappers.items) |*wrapper| {
             if (containsString(wrapper.segments, wrapper.operation_id)) {
                 wrapper.collides = true;
@@ -1106,10 +1106,9 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn appendWrapperAliasIdentifier(self: *UnifiedApiGenerator, operation_name: []const u8) !void {
-        const alias_name = try self.sanitizeIdentifierAlloc(operation_name);
+        const alias_name = try std.fmt.allocPrint(self.allocator, "_{s}", .{operation_name});
         defer self.allocator.free(alias_name);
-        try self.buffer.appendSlice(self.allocator, "_");
-        try self.buffer.appendSlice(self.allocator, alias_name);
+        try self.appendIdentifier(alias_name);
     }
 
     fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, stream_name: []const u8, indent: usize) !void {

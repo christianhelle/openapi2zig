@@ -175,12 +175,12 @@ test "resource wrapper aliases skip top-level operation name collisions" {
         defer allocator.free(code);
 
         try std.testing.expect(std.mem.indexOf(u8, code, "const _chat = chat;") != null);
-        try std.testing.expect(std.mem.indexOf(u8, code, "const _chatresult = chatResult;") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "const _chatResult = chatResult;") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const resources = struct") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = struct") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chat_(client: *Client, requestBody: std.json.Value)") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "return _chat(client, requestBody);") != null);
-        try std.testing.expect(std.mem.indexOf(u8, code, "return _chatresult(client, requestBody);") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "return _chatResult(client, requestBody);") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = resources.chat;") == null);
     }
 }
@@ -200,10 +200,10 @@ test "resource wrappers alias nested operation id and struct-name collisions" {
     defer allocator.free(code);
 
     try std.testing.expect(std.mem.indexOf(u8, code, "const _responses = responses;") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "const _responsesresult = responsesResult;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _responsesResult = responsesResult;") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = struct") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const responses = struct") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn responses_(client: *Client, requestBody: std.json.Value)") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return _responses(client, requestBody);") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return _responsesresult(client, requestBody);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _responsesResult(client, requestBody);") != null);
 }
