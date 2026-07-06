@@ -5,66 +5,74 @@ pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
     const io = init.io;
 
-    var stdout_buf: [4096]u8 = undefined;
-    const stdout_file = std.Io.File.stdout();
-    var stdout_fw = std.Io.File.writer(stdout_file, io, &stdout_buf);
-    const stdout_w = &stdout_fw.interface;
-
     var client = lmstudio.Client.init(allocator, io, "");
     defer client.deinit();
     client.withBaseUrl("http://localhost:1234");
 
-    var models_result = try lmstudio.listModels(&client);
-    defer models_result.deinit();
-    const models = models_result.value();
+    std.debug.print("Fetching available models...\n\n", .{});
 
-    const first_llm = for (models.models) |*model| {
-        if (std.mem.eql(u8, model.@"type", "llm")) break model;
-    } else {
-        try stdout_w.print("No LLM models found\n", .{});
-        return;
-    };
+    var models_response = try lmstudio.listModels(&client);
+    defer models_response.deinit();
 
-    try stdout_w.print("Streaming chat with: {s}\n\n", .{first_llm.key});
-    try stdout_fw.flush();
-
-    const SseCallback = struct {
-        w: *std.Io.Writer,
-
-        pub fn event(self: *@This(), data: []const u8) !void {
-            if (std.mem.eql(u8, data, "[DONE]")) return;
-            const trimmed = std.mem.trim(u8, data, " \t\n\r");
-            if (std.json.parseFromSlice(std.json.Value, std.heap.page_allocator, trimmed, .{})) |parsed| {
-                defer parsed.deinit();
-                if (parsed.value.object.get("type")) |type_val| {
-                    const event_type = type_val.string;
-                    try self.w.print("[{s}] ", .{event_type});
-                    if (parsed.value.object.get("content")) |content| {
-                        try self.w.print("{s}", .{content.string});
-                    }
-                    try self.w.print("\n", .{});
-                }
-            } else |_| {}
-        }
-    };
-
-    var callback = SseCallback{ .w = stdout_w };
-
-    var raw = try lmstudio.chatRaw(&client, .{
-        .model = first_llm.key,
-        .stream = true,
-        .input = .{ .string = "Hello, how are you?" },
-    });
-    defer raw.deinit();
-
-    if (raw.status.class() != .success) {
-        try stdout_w.print("Error {any}: {s}\n", .{ raw.status, raw.body });
-        try stdout_fw.flush();
+    const models = models_response.value().models;
+    if (models.len == 0) {
+        std.debug.print("No models found. Make sure LM Studio is running.\n", .{});
         return;
     }
 
-    try lmstudio.parseSseBytes(allocator, raw.body, &callback);
+    for (models, 0..) |m, i| {
+        const loaded = if (m.loaded_instances.len > 0) " (loaded)" else "";
+        std.debug.print("  {d}. {s} [{s}]{s}\n", .{ i + 1, m.display_name, m.key, loaded });
+    }
 
-    try stdout_w.print("\nDone.\n", .{});
-    try stdout_fw.flush();
+    const model = models[0];
+    std.debug.print("\nUsing: {s} [{s}]\n", .{ model.display_name, model.key });
+
+    if (model.loaded_instances.len == 0) {
+        std.debug.print("Loading model...\n", .{});
+        var load_result = try lmstudio.loadModel(&client, .{
+            .model = model.key,
+        });
+        defer load_result.deinit();
+        std.debug.print("Loaded (instance: {s})\n\n", .{load_result.value().instance_id});
+    } else {
+        std.debug.print("Already loaded\n\n", .{});
+    }
+
+    const input_str =
+        \\[{"type": "text", "content": "Hello! What can you do?"}]
+    ;
+    var parsed_input = try std.json.parseFromSlice(std.json.Value, allocator, input_str, .{});
+    defer parsed_input.deinit();
+
+    const request = lmstudio.ChatRequest{
+        .model = model.key,
+        .input = parsed_input.value,
+    };
+
+    const StreamHandler = struct {
+        allocator: std.mem.Allocator,
+
+        pub fn event(self: *@This(), data: []const u8) !void {
+            var parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, data, .{ .ignore_unknown_fields = true });
+            defer parsed.deinit();
+
+            const value = parsed.value;
+            if (value != .object) return;
+            const event_type = value.object.get("type") orelse return;
+            if (event_type != .string) return;
+            if (!std.mem.eql(u8, event_type.string, "message.delta")) return;
+            const content = value.object.get("content") orelse return;
+            if (content != .string) return;
+            std.debug.print("{s}", .{content.string});
+        }
+    };
+
+    var handler = StreamHandler{ .allocator = allocator };
+    std.debug.print("Chat response:\n\n", .{});
+    lmstudio.chatStreaming(&client, request, &handler) catch |err| {
+        std.debug.print("\n\nStream error: {any}\n", .{err});
+        return;
+    };
+    std.debug.print("\n\nDone.\n", .{});
 }
