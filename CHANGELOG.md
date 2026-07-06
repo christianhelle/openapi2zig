@@ -19,6 +19,7 @@
 
 **Merged pull requests:**
 
+- Add support for Server-Sent-Events for operations with text/event-stream content-type [\#62](https://github.com/christianhelle/openapi2zig/pull/62) ([christianhelle](https://github.com/christianhelle))
 - Remove Squad [\#58](https://github.com/christianhelle/openapi2zig/pull/58) ([christianhelle](https://github.com/christianhelle))
 - Add missing GPA deinit assertions to binary payload tests [\#56](https://github.com/christianhelle/openapi2zig/pull/56) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Add YAML verification to Smoke Tests [\#51](https://github.com/christianhelle/openapi2zig/pull/51) ([christianhelle](https://github.com/christianhelle))
