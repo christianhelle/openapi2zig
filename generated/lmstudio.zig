@@ -815,6 +815,14 @@ pub fn chatResult(client: *Client, requestBody: ChatRequest) !ApiResult(ChatResp
     return parseRawResponse(ChatResponse, try chatRaw(client, requestBody));
 }
 
+pub fn chatStreaming(client: *Client, requestBody: anytype, callback: anytype) !void {
+    return streamJson(client, "/api/v1/chat", requestBody, callback);
+}
+
+pub fn chatStreamingEvents(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype) !void {
+    return streamJsonTyped(Event, client, "/api/v1/chat", requestBody, callback);
+}
+
 const _chat = chat;
 const _chatResult = chatResult;
 
@@ -826,6 +834,12 @@ pub const resources = struct {
             }
             pub fn chat_Result(client: *Client, requestBody: ChatRequest) !ApiResult(ChatResponse) {
                 return _chatResult(client, requestBody);
+            }
+            pub fn stream(client: *Client, requestBody: anytype, callback: anytype) !void {
+                return chatStreaming(client, requestBody, callback);
+            }
+            pub fn streamEvents(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype) !void {
+                return chatStreamingEvents(Event, client, requestBody, callback);
             }
         };
         pub const models = struct {

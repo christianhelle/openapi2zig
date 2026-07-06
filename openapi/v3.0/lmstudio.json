@@ -46,6 +46,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/ChatResponse"
                 }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
               }
             }
           }
