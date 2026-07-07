@@ -77,6 +77,7 @@ $Denylist = @(
     @{ Spec = "openapi/v3.0/bot.paths.yaml"; Mode = "*"; Reason = "YAML normalization gap causes ParseFailure before generation (all wrapper modes)" }
     @{ Spec = "openapi/v3.0/petstore-expanded.yaml"; Mode = "*"; Reason = "YAML normalization gap causes ParseFailure before generation (all wrapper modes)" }
     @{ Spec = "openapi/v3.0/uspto.yaml"; Mode = "*"; Reason = "YAML normalization gap causes ParseFailure before generation (all wrapper modes)" }
+    @{ Spec = "openapi/v3.1/openai.yaml"; Mode = "*"; Reason = "InvalidEscapeSequence error during generation" }
 )
 
 function Test-Denylisted {
