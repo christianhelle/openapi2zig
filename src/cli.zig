@@ -171,3 +171,14 @@ test "parse generate defaults to complete output" {
 
     try std.testing.expect(!parsed.args.models_only);
 }
+
+test "parse --upgrade flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "--upgrade",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expect(parsed.upgrade);
+}

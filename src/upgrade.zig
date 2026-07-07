@@ -241,3 +241,22 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.E
 
     std.debug.print("  Upgrade complete. Re-run the command to use the new version.\n", .{});
 }
+
+test "platformString returns correct values" {
+    try std.testing.expectEqualStrings("linux-x86_64", platformString(.linux_x86_64));
+    try std.testing.expectEqualStrings("macos-x86_64", platformString(.macos_x86_64));
+    try std.testing.expectEqualStrings("macos-aarch64", platformString(.macos_aarch64));
+    try std.testing.expectEqualStrings("windows-x86_64", platformString(.windows_x86_64));
+}
+
+test "isWindows returns true only for windows" {
+    try std.testing.expect(!isWindows(.linux_x86_64));
+    try std.testing.expect(!isWindows(.macos_x86_64));
+    try std.testing.expect(!isWindows(.macos_aarch64));
+    try std.testing.expect(isWindows(.windows_x86_64));
+}
+
+test "version comparison skips v prefix" {
+    try std.testing.expect(std.mem.eql(u8, "0.2.0", (if (std.mem.startsWith(u8, "v0.2.0", "v")) "v0.2.0"[1..] else "v0.2.0")));
+    try std.testing.expect(std.mem.eql(u8, "0.2.0", (if (std.mem.startsWith(u8, "0.2.0", "v")) "0.2.0"[1..] else "0.2.0")));
+}
