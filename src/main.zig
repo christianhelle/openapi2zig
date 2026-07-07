@@ -14,10 +14,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (parsed_args.upgrade) {
-        upgrade.run(allocator, io, init.environ_map) catch |err| {
-            std.debug.print("Upgrade failed: {}\n", .{err});
-            return err;
-        };
+        upgrade.run(allocator, io, init.environ_map) catch return;
         return;
     }
 
