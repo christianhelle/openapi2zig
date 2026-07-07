@@ -221,24 +221,28 @@ fn replaceBinary(allocator: std.mem.Allocator, io: std.Io, new_binary_path: []co
         const cleanup_cmd = try std.fmt.allocPrint(allocator, "Start-Sleep 2; Remove-Item -Force '{s}'", .{old_path});
         defer allocator.free(cleanup_cmd);
 
-        _ = std.process.run(std.heap.page_allocator, io, .{
+        if (std.process.run(allocator, io, .{
             .argv = &[_][]const u8{ "powershell", "-NoProfile", "-Command", cleanup_cmd },
-        }) catch {};
+        })) |cleanup_result| {
+            allocator.free(cleanup_result.stdout);
+            allocator.free(cleanup_result.stderr);
+        } else |_| {}
     } else {
         try copyFile(allocator, io, new_binary_path, exe_path);
     }
 }
 
 fn copyFile(allocator: std.mem.Allocator, io: std.Io, src: []const u8, dst: []const u8) !void {
-    if (builtin.os.tag == .windows) {
-        _ = try std.process.run(allocator, io, .{
+    const result = if (builtin.os.tag == .windows)
+        try std.process.run(allocator, io, .{
             .argv = &[_][]const u8{ "cmd", "/c", "copy", "/y", src, dst },
-        });
-    } else {
-        _ = try std.process.run(allocator, io, .{
+        })
+    else
+        try std.process.run(allocator, io, .{
             .argv = &[_][]const u8{ "cp", "-f", src, dst },
         });
-    }
+    allocator.free(result.stdout);
+    allocator.free(result.stderr);
 }
 
 pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !void {
