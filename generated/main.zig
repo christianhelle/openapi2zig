@@ -5,6 +5,7 @@ const v3 = @import("generated_v3.zig");
 const v3_yaml = @import("generated_v3_yaml.zig");
 const v31_yaml = @import("generated_v31_yaml.zig");
 const lmstudio = @import("lmstudio.zig");
+const openai = @import("openai.zig");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
