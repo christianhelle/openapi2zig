@@ -110,22 +110,37 @@ fn fetchLatestVersion(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
-    if (result.term != .exited or result.term.exited != 0) return error.UpgradeFailed;
+    if (result.term != .exited or result.term.exited != 0) {
+        std.debug.print("  Version check command failed: term={}, stderr={s}\n", .{ result.term, result.stderr });
+        return error.UpgradeFailed;
+    }
 
     const trimmed = std.mem.trim(u8, result.stdout, " \t\r\n");
-    if (trimmed.len == 0) return error.UpgradeFailed;
+    if (trimmed.len == 0) {
+        std.debug.print("  Empty response from version check\n", .{});
+        return error.UpgradeFailed;
+    }
 
     if (builtin.os.tag != .windows) {
         const parsed = try std.json.parseFromSlice(std.json.Value, allocator, trimmed, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
         const root = switch (parsed.value) {
             .object => |obj| obj,
-            else => return error.UpgradeFailed,
+            else => {
+                std.debug.print("  Unexpected JSON root type\n", .{});
+                return error.UpgradeFailed;
+            },
         };
-        const tag_value = root.get("tag_name") orelse return error.UpgradeFailed;
+        const tag_value = root.get("tag_name") orelse {
+            std.debug.print("  Missing 'tag_name' in release response\n", .{});
+            return error.UpgradeFailed;
+        };
         const version = switch (tag_value) {
             .string => |s| s,
-            else => return error.UpgradeFailed,
+            else => {
+                std.debug.print("  'tag_name' is not a string\n", .{});
+                return error.UpgradeFailed;
+            },
         };
         return allocator.dupe(u8, version);
     }
