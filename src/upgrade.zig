@@ -43,9 +43,19 @@ fn isWindows(p: Platform) bool {
     };
 }
 
-fn archiveName(p: Platform) []const u8 {
+fn archiveName(allocator: std.mem.Allocator, p: Platform) ![]const u8 {
     const ext = if (isWindows(p)) ".zip" else ".tar.gz";
-    return "openapi2zig-" ++ platformString(p) ++ ext;
+    return std.fmt.allocPrint(allocator, "openapi2zig-{s}{s}", .{ platformString(p), ext });
+}
+
+fn getTempDir(allocator: std.mem.Allocator, environ_map: *std.process.Environ.Map) ![]const u8 {
+    if (builtin.os.tag == .windows) {
+        if (environ_map.get("TMP")) |p| return allocator.dupe(u8, p);
+        if (environ_map.get("TEMP")) |p| return allocator.dupe(u8, p);
+        return error.UpgradeFailed;
+    }
+    if (environ_map.get("TMPDIR")) |p| return allocator.dupe(u8, p);
+    return allocator.dupe(u8, "/tmp");
 }
 
 fn fetchLatestVersion(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
@@ -63,20 +73,21 @@ fn fetchLatestVersion(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     var redirect_buf: [1024]u8 = undefined;
     var response = try req.receiveHead(&redirect_buf);
 
-    if (response.head.status != .ok) {
-        return error.UpgradeFailed;
-    }
+    if (response.head.status != .ok) return error.UpgradeFailed;
 
     var transfer_buf: [4096]u8 = undefined;
     const reader = response.reader(&transfer_buf);
     const body = try reader.allocRemaining(allocator, .limited(1024 * 1024));
 
-    var token_stream = std.json.TokenStream.init(body);
-    const parsed = try std.json.parse(std.json.Value, &token_stream, .{ .allocator = allocator, .ignore_unknown_fields = true });
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, body, .{ .ignore_unknown_fields = true });
     defer parsed.deinit();
 
-    const tag_name = parsed.value.object.get("tag_name") orelse return error.UpgradeFailed;
-    const version = switch (tag_name) {
+    const root = switch (parsed.value) {
+        .object => |obj| obj,
+        else => return error.UpgradeFailed,
+    };
+    const tag_value = root.get("tag_name") orelse return error.UpgradeFailed;
+    const version = switch (tag_value) {
         .string => |s| s,
         else => return error.UpgradeFailed,
     };
@@ -84,16 +95,14 @@ fn fetchLatestVersion(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     return allocator.dupe(u8, version);
 }
 
-fn downloadArchive(allocator: std.mem.Allocator, io: std.Io, version: []const u8, platform: Platform, dest_dir: std.fs.Dir) ![]const u8 {
-    const archive = archiveName(platform);
-    var url_buf = std.ArrayList(u8).init(allocator);
-    defer url_buf.deinit();
+fn downloadArchive(allocator: std.mem.Allocator, io: std.Io, version: []const u8, platform: Platform, dest_dir: std.Io.Dir) ![]const u8 {
+    const archive = try archiveName(allocator, platform);
+    defer allocator.free(archive);
 
-    const writer = url_buf.writer();
-    try writer.print("https://github.com/{s}/releases/download/{s}/{s}", .{ GITHUB_REPO, version, archive });
+    const url = try std.fmt.allocPrint(allocator, "https://github.com/{s}/releases/download/{s}/{s}", .{ GITHUB_REPO, version, archive });
+    defer allocator.free(url);
 
-    const uri = try std.Uri.parse(url_buf.items);
-    const out_name = try allocator.dupe(u8, archive);
+    const uri = try std.Uri.parse(url);
 
     var client: std.http.Client = .{ .allocator = allocator, .io = io };
     defer client.deinit();
@@ -106,60 +115,37 @@ fn downloadArchive(allocator: std.mem.Allocator, io: std.Io, version: []const u8
     var redirect_buf: [1024]u8 = undefined;
     var response = try req.receiveHead(&redirect_buf);
 
-    if (response.head.status != .ok) {
-        return error.UpgradeFailed;
-    }
+    if (response.head.status != .ok) return error.UpgradeFailed;
 
     const content_length = response.head.content_length;
 
-    var file = try dest_dir.createFile(out_name, .{});
-    defer file.close();
-
     var transfer_buf: [8192]u8 = undefined;
     const reader = response.reader(&transfer_buf);
+    const body = try reader.allocRemaining(allocator, .limited(100 * 1024 * 1024));
+    defer allocator.free(body);
 
-    var downloaded: u64 = 0;
-    while (true) {
-        const bytes = try reader.read(&transfer_buf);
-        if (bytes == 0) break;
-        try file.writeAll(transfer_buf[0..bytes]);
-        downloaded += bytes;
-        if (content_length) |total| {
-            const pct = @as(f64, @floatFromInt(downloaded)) / @as(f64, @floatFromInt(total)) * 100.0;
-            std.debug.print("\r  Downloading... {d: >3.0}%", .{pct});
-        }
+    try dest_dir.writeFile(io, .{ .sub_path = archive, .data = body });
+
+    if (content_length) |_| {
+        std.debug.print("  Downloaded... ({s})\n", .{archive});
     }
-    std.debug.print("\n", .{});
 
-    return out_name;
+    return allocator.dupe(u8, archive);
 }
 
 fn extractArchive(allocator: std.mem.Allocator, io: std.Io, archive_path: []const u8, dest_dir_path: []const u8, platform: Platform) !void {
-    _ = allocator;
-    _ = io;
-
     const cmd = if (isWindows(platform))
         [_][]const u8{ "tar", "-xf", archive_path, "-C", dest_dir_path }
     else
         [_][]const u8{ "tar", "-xzf", archive_path, "-C", dest_dir_path };
 
-    var child = std.process.Child.init(&cmd, allocator);
-    child.stdout_behavior = .Inherit;
-    child.stderr_behavior = .Inherit;
-
-    const term = try child.spawnAndWait();
-    if (term != .Exited or term.Exited != 0) {
-        return error.UpgradeFailed;
-    }
+    const result = try std.process.run(allocator, io, .{ .argv = &cmd });
+    if (result.term != .exited or result.term.exited != 0) return error.UpgradeFailed;
 }
 
 fn replaceBinary(allocator: std.mem.Allocator, io: std.Io, new_binary_path: []const u8) !void {
-    _ = io;
-
-    var exe_buf: [1024]u8 = undefined;
-    const exe_path = try std.fs.selfExePath(&exe_buf);
-    const exe_dir = std.fs.path.dirname(exe_path) orelse ".";
-    const exe_name = std.fs.path.basename(exe_path);
+    const exe_path = try std.process.executablePathAlloc(io, allocator);
+    defer allocator.free(exe_path);
 
     const platform = getPlatform();
 
@@ -167,61 +153,42 @@ fn replaceBinary(allocator: std.mem.Allocator, io: std.Io, new_binary_path: []co
         const old_path = try std.fmt.allocPrint(allocator, "{s}.old", .{exe_path});
         defer allocator.free(old_path);
 
-        std.fs.renameAbsolute(exe_path, old_path) catch |err| {
+        std.Io.Dir.renameAbsolute(exe_path, old_path, io) catch |err| {
             std.debug.print("  Warning: could not rename current binary: {}\n", .{err});
-            const new_name = try std.fs.path.join(allocator, &.{ exe_dir, exe_name });
-            defer allocator.free(new_name);
-            try copyBinary(new_binary_path, new_name);
-            try scheduleCleanup(allocator, old_path);
+            try copyFile(allocator, io, new_binary_path, exe_path);
             return;
         };
 
-        copyBinary(new_binary_path, exe_path) catch |err| {
+        copyFile(allocator, io, new_binary_path, exe_path) catch |err| {
             std.debug.print("  Warning: could not copy new binary: {}\n", .{err});
-            std.fs.renameAbsolute(old_path, exe_path) catch {};
+            std.Io.Dir.renameAbsolute(old_path, exe_path, io) catch {};
             return error.UpgradeFailed;
         };
 
-        try scheduleCleanup(allocator, old_path);
+        const cleanup_cmd = try std.fmt.allocPrint(allocator, "Start-Sleep 2; Remove-Item -Force '{s}'", .{old_path});
+        defer allocator.free(cleanup_cmd);
+
+        _ = std.process.run(std.heap.page_allocator, io, .{
+            .argv = &[_][]const u8{ "powershell", "-NoProfile", "-Command", cleanup_cmd },
+        }) catch {};
     } else {
-        try copyBinary(new_binary_path, exe_path);
+        try copyFile(allocator, io, new_binary_path, exe_path);
     }
 }
 
-fn copyBinary(src: []const u8, dst: []const u8) !void {
-    var src_file = try std.fs.openFileAbsolute(src, .{});
-    defer src_file.close();
-
-    const stat = try src_file.stat();
-    const mode = if (@hasDecl(std.fs, "mode")) stat.mode else @as(u32, 0);
-
-    var dst_file = try std.fs.createFileAbsolute(dst, .{});
-    defer dst_file.close();
-
-    try dst_file.writeAll(src_file.reader().readAllAlloc(
-        std.heap.page_allocator,
-        @as(usize, @intCast(stat.size)),
-    ) catch unreachable);
-
-    if (@hasDecl(std.fs, "setMode")) {
-        std.fs.setMode(dst, mode) catch {};
+fn copyFile(allocator: std.mem.Allocator, io: std.Io, src: []const u8, dst: []const u8) !void {
+    if (builtin.os.tag == .windows) {
+        _ = try std.process.run(allocator, io, .{
+            .argv = &[_][]const u8{ "cmd", "/c", "copy", "/y", src, dst },
+        });
+    } else {
+        _ = try std.process.run(allocator, io, .{
+            .argv = &[_][]const u8{ "cp", "-f", src, dst },
+        });
     }
 }
 
-fn scheduleCleanup(allocator: std.mem.Allocator, old_path: []const u8) !void {
-    _ = allocator;
-    _ = std.process.Child.run(.{
-        .allocator = std.heap.page_allocator,
-        .argv = &[_][]const u8{
-            "powershell",
-            "-NoProfile",
-            "-Command",
-            "Start-Sleep 2; Remove-Item -Force '" ++ old_path ++ "'",
-        },
-    }) catch {};
-}
-
-pub fn run(allocator: std.mem.Allocator, io: std.Io) !void {
+pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !void {
     std.debug.print("openapi2zig upgrade\n", .{});
     std.debug.print("  Current version: {s}\n", .{version_info.VERSION});
 
@@ -245,12 +212,15 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io) !void {
         return;
     }
 
-    const tmp_dir_path = std.fs.getTempDir();
-    var tmp_dir = try std.fs.openDirAbsolute(tmp_dir_path, .{});
-    defer tmp_dir.close();
+    const tmp_dir_path = try getTempDir(allocator, environ_map);
+    defer allocator.free(tmp_dir_path);
 
-    const sub_dir_name = "openapi2zig-upgrade-XXXXXX";
-    const sub_dir = try std.fs.Dir.makeOpenPath(tmp_dir, sub_dir_name, .{});
+    const sub_dir_name = "openapi2zig-upgrade";
+    const tmp_sub = try std.fs.path.join(allocator, &.{ tmp_dir_path, sub_dir_name });
+    defer allocator.free(tmp_sub);
+
+    var sub_dir = try std.Io.Dir.cwd().createDirPathOpen(io, tmp_sub, .{});
+    defer sub_dir.close(io);
 
     std.debug.print("  Downloading...\n", .{});
     const archive_name = try downloadArchive(allocator, io, latest_version, platform, sub_dir);
