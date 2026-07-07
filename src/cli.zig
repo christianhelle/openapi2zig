@@ -19,6 +19,7 @@ pub const CliArgs = struct {
 pub const ParsedArgs = struct {
     args: CliArgs,
     upgrade: bool = false,
+    help: bool = false,
 };
 
 pub fn parse(args: []const [:0]const u8) !ParsedArgs {
@@ -29,16 +30,12 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
         };
     }
 
-    if (args.len < 4) {
+    if (args.len < 4 or (args.len >= 1 and !std.mem.eql(u8, args[1], "generate"))) {
         printUsage();
-        std.debug.print("\nError: OpenAPI spec path or URL required\n", .{});
-        return error.InvalidArguments;
-    }
-
-    if (!std.mem.eql(u8, args[1], "generate")) {
-        printUsage();
-        std.debug.print("\nError: unknown subcommand '{s}'\n", .{args[1]});
-        return error.InvalidArguments;
+        return .{
+            .help = true,
+            .args = .{ .input_path = "" },
+        };
     }
 
     var input_path: ?[]const u8 = null;

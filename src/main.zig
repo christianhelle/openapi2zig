@@ -9,6 +9,9 @@ pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(init.arena.allocator());
 
     const parsed_args = cli.parse(args) catch std.process.exit(1);
+    if (parsed_args.help) {
+        return;
+    }
 
     if (parsed_args.upgrade) {
         upgrade.run(allocator, io, init.environ_map) catch |err| {
