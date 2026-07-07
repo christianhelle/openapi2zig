@@ -2,10 +2,19 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.2.0...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.3.0...HEAD)
 
 **Implemented enhancements:**
 
+- Introduce --upgrade CLI argument [\#63](https://github.com/christianhelle/openapi2zig/pull/63) ([christianhelle](https://github.com/christianhelle))
+
+## [v0.3.0](https://github.com/christianhelle/openapi2zig/tree/v0.3.0) (2026-07-06)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.2.0...v0.3.0)
+
+**Implemented enhancements:**
+
+- Add support for Server-Sent-Events for operations with text/event-stream content-type [\#62](https://github.com/christianhelle/openapi2zig/pull/62) ([christianhelle](https://github.com/christianhelle))
 - Fix resource wrapper method name collisions when segment equals operation ID [\#61](https://github.com/christianhelle/openapi2zig/pull/61) ([christianhelle](https://github.com/christianhelle))
 - Reduce code duplication [\#60](https://github.com/christianhelle/openapi2zig/pull/60) ([christianhelle](https://github.com/christianhelle))
 - Optional schema numeric bound parsing [\#59](https://github.com/christianhelle/openapi2zig/pull/59) ([christianhelle](https://github.com/christianhelle))
@@ -19,7 +28,6 @@
 
 **Merged pull requests:**
 
-- Add support for Server-Sent-Events for operations with text/event-stream content-type [\#62](https://github.com/christianhelle/openapi2zig/pull/62) ([christianhelle](https://github.com/christianhelle))
 - Remove Squad [\#58](https://github.com/christianhelle/openapi2zig/pull/58) ([christianhelle](https://github.com/christianhelle))
 - Add missing GPA deinit assertions to binary payload tests [\#56](https://github.com/christianhelle/openapi2zig/pull/56) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Add YAML verification to Smoke Tests [\#51](https://github.com/christianhelle/openapi2zig/pull/51) ([christianhelle](https://github.com/christianhelle))
