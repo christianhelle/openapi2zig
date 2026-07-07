@@ -59,40 +59,43 @@ fn getTempDir(allocator: std.mem.Allocator, environ_map: *std.process.Environ.Ma
 }
 
 fn fetchLatestVersion(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
-    const url = "https://api.github.com/repos/" ++ GITHUB_REPO ++ "/releases/latest";
-    const uri = try std.Uri.parse(url);
+    const command = if (builtin.os.tag == .windows)
+        [_][]const u8{
+            "powershell", "-NoProfile", "-Command",
+            "(Invoke-RestMethod 'https://api.github.com/repos/" ++ GITHUB_REPO ++ "/releases/latest' -Headers @{ 'User-Agent' = 'openapi2zig' }).tag_name",
+        }
+    else
+        [_][]const u8{
+            "curl", "-s",
+            "-H", "User-Agent: openapi2zig",
+            "https://api.github.com/repos/" ++ GITHUB_REPO ++ "/releases/latest",
+        };
 
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
-    defer client.deinit();
+    const result = try std.process.run(allocator, io, .{ .argv = &command });
+    defer allocator.free(result.stdout);
+    defer allocator.free(result.stderr);
 
-    var req = try client.request(.GET, uri, .{});
-    defer req.deinit();
+    if (result.term != .exited or result.term.exited != 0) return error.UpgradeFailed;
 
-    try req.sendBodiless();
+    const trimmed = std.mem.trim(u8, result.stdout, " \t\r\n");
+    if (trimmed.len == 0) return error.UpgradeFailed;
 
-    var redirect_buf: [1024]u8 = undefined;
-    var response = try req.receiveHead(&redirect_buf);
+    if (builtin.os.tag != .windows) {
+        const parsed = try std.json.parseFromSlice(std.json.Value, allocator, trimmed, .{ .ignore_unknown_fields = true });
+        defer parsed.deinit();
+        const root = switch (parsed.value) {
+            .object => |obj| obj,
+            else => return error.UpgradeFailed,
+        };
+        const tag_value = root.get("tag_name") orelse return error.UpgradeFailed;
+        const version = switch (tag_value) {
+            .string => |s| s,
+            else => return error.UpgradeFailed,
+        };
+        return allocator.dupe(u8, version);
+    }
 
-    if (response.head.status != .ok) return error.UpgradeFailed;
-
-    var transfer_buf: [4096]u8 = undefined;
-    const reader = response.reader(&transfer_buf);
-    const body = try reader.allocRemaining(allocator, .limited(1024 * 1024));
-
-    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, body, .{ .ignore_unknown_fields = true });
-    defer parsed.deinit();
-
-    const root = switch (parsed.value) {
-        .object => |obj| obj,
-        else => return error.UpgradeFailed,
-    };
-    const tag_value = root.get("tag_name") orelse return error.UpgradeFailed;
-    const version = switch (tag_value) {
-        .string => |s| s,
-        else => return error.UpgradeFailed,
-    };
-
-    return allocator.dupe(u8, version);
+    return allocator.dupe(u8, trimmed);
 }
 
 fn downloadArchive(allocator: std.mem.Allocator, io: std.Io, version: []const u8, platform: Platform, dest_dir: std.Io.Dir) ![]const u8 {
