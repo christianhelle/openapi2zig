@@ -150,7 +150,7 @@ fn downloadArchive(allocator: std.mem.Allocator, io: std.Io, version: []const u8
 
     try req.sendBodiless();
 
-    var redirect_buf: [1024]u8 = undefined;
+    var redirect_buf: [8192]u8 = undefined;
     var response = try req.receiveHead(&redirect_buf);
 
     if (response.head.status != .ok) return error.UpgradeFailed;
