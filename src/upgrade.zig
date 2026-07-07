@@ -58,6 +58,26 @@ fn stripVPrefix(version: []const u8) []const u8 {
     return version;
 }
 
+const Version = struct {
+    major: u32,
+    minor: u32,
+    patch: u32,
+
+    fn parse(s: []const u8) !Version {
+        var it = std.mem.splitScalar(u8, s, '.');
+        const major = try std.fmt.parseInt(u32, it.next() orelse return error.InvalidVersion, 10);
+        const minor = try std.fmt.parseInt(u32, it.next() orelse return error.InvalidVersion, 10);
+        const patch = try std.fmt.parseInt(u32, it.next() orelse return error.InvalidVersion, 10);
+        return .{ .major = major, .minor = minor, .patch = patch };
+    }
+
+    fn newerThan(self: Version, other: Version) bool {
+        if (self.major != other.major) return self.major > other.major;
+        if (self.minor != other.minor) return self.minor > other.minor;
+        return self.patch > other.patch;
+    }
+};
+
 fn archiveName(allocator: std.mem.Allocator, p: Platform) ![]const u8 {
     const ext = if (isWindows(p)) ".zip" else ".tar.gz";
     return std.fmt.allocPrint(allocator, "openapi2zig-{s}{s}", .{ platformString(p), ext });
@@ -221,11 +241,20 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.E
     defer allocator.free(latest_version);
 
     const current = version_info.VERSION;
-    const latest_trimmed = if (std.mem.startsWith(u8, latest_version, "v")) latest_version[1..] else latest_version;
+    const latest_trimmed = stripVPrefix(latest_version);
 
     std.debug.print("  Latest version: {s}\n", .{latest_version});
 
-    if (std.mem.eql(u8, current, latest_trimmed)) {
+    const current_version = Version.parse(current) catch {
+        std.debug.print("  Could not parse current version: {s}\n", .{current});
+        return;
+    };
+    const latest_parsed = Version.parse(latest_trimmed) catch {
+        std.debug.print("  Could not parse latest version: {s}\n", .{latest_trimmed});
+        return;
+    };
+
+    if (!latest_parsed.newerThan(current_version)) {
         std.debug.print("  Already up to date.\n", .{});
         return;
     }
