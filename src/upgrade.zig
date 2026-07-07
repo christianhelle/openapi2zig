@@ -53,6 +53,11 @@ fn isLinux(p: Platform) bool {
     };
 }
 
+fn stripVPrefix(version: []const u8) []const u8 {
+    if (std.mem.startsWith(u8, version, "v")) return version[1..];
+    return version;
+}
+
 fn archiveName(allocator: std.mem.Allocator, p: Platform) ![]const u8 {
     const ext = if (isWindows(p)) ".zip" else ".tar.gz";
     return std.fmt.allocPrint(allocator, "openapi2zig-{s}{s}", .{ platformString(p), ext });
