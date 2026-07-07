@@ -23,7 +23,7 @@ pub const ParsedArgs = struct {
 };
 
 pub fn parse(args: []const [:0]const u8) !ParsedArgs {
-    if (args.len >= 2 and std.mem.eql(u8, args[1], "--upgrade")) {
+    if (args.len >= 2 and std.mem.eql(u8, args[1], "upgrade")) {
         return .{
             .upgrade = true,
             .args = .{ .input_path = "" },
