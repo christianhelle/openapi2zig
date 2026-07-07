@@ -18,9 +18,17 @@ pub const CliArgs = struct {
 
 pub const ParsedArgs = struct {
     args: CliArgs,
+    upgrade: bool = false,
 };
 
 pub fn parse(args: []const [:0]const u8) !ParsedArgs {
+    if (args.len >= 2 and std.mem.eql(u8, args[1], "--upgrade")) {
+        return .{
+            .upgrade = true,
+            .args = .{ .input_path = "" },
+        };
+    }
+
     if (args.len < 4) {
         printUsage();
         std.debug.print("\nError: OpenAPI spec path or URL required\n", .{});
@@ -113,6 +121,7 @@ fn printUsage() void {
     std.debug.print(
         \\
         \\ Usage: openapi2zig generate [options]
+        \\        openapi2zig --upgrade
         \\ Version: {s} ({s})
         \\
         \\ Options:
@@ -124,6 +133,7 @@ fn printUsage() void {
         \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
         \\                              (default: paths)
         \\   --models-only              Generate only Zig models, skipping the API client.
+        \\   --upgrade                  Upgrade to the latest version.
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
