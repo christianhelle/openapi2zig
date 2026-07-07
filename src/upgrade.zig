@@ -277,7 +277,7 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.E
     defer allocator.free(archive_path);
 
     std.debug.print("  Extracting...\n", .{});
-    try extractArchive(allocator, io, archive_path, tmp_dir_path, platform);
+    try extractArchive(allocator, io, archive_path, tmp_sub, platform);
 
     const binary_name = if (isWindows(platform)) "openapi2zig.exe" else "openapi2zig";
     const new_binary = try std.fs.path.join(allocator, &.{ tmp_dir_path, sub_dir_name, binary_name });
