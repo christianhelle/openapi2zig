@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Change upgrade from option to command in CLI args [\#64](https://github.com/christianhelle/openapi2zig/pull/64) ([christianhelle](https://github.com/christianhelle))
 - Introduce --upgrade CLI argument [\#63](https://github.com/christianhelle/openapi2zig/pull/63) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.3.0](https://github.com/christianhelle/openapi2zig/tree/v0.3.0) (2026-07-06)
