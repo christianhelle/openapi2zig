@@ -53,6 +53,31 @@ fn isLinux(p: Platform) bool {
     };
 }
 
+fn stripVPrefix(version: []const u8) []const u8 {
+    if (std.mem.startsWith(u8, version, "v")) return version[1..];
+    return version;
+}
+
+const Version = struct {
+    major: u32,
+    minor: u32,
+    patch: u32,
+
+    fn parse(s: []const u8) !Version {
+        var it = std.mem.splitScalar(u8, s, '.');
+        const major = try std.fmt.parseInt(u32, it.next() orelse return error.InvalidVersion, 10);
+        const minor = try std.fmt.parseInt(u32, it.next() orelse return error.InvalidVersion, 10);
+        const patch = try std.fmt.parseInt(u32, it.next() orelse return error.InvalidVersion, 10);
+        return .{ .major = major, .minor = minor, .patch = patch };
+    }
+
+    fn newerThan(self: Version, other: Version) bool {
+        if (self.major != other.major) return self.major > other.major;
+        if (self.minor != other.minor) return self.minor > other.minor;
+        return self.patch > other.patch;
+    }
+};
+
 fn archiveName(allocator: std.mem.Allocator, p: Platform) ![]const u8 {
     const ext = if (isWindows(p)) ".zip" else ".tar.gz";
     return std.fmt.allocPrint(allocator, "openapi2zig-{s}{s}", .{ platformString(p), ext });
@@ -85,22 +110,37 @@ fn fetchLatestVersion(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
-    if (result.term != .exited or result.term.exited != 0) return error.UpgradeFailed;
+    if (result.term != .exited or result.term.exited != 0) {
+        std.debug.print("  Version check command failed: term={}, stderr={s}\n", .{ result.term, result.stderr });
+        return error.UpgradeFailed;
+    }
 
     const trimmed = std.mem.trim(u8, result.stdout, " \t\r\n");
-    if (trimmed.len == 0) return error.UpgradeFailed;
+    if (trimmed.len == 0) {
+        std.debug.print("  Empty response from version check\n", .{});
+        return error.UpgradeFailed;
+    }
 
     if (builtin.os.tag != .windows) {
         const parsed = try std.json.parseFromSlice(std.json.Value, allocator, trimmed, .{ .ignore_unknown_fields = true });
         defer parsed.deinit();
         const root = switch (parsed.value) {
             .object => |obj| obj,
-            else => return error.UpgradeFailed,
+            else => {
+                std.debug.print("  Unexpected JSON root type\n", .{});
+                return error.UpgradeFailed;
+            },
         };
-        const tag_value = root.get("tag_name") orelse return error.UpgradeFailed;
+        const tag_value = root.get("tag_name") orelse {
+            std.debug.print("  Missing 'tag_name' in release response\n", .{});
+            return error.UpgradeFailed;
+        };
         const version = switch (tag_value) {
             .string => |s| s,
-            else => return error.UpgradeFailed,
+            else => {
+                std.debug.print("  'tag_name' is not a string\n", .{});
+                return error.UpgradeFailed;
+            },
         };
         return allocator.dupe(u8, version);
     }
@@ -125,7 +165,7 @@ fn downloadArchive(allocator: std.mem.Allocator, io: std.Io, version: []const u8
 
     try req.sendBodiless();
 
-    var redirect_buf: [1024]u8 = undefined;
+    var redirect_buf: [8192]u8 = undefined;
     var response = try req.receiveHead(&redirect_buf);
 
     if (response.head.status != .ok) return error.UpgradeFailed;
@@ -181,24 +221,28 @@ fn replaceBinary(allocator: std.mem.Allocator, io: std.Io, new_binary_path: []co
         const cleanup_cmd = try std.fmt.allocPrint(allocator, "Start-Sleep 2; Remove-Item -Force '{s}'", .{old_path});
         defer allocator.free(cleanup_cmd);
 
-        _ = std.process.run(std.heap.page_allocator, io, .{
+        if (std.process.run(allocator, io, .{
             .argv = &[_][]const u8{ "powershell", "-NoProfile", "-Command", cleanup_cmd },
-        }) catch {};
+        })) |cleanup_result| {
+            allocator.free(cleanup_result.stdout);
+            allocator.free(cleanup_result.stderr);
+        } else |_| {}
     } else {
         try copyFile(allocator, io, new_binary_path, exe_path);
     }
 }
 
 fn copyFile(allocator: std.mem.Allocator, io: std.Io, src: []const u8, dst: []const u8) !void {
-    if (builtin.os.tag == .windows) {
-        _ = try std.process.run(allocator, io, .{
+    const result = if (builtin.os.tag == .windows)
+        try std.process.run(allocator, io, .{
             .argv = &[_][]const u8{ "cmd", "/c", "copy", "/y", src, dst },
-        });
-    } else {
-        _ = try std.process.run(allocator, io, .{
+        })
+    else
+        try std.process.run(allocator, io, .{
             .argv = &[_][]const u8{ "cp", "-f", src, dst },
         });
-    }
+    allocator.free(result.stdout);
+    allocator.free(result.stderr);
 }
 
 pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !void {
@@ -216,11 +260,20 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.E
     defer allocator.free(latest_version);
 
     const current = version_info.VERSION;
-    const latest_trimmed = if (std.mem.startsWith(u8, latest_version, "v")) latest_version[1..] else latest_version;
+    const latest_trimmed = stripVPrefix(latest_version);
 
     std.debug.print("  Latest version: {s}\n", .{latest_version});
 
-    if (std.mem.eql(u8, current, latest_trimmed)) {
+    const current_version = Version.parse(current) catch {
+        std.debug.print("  Could not parse current version: {s}\n", .{current});
+        return;
+    };
+    const latest_parsed = Version.parse(latest_trimmed) catch {
+        std.debug.print("  Could not parse latest version: {s}\n", .{latest_trimmed});
+        return;
+    };
+
+    if (!latest_parsed.newerThan(current_version)) {
         std.debug.print("  Already up to date.\n", .{});
         return;
     }
@@ -243,7 +296,7 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.E
     defer allocator.free(archive_path);
 
     std.debug.print("  Extracting...\n", .{});
-    try extractArchive(allocator, io, archive_path, tmp_dir_path, platform);
+    try extractArchive(allocator, io, archive_path, tmp_sub, platform);
 
     const binary_name = if (isWindows(platform)) "openapi2zig.exe" else "openapi2zig";
     const new_binary = try std.fs.path.join(allocator, &.{ tmp_dir_path, sub_dir_name, binary_name });

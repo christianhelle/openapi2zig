@@ -19,26 +19,23 @@ pub const CliArgs = struct {
 pub const ParsedArgs = struct {
     args: CliArgs,
     upgrade: bool = false,
+    help: bool = false,
 };
 
 pub fn parse(args: []const [:0]const u8) !ParsedArgs {
-    if (args.len >= 2 and std.mem.eql(u8, args[1], "--upgrade")) {
+    if (args.len >= 2 and std.mem.eql(u8, args[1], "upgrade")) {
         return .{
             .upgrade = true,
             .args = .{ .input_path = "" },
         };
     }
 
-    if (args.len < 4) {
+    if (args.len < 4 or (args.len >= 1 and !std.mem.eql(u8, args[1], "generate"))) {
         printUsage();
-        std.debug.print("\nError: OpenAPI spec path or URL required\n", .{});
-        return error.InvalidArguments;
-    }
-
-    if (!std.mem.eql(u8, args[1], "generate")) {
-        printUsage();
-        std.debug.print("\nError: unknown subcommand '{s}'\n", .{args[1]});
-        return error.InvalidArguments;
+        return .{
+            .help = true,
+            .args = .{ .input_path = "" },
+        };
     }
 
     var input_path: ?[]const u8 = null;
@@ -120,9 +117,11 @@ fn parseResourceWrapperMode(value: []const u8) ?ResourceWrapperMode {
 fn printUsage() void {
     std.debug.print(
         \\
+        \\ openapi2zig - OpenAPI/Swagger to Zig code generator
+        \\ version: {s} ({s})
+        \\
         \\ Usage: openapi2zig generate [options]
-        \\        openapi2zig --upgrade
-        \\ Version: {s} ({s})
+        \\        openapi2zig upgrade
         \\
         \\ Options:
         \\   -i, --input <PATH_OR_URL>  OpenAPI/Swagger spec (file path or http/https URL)
@@ -133,13 +132,11 @@ fn printUsage() void {
         \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
         \\                              (default: paths)
         \\   --models-only              Generate only Zig models, skipping the API client.
-        \\   --upgrade                  Upgrade to the latest version.
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
         \\   openapi2zig generate -i ./openapi/petstore.json -o models.zig --models-only
         \\   openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
-        \\
         \\
     , .{ version_info.VERSION, version_info.GIT_COMMIT });
 }
@@ -172,10 +169,10 @@ test "parse generate defaults to complete output" {
     try std.testing.expect(!parsed.args.models_only);
 }
 
-test "parse --upgrade flag" {
+test "parse upgrade" {
     const argv = [_][:0]const u8{
         "openapi2zig",
-        "--upgrade",
+        "upgrade",
     };
 
     const parsed = try parse(&argv);
