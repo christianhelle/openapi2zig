@@ -1115,20 +1115,20 @@ pub const UnifiedApiGenerator = struct {
     fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, stream_name: []const u8, indent: usize) !void {
         _ = wrapper;
         try self.appendIndent(indent);
-        try self.buffer.appendSlice(self.allocator, "pub fn stream(client: *Client, requestBody: anytype, callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "pub fn stream(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
         try self.buffer.appendSlice(self.allocator, stream_name);
-        try self.buffer.appendSlice(self.allocator, "(client, requestBody, callback);\n");
+        try self.buffer.appendSlice(self.allocator, "(client, requestBody, callback, cancellation_token);\n");
         try self.appendIndent(indent);
         try self.buffer.appendSlice(self.allocator, "}\n");
 
         try self.appendIndent(indent);
-        try self.buffer.appendSlice(self.allocator, "pub fn streamEvents(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "pub fn streamEvents(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
         try self.buffer.appendSlice(self.allocator, stream_name);
-        try self.buffer.appendSlice(self.allocator, "Events(Event, client, requestBody, callback);\n");
+        try self.buffer.appendSlice(self.allocator, "Events(Event, client, requestBody, callback, cancellation_token);\n");
         try self.appendIndent(indent);
         try self.buffer.appendSlice(self.allocator, "}\n");
     }
