@@ -91,12 +91,26 @@ pub fn main(init: std.process.Init) !void {
     var handler = StreamHandler{ .allocator = allocator, .in_reasoning = false };
     std.debug.print("Chat response:\n\n", .{});
 
-    // Pass a CancellationToken to allow cancelling the stream from another thread.
-    // Calling token.cancel() will make the next SSE read return error.Cancelled.
-    var token = lmstudio.CancellationToken.init();
-    lmstudio.chatStreaming(&client, request, &handler, &token) catch |err| {
+    // First stream: run to completion without cancellation.
+    lmstudio.chatStreaming(&client, request, &handler, null) catch |err| {
         std.debug.print("\n\nStream error: {any}\n", .{err});
         return;
     };
     std.debug.print("\n\nDone.\n", .{});
+
+    // Second stream: cancel after a few seconds to demonstrate CancellationToken usage.
+    std.debug.print("\nStarting a second stream and cancelling it after 2 seconds...\n", .{});
+    var cancel_token = lmstudio.CancellationToken.init();
+    const cancel_thread = try std.Thread.spawn(.{}, struct {
+        fn run(cancellation_token: *lmstudio.CancellationToken) !void {
+            std.time.sleep(2 * std.time.ns_per_s);
+            cancellation_token.cancel();
+        }
+    }.run, .{&cancel_token});
+    defer cancel_thread.join();
+
+    var handler2 = StreamHandler{ .allocator = allocator, .in_reasoning = false };
+    lmstudio.chatStreaming(&client, request, &handler2, &cancel_token) catch |err| {
+        std.debug.print("Second stream cancelled as expected: {any}\n", .{err});
+    };
 }
