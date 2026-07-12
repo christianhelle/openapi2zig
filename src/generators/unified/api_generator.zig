@@ -1016,8 +1016,12 @@ pub const UnifiedApiGenerator = struct {
                     try declarations.append(self.allocator, result_name);
                 }
                 if (wrapper.operation.streaming) {
-                    try declarations.append(self.allocator, "stream");
-                    try declarations.append(self.allocator, "streamEvents");
+                    const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
+                    try declarations.append(self.allocator, stream_decl_name);
+                    try allocated_declarations.append(self.allocator, stream_decl_name);
+                    const events_decl_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.operation_id});
+                    try declarations.append(self.allocator, events_decl_name);
+                    try allocated_declarations.append(self.allocator, events_decl_name);
                 }
             }
         }
@@ -1113,9 +1117,15 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, stream_name: []const u8, indent: usize) !void {
-        _ = wrapper;
+        const stream_method_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
+        defer self.allocator.free(stream_method_name);
+        const events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.operation_id});
+        defer self.allocator.free(events_method_name);
+
         try self.appendIndent(indent);
-        try self.buffer.appendSlice(self.allocator, "pub fn stream(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "pub fn ");
+        try self.buffer.appendSlice(self.allocator, stream_method_name);
+        try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
         try self.buffer.appendSlice(self.allocator, stream_name);
@@ -1124,7 +1134,9 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "}\n");
 
         try self.appendIndent(indent);
-        try self.buffer.appendSlice(self.allocator, "pub fn streamEvents(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "pub fn ");
+        try self.buffer.appendSlice(self.allocator, events_method_name);
+        try self.buffer.appendSlice(self.allocator, "(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
         try self.buffer.appendSlice(self.allocator, stream_name);
