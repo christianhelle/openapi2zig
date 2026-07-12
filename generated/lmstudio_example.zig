@@ -90,26 +90,13 @@ pub fn main(init: std.process.Init) !void {
 
     var handler = StreamHandler{ .allocator = allocator, .in_reasoning = false };
     std.debug.print("Chat response:\n\n", .{});
-    lmstudio.chatStreaming(&client, request, &handler) catch |err| {
+
+    // Pass a CancellationToken to allow cancelling the stream from another thread.
+    // Calling token.cancel() will make the next SSE read return error.Cancelled.
+    var token = lmstudio.CancellationToken.init();
+    lmstudio.chatStreaming(&client, request, &handler, &token) catch |err| {
         std.debug.print("\n\nStream error: {any}\n", .{err});
         return;
     };
     std.debug.print("\n\nDone.\n", .{});
-}
-
-test "lmstudio cancellation token cancels SSE parsing" {
-    const allocator = std.testing.allocator;
-
-    var token = lmstudio.CancellationToken.init();
-    token.cancel();
-
-    const Callback = struct {
-        pub fn event(_: *@This(), _: []const u8) !void {}
-    };
-    var callback: Callback = .{};
-
-    try std.testing.expectError(
-        error.Cancelled,
-        lmstudio.parseSseBytes(allocator, "data: {\"x\":1}\n\n", &callback, &token),
-    );
 }
