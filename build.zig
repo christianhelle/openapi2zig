@@ -147,6 +147,19 @@ pub fn build(b: *std.Build) void {
     const run_generate_v3_yaml_step = b.step("run-generate-v3-yaml", "Run the app with generate command for OpenAPI v3.0 YAML");
     run_generate_v3_yaml_step.dependOn(&run_generate_v3_yaml_cmd.step);
 
+    const run_generate_lmstudio_json_cmd = b.addRunArtifact(exe);
+    run_generate_lmstudio_json_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.1/lmstudio.json",
+        "-o",
+        "generated/lmstudio.zig",
+        "--base-url",
+        "http://localhost:1234",
+    });
+    const run_generate_lmstudio_json_step = b.step("run-generate-lmstudio", "Run the app with generate command for LM Studio OpenAPI JSON");
+    run_generate_lmstudio_json_step.dependOn(&run_generate_v3_yaml_cmd.step);
+
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
     run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
@@ -155,6 +168,7 @@ pub fn build(b: *std.Build) void {
     run_generate.dependOn(&run_generate_v32_cmd.step);
     run_generate.dependOn(&run_generate_v31_cmd.step);
     run_generate.dependOn(&run_generate_v31_yaml_cmd.step);
+    run_generate.dependOn(&run_generate_lmstudio_json_cmd.step);
 
     const tests_mod = b.createModule(.{
         .root_source_file = b.path("src/tests.zig"),
