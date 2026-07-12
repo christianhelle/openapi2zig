@@ -855,18 +855,18 @@ pub const UnifiedApiGenerator = struct {
     fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path: []const u8) !void {
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.buffer.appendSlice(self.allocator, name);
-        try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.buffer.appendSlice(self.allocator, "    return streamJson(client, \"");
         try self.buffer.appendSlice(self.allocator, path);
-        try self.buffer.appendSlice(self.allocator, "\", requestBody, callback);\n");
+        try self.buffer.appendSlice(self.allocator, "\", requestBody, callback, cancellation_token);\n");
         try self.buffer.appendSlice(self.allocator, "}\n\n");
 
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.buffer.appendSlice(self.allocator, name);
-        try self.buffer.appendSlice(self.allocator, "Events(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "Events(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.buffer.appendSlice(self.allocator, "    return streamJsonTyped(Event, client, \"");
         try self.buffer.appendSlice(self.allocator, path);
-        try self.buffer.appendSlice(self.allocator, "\", requestBody, callback);\n");
+        try self.buffer.appendSlice(self.allocator, "\", requestBody, callback, cancellation_token);\n");
         try self.buffer.appendSlice(self.allocator, "}\n\n");
     }
 
