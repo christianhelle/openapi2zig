@@ -47,7 +47,7 @@ pub fn main(init: std.process.Init) !void {
 
     const request = lmstudio.ChatRequest{
         .model = model.key,
-        .input = parsed_input.value,
+        .input = .{ .raw = parsed_input.value },
     };
 
     const StreamHandler = struct {
@@ -102,11 +102,11 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("\nStarting a second stream and cancelling it after 2 seconds...\n", .{});
     var cancel_token = lmstudio.CancellationToken.init();
     const cancel_thread = try std.Thread.spawn(.{}, struct {
-        fn run(cancellation_token: *lmstudio.CancellationToken) !void {
-            std.time.sleep(2 * std.time.ns_per_s);
+        fn run(cancellation_token: *lmstudio.CancellationToken, thread_io: std.Io) !void {
+            try std.Io.sleep(thread_io, .fromSeconds(2), .real);
             cancellation_token.cancel();
         }
-    }.run, .{&cancel_token});
+    }.run, .{ &cancel_token, io });
     defer cancel_thread.join();
 
     var handler2 = StreamHandler{ .allocator = allocator, .in_reasoning = false };
