@@ -9,15 +9,15 @@ pub fn render(allocator: std.mem.Allocator, version: []const u8, timestamp: []co
     , .{ version, timestamp });
 }
 
-pub fn renderNow(allocator: std.mem.Allocator, version: []const u8) ![]const u8 {
-    const timestamp = try formatUtcTimestamp(allocator);
+pub fn renderNow(allocator: std.mem.Allocator, io: std.Io, version: []const u8) ![]const u8 {
+    const timestamp = try formatUtcTimestamp(allocator, io);
     defer allocator.free(timestamp);
     return try render(allocator, version, timestamp);
 }
 
-fn formatUtcTimestamp(allocator: std.mem.Allocator) ![]const u8 {
-    const timestamp = std.time.timestamp();
-    const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = @as(u64, @intCast(timestamp)) };
+fn formatUtcTimestamp(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
+    const now = std.Io.Clock.real.now(io);
+    const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = @as(u64, @intCast(now.toSeconds())) };
     const epoch_day = epoch_seconds.getEpochDay();
     const day_seconds = epoch_seconds.getDaySeconds();
     const year_day = epoch_day.calculateYearDay();
