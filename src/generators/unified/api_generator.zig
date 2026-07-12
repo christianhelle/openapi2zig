@@ -348,6 +348,28 @@ pub const UnifiedApiGenerator = struct {
             \\    return parseRawResponse(T, try postJsonRaw(client, path, payload));
             \\}
             \\
+            \\pub const CancellationToken = struct {
+            \\    cancelled: std.atomic.Value(bool),
+            \\
+            \\    pub fn init() CancellationToken {
+            \\        return .{ .cancelled = std.atomic.Value(bool).init(false) };
+            \\    }
+            \\
+            \\    pub fn cancel(self: *CancellationToken) void {
+            \\        self.cancelled.store(true, .seq_cst);
+            \\    }
+            \\
+            \\    pub fn isCancelled(self: *CancellationToken) bool {
+            \\        return self.cancelled.load(.seq_cst);
+            \\    }
+            \\};
+            \\
+            \\fn checkCancellation(token: ?*CancellationToken) !void {
+            \\    if (token) |t| {
+            \\        if (t.isCancelled()) return error.Cancelled;
+            \\    }
+            \\}
+            \\
             \\const max_sse_line_size = 256 * 1024;
             \\const max_sse_event_size = 1024 * 1024;
             \\
