@@ -96,3 +96,20 @@ pub fn main(init: std.process.Init) !void {
     };
     std.debug.print("\n\nDone.\n", .{});
 }
+
+test "lmstudio cancellation token cancels SSE parsing" {
+    const allocator = std.testing.allocator;
+
+    var token = lmstudio.CancellationToken.init();
+    token.cancel();
+
+    const Callback = struct {
+        pub fn event(_: *@This(), _: []const u8) !void {}
+    };
+    var callback: Callback = .{};
+
+    try std.testing.expectError(
+        error.Cancelled,
+        lmstudio.parseSseBytes(allocator, "data: {\"x\":1}\n\n", &callback, &token),
+    );
+}
