@@ -47,7 +47,7 @@ pub fn main(init: std.process.Init) !void {
 
     const request = lmstudio.ChatRequest{
         .model = model.key,
-        .input = parsed_input.value,
+        .input = .{ .raw = parsed_input.value },
     };
 
     const StreamHandler = struct {
@@ -90,9 +90,27 @@ pub fn main(init: std.process.Init) !void {
 
     var handler = StreamHandler{ .allocator = allocator, .in_reasoning = false };
     std.debug.print("Chat response:\n\n", .{});
-    lmstudio.chatStreaming(&client, request, &handler) catch |err| {
+
+    // First stream: run to completion without cancellation.
+    lmstudio.chatStreaming(&client, request, &handler, null) catch |err| {
         std.debug.print("\n\nStream error: {any}\n", .{err});
         return;
     };
     std.debug.print("\n\nDone.\n", .{});
+
+    // Second stream: cancel after a few seconds to demonstrate CancellationToken usage.
+    std.debug.print("\nStarting a second stream and cancelling it after 2 seconds...\n", .{});
+    var cancel_token = lmstudio.CancellationToken.init();
+    const cancel_thread = try std.Thread.spawn(.{}, struct {
+        fn run(cancellation_token: *lmstudio.CancellationToken, thread_io: std.Io) !void {
+            try std.Io.sleep(thread_io, .fromSeconds(2), .real);
+            cancellation_token.cancel();
+        }
+    }.run, .{ &cancel_token, io });
+    defer cancel_thread.join();
+
+    var handler2 = StreamHandler{ .allocator = allocator, .in_reasoning = false };
+    lmstudio.chatStreaming(&client, request, &handler2, &cancel_token) catch |err| {
+        std.debug.print("Second stream cancelled as expected: {any}\n", .{err});
+    };
 }

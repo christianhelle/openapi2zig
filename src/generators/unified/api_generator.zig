@@ -348,15 +348,37 @@ pub const UnifiedApiGenerator = struct {
             \\    return parseRawResponse(T, try postJsonRaw(client, path, payload));
             \\}
             \\
+            \\pub const CancellationToken = struct {
+            \\    cancelled: std.atomic.Value(bool),
+            \\
+            \\    pub fn init() CancellationToken {
+            \\        return .{ .cancelled = std.atomic.Value(bool).init(false) };
+            \\    }
+            \\
+            \\    pub fn cancel(self: *CancellationToken) void {
+            \\        self.cancelled.store(true, .seq_cst);
+            \\    }
+            \\
+            \\    pub fn isCancelled(self: *CancellationToken) bool {
+            \\        return self.cancelled.load(.seq_cst);
+            \\    }
+            \\};
+            \\
+            \\fn checkCancellation(token: ?*CancellationToken) !void {
+            \\    if (token) |t| {
+            \\        if (t.isCancelled()) return error.Cancelled;
+            \\    }
+            \\}
+            \\
             \\const max_sse_line_size = 256 * 1024;
             \\const max_sse_event_size = 1024 * 1024;
             \\
-            \\pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype) !void {
+            \\pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    var reader: std.Io.Reader = .fixed(bytes);
-            \\    try parseSseReader(allocator, &reader, callback);
+            \\    try parseSseReader(allocator, &reader, callback, cancellation_token);
             \\}
             \\
-            \\pub fn parseSseReader(allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype) !void {
+            \\pub fn parseSseReader(allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    var line_buf: std.Io.Writer.Allocating = .init(allocator);
             \\    defer line_buf.deinit();
             \\
@@ -364,6 +386,7 @@ pub const UnifiedApiGenerator = struct {
             \\    defer event_data.deinit();
             \\
             \\    while (true) {
+            \\        try checkCancellation(cancellation_token);
             \\        line_buf.clearRetainingCapacity();
             \\
             \\        _ = reader.streamDelimiterLimit(&line_buf.writer, '\n', .limited(max_sse_line_size)) catch |err| switch (err) {
@@ -432,16 +455,16 @@ pub const UnifiedApiGenerator = struct {
             \\    };
             \\}
             \\
-            \\pub fn parseSseBytesTyped(comptime T: type, allocator: std.mem.Allocator, bytes: []const u8, callback: anytype) !void {
+            \\pub fn parseSseBytesTyped(comptime T: type, allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    const Callback = @TypeOf(callback.*);
             \\    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = allocator, .callback = callback };
-            \\    try parseSseBytes(allocator, bytes, &typed_callback);
+            \\    try parseSseBytes(allocator, bytes, &typed_callback, cancellation_token);
             \\}
             \\
-            \\pub fn parseSseReaderTyped(comptime T: type, allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype) !void {
+            \\pub fn parseSseReaderTyped(comptime T: type, allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    const Callback = @TypeOf(callback.*);
             \\    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = allocator, .callback = callback };
-            \\    try parseSseReader(allocator, reader, &typed_callback);
+            \\    try parseSseReader(allocator, reader, &typed_callback, cancellation_token);
             \\}
             \\
             \\fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![]u8 {
@@ -462,13 +485,13 @@ pub const UnifiedApiGenerator = struct {
             \\    return try out.toOwnedSlice();
             \\}
             \\
-            \\fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype) !void {
+            \\fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    const Callback = @TypeOf(callback.*);
             \\    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = client.allocator, .callback = callback };
-            \\    try streamJson(client, path, requestBody, &typed_callback);
+            \\    try streamJson(client, path, requestBody, &typed_callback, cancellation_token);
             \\}
             \\
-            \\fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype) !void {
+            \\fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    const allocator = client.allocator;
             \\    const payload = try stringifyStreamRequest(allocator, requestBody);
             \\    defer allocator.free(payload);
@@ -481,6 +504,7 @@ pub const UnifiedApiGenerator = struct {
             \\    const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
             \\    defer allocator.free(url);
             \\    const uri = try std.Uri.parse(url);
+            \\    try checkCancellation(cancellation_token);
             \\
             \\    var req = try client.http.request(.POST, uri, .{
             \\        .redirect_behavior = .unhandled,
@@ -494,13 +518,14 @@ pub const UnifiedApiGenerator = struct {
             \\    try body.writer.writeAll(payload);
             \\    try body.end();
             \\    try req.connection.?.flush();
+            \\    try checkCancellation(cancellation_token);
             \\
             \\    var response = try req.receiveHead(&.{});
             \\    if (response.head.status.class() != .success) return error.ResponseError;
             \\
             \\    var transfer_buffer: [8 * 1024]u8 = undefined;
             \\    const reader = response.reader(&transfer_buffer);
-            \\    parseSseReader(allocator, reader, callback) catch |err| switch (err) {
+            \\    parseSseReader(allocator, reader, callback, cancellation_token) catch |err| switch (err) {
             \\        error.ReadFailed => return response.bodyErr() orelse err,
             \\        else => return err,
             \\    };
@@ -830,18 +855,18 @@ pub const UnifiedApiGenerator = struct {
     fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path: []const u8) !void {
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.buffer.appendSlice(self.allocator, name);
-        try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.buffer.appendSlice(self.allocator, "    return streamJson(client, \"");
         try self.buffer.appendSlice(self.allocator, path);
-        try self.buffer.appendSlice(self.allocator, "\", requestBody, callback);\n");
+        try self.buffer.appendSlice(self.allocator, "\", requestBody, callback, cancellation_token);\n");
         try self.buffer.appendSlice(self.allocator, "}\n\n");
 
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.buffer.appendSlice(self.allocator, name);
-        try self.buffer.appendSlice(self.allocator, "Events(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "Events(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.buffer.appendSlice(self.allocator, "    return streamJsonTyped(Event, client, \"");
         try self.buffer.appendSlice(self.allocator, path);
-        try self.buffer.appendSlice(self.allocator, "\", requestBody, callback);\n");
+        try self.buffer.appendSlice(self.allocator, "\", requestBody, callback, cancellation_token);\n");
         try self.buffer.appendSlice(self.allocator, "}\n\n");
     }
 
@@ -991,8 +1016,12 @@ pub const UnifiedApiGenerator = struct {
                     try declarations.append(self.allocator, result_name);
                 }
                 if (wrapper.operation.streaming) {
-                    try declarations.append(self.allocator, "stream");
-                    try declarations.append(self.allocator, "streamEvents");
+                    const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
+                    try declarations.append(self.allocator, stream_decl_name);
+                    try allocated_declarations.append(self.allocator, stream_decl_name);
+                    const events_decl_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.operation_id});
+                    try declarations.append(self.allocator, events_decl_name);
+                    try allocated_declarations.append(self.allocator, events_decl_name);
                 }
             }
         }
@@ -1088,22 +1117,30 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, stream_name: []const u8, indent: usize) !void {
-        _ = wrapper;
+        const stream_method_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
+        defer self.allocator.free(stream_method_name);
+        const events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.operation_id});
+        defer self.allocator.free(events_method_name);
+
         try self.appendIndent(indent);
-        try self.buffer.appendSlice(self.allocator, "pub fn stream(client: *Client, requestBody: anytype, callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "pub fn ");
+        try self.buffer.appendSlice(self.allocator, stream_method_name);
+        try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
         try self.buffer.appendSlice(self.allocator, stream_name);
-        try self.buffer.appendSlice(self.allocator, "(client, requestBody, callback);\n");
+        try self.buffer.appendSlice(self.allocator, "(client, requestBody, callback, cancellation_token);\n");
         try self.appendIndent(indent);
         try self.buffer.appendSlice(self.allocator, "}\n");
 
         try self.appendIndent(indent);
-        try self.buffer.appendSlice(self.allocator, "pub fn streamEvents(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype) !void {\n");
+        try self.buffer.appendSlice(self.allocator, "pub fn ");
+        try self.buffer.appendSlice(self.allocator, events_method_name);
+        try self.buffer.appendSlice(self.allocator, "(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
         try self.appendIndent(indent + 1);
         try self.buffer.appendSlice(self.allocator, "return ");
         try self.buffer.appendSlice(self.allocator, stream_name);
-        try self.buffer.appendSlice(self.allocator, "Events(Event, client, requestBody, callback);\n");
+        try self.buffer.appendSlice(self.allocator, "Events(Event, client, requestBody, callback, cancellation_token);\n");
         try self.appendIndent(indent);
         try self.buffer.appendSlice(self.allocator, "}\n");
     }

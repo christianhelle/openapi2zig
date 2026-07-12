@@ -195,15 +195,37 @@ pub fn postJsonResult(comptime T: type, client: *Client, path: []const u8, paylo
     return parseRawResponse(T, try postJsonRaw(client, path, payload));
 }
 
+pub const CancellationToken = struct {
+    cancelled: std.atomic.Value(bool),
+
+    pub fn init() CancellationToken {
+        return .{ .cancelled = std.atomic.Value(bool).init(false) };
+    }
+
+    pub fn cancel(self: *CancellationToken) void {
+        self.cancelled.store(true, .seq_cst);
+    }
+
+    pub fn isCancelled(self: *CancellationToken) bool {
+        return self.cancelled.load(.seq_cst);
+    }
+};
+
+fn checkCancellation(token: ?*CancellationToken) !void {
+    if (token) |t| {
+        if (t.isCancelled()) return error.Cancelled;
+    }
+}
+
 const max_sse_line_size = 256 * 1024;
 const max_sse_event_size = 1024 * 1024;
 
-pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype) !void {
+pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
     var reader: std.Io.Reader = .fixed(bytes);
-    try parseSseReader(allocator, &reader, callback);
+    try parseSseReader(allocator, &reader, callback, cancellation_token);
 }
 
-pub fn parseSseReader(allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype) !void {
+pub fn parseSseReader(allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype, cancellation_token: ?*CancellationToken) !void {
     var line_buf: std.Io.Writer.Allocating = .init(allocator);
     defer line_buf.deinit();
 
@@ -211,6 +233,7 @@ pub fn parseSseReader(allocator: std.mem.Allocator, reader: *std.Io.Reader, call
     defer event_data.deinit();
 
     while (true) {
+        try checkCancellation(cancellation_token);
         line_buf.clearRetainingCapacity();
 
         _ = reader.streamDelimiterLimit(&line_buf.writer, '\n', .limited(max_sse_line_size)) catch |err| switch (err) {
@@ -279,16 +302,16 @@ fn TypedSseCallback(comptime T: type, comptime Callback: type) type {
     };
 }
 
-pub fn parseSseBytesTyped(comptime T: type, allocator: std.mem.Allocator, bytes: []const u8, callback: anytype) !void {
+pub fn parseSseBytesTyped(comptime T: type, allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
     const Callback = @TypeOf(callback.*);
     var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = allocator, .callback = callback };
-    try parseSseBytes(allocator, bytes, &typed_callback);
+    try parseSseBytes(allocator, bytes, &typed_callback, cancellation_token);
 }
 
-pub fn parseSseReaderTyped(comptime T: type, allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype) !void {
+pub fn parseSseReaderTyped(comptime T: type, allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype, cancellation_token: ?*CancellationToken) !void {
     const Callback = @TypeOf(callback.*);
     var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = allocator, .callback = callback };
-    try parseSseReader(allocator, reader, &typed_callback);
+    try parseSseReader(allocator, reader, &typed_callback, cancellation_token);
 }
 
 fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![]u8 {
@@ -309,13 +332,13 @@ fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![
     return try out.toOwnedSlice();
 }
 
-fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype) !void {
+fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
     const Callback = @TypeOf(callback.*);
     var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = client.allocator, .callback = callback };
-    try streamJson(client, path, requestBody, &typed_callback);
+    try streamJson(client, path, requestBody, &typed_callback, cancellation_token);
 }
 
-fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype) !void {
+fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
     const allocator = client.allocator;
     const payload = try stringifyStreamRequest(allocator, requestBody);
     defer allocator.free(payload);
@@ -328,6 +351,7 @@ fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback:
     const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
     defer allocator.free(url);
     const uri = try std.Uri.parse(url);
+    try checkCancellation(cancellation_token);
 
     var req = try client.http.request(.POST, uri, .{
         .redirect_behavior = .unhandled,
@@ -341,13 +365,14 @@ fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback:
     try body.writer.writeAll(payload);
     try body.end();
     try req.connection.?.flush();
+    try checkCancellation(cancellation_token);
 
     var response = try req.receiveHead(&.{});
     if (response.head.status.class() != .success) return error.ResponseError;
 
     var transfer_buffer: [8 * 1024]u8 = undefined;
     const reader = response.reader(&transfer_buffer);
-    parseSseReader(allocator, reader, callback) catch |err| switch (err) {
+    parseSseReader(allocator, reader, callback, cancellation_token) catch |err| switch (err) {
         error.ReadFailed => return response.bodyErr() orelse err,
         else => return err,
     };

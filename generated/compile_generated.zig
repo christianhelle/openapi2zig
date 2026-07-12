@@ -40,6 +40,7 @@ test "generated SSE parser handles comments CRLF multiline and done" {
             "data: [DONE]\n\n" ++
             "data: should-not-dispatch\n\n",
         &callback,
+        null,
     );
     try std.testing.expectEqual(@as(usize, 1), callback.count);
 
@@ -55,6 +56,7 @@ test "generated SSE parser handles comments CRLF multiline and done" {
             "data: b\n" ++
             "\n",
         &callback,
+        null,
     );
     try std.testing.expectEqual(@as(usize, 3), callback.count);
 }
@@ -68,7 +70,7 @@ test "generated SSE parser bounds line and event size" {
     const long_line = try std.testing.allocator.alloc(u8, max_sse_line_size + 1);
     defer std.testing.allocator.free(long_line);
     @memset(long_line, 'x');
-    try std.testing.expectError(error.SseLineTooLong, v3.parseSseBytes(std.testing.allocator, long_line, &callback));
+    try std.testing.expectError(error.SseLineTooLong, v3.parseSseBytes(std.testing.allocator, long_line, &callback, null));
 
     var input: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer input.deinit();
@@ -84,7 +86,7 @@ test "generated SSE parser bounds line and event size" {
     }
     try input.writer.writeAll("\n");
 
-    try std.testing.expectError(error.SseEventTooLong, v3.parseSseBytes(std.testing.allocator, input.written(), &callback));
+    try std.testing.expectError(error.SseEventTooLong, v3.parseSseBytes(std.testing.allocator, input.written(), &callback, null));
 }
 
 const TypedEvent = struct {
@@ -108,6 +110,7 @@ test "generated SSE parser can parse typed events" {
             "data: {\"x\":2}\n\n" ++
             "data: [DONE]\n\n",
         &callback,
+        null,
     );
     try std.testing.expectEqual(@as(i64, 3), callback.seen);
 }
@@ -151,6 +154,28 @@ test "generated ApiResult parses success and keeps error body" {
             try std.testing.expect(parse_error.error_name.len > 0);
         },
     }
+}
+
+test "generated CancellationToken cancels SSE parsing" {
+    var token = v3.CancellationToken.init();
+    token.cancel();
+
+    var callback: SseCallback = .{};
+    try std.testing.expectError(
+        error.Cancelled,
+        v3.parseSseBytes(std.testing.allocator, "data: {\"x\":1}\n\n", &callback, &token),
+    );
+}
+
+test "generated CancellationToken cancels typed SSE parsing" {
+    var token = v3.CancellationToken.init();
+    token.cancel();
+
+    var callback: TypedSseTestCallback = .{};
+    try std.testing.expectError(
+        error.Cancelled,
+        v3.parseSseBytesTyped(TypedEvent, std.testing.allocator, "data: {\"x\":1}\n\n", &callback, &token),
+    );
 }
 
 test "generated endpoint parsing is loose" {
