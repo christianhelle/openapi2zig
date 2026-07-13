@@ -1,4 +1,5 @@
 const std = @import("std");
+const version_info = @import("build_info");
 
 pub fn render(allocator: std.mem.Allocator, version: []const u8, timestamp: []const u8) ![]const u8 {
     return try std.fmt.allocPrint(allocator,
@@ -14,6 +15,12 @@ pub fn renderNow(allocator: std.mem.Allocator, io: std.Io, version: []const u8) 
     const timestamp = try formatUtcTimestamp(allocator, io);
     defer allocator.free(timestamp);
     return try render(allocator, version, timestamp);
+}
+
+pub fn renderNowFromBuildInfo(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
+    const version = try std.fmt.allocPrint(allocator, "{s} ({s})", .{ version_info.VERSION, version_info.GIT_COMMIT });
+    defer allocator.free(version);
+    return try renderNow(allocator, io, version);
 }
 
 fn formatUtcTimestamp(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
