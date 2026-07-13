@@ -4,7 +4,6 @@ const detector = @import("detector.zig");
 const models = @import("models.zig");
 const input_loader = @import("input_loader.zig");
 const yaml_loader = @import("yaml_loader.zig");
-const version_info = @import("build_info");
 const generated_header = @import("generators/generated_header.zig");
 const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
 const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
@@ -125,9 +124,7 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     };
     defer if (!args.models_only) allocator.free(generated_code);
 
-    const version = try std.fmt.allocPrint(allocator, "{s} ({s})", .{ version_info.VERSION, version_info.GIT_COMMIT });
-    defer allocator.free(version);
-    const header = try generated_header.renderNow(allocator, io, version);
+    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
     defer allocator.free(header);
     const output_code = try std.mem.concat(allocator, u8, &.{ header, generated_code });
     defer allocator.free(output_code);
