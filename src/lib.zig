@@ -222,19 +222,14 @@ pub fn generateApi(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, a
 /// - String containing complete generated Zig code
 pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
     const models_code = try generateModels(allocator, unified_doc);
-    errdefer allocator.free(models_code);
+    defer allocator.free(models_code);
 
-    const version = try std.fmt.allocPrint(allocator, "{s} ({s})", .{ version_info.VERSION, version_info.GIT_COMMIT });
-    defer allocator.free(version);
-    const header = try generated_header.renderNow(allocator, io, version);
+    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
     defer allocator.free(header);
 
     if (args.models_only) {
-        const output = try std.mem.concat(allocator, u8, &.{ header, models_code });
-        allocator.free(models_code);
-        return output;
+        return try std.mem.concat(allocator, u8, &.{ header, models_code });
     }
-    defer allocator.free(models_code);
 
     const api_code = try generateApi(allocator, unified_doc, args);
     defer allocator.free(api_code);
