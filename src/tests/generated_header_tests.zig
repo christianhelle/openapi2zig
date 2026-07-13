@@ -1,9 +1,13 @@
 const std = @import("std");
 const generated_header = @import("../generators/generated_header.zig");
 const openapi2zig = @import("../lib.zig");
+const test_utils = @import("test_utils.zig");
 
 test "render emits expected header" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     const header = try generated_header.render(allocator, "0.6.0 (a1b2c3d)", "2026-07-12 21:49:56 UTC");
     defer allocator.free(header);
 
@@ -17,7 +21,10 @@ test "render emits expected header" {
 }
 
 test "generateCode output includes generated header" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     const json =
         \\{
         \\  "openapi": "3.0.0",
