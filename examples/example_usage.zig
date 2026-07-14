@@ -32,7 +32,7 @@ pub fn main(init: std.process.Init) !void {
         .base_url = "https://petstore.swagger.io/v2",
     };
 
-    const generated_code = try openapi2zig.generateCode(allocator, unified_doc, args);
+    const generated_code = try openapi2zig.generateCode(allocator, io, unified_doc, args);
     defer allocator.free(generated_code);
 
     std.debug.print("\nGenerated {} bytes of Zig code\n", .{generated_code.len});

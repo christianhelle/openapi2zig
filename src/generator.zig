@@ -4,6 +4,7 @@ const detector = @import("detector.zig");
 const models = @import("models.zig");
 const input_loader = @import("input_loader.zig");
 const yaml_loader = @import("yaml_loader.zig");
+const generated_header = @import("generators/generated_header.zig");
 const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
 const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
 const OpenApi32Converter = @import("generators/converters/openapi32_converter.zig").OpenApi32Converter;
@@ -123,6 +124,11 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     };
     defer if (!args.models_only) allocator.free(generated_code);
 
+    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
+    defer allocator.free(header);
+    const output_code = try std.mem.concat(allocator, u8, &.{ header, generated_code });
+    defer allocator.free(output_code);
+
     const output_path = args.output_path orelse default_output_file;
     const cwd = std.Io.Dir.cwd();
     if (std.fs.path.dirname(output_path)) |dir_path| {
@@ -130,7 +136,7 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     }
     const output_file = try cwd.createFile(io, output_path, .{});
     defer output_file.close(io);
-    try output_file.writeStreamingAll(io, generated_code);
+    try output_file.writeStreamingAll(io, output_code);
     std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
 }
 

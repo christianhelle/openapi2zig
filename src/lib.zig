@@ -30,6 +30,7 @@
 
 const std = @import("std");
 const yaml_loader = @import("yaml_loader.zig");
+const generated_header = @import("generators/generated_header.zig");
 
 // Core version detection
 pub const ApiVersion = @import("detector.zig").OpenApiVersion;
@@ -213,34 +214,27 @@ pub fn generateApi(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, a
 ///
 /// Parameters:
 /// - allocator: Memory allocator to use for code generation
+/// - io: Standard I/O context for reading the generation timestamp
 /// - unified_doc: The unified document containing schema and operation definitions
 /// - args: CLI arguments for customizing code generation
 ///
 /// Returns:
 /// - String containing complete generated Zig code
-pub fn generateCode(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
+pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
     const models_code = try generateModels(allocator, unified_doc);
-    errdefer allocator.free(models_code);
+    defer allocator.free(models_code);
+
+    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
+    defer allocator.free(header);
 
     if (args.models_only) {
-        return models_code;
+        return try std.mem.concat(allocator, u8, &.{ header, models_code });
     }
-    defer allocator.free(models_code);
 
     const api_code = try generateApi(allocator, unified_doc, args);
     defer allocator.free(api_code);
 
-    const header =
-        \\///////////////////////////////////////////
-        \\// Generated Zig code from OpenAPI
-        \\///////////////////////////////////////////
-        \\
-        \\const std = @import("std");
-        \\
-        \\
-    ;
-
-    return try std.fmt.allocPrint(allocator, "{s}{s}\n{s}", .{ header, models_code, api_code });
+    return try std.mem.concat(allocator, u8, &.{ header, models_code, "\n", api_code });
 }
 
 fn convertDocument(allocator: std.mem.Allocator, doc: anytype, comptime Converter: type) !UnifiedDocument {
