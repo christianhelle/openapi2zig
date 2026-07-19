@@ -8,6 +8,7 @@ pub fn render(allocator: std.mem.Allocator, version: []const u8, timestamp: []co
         \\// changes to this file may cause incorrect behavior and will be lost if the code is regenerated
         \\// </auto-generated>
         \\
+        \\
     , .{ version, timestamp });
 }
 
