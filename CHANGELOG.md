@@ -12,6 +12,10 @@
 
 - application/octet-stream content [\#53](https://github.com/christianhelle/openapi2zig/issues/53)
 
+**Merged pull requests:**
+
+- Remove 'type' from reserved keywords [\#68](https://github.com/christianhelle/openapi2zig/pull/68) ([christianhelle](https://github.com/christianhelle))
+
 ## [v0.4.0](https://github.com/christianhelle/openapi2zig/tree/v0.4.0) (2026-07-19)
 
 [Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.3.0...v0.4.0)
