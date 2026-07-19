@@ -7,11 +7,43 @@ const v31_yaml = @import("generated_v31_yaml.zig");
 const lmstudio = @import("lmstudio.zig");
 const openai = @import("openai.zig");
 
+fn logRequest(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void {
+    _ = ctx;
+    _ = headers;
+    std.debug.print(">>> {s} {s}", .{ @tagName(method), url });
+    if (body) |b| {
+        if (b.len > 0) std.debug.print(" | body ({d} bytes)", .{b.len});
+    }
+    std.debug.print("\n", .{});
+}
+
+fn logResponse(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, status: std.http.Status, headers: []const std.http.Header, body: []const u8, duration_ns: u64) void {
+    _ = ctx;
+    _ = method;
+    _ = url;
+    _ = headers;
+    const ms = @as(f64, @floatFromInt(duration_ns)) / 1_000_000.0;
+    std.debug.print("<<< {d} ({d:.2}ms) body ({d} bytes)\n", .{ @intFromEnum(status), ms, body.len });
+}
+
+fn logError(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, err_name: []const u8) void {
+    _ = ctx;
+    std.debug.print("!!! {s} {s} failed: {s}\n", .{ @tagName(method), url, err_name });
+}
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
     const io = init.io;
 
+    const observer = v3.HttpObserver{
+        .ctx = null,
+        .onRequest = &logRequest,
+        .onResponse = &logResponse,
+        .onError = &logError,
+    };
+
     var v3_client = v3.Client.init(allocator, io, "");
+    v3_client.http_observer = observer;
     defer v3_client.deinit();
     var v2_client = v2.Client.init(allocator, io, "");
     defer v2_client.deinit();
