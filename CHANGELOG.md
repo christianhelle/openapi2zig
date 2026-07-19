@@ -2,7 +2,19 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.3.0...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.0...HEAD)
+
+**Fixed bugs:**
+
+- Unable to use as a library. [\#43](https://github.com/christianhelle/openapi2zig/issues/43)
+
+**Closed issues:**
+
+- application/octet-stream content [\#53](https://github.com/christianhelle/openapi2zig/issues/53)
+
+## [v0.4.0](https://github.com/christianhelle/openapi2zig/tree/v0.4.0) (2026-07-19)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.3.0...v0.4.0)
 
 **Implemented enhancements:**
 
