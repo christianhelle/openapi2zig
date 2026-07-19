@@ -6,6 +6,7 @@ const v3_yaml = @import("generated_v3_yaml.zig");
 const v31_yaml = @import("generated_v31_yaml.zig");
 const lmstudio = @import("lmstudio.zig");
 const openai = @import("openai.zig");
+const anthropic = @import("anthropic.zig");
 
 fn logRequest(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void {
     _ = ctx;
