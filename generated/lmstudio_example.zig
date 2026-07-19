@@ -1,6 +1,42 @@
 const std = @import("std");
 const lmstudio = @import("lmstudio.zig");
 
+fn logRequest(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void {
+    _ = ctx;
+    std.debug.print("=== REQUEST ===\n", .{});
+    std.debug.print("{s} {s}\n", .{ @tagName(method), url });
+    std.debug.print("Headers:\n", .{});
+    for (headers) |h| {
+        std.debug.print("  {s}: {s}\n", .{ h.name, h.value });
+    }
+    if (body) |b| {
+        std.debug.print("Body ({d} bytes):\n{s}\n", .{ b.len, b });
+    }
+}
+
+fn logResponse(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, status: std.http.Status, headers: []const std.http.Header, body: []const u8, duration_ns: u64) void {
+    _ = ctx;
+    const ms = @as(f64, @floatFromInt(duration_ns)) / 1_000_000.0;
+    std.debug.print("=== RESPONSE ===\n", .{});
+    std.debug.print("{s} {s}\n", .{ @tagName(method), url });
+    std.debug.print("Status: {d} ({s})\n", .{ @intFromEnum(status), @tagName(status) });
+    std.debug.print("Duration: {d:.2}ms\n", .{ms});
+    std.debug.print("Headers:\n", .{});
+    for (headers) |h| {
+        std.debug.print("  {s}: {s}\n", .{ h.name, h.value });
+    }
+    if (body.len > 0) {
+        std.debug.print("Body ({d} bytes):\n{s}\n", .{ body.len, body });
+    }
+}
+
+fn logError(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, err_name: []const u8) void {
+    _ = ctx;
+    std.debug.print("=== ERROR ===\n", .{});
+    std.debug.print("{s} {s}\n", .{ @tagName(method), url });
+    std.debug.print("Error: {s}\n", .{err_name});
+}
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
     const io = init.io;
@@ -8,6 +44,12 @@ pub fn main(init: std.process.Init) !void {
     var client = lmstudio.Client.init(allocator, io, "");
     defer client.deinit();
     client.withBaseUrl("http://localhost:1234");
+    client.http_observer = lmstudio.HttpObserver{
+        .ctx = null,
+        .onRequest = &logRequest,
+        .onResponse = &logResponse,
+        .onError = &logError,
+    };
 
     std.debug.print("Fetching available models...\n\n", .{});
 

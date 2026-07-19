@@ -213,6 +213,10 @@ pub const UnifiedApiGenerator = struct {
             \\    };
             \\}
             \\
+        );
+        try self.generateHttpObserverType();
+        try self.buffer.appendSlice(self.allocator,
+            \\
             \\pub const Client = struct {
             \\    allocator: std.mem.Allocator,
             \\    io: std.Io,
@@ -226,6 +230,7 @@ pub const UnifiedApiGenerator = struct {
             \\    organization: ?[]const u8 = null,
             \\    project: ?[]const u8 = null,
             \\    default_headers: []const std.http.Header = &.{},
+            \\    http_observer: ?HttpObserver = null,
             \\
             \\    pub fn init(allocator: std.mem.Allocator, io: std.Io, api_key: []const u8) Client {
             \\        return .{
@@ -233,6 +238,7 @@ pub const UnifiedApiGenerator = struct {
             \\            .io = io,
             \\            .http = .{ .allocator = allocator, .io = io },
             \\            .api_key = api_key,
+            \\            .http_observer = null,
             \\        };
             \\    }
             \\
@@ -296,22 +302,39 @@ pub const UnifiedApiGenerator = struct {
             \\    const auth_header = try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
             \\    defer if (auth_header) |value| allocator.free(value);
             \\
+            \\    if (client.http_observer) |obs| {
+            \\        if (obs.onRequest) |cb| cb(obs.ctx, method, url, headers.items, payload);
+            \\    }
+            \\
             \\    const uri = try std.Uri.parse(url);
             \\    var response_body: std.Io.Writer.Allocating = .init(allocator);
             \\    defer response_body.deinit();
             \\
-            \\    const result = try client.http.fetch(.{
+            \\    const start = std.Io.Clock.awake.now(client.io);
+            \\    const result = client.http.fetch(.{
             \\        .location = .{ .uri = uri },
             \\        .method = method,
             \\        .extra_headers = headers.items,
             \\        .payload = payload,
             \\        .response_writer = &response_body.writer,
-            \\    });
+            \\    }) catch |err| {
+            \\        if (client.http_observer) |obs| {
+            \\            if (obs.onError) |cb| cb(obs.ctx, method, url, @errorName(err));
+            \\        }
+            \\        return err;
+            \\    };
+            \\    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));
+            \\
+            \\    const body = try response_body.toOwnedSlice();
+            \\
+            \\    if (client.http_observer) |obs| {
+            \\        if (obs.onResponse) |cb| cb(obs.ctx, method, url, result.status, &.{}, body, elapsed_ns);
+            \\    }
             \\
             \\    return .{
             \\        .allocator = allocator,
             \\        .status = result.status,
-            \\        .body = try response_body.toOwnedSlice(),
+            \\        .body = body,
             \\    };
             \\}
             \\
@@ -503,25 +526,51 @@ pub const UnifiedApiGenerator = struct {
             \\
             \\    const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
             \\    defer allocator.free(url);
+            \\
+            \\    if (client.http_observer) |obs| {
+            \\        if (obs.onRequest) |cb| cb(obs.ctx, .POST, url, headers.items, payload);
+            \\    }
+            \\
             \\    const uri = try std.Uri.parse(url);
             \\    try checkCancellation(cancellation_token);
             \\
-            \\    var req = try client.http.request(.POST, uri, .{
+            \\    const start = std.Io.Clock.awake.now(client.io);
+            \\    var req = client.http.request(.POST, uri, .{
             \\        .redirect_behavior = .unhandled,
             \\        .headers = .{ .accept_encoding = .{ .override = "identity" } },
             \\        .extra_headers = headers.items,
-            \\    });
+            \\    }) catch |err| {
+            \\        if (client.http_observer) |obs| {
+            \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
+            \\        }
+            \\        return err;
+            \\    };
             \\    defer req.deinit();
             \\
             \\    req.transfer_encoding = .{ .content_length = payload.len };
-            \\    var body = try req.sendBodyUnflushed(&.{});
-            \\    try body.writer.writeAll(payload);
-            \\    try body.end();
+            \\    var request_body = try req.sendBodyUnflushed(&.{});
+            \\    try request_body.writer.writeAll(payload);
+            \\    try request_body.end();
             \\    try req.connection.?.flush();
             \\    try checkCancellation(cancellation_token);
             \\
-            \\    var response = try req.receiveHead(&.{});
-            \\    if (response.head.status.class() != .success) return error.ResponseError;
+            \\    var response = req.receiveHead(&.{}) catch |err| {
+            \\        if (client.http_observer) |obs| {
+            \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
+            \\        }
+            \\        return err;
+            \\    };
+            \\    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));
+            \\    if (response.head.status.class() != .success) {
+            \\        if (client.http_observer) |obs| {
+            \\            if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
+            \\        }
+            \\        return error.ResponseError;
+            \\    }
+            \\
+            \\    if (client.http_observer) |obs| {
+            \\        if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
+            \\    }
             \\
             \\    var transfer_buffer: [8 * 1024]u8 = undefined;
             \\    const reader = response.reader(&transfer_buffer);
@@ -554,6 +603,19 @@ pub const UnifiedApiGenerator = struct {
             \\    return auth_header;
             \\}
             \\
+            \\
+        );
+    }
+
+    fn generateHttpObserverType(self: *UnifiedApiGenerator) !void {
+        try self.buffer.appendSlice(self.allocator,
+            \\
+            \\pub const HttpObserver = struct {
+            \\    ctx: ?*anyopaque,
+            \\    onRequest: ?*const fn (ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void,
+            \\    onResponse: ?*const fn (ctx: ?*anyopaque, method: std.http.Method, url: []const u8, status: std.http.Status, headers: []const std.http.Header, body: []const u8, duration_ns: u64) void,
+            \\    onError: ?*const fn (ctx: ?*anyopaque, method: std.http.Method, url: []const u8, err_name: []const u8) void,
+            \\};
             \\
         );
     }
@@ -690,10 +752,16 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, ct);
         try self.buffer.appendSlice(self.allocator, "\", \"application/json\");\n");
         try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n");
+        try self.buffer.appendSlice(self.allocator, "\n    if (client.http_observer) |obs| {\n");
+        try self.buffer.appendSlice(self.allocator, "        if (obs.onRequest) |cb| cb(obs.ctx, std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, method);
+        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), headers.items, payload);\n");
+        try self.buffer.appendSlice(self.allocator, "    }\n");
         try self.buffer.appendSlice(self.allocator, "\n    const uri = try std.Uri.parse(uri_buf.written());\n");
         try self.buffer.appendSlice(self.allocator, "    var response_body: std.Io.Writer.Allocating = .init(allocator);\n");
         try self.buffer.appendSlice(self.allocator, "    defer response_body.deinit();\n");
-        try self.buffer.appendSlice(self.allocator, "\n    const result = try client.http.fetch(.{\n");
+        try self.buffer.appendSlice(self.allocator, "    const start = std.Io.Clock.awake.now(client.io);\n");
+        try self.buffer.appendSlice(self.allocator, "    const result = client.http.fetch(.{\n");
         try self.buffer.appendSlice(self.allocator, "        .location = .{ .uri = uri },\n");
         try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
         try self.buffer.appendSlice(self.allocator, method);
@@ -701,11 +769,25 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "        .extra_headers = headers.items,\n");
         try self.buffer.appendSlice(self.allocator, "        .payload = payload,\n");
         try self.buffer.appendSlice(self.allocator, "        .response_writer = &response_body.writer,\n");
-        try self.buffer.appendSlice(self.allocator, "    });\n");
+        try self.buffer.appendSlice(self.allocator, "    }) catch |err| {\n");
+        try self.buffer.appendSlice(self.allocator, "        if (client.http_observer) |obs| {\n");
+        try self.buffer.appendSlice(self.allocator, "            if (obs.onError) |cb| cb(obs.ctx, std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, method);
+        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), @errorName(err));\n");
+        try self.buffer.appendSlice(self.allocator, "        }\n");
+        try self.buffer.appendSlice(self.allocator, "        return err;\n");
+        try self.buffer.appendSlice(self.allocator, "    };\n");
+        try self.buffer.appendSlice(self.allocator, "    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));\n");
+        try self.buffer.appendSlice(self.allocator, "\n    const body = try response_body.toOwnedSlice();\n");
+        try self.buffer.appendSlice(self.allocator, "\n    if (client.http_observer) |obs| {\n");
+        try self.buffer.appendSlice(self.allocator, "        if (obs.onResponse) |cb| cb(obs.ctx, std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, method);
+        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), result.status, &.{}, body, elapsed_ns);\n");
+        try self.buffer.appendSlice(self.allocator, "    }\n");
         try self.buffer.appendSlice(self.allocator, "\n    return .{\n");
         try self.buffer.appendSlice(self.allocator, "        .allocator = allocator,\n");
         try self.buffer.appendSlice(self.allocator, "        .status = result.status,\n");
-        try self.buffer.appendSlice(self.allocator, "        .body = try response_body.toOwnedSlice(),\n");
+        try self.buffer.appendSlice(self.allocator, "        .body = body,\n");
         try self.buffer.appendSlice(self.allocator, "    };\n");
         try self.buffer.appendSlice(self.allocator, "}\n\n");
     }
@@ -1617,7 +1699,20 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "    defer response_body.deinit();\n");
         }
 
-        try self.buffer.appendSlice(self.allocator, "\n    const result = try client.http.fetch(.{\n");
+        try self.buffer.appendSlice(self.allocator, "\n    if (client.http_observer) |obs| {\n");
+        try self.buffer.appendSlice(self.allocator, "        if (obs.onRequest) |cb| cb(obs.ctx, std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, method);
+        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), headers.items, ");
+        if (has_body_param) {
+            try self.buffer.appendSlice(self.allocator, "payload");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "null");
+        }
+        try self.buffer.appendSlice(self.allocator, ");\n");
+        try self.buffer.appendSlice(self.allocator, "    }\n");
+
+        try self.buffer.appendSlice(self.allocator, "    const start = std.Io.Clock.awake.now(client.io);\n");
+        try self.buffer.appendSlice(self.allocator, "    const result = client.http.fetch(.{\n");
         try self.buffer.appendSlice(self.allocator, "        .location = .{ .uri = uri },\n");
         try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
         try self.buffer.appendSlice(self.allocator, method);
@@ -1629,8 +1724,21 @@ pub const UnifiedApiGenerator = struct {
         if (has_return_value) {
             try self.buffer.appendSlice(self.allocator, "        .response_writer = &response_body.writer,\n");
         }
-        try self.buffer.appendSlice(self.allocator, "    });\n");
-        try self.buffer.appendSlice(self.allocator, "    if (result.status.class() != .success) {\n");
+        try self.buffer.appendSlice(self.allocator, "    }) catch |err| {\n");
+        try self.buffer.appendSlice(self.allocator, "        if (client.http_observer) |obs| {\n");
+        try self.buffer.appendSlice(self.allocator, "            if (obs.onError) |cb| cb(obs.ctx, std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, method);
+        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), @errorName(err));\n");
+        try self.buffer.appendSlice(self.allocator, "        }\n");
+        try self.buffer.appendSlice(self.allocator, "        return err;\n");
+        try self.buffer.appendSlice(self.allocator, "    };\n");
+        try self.buffer.appendSlice(self.allocator, "    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));\n");
+        try self.buffer.appendSlice(self.allocator, "\n    if (result.status.class() != .success) {\n");
+        try self.buffer.appendSlice(self.allocator, "        if (client.http_observer) |obs| {\n");
+        try self.buffer.appendSlice(self.allocator, "            if (obs.onResponse) |cb| cb(obs.ctx, std.http.Method.");
+        try self.buffer.appendSlice(self.allocator, method);
+        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), result.status, &.{}, \"\", elapsed_ns);\n");
+        try self.buffer.appendSlice(self.allocator, "        }\n");
         try self.buffer.appendSlice(self.allocator, "        return error.ResponseError;\n");
         try self.buffer.appendSlice(self.allocator, "    }\n");
 
@@ -1641,7 +1749,18 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "    const parsed = try std.json.parseFromSlice(");
             try self.appendReturnType(method, operation);
             try self.buffer.appendSlice(self.allocator, ", allocator, body, .{ .ignore_unknown_fields = true });\n");
+            try self.buffer.appendSlice(self.allocator, "    if (client.http_observer) |obs| {\n");
+            try self.buffer.appendSlice(self.allocator, "        if (obs.onResponse) |cb| cb(obs.ctx, std.http.Method.");
+            try self.buffer.appendSlice(self.allocator, method);
+            try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), result.status, &.{}, body, elapsed_ns);\n");
+            try self.buffer.appendSlice(self.allocator, "    }\n");
             try self.buffer.appendSlice(self.allocator, "    return .{ .allocator = allocator, .body = body, .parsed = parsed };\n");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "    if (client.http_observer) |obs| {\n");
+            try self.buffer.appendSlice(self.allocator, "        if (obs.onResponse) |cb| cb(obs.ctx, std.http.Method.");
+            try self.buffer.appendSlice(self.allocator, method);
+            try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), result.status, &.{}, \"\", elapsed_ns);\n");
+            try self.buffer.appendSlice(self.allocator, "    }\n");
         }
 
         try self.buffer.appendSlice(self.allocator, "}\n\n");
