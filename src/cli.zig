@@ -14,7 +14,6 @@ pub const CliArgs = struct {
     base_url: ?[]const u8 = null,
     resource_wrappers: ResourceWrapperMode = .paths,
     models_only: bool = false,
-    http_observer: bool = true,
 };
 
 pub const ParsedArgs = struct {
@@ -44,7 +43,6 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var base_url: ?[]const u8 = null;
     var resource_wrappers: ResourceWrapperMode = .paths;
     var models_only = false;
-    var http_observer = true;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -88,20 +86,6 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             };
         } else if (std.mem.eql(u8, arg, "--models-only")) {
             models_only = true;
-        } else if (std.mem.eql(u8, arg, "--http-observer")) {
-            i += 1;
-            if (i >= args.len) {
-                printUsage();
-                std.debug.print("\nError: http-observer value required (true/false)\n", .{});
-                return error.InvalidArguments;
-            }
-            if (std.mem.eql(u8, args[i], "false")) {
-                http_observer = false;
-            } else if (!std.mem.eql(u8, args[i], "true")) {
-                printUsage();
-                std.debug.print("\nError: invalid http-observer value '{s}'; expected true or false\n", .{args[i]});
-                return error.InvalidArguments;
-            }
         }
     }
 
@@ -118,7 +102,6 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .base_url = base_url,
             .resource_wrappers = resource_wrappers,
             .models_only = models_only,
-            .http_observer = http_observer,
         },
     };
 }
@@ -149,7 +132,6 @@ fn printUsage() void {
         \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
         \\                              (default: paths)
         \\   --models-only              Generate only Zig models, skipping the API client.
-        \\   --http-observer <bool>      Include HttpObserver callbacks in generated client (default: true).
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig

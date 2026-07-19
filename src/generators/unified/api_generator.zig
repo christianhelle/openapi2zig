@@ -214,7 +214,7 @@ pub const UnifiedApiGenerator = struct {
             \\}
             \\
         );
-        if (self.args.http_observer) try self.generateHttpObserverType();
+        try self.generateHttpObserverType();
         try self.buffer.appendSlice(self.allocator,
             \\
             \\pub const Client = struct {
