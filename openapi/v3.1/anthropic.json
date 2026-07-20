@@ -36155,11 +36155,7 @@
           },
           "usage": {
             "description": "Cumulative token usage for the session.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BetaManagedAgentsSessionUsage"
-              }
-            ],
+            "$ref": "#/components/schemas/BetaManagedAgentsSessionUsage",
             "examples": [
               {
                 "input_tokens": 0,
@@ -36170,11 +36166,7 @@
           },
           "stats": {
             "description": "Timing statistics for the session.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BetaManagedAgentsSessionStats"
-              }
-            ],
+            "$ref": "#/components/schemas/BetaManagedAgentsSessionStats",
             "examples": [
               {
                 "duration_seconds": 0,
@@ -37246,11 +37238,7 @@
           },
           "agent": {
             "description": "Resolved agent definition for this thread. Snapshot of the agent at thread creation time.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BetaManagedAgentsSessionThreadAgent"
-              }
-            ],
+            "$ref": "#/components/schemas/BetaManagedAgentsSessionThreadAgent",
             "examples": [
               {
                 "type": "agent",
@@ -37324,11 +37312,7 @@
           },
           "usage": {
             "description": "Cumulative token usage for this thread. Null until the thread's first idle transition.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BetaManagedAgentsSessionThreadUsage"
-              }
-            ],
+            "$ref": "#/components/schemas/BetaManagedAgentsSessionThreadUsage",
             "nullable": true,
             "examples": [
               {
@@ -37344,11 +37328,7 @@
           },
           "stats": {
             "description": "Timing statistics for this thread. Null until the thread's first status transition.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BetaManagedAgentsSessionThreadStats"
-              }
-            ],
+            "$ref": "#/components/schemas/BetaManagedAgentsSessionThreadStats",
             "nullable": true,
             "examples": [
               {

@@ -1014,9 +1014,10 @@ pub const UnifiedApiGenerator = struct {
         std.mem.sort(ResourceWrapper, wrappers.items, {}, resourceWrapperLessThan);
 
         // Detect when wrapper method name matches its containing struct name
+        // or when the derived method name equals the operation id (ambiguous reference)
         for (wrappers.items) |*wrapper| {
             const last_segment = wrapper.segments[wrapper.segments.len - 1];
-            if (std.mem.eql(u8, wrapper.method_name, last_segment)) {
+            if (std.mem.eql(u8, wrapper.method_name, last_segment) or std.mem.eql(u8, wrapper.method_name, wrapper.operation_id)) {
                 wrapper.collides = true;
                 wrapper.needs_alias = true;
             }
