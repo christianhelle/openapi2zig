@@ -29,6 +29,8 @@ pub const UnifiedModelGenerator = struct {
         try self.generateHeader();
 
         if (document.schemas) |schemas| {
+            self.source_schemas = &schemas;
+            defer self.source_schemas = null;
             try self.generateSchemas(schemas);
             try self.generateManualAliases(schemas);
         }
@@ -48,9 +50,6 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn generateSchemas(self: *UnifiedModelGenerator, schemas: std.StringHashMap(Schema)) !void {
-        self.source_schemas = &schemas;
-        defer self.source_schemas = null;
-
         var schema_iterator = schemas.iterator();
         while (schema_iterator.next()) |entry| {
             const schema_name = entry.key_ptr.*;
