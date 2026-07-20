@@ -1000,10 +1000,16 @@ pub const UnifiedModelGenerator = struct {
         }
 
         if (std.mem.eql(u8, name, "InputMessageContent")) {
+            const schemas = self.source_schemas orelse return false;
+            const content_type: []const u8 = if (schemas.contains("InputContent")) "InputContent" else "InputContentBlock";
             try self.buffer.appendSlice(self.allocator,
                 \\pub const InputMessageContent = union(enum) {
                 \\    text: []const u8,
-                \\    parts: []const InputContent,
+                \\    parts: []const 
+            );
+            try self.buffer.appendSlice(self.allocator, content_type);
+            try self.buffer.appendSlice(self.allocator,
+                \\,
                 \\    raw: std.json.Value,
                 \\
                 \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
@@ -1014,7 +1020,11 @@ pub const UnifiedModelGenerator = struct {
                 \\    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !@This() {
                 \\        return switch (source) {
                 \\            .string => |value| .{ .text = value },
-                \\            .array => .{ .parts = try std.json.parseFromValueLeaky([]const InputContent, allocator, source, options) },
+                \\            .array => .{ .parts = try std.json.parseFromValueLeaky([]const 
+            );
+            try self.buffer.appendSlice(self.allocator, content_type);
+            try self.buffer.appendSlice(self.allocator,
+                \\, allocator, source, options) },
                 \\            else => .{ .raw = source },
                 \\        };
                 \\    }
