@@ -4,6 +4,10 @@
 
 [Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.0...HEAD)
 
+**Implemented enhancements:**
+
+- Fix Anthropic spec compatibility [\#69](https://github.com/christianhelle/openapi2zig/pull/69) ([christianhelle](https://github.com/christianhelle))
+
 **Fixed bugs:**
 
 - Unable to use as a library. [\#43](https://github.com/christianhelle/openapi2zig/issues/43)
