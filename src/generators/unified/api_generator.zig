@@ -492,14 +492,17 @@ pub const UnifiedApiGenerator = struct {
             \\    defer buf.deinit();
             \\    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &buf.writer);
             \\
-            \\    const written = buf.written();
-            \\    if (written.len > 2 and written[0] == '{' and written[written.len - 1] == '}') {
-            \\        return try std.mem.concat(allocator, u8, &.{
-            \\            written[0 .. written.len - 1],
-            \\            ",\"stream\":true}",
-            \\        });
+            \\    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, buf.written(), .{ .ignore_unknown_fields = true });
+            \\    defer parsed.deinit();
+            \\
+            \\    if (parsed.value == .object) {
+            \\        try parsed.value.object.put(parsed.arena.allocator(), "stream", .{ .bool = true });
             \\    }
-            \\    return buf.toOwnedSlice();
+            \\
+            \\    var out: std.Io.Writer.Allocating = .init(allocator);
+            \\    errdefer out.deinit();
+            \\    try std.json.Stringify.value(parsed.value, .{ .emit_null_optional_fields = false }, &out.writer);
+            \\    return try out.toOwnedSlice();
             \\}
             \\
             \\fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
