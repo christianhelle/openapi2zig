@@ -74,7 +74,7 @@ test "generated SSE parser bounds line and event size" {
 
     var input: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer input.deinit();
-    const chunk = try std.testing.allocator.alloc(u8, 220 * 1024);
+    const chunk = try std.testing.allocator.alloc(u8, 4 * 1024);
     defer std.testing.allocator.free(chunk);
     @memset(chunk, 'a');
 

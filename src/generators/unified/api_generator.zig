@@ -496,7 +496,7 @@ pub const UnifiedApiGenerator = struct {
             \\    if (written.len > 0 and written[0] == '{' and written[written.len - 1] == '}') {
             \\        return try std.mem.concat(allocator, u8, &.{
             \\            written[0 .. written.len - 1],
-            \\            ",\\"stream\\":true}",
+            \\            ",\"stream\":true}",
             \\        });
             \\    }
             \\    return buf.toOwnedSlice();
