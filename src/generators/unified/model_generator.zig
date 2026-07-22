@@ -910,31 +910,6 @@ pub const UnifiedModelGenerator = struct {
             return true;
         }
 
-        if (std.mem.eql(u8, name, "ToolChoiceAllowed")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ToolChoiceAllowed = struct {
-                \\    type: []const u8,
-                \\    mode: []const u8,
-                \\    tools: []const Tool,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionAllowedTools")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionAllowedTools = struct {
-                \\    mode: []const u8,
-                \\    tools: []const ChatCompletionTool,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
         if (std.mem.eql(u8, name, "CreateChatCompletionResponse")) {
             try self.buffer.appendSlice(self.allocator,
                 \\pub const CreateChatCompletionResponse = struct {
