@@ -92,6 +92,11 @@ pub const UnifiedModelGenerator = struct {
             return;
         }
 
+        if (schema.type == .object) {
+            try self.appendJsonValueBackedUnionType(name);
+            return;
+        }
+
         try self.buffer.appendSlice(self.allocator, "pub const ");
         try self.appendIdentifier(name);
         try self.buffer.appendSlice(self.allocator, " = ");
@@ -832,11 +837,6 @@ pub const UnifiedModelGenerator = struct {
 
     fn generateManualSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !bool {
         _ = schema;
-        if (std.mem.eql(u8, name, "FunctionParameters") or std.mem.eql(u8, name, "ResponseFormatJsonSchemaSchema")) {
-            try self.appendJsonValueBackedUnionType(name);
-            return true;
-        }
-
         if (std.mem.eql(u8, name, "CompoundFilter")) {
             try self.buffer.appendSlice(self.allocator,
                 \\pub const CompoundFilterItem = union(enum) {
