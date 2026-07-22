@@ -97,6 +97,35 @@ pub const UnifiedModelGenerator = struct {
             return;
         }
 
+        if (schema.type == .array) {
+            if (schema.items) |items| {
+                if (items.ref) |ref| {
+                    try self.buffer.appendSlice(self.allocator, "pub const ");
+                    try self.appendIdentifier(name);
+                    try self.buffer.appendSlice(self.allocator, " = []const ");
+                    try self.appendIdentifier(refName(ref));
+                    try self.buffer.appendSlice(self.allocator, ";\n\n");
+                    return;
+                } else if (try self.canGenerateNamedArrayItemType(items.*)) {
+                    const item_type_name = try std.fmt.allocPrint(self.allocator, "{s}Item", .{name});
+                    defer self.allocator.free(item_type_name);
+                    try self.generateSchema(item_type_name, items.*);
+                    try self.buffer.appendSlice(self.allocator, "pub const ");
+                    try self.appendIdentifier(name);
+                    try self.buffer.appendSlice(self.allocator, " = []const ");
+                    try self.appendIdentifier(item_type_name);
+                    try self.buffer.appendSlice(self.allocator, ";\n\n");
+                    return;
+                }
+            }
+            try self.buffer.appendSlice(self.allocator, "pub const ");
+            try self.appendIdentifier(name);
+            try self.buffer.appendSlice(self.allocator, " = ");
+            try self.appendZigType(schema);
+            try self.buffer.appendSlice(self.allocator, ";\n\n");
+            return;
+        }
+
         try self.buffer.appendSlice(self.allocator, "pub const ");
         try self.appendIdentifier(name);
         try self.buffer.appendSlice(self.allocator, " = ");
@@ -1149,11 +1178,6 @@ pub const UnifiedModelGenerator = struct {
                 \\
                 \\
             );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionMessageToolCalls")) {
-            try self.buffer.appendSlice(self.allocator, "pub const ChatCompletionMessageToolCalls = []const ChatCompletionMessageToolCall;\n\n");
             return true;
         }
 
