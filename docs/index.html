@@ -424,6 +424,10 @@ zig build</code></pre>
                 <td><code>--resource-wrappers &lt;mode&gt;</code></td>
                 <td>Resource wrapper mode: <code>none</code>, <code>tags</code>, <code>paths</code>, or <code>hybrid</code>. Defaults to <code>paths</code>.</td>
               </tr>
+              <tr>
+                <td><code>--sse-buffer &lt;mode&gt;</code></td>
+                <td>SSE parse buffer size: <code>small</code> (8KB line / 64KB event) or <code>large</code> (256KB line / 1MB event). Defaults to <code>small</code>.</td>
+              </tr>
             </tbody>
           </table>
 
@@ -444,7 +448,7 @@ zig build</code></pre>
             <li>✅ Generated <code>Client</code> with base URL, API key, and borrowed headers</li>
             <li>✅ Percent-encoded query parameters and loose response parsing</li>
             <li>✅ Raw/result helpers that preserve response bodies</li>
-            <li>✅ Bounded raw and typed SSE parser helpers</li>
+            <li>✅ Bounded raw and typed SSE parser helpers (configurable buffer size)</li>
             <li>✅ Resource wrapper namespaces generated from paths, tags, or hybrid metadata</li>
           </ul>
         </div>
