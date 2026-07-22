@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Configurable SSE buffer sizes [\#70](https://github.com/christianhelle/openapi2zig/pull/70) ([christianhelle](https://github.com/christianhelle))
 - Fix Anthropic spec compatibility [\#69](https://github.com/christianhelle/openapi2zig/pull/69) ([christianhelle](https://github.com/christianhelle))
 
 **Fixed bugs:**
