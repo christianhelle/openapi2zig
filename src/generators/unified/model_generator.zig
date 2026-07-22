@@ -910,101 +910,6 @@ pub const UnifiedModelGenerator = struct {
             return true;
         }
 
-        if (std.mem.eql(u8, name, "CreateChatCompletionResponse")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const CreateChatCompletionResponse = struct {
-                \\    id: []const u8,
-                \\    object: []const u8,
-                \\    created: i64,
-                \\    model: []const u8,
-                \\    choices: []const ChatCompletionChoice,
-                \\    usage: ?CompletionUsage = null,
-                \\    system_fingerprint: ?[]const u8 = null,
-                \\    service_tier: ?ServiceTier = null,
-                \\};
-                \\
-                \\pub const ChatCompletionChoice = struct {
-                \\    index: i64,
-                \\    message: ChatCompletionResponseMessage,
-                \\    finish_reason: ?[]const u8 = null,
-                \\    logprobs: ?std.json.Value = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "CreateChatCompletionStreamResponse")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const CreateChatCompletionStreamResponse = struct {
-                \\    id: []const u8,
-                \\    object: []const u8,
-                \\    created: i64,
-                \\    model: []const u8,
-                \\    choices: []const ChatCompletionChunkChoice,
-                \\    usage: ?CompletionUsage = null,
-                \\    system_fingerprint: ?[]const u8 = null,
-                \\    service_tier: ?ServiceTier = null,
-                \\};
-                \\
-                \\pub const ChatCompletionChunkChoice = struct {
-                \\    index: i64,
-                \\    delta: ChatCompletionStreamResponseDelta,
-                \\    finish_reason: ?[]const u8 = null,
-                \\    logprobs: ?std.json.Value = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionResponseMessage")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionResponseMessageUrlCitation = struct {
-                \\    end_index: i64,
-                \\    start_index: i64,
-                \\    url: []const u8,
-                \\    title: []const u8,
-                \\};
-                \\
-                \\pub const ChatCompletionResponseMessageAnnotation = struct {
-                \\    type: []const u8,
-                \\    url_citation: ChatCompletionResponseMessageUrlCitation,
-                \\};
-                \\
-                \\pub const ChatCompletionResponseMessage = struct {
-                \\    role: []const u8,
-                \\    content: ?[]const u8 = null,
-                \\    refusal: ?[]const u8 = null,
-                \\    tool_calls: ?[]const ChatCompletionMessageToolCall = null,
-                \\    reasoning_details: ?std.json.Value = null,
-                \\    annotations: ?[]const ChatCompletionResponseMessageAnnotation = null,
-                \\    function_call: ?std.json.Value = null,
-                \\    audio: ?ChatCompletionResponseMessageAudio = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionStreamResponseDelta")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionStreamResponseDelta = struct {
-                \\    role: ?[]const u8 = null,
-                \\    content: ?[]const u8 = null,
-                \\    refusal: ?[]const u8 = null,
-                \\    tool_calls: ?[]const ChatCompletionMessageToolCallChunk = null,
-                \\    function_call: ?std.json.Value = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
         return false;
     }
 
@@ -1019,13 +924,6 @@ pub const UnifiedModelGenerator = struct {
             \\pub const MCPListToolsToolAnnotations = OpenApi2ZigDynamicObject;
             \\
             \\pub const MCPToolHeaders = std.json.ArrayHashMap([]const u8);
-            \\
-            \\pub const ChatCompletionResponseMessageAudio = struct {
-            \\    id: []const u8,
-            \\    expires_at: i64,
-            \\    data: []const u8,
-            \\    transcript: []const u8,
-            \\};
             \\
             \\pub const ChatkitWorkflowStateVariable = union(enum) {
             \\    string: []const u8,
