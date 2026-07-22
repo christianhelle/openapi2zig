@@ -88,6 +88,8 @@ pub const UnifiedModelGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "};\n\n");
                 return;
             }
+            try self.generateEmptyObjectStruct(name);
+            return;
         }
 
         try self.buffer.appendSlice(self.allocator, "pub const ");
@@ -95,6 +97,30 @@ pub const UnifiedModelGenerator = struct {
         try self.buffer.appendSlice(self.allocator, " = ");
         try self.appendZigType(schema);
         try self.buffer.appendSlice(self.allocator, ";\n\n");
+    }
+
+    fn generateEmptyObjectStruct(self: *UnifiedModelGenerator, name: []const u8) !void {
+        try self.buffer.appendSlice(self.allocator, "pub const ");
+        try self.appendIdentifier(name);
+        try self.buffer.appendSlice(self.allocator,
+            \\ = struct {
+            \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
+            \\        _ = try std.json.innerParse(std.json.Value, allocator, source, options);
+            \\        return .{};
+            \\    }
+            \\
+            \\    pub fn jsonParseFromValue(_: std.mem.Allocator, _: std.json.Value, _: std.json.ParseOptions) !@This() {
+            \\        return .{};
+            \\    }
+            \\
+            \\    pub fn jsonStringify(_: @This(), jw: *std.json.Stringify) !void {
+            \\        try jw.beginObject();
+            \\        try jw.endObject();
+            \\    }
+            \\};
+            \\
+            \\
+        );
     }
 
     fn appendStringLiteral(self: *UnifiedModelGenerator, value: []const u8) !void {
@@ -806,29 +832,6 @@ pub const UnifiedModelGenerator = struct {
 
     fn generateManualSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !bool {
         _ = schema;
-        if (std.mem.eql(u8, name, "EmptyModelParam")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const EmptyModelParam = struct {
-                \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
-                \\        _ = try std.json.innerParse(std.json.Value, allocator, source, options);
-                \\        return .{};
-                \\    }
-                \\
-                \\    pub fn jsonParseFromValue(_: std.mem.Allocator, _: std.json.Value, _: std.json.ParseOptions) !@This() {
-                \\        return .{};
-                \\    }
-                \\
-                \\    pub fn jsonStringify(_: @This(), jw: *std.json.Stringify) !void {
-                \\        try jw.beginObject();
-                \\        try jw.endObject();
-                \\    }
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
         if (std.mem.eql(u8, name, "FunctionParameters") or std.mem.eql(u8, name, "ResponseFormatJsonSchemaSchema")) {
             try self.appendJsonValueBackedUnionType(name);
             return true;
