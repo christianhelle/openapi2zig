@@ -8,12 +8,32 @@ pub const ResourceWrapperMode = enum {
     hybrid,
 };
 
+pub const SseBufferMode = enum {
+    small,
+    large,
+
+    pub fn maxLineSize(self: SseBufferMode) usize {
+        return switch (self) {
+            .small => 8 * 1024,
+            .large => 256 * 1024,
+        };
+    }
+
+    pub fn maxEventSize(self: SseBufferMode) usize {
+        return switch (self) {
+            .small => 64 * 1024,
+            .large => 1024 * 1024,
+        };
+    }
+};
+
 pub const CliArgs = struct {
     input_path: []const u8,
     output_path: ?[]const u8 = null,
     base_url: ?[]const u8 = null,
     resource_wrappers: ResourceWrapperMode = .paths,
     models_only: bool = false,
+    sse_buffer: SseBufferMode = .small,
 };
 
 pub const ParsedArgs = struct {
@@ -43,6 +63,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var base_url: ?[]const u8 = null;
     var resource_wrappers: ResourceWrapperMode = .paths;
     var models_only = false;
+    var sse_buffer: SseBufferMode = .small;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -86,6 +107,18 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             };
         } else if (std.mem.eql(u8, arg, "--models-only")) {
             models_only = true;
+        } else if (std.mem.eql(u8, arg, "--sse-buffer")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                std.debug.print("\nError: SSE buffer mode required\n", .{});
+                return error.InvalidArguments;
+            }
+            sse_buffer = parseSseBufferMode(args[i]) orelse {
+                printUsage();
+                std.debug.print("\nError: invalid SSE buffer mode '{s}'\n", .{args[i]});
+                return error.InvalidArguments;
+            };
         }
     }
 
@@ -102,6 +135,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .base_url = base_url,
             .resource_wrappers = resource_wrappers,
             .models_only = models_only,
+            .sse_buffer = sse_buffer,
         },
     };
 }
@@ -111,6 +145,12 @@ fn parseResourceWrapperMode(value: []const u8) ?ResourceWrapperMode {
     if (std.mem.eql(u8, value, "tags")) return .tags;
     if (std.mem.eql(u8, value, "paths")) return .paths;
     if (std.mem.eql(u8, value, "hybrid")) return .hybrid;
+    return null;
+}
+
+fn parseSseBufferMode(value: []const u8) ?SseBufferMode {
+    if (std.mem.eql(u8, value, "small")) return .small;
+    if (std.mem.eql(u8, value, "large")) return .large;
     return null;
 }
 
@@ -132,6 +172,8 @@ fn printUsage() void {
         \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
         \\                              (default: paths)
         \\   --models-only              Generate only Zig models, skipping the API client.
+        \\   --sse-buffer <mode>        SSE parse buffer size: small (8KB line / 64KB event)
+        \\                              or large (256KB line / 1MB event). (default: small)
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
