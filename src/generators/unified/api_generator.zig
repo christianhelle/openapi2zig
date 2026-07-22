@@ -493,7 +493,7 @@ pub const UnifiedApiGenerator = struct {
             \\    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &buf.writer);
             \\
             \\    const written = buf.written();
-            \\    if (written.len > 0 and written[0] == '{' and written[written.len - 1] == '}') {
+            \\    if (written.len > 2 and written[0] == '{' and written[written.len - 1] == '}') {
             \\        return try std.mem.concat(allocator, u8, &.{
             \\            written[0 .. written.len - 1],
             \\            ",\"stream\":true}",
