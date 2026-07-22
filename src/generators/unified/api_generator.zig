@@ -393,9 +393,6 @@ pub const UnifiedApiGenerator = struct {
             \\    }
             \\}
             \\
-            \\const max_sse_line_size = 256 * 1024;
-            \\const max_sse_event_size = 1024 * 1024;
-            \\
             \\pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    var reader: std.Io.Reader = .fixed(bytes);
             \\    try parseSseReader(allocator, &reader, callback, cancellation_token);
@@ -491,11 +488,11 @@ pub const UnifiedApiGenerator = struct {
             \\}
             \\
             \\fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![]u8 {
-            \\    var str: std.Io.Writer.Allocating = .init(allocator);
-            \\    defer str.deinit();
-            \\    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);
+            \\    var buf: std.Io.Writer.Allocating = .init(allocator);
+            \\    defer buf.deinit();
+            \\    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &buf.writer);
             \\
-            \\    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, str.written(), .{ .ignore_unknown_fields = true });
+            \\    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, buf.written(), .{ .ignore_unknown_fields = true });
             \\    defer parsed.deinit();
             \\
             \\    if (parsed.value == .object) {
@@ -605,6 +602,19 @@ pub const UnifiedApiGenerator = struct {
             \\
             \\
         );
+        try self.generateSseBufferConstants();
+    }
+
+    fn generateSseBufferConstants(self: *UnifiedApiGenerator) !void {
+        try self.buffer.appendSlice(self.allocator, "const max_sse_line_size = ");
+        const line_size = try std.fmt.allocPrint(self.allocator, "{d}", .{self.args.sse_buffer.maxLineSize()});
+        defer self.allocator.free(line_size);
+        try self.buffer.appendSlice(self.allocator, line_size);
+        try self.buffer.appendSlice(self.allocator, ";\nconst max_sse_event_size = ");
+        const event_size = try std.fmt.allocPrint(self.allocator, "{d}", .{self.args.sse_buffer.maxEventSize()});
+        defer self.allocator.free(event_size);
+        try self.buffer.appendSlice(self.allocator, event_size);
+        try self.buffer.appendSlice(self.allocator, ";\n\n");
     }
 
     fn generateHttpObserverType(self: *UnifiedApiGenerator) !void {
