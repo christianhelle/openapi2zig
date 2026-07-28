@@ -88,6 +88,42 @@ pub const UnifiedModelGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "};\n\n");
                 return;
             }
+            try self.generateEmptyObjectStruct(name);
+            return;
+        }
+
+        if (schema.type == .object) {
+            try self.appendJsonValueBackedUnionType(name);
+            return;
+        }
+
+        if (schema.type == .array) {
+            if (schema.items) |items| {
+                if (items.ref) |ref| {
+                    try self.buffer.appendSlice(self.allocator, "pub const ");
+                    try self.appendIdentifier(name);
+                    try self.buffer.appendSlice(self.allocator, " = []const ");
+                    try self.appendIdentifier(refName(ref));
+                    try self.buffer.appendSlice(self.allocator, ";\n\n");
+                    return;
+                } else if (try self.canGenerateNamedArrayItemType(items.*)) {
+                    const item_type_name = try std.fmt.allocPrint(self.allocator, "{s}Item", .{name});
+                    defer self.allocator.free(item_type_name);
+                    try self.generateSchema(item_type_name, items.*);
+                    try self.buffer.appendSlice(self.allocator, "pub const ");
+                    try self.appendIdentifier(name);
+                    try self.buffer.appendSlice(self.allocator, " = []const ");
+                    try self.appendIdentifier(item_type_name);
+                    try self.buffer.appendSlice(self.allocator, ";\n\n");
+                    return;
+                }
+            }
+            try self.buffer.appendSlice(self.allocator, "pub const ");
+            try self.appendIdentifier(name);
+            try self.buffer.appendSlice(self.allocator, " = ");
+            try self.appendZigType(schema);
+            try self.buffer.appendSlice(self.allocator, ";\n\n");
+            return;
         }
 
         try self.buffer.appendSlice(self.allocator, "pub const ");
@@ -95,6 +131,30 @@ pub const UnifiedModelGenerator = struct {
         try self.buffer.appendSlice(self.allocator, " = ");
         try self.appendZigType(schema);
         try self.buffer.appendSlice(self.allocator, ";\n\n");
+    }
+
+    fn generateEmptyObjectStruct(self: *UnifiedModelGenerator, name: []const u8) !void {
+        try self.buffer.appendSlice(self.allocator, "pub const ");
+        try self.appendIdentifier(name);
+        try self.buffer.appendSlice(self.allocator,
+            \\ = struct {
+            \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
+            \\        _ = try std.json.innerParse(std.json.Value, allocator, source, options);
+            \\        return .{};
+            \\    }
+            \\
+            \\    pub fn jsonParseFromValue(_: std.mem.Allocator, _: std.json.Value, _: std.json.ParseOptions) !@This() {
+            \\        return .{};
+            \\    }
+            \\
+            \\    pub fn jsonStringify(_: @This(), jw: *std.json.Stringify) !void {
+            \\        try jw.beginObject();
+            \\        try jw.endObject();
+            \\    }
+            \\};
+            \\
+            \\
+        );
     }
 
     fn appendStringLiteral(self: *UnifiedModelGenerator, value: []const u8) !void {
@@ -806,34 +866,6 @@ pub const UnifiedModelGenerator = struct {
 
     fn generateManualSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !bool {
         _ = schema;
-        if (std.mem.eql(u8, name, "EmptyModelParam")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const EmptyModelParam = struct {
-                \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
-                \\        _ = try std.json.innerParse(std.json.Value, allocator, source, options);
-                \\        return .{};
-                \\    }
-                \\
-                \\    pub fn jsonParseFromValue(_: std.mem.Allocator, _: std.json.Value, _: std.json.ParseOptions) !@This() {
-                \\        return .{};
-                \\    }
-                \\
-                \\    pub fn jsonStringify(_: @This(), jw: *std.json.Stringify) !void {
-                \\        try jw.beginObject();
-                \\        try jw.endObject();
-                \\    }
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "FunctionParameters") or std.mem.eql(u8, name, "ResponseFormatJsonSchemaSchema")) {
-            try self.appendJsonValueBackedUnionType(name);
-            return true;
-        }
-
         if (std.mem.eql(u8, name, "CompoundFilter")) {
             try self.buffer.appendSlice(self.allocator,
                 \\pub const CompoundFilterItem = union(enum) {
@@ -878,282 +910,6 @@ pub const UnifiedModelGenerator = struct {
             return true;
         }
 
-        if (std.mem.eql(u8, name, "ToolChoiceAllowed")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ToolChoiceAllowed = struct {
-                \\    type: []const u8,
-                \\    mode: []const u8,
-                \\    tools: []const Tool,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionAllowedTools")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionAllowedTools = struct {
-                \\    mode: []const u8,
-                \\    tools: []const ChatCompletionTool,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "CreateChatCompletionResponse")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const CreateChatCompletionResponse = struct {
-                \\    id: []const u8,
-                \\    object: []const u8,
-                \\    created: i64,
-                \\    model: []const u8,
-                \\    choices: []const ChatCompletionChoice,
-                \\    usage: ?CompletionUsage = null,
-                \\    system_fingerprint: ?[]const u8 = null,
-                \\    service_tier: ?ServiceTier = null,
-                \\};
-                \\
-                \\pub const ChatCompletionChoice = struct {
-                \\    index: i64,
-                \\    message: ChatCompletionResponseMessage,
-                \\    finish_reason: ?[]const u8 = null,
-                \\    logprobs: ?std.json.Value = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "CreateChatCompletionStreamResponse")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const CreateChatCompletionStreamResponse = struct {
-                \\    id: []const u8,
-                \\    object: []const u8,
-                \\    created: i64,
-                \\    model: []const u8,
-                \\    choices: []const ChatCompletionChunkChoice,
-                \\    usage: ?CompletionUsage = null,
-                \\    system_fingerprint: ?[]const u8 = null,
-                \\    service_tier: ?ServiceTier = null,
-                \\};
-                \\
-                \\pub const ChatCompletionChunkChoice = struct {
-                \\    index: i64,
-                \\    delta: ChatCompletionStreamResponseDelta,
-                \\    finish_reason: ?[]const u8 = null,
-                \\    logprobs: ?std.json.Value = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionResponseMessage")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionResponseMessageUrlCitation = struct {
-                \\    end_index: i64,
-                \\    start_index: i64,
-                \\    url: []const u8,
-                \\    title: []const u8,
-                \\};
-                \\
-                \\pub const ChatCompletionResponseMessageAnnotation = struct {
-                \\    type: []const u8,
-                \\    url_citation: ChatCompletionResponseMessageUrlCitation,
-                \\};
-                \\
-                \\pub const ChatCompletionResponseMessage = struct {
-                \\    role: []const u8,
-                \\    content: ?[]const u8 = null,
-                \\    refusal: ?[]const u8 = null,
-                \\    tool_calls: ?[]const ChatCompletionMessageToolCall = null,
-                \\    reasoning_details: ?std.json.Value = null,
-                \\    annotations: ?[]const ChatCompletionResponseMessageAnnotation = null,
-                \\    function_call: ?std.json.Value = null,
-                \\    audio: ?ChatCompletionResponseMessageAudio = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionStreamResponseDelta")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionStreamResponseDelta = struct {
-                \\    role: ?[]const u8 = null,
-                \\    content: ?[]const u8 = null,
-                \\    refusal: ?[]const u8 = null,
-                \\    tool_calls: ?[]const ChatCompletionMessageToolCallChunk = null,
-                \\    function_call: ?std.json.Value = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "InputMessageContent")) {
-            const schemas = self.source_schemas orelse return false;
-            const content_type: []const u8 = if (schemas.contains("InputContent")) "InputContent" else "InputContentBlock";
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const InputMessageContent = union(enum) {
-                \\    text: []const u8,
-                \\    parts: []const 
-            );
-            try self.buffer.appendSlice(self.allocator, content_type);
-            try self.buffer.appendSlice(self.allocator,
-                \\,
-                \\    raw: std.json.Value,
-                \\
-                \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
-                \\        const value = try std.json.innerParse(std.json.Value, allocator, source, options);
-                \\        return jsonParseFromValue(allocator, value, options);
-                \\    }
-                \\
-                \\    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !@This() {
-                \\        return switch (source) {
-                \\            .string => |value| .{ .text = value },
-                \\            .array => .{ .parts = try std.json.parseFromValueLeaky([]const 
-            );
-            try self.buffer.appendSlice(self.allocator, content_type);
-            try self.buffer.appendSlice(self.allocator,
-                \\, allocator, source, options) },
-                \\            else => .{ .raw = source },
-                \\        };
-                \\    }
-                \\
-                \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
-                \\        switch (self) {
-                \\            .text => |value| try jw.write(value),
-                \\            .parts => |value| try jw.write(value),
-                \\            .raw => |value| try jw.write(value),
-                \\        }
-                \\    }
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "EasyInputMessage")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const EasyInputMessage = struct {
-                \\    role: []const u8,
-                \\    content: InputMessageContent,
-                \\    phase: ?MessagePhase = null,
-                \\    type: ?[]const u8 = null,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionRequestMessageContentPartImage")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionRequestMessageContentPartImageUrl = struct {
-                \\    url: []const u8,
-                \\    detail: ?[]const u8 = null,
-                \\};
-                \\
-                \\pub const ChatCompletionRequestMessageContentPartImage = struct {
-                \\    type: []const u8,
-                \\    image_url: ChatCompletionRequestMessageContentPartImageUrl,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionRequestMessageContentPartFile")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionRequestMessageContentPartFileData = struct {
-                \\    filename: ?[]const u8 = null,
-                \\    file_data: ?[]const u8 = null,
-                \\    file_id: ?[]const u8 = null,
-                \\};
-                \\
-                \\pub const ChatCompletionRequestMessageContentPartFile = struct {
-                \\    type: []const u8,
-                \\    file: ChatCompletionRequestMessageContentPartFileData,
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionRequestMessage")) {
-            try self.buffer.appendSlice(self.allocator,
-                \\pub const ChatCompletionRequestMessage = struct {
-                \\    role: []const u8,
-                \\    content: ?std.json.Value = null,
-                \\    name: ?[]const u8 = null,
-                \\    tool_calls: ?[]const ChatCompletionMessageToolCall = null,
-                \\    tool_call_id: ?[]const u8 = null,
-                \\    refusal: ?std.json.Value = null,
-                \\    reasoning_details: ?std.json.Value = null,
-                \\    extra: ?std.json.Value = null,
-                \\
-                \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
-                \\        try jw.beginObject();
-                \\        try jw.objectField("role");
-                \\        try jw.write(self.role);
-                \\        if (self.content) |value| {
-                \\            try jw.objectField("content");
-                \\            try jw.write(value);
-                \\        }
-                \\        if (self.name) |value| {
-                \\            try jw.objectField("name");
-                \\            try jw.write(value);
-                \\        }
-                \\        if (self.tool_calls) |value| {
-                \\            try jw.objectField("tool_calls");
-                \\            try jw.write(value);
-                \\        }
-                \\        if (self.tool_call_id) |value| {
-                \\            try jw.objectField("tool_call_id");
-                \\            try jw.write(value);
-                \\        }
-                \\        if (self.refusal) |value| {
-                \\            try jw.objectField("refusal");
-                \\            try jw.write(value);
-                \\        }
-                \\        if (self.reasoning_details) |value| {
-                \\            try jw.objectField("reasoning_details");
-                \\            try jw.write(value);
-                \\        }
-                \\        if (self.extra) |extra| {
-                \\            if (extra == .object) {
-                \\                var iterator = extra.object.iterator();
-                \\                while (iterator.next()) |entry| {
-                \\                    try jw.objectField(entry.key_ptr.*);
-                \\                    try jw.write(entry.value_ptr.*);
-                \\                }
-                \\            }
-                \\        }
-                \\        try jw.endObject();
-                \\    }
-                \\};
-                \\
-                \\
-            );
-            return true;
-        }
-
-        if (std.mem.eql(u8, name, "ChatCompletionMessageToolCalls")) {
-            try self.buffer.appendSlice(self.allocator, "pub const ChatCompletionMessageToolCalls = []const ChatCompletionMessageToolCall;\n\n");
-            return true;
-        }
-
         return false;
     }
 
@@ -1168,13 +924,6 @@ pub const UnifiedModelGenerator = struct {
             \\pub const MCPListToolsToolAnnotations = OpenApi2ZigDynamicObject;
             \\
             \\pub const MCPToolHeaders = std.json.ArrayHashMap([]const u8);
-            \\
-            \\pub const ChatCompletionResponseMessageAudio = struct {
-            \\    id: []const u8,
-            \\    expires_at: i64,
-            \\    data: []const u8,
-            \\    transcript: []const u8,
-            \\};
             \\
             \\pub const ChatkitWorkflowStateVariable = union(enum) {
             \\    string: []const u8,
@@ -1216,12 +965,6 @@ pub const UnifiedModelGenerator = struct {
     fn generateManualAliases(self: *UnifiedModelGenerator, schemas: std.StringHashMap(Schema)) !void {
         if (schemas.contains("ChatkitWorkflow") or schemas.contains("MCPTool") or schemas.contains("ChatCompletionResponseMessage")) {
             try self.generateOpenAiDynamicFieldTypes();
-        }
-        if (schemas.contains("InputContent") and !schemas.contains("InputMessageContent")) {
-            _ = try self.generateManualSchema("InputMessageContent", .{});
-        }
-        if (schemas.contains("CreateChatCompletionStreamResponse") and !schemas.contains("ChatCompletionChunk")) {
-            try self.buffer.appendSlice(self.allocator, "pub const ChatCompletionChunk = CreateChatCompletionStreamResponse;\n\n");
         }
     }
 

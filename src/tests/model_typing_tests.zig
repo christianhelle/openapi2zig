@@ -44,6 +44,45 @@ test "model generator treats properties without type as struct" {
     try std.testing.expect(std.mem.indexOf(u8, code, "foo: ?[]const u8 = null") != null);
 }
 
+test "model generator emits empty struct for empty-property object" {
+    const allocator = std.testing.allocator;
+
+    var empty_props = std.StringHashMap(common.Schema).init(allocator);
+    defer {
+        var iterator = empty_props.iterator();
+        while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
+        empty_props.deinit();
+    }
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    defer {
+        var iterator = schemas.iterator();
+        while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
+        schemas.deinit();
+    }
+    try schemas.put(try allocator.dupe(u8, "EmptyParam"), .{ .type = .object, .properties = empty_props });
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    defer paths.deinit();
+    const document: common.UnifiedDocument = .{
+        .version = "3.1.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const EmptyParam = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn jsonParse") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn jsonStringify") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try jw.beginObject") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try jw.endObject") != null);
+}
+
 test "OpenAPI 3.1 allOf object refs merge into one schema" {
     const allocator = std.testing.allocator;
     const source =

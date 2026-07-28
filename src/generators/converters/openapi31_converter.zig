@@ -454,6 +454,11 @@ pub const OpenApi31Converter = struct {
             items_ptr.* = items_schema;
             break :blk items_ptr;
         } else null;
+        const additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
+            .boolean => |b| b,
+            .schema_or_reference => true,
+        } else null;
+
         return Schema{
             .type = schema_type,
             .ref = null,
@@ -466,6 +471,7 @@ pub const OpenApi31Converter = struct {
             .enum_values = schema.enum_values,
             .default = schema.default,
             .example = schema.example,
+            .additional_properties = additional_properties,
         };
     }
 

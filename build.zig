@@ -174,6 +174,18 @@ pub fn build(b: *std.Build) void {
     const run_generate_anthropic_json_step = b.step("run-generate-anthropic", "Run the app with generate command for Anthropic OpenAPI JSON");
     run_generate_anthropic_json_step.dependOn(&run_generate_lmstudio_json_cmd.step);
 
+    const run_generate_openai_json_cmd = b.addRunArtifact(exe);
+    run_generate_openai_json_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.1/openai.json",
+        "-o",
+        "generated/openai.zig",
+    });
+
+    const run_generate_openai_json_step = b.step("run-generate-openai", "Run the app with generate command for OpenAI OpenAPI JSON");
+    run_generate_openai_json_step.dependOn(&run_generate_openai_json_cmd.step);
+
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
     run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
@@ -184,6 +196,16 @@ pub fn build(b: *std.Build) void {
     run_generate.dependOn(&run_generate_v31_yaml_cmd.step);
     run_generate.dependOn(&run_generate_lmstudio_json_cmd.step);
     run_generate.dependOn(&run_generate_anthropic_json_cmd.step);
+    run_generate.dependOn(&run_generate_openai_json_cmd.step);
+
+    const run_generated_main_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "run", "generated/main.zig" });
+    run_generated_main_cmd.step.dependOn(run_generate);
+
+    const run_generated_lmstudio_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "run", "generated/lmstudio_example.zig" });
+    run_generated_lmstudio_cmd.step.dependOn(&run_generated_main_cmd.step);
+
+    const run_generated = b.step("run-generated", "Regenerate and run generated/main.zig and lmstudio_example.zig");
+    run_generated.dependOn(&run_generated_lmstudio_cmd.step);
 
     const tests_mod = b.createModule(.{
         .root_source_file = b.path("src/tests.zig"),

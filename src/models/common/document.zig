@@ -89,6 +89,7 @@ pub const Schema = struct {
     discriminator_property: ?[]const u8 = null,
     one_of: ?[]Schema = null,
     any_of: ?[]Schema = null,
+    additional_properties: ?bool = null,
     pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {
         if (self.required) |required| {
             allocator.free(required);

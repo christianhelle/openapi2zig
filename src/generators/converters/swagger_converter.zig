@@ -218,6 +218,7 @@ pub const SwaggerConverter = struct {
             .enum_values = schema.enum_values,
             .default = schema.default,
             .example = schema.example,
+            .additional_properties = if (schema.additionalProperties != null) true else null,
         };
     }
 
