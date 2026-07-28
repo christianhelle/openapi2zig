@@ -6,6 +6,8 @@
 
 **Implemented enhancements:**
 
+- Update generated header indentation [\#72](https://github.com/christianhelle/openapi2zig/pull/72) ([christianhelle](https://github.com/christianhelle))
+- Remove vendor specific implementation details [\#71](https://github.com/christianhelle/openapi2zig/pull/71) ([christianhelle](https://github.com/christianhelle))
 - Configurable SSE buffer sizes [\#70](https://github.com/christianhelle/openapi2zig/pull/70) ([christianhelle](https://github.com/christianhelle))
 - Fix Anthropic spec compatibility [\#69](https://github.com/christianhelle/openapi2zig/pull/69) ([christianhelle](https://github.com/christianhelle))
 
