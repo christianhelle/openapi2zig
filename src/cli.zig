@@ -228,3 +228,18 @@ test "parse upgrade" {
 
     try std.testing.expect(parsed.upgrade);
 }
+
+test "parse generate supports multiple-files flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expect(parsed.args.multiple_files);
+    try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
+}

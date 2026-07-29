@@ -248,6 +248,16 @@ pub fn build(b: *std.Build) void {
     const run_generated_tests = b.addRunArtifact(generated_tests);
     test_step.dependOn(&run_generated_tests.step);
 
+    const multi_generated_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("generated/compile_multi_generated.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_multi_generated_tests = b.addRunArtifact(multi_generated_tests);
+    test_step.dependOn(&run_multi_generated_tests.step);
+
     const test_package_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "build" });
     test_package_cmd.step.dependOn(package_snapshot_step);
     test_package_cmd.setCwd(b.path(".zig-cache/package-snapshot/examples/package_consumer"));
