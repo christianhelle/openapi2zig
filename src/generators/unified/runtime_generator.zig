@@ -126,7 +126,7 @@ pub const RuntimeGenerator = struct {
             \\    }
             \\};
             \\
-            \\fn checkCancellation(token: ?*CancellationToken) !void {
+            \\pub fn checkCancellation(token: ?*CancellationToken) !void {
             \\    if (token) |t| {
             \\        if (t.isCancelled()) return error.Cancelled;
             \\    }
@@ -201,7 +201,7 @@ pub const RuntimeGenerator = struct {
             \\    return false;
             \\}
             \\
-            \\fn TypedSseCallback(comptime T: type, comptime Callback: type) type {
+            \\pub fn TypedSseCallback(comptime T: type, comptime Callback: type) type {
             \\    return struct {
             \\        allocator: std.mem.Allocator,
             \\        callback: *Callback,
