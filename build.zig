@@ -73,6 +73,20 @@ pub fn build(b: *std.Build) void {
     const run_generate_v3_step = b.step("run-generate-v3", "Run the app with generate command");
     run_generate_v3_step.dependOn(&run_generate_v3_cmd.step);
 
+    const run_generate_v3_multi_cmd = b.addRunArtifact(exe);
+    run_generate_v3_multi_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/multi",
+        "--multiple-files",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_multi_step = b.step("run-generate-v3-multi", "Generate multiple output files (models, runtime, client)");
+    run_generate_v3_multi_step.dependOn(&run_generate_v3_multi_cmd.step);
+
     const run_generate_v2_cmd = b.addRunArtifact(exe);
     run_generate_v2_cmd.addArgs(&.{
         "generate",
@@ -188,6 +202,7 @@ pub fn build(b: *std.Build) void {
 
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
+    run_generate.dependOn(&run_generate_v3_multi_cmd.step);
     run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
     run_generate.dependOn(&run_generate_v2_yaml_cmd.step);
