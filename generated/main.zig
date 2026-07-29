@@ -68,7 +68,12 @@ pub fn main(init: std.process.Init) !void {
     var v31_yaml_client = v31_yaml.Client.init(allocator, io, "");
     defer v31_yaml_client.deinit();
     var multi_v3_client = multi_v3.Client.init(allocator, io, "");
-    multi_v3_client.http_observer = observer;
+    multi_v3_client.http_observer = .{
+        .ctx = null,
+        .onRequest = &logRequest,
+        .onResponse = &logResponse,
+        .onError = &logError,
+    };
     defer multi_v3_client.deinit();
     _ = &v3_yaml_client;
     _ = &v2_yaml_client;
