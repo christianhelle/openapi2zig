@@ -243,6 +243,12 @@ pub const GeneratedFiles = struct {
     models: []const u8,
     runtime: ?[]const u8 = null,
     client: ?[]const u8 = null,
+
+    pub fn deinit(self: *GeneratedFiles, allocator: std.mem.Allocator) void {
+        allocator.free(self.models);
+        if (self.runtime) |r| allocator.free(r);
+        if (self.client) |c| allocator.free(c);
+    }
 };
 
 /// Generate separate Zig source files (models, runtime, client) from a unified document.
@@ -250,10 +256,10 @@ pub const GeneratedFiles = struct {
 /// args.models_only is true.
 pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) !GeneratedFiles {
     const models_code = try generateModels(allocator, unified_doc);
-    errdefer allocator.free(models_code);
+    defer allocator.free(models_code);
 
     const header = try generated_header.renderNowFromBuildInfo(allocator, io);
-    errdefer allocator.free(header);
+    defer allocator.free(header);
 
     const models_with_header = try std.mem.concat(allocator, u8, &.{ header, models_code });
     errdefer allocator.free(models_with_header);
@@ -265,7 +271,7 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     var runtime_gen = RuntimeGenerator.init(allocator, args.sse_buffer);
     defer runtime_gen.deinit();
     const runtime_code = try runtime_gen.generate();
-    errdefer allocator.free(runtime_code);
+    defer allocator.free(runtime_code);
 
     const runtime_with_header = try std.mem.concat(allocator, u8, &.{ header, runtime_code });
     errdefer allocator.free(runtime_with_header);
@@ -275,7 +281,7 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     api_gen.emit_imports = true;
     defer api_gen.deinit();
     const api_code = try api_gen.generateClientOnly(unified_doc);
-    errdefer allocator.free(api_code);
+    defer allocator.free(api_code);
 
     const client_with_header = try std.mem.concat(allocator, u8, &.{ header, api_code });
     errdefer allocator.free(client_with_header);
