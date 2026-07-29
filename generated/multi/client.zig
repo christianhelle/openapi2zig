@@ -3,130 +3,25 @@
 //   Changes to this file may cause incorrect behavior and will be lost if the code is regenerated
 // </auto-generated>
 
-const std = @import("std");
-
-///////////////////////////////////////////
-// Generated Zig structures from OpenAPI
-///////////////////////////////////////////
-
-pub const Category = struct {
-    id: ?i64 = null,
-    name: ?[]const u8 = null,
-};
-
-pub const Address = struct {
-    city: ?[]const u8 = null,
-    zip: ?[]const u8 = null,
-    state: ?[]const u8 = null,
-    street: ?[]const u8 = null,
-};
-
-pub const Tag = struct {
-    id: ?i64 = null,
-    name: ?[]const u8 = null,
-};
-
-pub const Order = struct {
-    status: ?[]const u8 = null,
-    petId: ?i64 = null,
-    complete: ?bool = null,
-    id: ?i64 = null,
-    quantity: ?i64 = null,
-    shipDate: ?[]const u8 = null,
-};
-
-pub const Customer = struct {
-    address: ?[]const Address = null,
-    id: ?i64 = null,
-    username: ?[]const u8 = null,
-};
-
-pub const Pet = struct {
-    status: ?[]const u8 = null,
-    tags: ?[]const Tag = null,
-    category: ?Category = null,
-    id: ?i64 = null,
-    name: []const u8,
-    photoUrls: []const []const u8,
-};
-
-pub const User = struct {
-    password: ?[]const u8 = null,
-    userStatus: ?i64 = null,
-    username: ?[]const u8 = null,
-    email: ?[]const u8 = null,
-    firstName: ?[]const u8 = null,
-    id: ?i64 = null,
-    lastName: ?[]const u8 = null,
-    phone: ?[]const u8 = null,
-};
-
-pub const ApiResponse = struct {
-    type: ?[]const u8 = null,
-    message: ?[]const u8 = null,
-    code: ?i64 = null,
-};
-
-
 ///////////////////////////////////////////
 // Generated Zig API client from OpenAPI
 ///////////////////////////////////////////
 
-
-pub fn Owned(comptime T: type) type {
-    return struct {
-        allocator: std.mem.Allocator,
-        body: []u8,
-        parsed: std.json.Parsed(T),
-
-        pub fn deinit(self: *@This()) void {
-            self.parsed.deinit();
-            self.allocator.free(self.body);
-        }
-
-        pub fn value(self: *@This()) *T {
-            return &self.parsed.value;
-        }
-    };
-}
-
-pub const RawResponse = struct {
-    allocator: std.mem.Allocator,
-    status: std.http.Status,
-    body: []u8,
-
-    pub fn deinit(self: *@This()) void {
-        self.allocator.free(self.body);
-    }
-};
-
-pub const ParseErrorResponse = struct {
-    raw: RawResponse,
-    error_name: []const u8,
-};
-
-pub fn ApiResult(comptime T: type) type {
-    return union(enum) {
-        ok: Owned(T),
-        api_error: RawResponse,
-        parse_error: ParseErrorResponse,
-
-        pub fn deinit(self: *@This()) void {
-            switch (self.*) {
-                .ok => |*value| value.deinit(),
-                .api_error => |*value| value.deinit(),
-                .parse_error => |*value| value.raw.deinit(),
-            }
-        }
-    };
-}
-
-pub const HttpObserver = struct {
-    ctx: ?*anyopaque,
-    onRequest: ?*const fn (ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void,
-    onResponse: ?*const fn (ctx: ?*anyopaque, method: std.http.Method, url: []const u8, status: std.http.Status, headers: []const std.http.Header, body: []const u8, duration_ns: u64) void,
-    onError: ?*const fn (ctx: ?*anyopaque, method: std.http.Method, url: []const u8, err_name: []const u8) void,
-};
+const std = @import("std");
+const models = @import("models.zig");
+const runtime = @import("runtime.zig");
+const Owned = runtime.Owned;
+const HttpObserver = runtime.HttpObserver;
+const RawResponse = runtime.RawResponse;
+const ParseErrorResponse = runtime.ParseErrorResponse;
+const ApiResult = runtime.ApiResult;
+const CancellationToken = runtime.CancellationToken;
+const checkCancellation = runtime.checkCancellation;
+const parseSseReader = runtime.parseSseReader;
+const parseSseBytes = runtime.parseSseBytes;
+const parseSseBytesTyped = runtime.parseSseBytesTyped;
+const parseSseReaderTyped = runtime.parseSseReaderTyped;
+const TypedSseCallback = runtime.TypedSseCallback;
 
 pub const Client = struct {
     allocator: std.mem.Allocator,
@@ -390,124 +285,6 @@ fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std
     return auth_header;
 }
 
-pub const CancellationToken = struct {
-    cancelled: std.atomic.Value(bool),
-
-    pub fn init() CancellationToken {
-        return .{ .cancelled = std.atomic.Value(bool).init(false) };
-    }
-
-    pub fn cancel(self: *CancellationToken) void {
-        self.cancelled.store(true, .seq_cst);
-    }
-
-    pub fn isCancelled(self: *CancellationToken) bool {
-        return self.cancelled.load(.seq_cst);
-    }
-};
-
-fn checkCancellation(token: ?*CancellationToken) !void {
-    if (token) |t| {
-        if (t.isCancelled()) return error.Cancelled;
-    }
-}
-
-pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
-    var reader: std.Io.Reader = .fixed(bytes);
-    try parseSseReader(allocator, &reader, callback, cancellation_token);
-}
-
-pub fn parseSseReader(allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype, cancellation_token: ?*CancellationToken) !void {
-    var line_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer line_buf.deinit();
-
-    var event_data: std.Io.Writer.Allocating = .init(allocator);
-    defer event_data.deinit();
-
-    while (true) {
-        try checkCancellation(cancellation_token);
-        line_buf.clearRetainingCapacity();
-
-        _ = reader.streamDelimiterLimit(&line_buf.writer, '\n', .limited(max_sse_line_size)) catch |err| switch (err) {
-            error.StreamTooLong => return error.SseLineTooLong,
-            error.ReadFailed => return err,
-            error.WriteFailed => return err,
-        };
-
-        const ended_with_delimiter = blk: {
-            const byte = reader.peekByte() catch |err| switch (err) {
-                error.EndOfStream => break :blk false,
-                error.ReadFailed => return err,
-            };
-            if (byte == '\n') {
-                _ = try reader.takeByte();
-                break :blk true;
-            }
-            break :blk false;
-        };
-
-        if (try processSseLine(&event_data, line_buf.written(), callback)) return;
-        if (!ended_with_delimiter) break;
-    }
-
-    _ = try dispatchSseEvent(&event_data, callback);
-}
-
-fn processSseLine(event_data: *std.Io.Writer.Allocating, raw_line: []const u8, callback: anytype) !bool {
-    const line = std.mem.trimEnd(u8, raw_line, "\r");
-    if (line.len == 0) return try dispatchSseEvent(event_data, callback);
-    if (line[0] == ':') return false;
-
-    const colon = std.mem.indexOfScalar(u8, line, ':') orelse return false;
-    const field = line[0..colon];
-    if (!std.mem.eql(u8, field, "data")) return false;
-
-    var value = line[colon + 1 ..];
-    if (value.len > 0 and value[0] == ' ') value = value[1..];
-    const separator_len: usize = if (event_data.written().len == 0) 0 else 1;
-    if (event_data.written().len + separator_len + value.len > max_sse_event_size) return error.SseEventTooLong;
-    if (separator_len != 0) try event_data.writer.writeByte('\n');
-    try event_data.writer.writeAll(value);
-    return false;
-}
-
-fn dispatchSseEvent(event_data: *std.Io.Writer.Allocating, callback: anytype) !bool {
-    const data = event_data.written();
-    if (data.len == 0) return false;
-    defer event_data.clearRetainingCapacity();
-
-    if (std.mem.eql(u8, data, "[DONE]")) return true;
-    try callback.event(data);
-    return false;
-}
-
-fn TypedSseCallback(comptime T: type, comptime Callback: type) type {
-    return struct {
-        allocator: std.mem.Allocator,
-        callback: *Callback,
-
-        pub fn event(self: *@This(), data: []const u8) !void {
-            var parsed = try std.json.parseFromSlice(T, self.allocator, data, .{ .ignore_unknown_fields = true });
-            defer parsed.deinit();
-            try self.callback.event(&parsed.value);
-        }
-    };
-}
-
-pub fn parseSseBytesTyped(comptime T: type, allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
-    const Callback = @TypeOf(callback.*);
-    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = allocator, .callback = callback };
-    try parseSseBytes(allocator, bytes, &typed_callback, cancellation_token);
-}
-
-pub fn parseSseReaderTyped(comptime T: type, allocator: std.mem.Allocator, reader: *std.Io.Reader, callback: anytype, cancellation_token: ?*CancellationToken) !void {
-    const Callback = @TypeOf(callback.*);
-    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = allocator, .callback = callback };
-    try parseSseReader(allocator, reader, &typed_callback, cancellation_token);
-}
-const max_sse_line_size = 8192;
-const max_sse_event_size = 65536;
-
 /////////////////
 // Summary:
 // Place an order for a pet
@@ -515,7 +292,7 @@ const max_sse_event_size = 65536;
 // Description:
 // Place a new order in the store
 //
-pub fn placeOrder(client: *Client, requestBody: Order) !Owned(Order) {
+pub fn placeOrder(client: *Client, requestBody: models.Order) !Owned(models.Order) {
     var result = try placeOrderResult(client, requestBody);
     switch (result) {
         .ok => |ok| return ok,
@@ -530,7 +307,7 @@ pub fn placeOrder(client: *Client, requestBody: Order) !Owned(Order) {
     }
 }
 
-pub fn placeOrderRaw(client: *Client, requestBody: Order) !RawResponse {
+pub fn placeOrderRaw(client: *Client, requestBody: models.Order) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
@@ -544,8 +321,8 @@ pub fn placeOrderRaw(client: *Client, requestBody: Order) !RawResponse {
     return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
 }
 
-pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
-    return parseRawResponse(Order, try placeOrderRaw(client, requestBody));
+pub fn placeOrderResult(client: *Client, requestBody: models.Order) !ApiResult(models.Order) {
+    return parseRawResponse(models.Order, try placeOrderRaw(client, requestBody));
 }
 
 /////////////////
@@ -555,7 +332,7 @@ pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
 // Description:
 // 
 //
-pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(ApiResponse) {
+pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(models.ApiResponse) {
     var result = try uploadFileResult(client, petId, additionalMetadata, requestBody);
     switch (result) {
         .ok => |ok| return ok,
@@ -621,8 +398,8 @@ pub fn uploadFileRaw(client: *Client, petId: i64, additionalMetadata: ?[]const u
     };
 }
 
-pub fn uploadFileResult(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(ApiResponse) {
-    return parseRawResponse(ApiResponse, try uploadFileRaw(client, petId, additionalMetadata, requestBody));
+pub fn uploadFileResult(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(models.ApiResponse) {
+    return parseRawResponse(models.ApiResponse, try uploadFileRaw(client, petId, additionalMetadata, requestBody));
 }
 
 /////////////////
@@ -632,7 +409,7 @@ pub fn uploadFileResult(client: *Client, petId: i64, additionalMetadata: ?[]cons
 // Description:
 // Returns a single pet
 //
-pub fn getPetById(client: *Client, petId: i64) !Owned(Pet) {
+pub fn getPetById(client: *Client, petId: i64) !Owned(models.Pet) {
     var result = try getPetByIdResult(client, petId);
     switch (result) {
         .ok => |ok| return ok,
@@ -657,8 +434,8 @@ pub fn getPetByIdRaw(client: *Client, petId: i64) !RawResponse {
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
 
-pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
-    return parseRawResponse(Pet, try getPetByIdRaw(client, petId));
+pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(models.Pet) {
+    return parseRawResponse(models.Pet, try getPetByIdRaw(client, petId));
 }
 
 /////////////////
@@ -881,7 +658,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Description:
 // 
 //
-pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
+pub fn getUserByName(client: *Client, username: []const u8) !Owned(models.User) {
     var result = try getUserByNameResult(client, username);
     switch (result) {
         .ok => |ok| return ok,
@@ -906,8 +683,8 @@ pub fn getUserByNameRaw(client: *Client, username: []const u8) !RawResponse {
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
 
-pub fn getUserByNameResult(client: *Client, username: []const u8) !ApiResult(User) {
-    return parseRawResponse(User, try getUserByNameRaw(client, username));
+pub fn getUserByNameResult(client: *Client, username: []const u8) !ApiResult(models.User) {
+    return parseRawResponse(models.User, try getUserByNameRaw(client, username));
 }
 
 /////////////////
@@ -917,13 +694,13 @@ pub fn getUserByNameResult(client: *Client, username: []const u8) !ApiResult(Use
 // Description:
 // This can only be done by the logged in user.
 //
-pub fn updateUser(client: *Client, username: []const u8, requestBody: User) !void {
+pub fn updateUser(client: *Client, username: []const u8, requestBody: models.User) !void {
     var raw = try updateUserRaw(client, username, requestBody);
     defer raw.deinit();
     if (raw.status.class() != .success) return error.ResponseError;
 }
 
-pub fn updateUserRaw(client: *Client, username: []const u8, requestBody: User) !RawResponse {
+pub fn updateUserRaw(client: *Client, username: []const u8, requestBody: models.User) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
@@ -967,13 +744,13 @@ pub fn deleteUserRaw(client: *Client, username: []const u8) !RawResponse {
 // Description:
 // This can only be done by the logged in user.
 //
-pub fn createUser(client: *Client, requestBody: User) !void {
+pub fn createUser(client: *Client, requestBody: models.User) !void {
     var raw = try createUserRaw(client, requestBody);
     defer raw.deinit();
     if (raw.status.class() != .success) return error.ResponseError;
 }
 
-pub fn createUserRaw(client: *Client, requestBody: User) !RawResponse {
+pub fn createUserRaw(client: *Client, requestBody: models.User) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
@@ -994,7 +771,7 @@ pub fn createUserRaw(client: *Client, requestBody: User) !RawResponse {
 // Description:
 // Creates list of users with given input array
 //
-pub fn createUsersWithListInput(client: *Client, requestBody: []const std.json.Value) !Owned(User) {
+pub fn createUsersWithListInput(client: *Client, requestBody: []const std.json.Value) !Owned(models.User) {
     var result = try createUsersWithListInputResult(client, requestBody);
     switch (result) {
         .ok => |ok| return ok,
@@ -1023,8 +800,8 @@ pub fn createUsersWithListInputRaw(client: *Client, requestBody: []const std.jso
     return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
 }
 
-pub fn createUsersWithListInputResult(client: *Client, requestBody: []const std.json.Value) !ApiResult(User) {
-    return parseRawResponse(User, try createUsersWithListInputRaw(client, requestBody));
+pub fn createUsersWithListInputResult(client: *Client, requestBody: []const std.json.Value) !ApiResult(models.User) {
+    return parseRawResponse(models.User, try createUsersWithListInputRaw(client, requestBody));
 }
 
 /////////////////
@@ -1034,7 +811,7 @@ pub fn createUsersWithListInputResult(client: *Client, requestBody: []const std.
 // Description:
 // Add a new pet to the store
 //
-pub fn addPet(client: *Client, requestBody: Pet) !Owned(Pet) {
+pub fn addPet(client: *Client, requestBody: models.Pet) !Owned(models.Pet) {
     var result = try addPetResult(client, requestBody);
     switch (result) {
         .ok => |ok| return ok,
@@ -1049,7 +826,7 @@ pub fn addPet(client: *Client, requestBody: Pet) !Owned(Pet) {
     }
 }
 
-pub fn addPetRaw(client: *Client, requestBody: Pet) !RawResponse {
+pub fn addPetRaw(client: *Client, requestBody: models.Pet) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
@@ -1063,8 +840,8 @@ pub fn addPetRaw(client: *Client, requestBody: Pet) !RawResponse {
     return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
 }
 
-pub fn addPetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
-    return parseRawResponse(Pet, try addPetRaw(client, requestBody));
+pub fn addPetResult(client: *Client, requestBody: models.Pet) !ApiResult(models.Pet) {
+    return parseRawResponse(models.Pet, try addPetRaw(client, requestBody));
 }
 
 /////////////////
@@ -1074,7 +851,7 @@ pub fn addPetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
 // Description:
 // Update an existing pet by Id
 //
-pub fn updatePet(client: *Client, requestBody: Pet) !Owned(Pet) {
+pub fn updatePet(client: *Client, requestBody: models.Pet) !Owned(models.Pet) {
     var result = try updatePetResult(client, requestBody);
     switch (result) {
         .ok => |ok| return ok,
@@ -1089,7 +866,7 @@ pub fn updatePet(client: *Client, requestBody: Pet) !Owned(Pet) {
     }
 }
 
-pub fn updatePetRaw(client: *Client, requestBody: Pet) !RawResponse {
+pub fn updatePetRaw(client: *Client, requestBody: models.Pet) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
@@ -1103,8 +880,8 @@ pub fn updatePetRaw(client: *Client, requestBody: Pet) !RawResponse {
     return requestRaw(client, std.http.Method.PUT, uri_buf.written(), payload);
 }
 
-pub fn updatePetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
-    return parseRawResponse(Pet, try updatePetRaw(client, requestBody));
+pub fn updatePetResult(client: *Client, requestBody: models.Pet) !ApiResult(models.Pet) {
+    return parseRawResponse(models.Pet, try updatePetRaw(client, requestBody));
 }
 
 /////////////////
@@ -1114,7 +891,7 @@ pub fn updatePetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
 // Description:
 // For valid response try integer IDs with value <= 5 or > 10. Other values will generated exceptions
 //
-pub fn getOrderById(client: *Client, orderId: i64) !Owned(Order) {
+pub fn getOrderById(client: *Client, orderId: i64) !Owned(models.Order) {
     var result = try getOrderByIdResult(client, orderId);
     switch (result) {
         .ok => |ok| return ok,
@@ -1139,8 +916,8 @@ pub fn getOrderByIdRaw(client: *Client, orderId: i64) !RawResponse {
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
 
-pub fn getOrderByIdResult(client: *Client, orderId: i64) !ApiResult(Order) {
-    return parseRawResponse(Order, try getOrderByIdRaw(client, orderId));
+pub fn getOrderByIdResult(client: *Client, orderId: i64) !ApiResult(models.Order) {
+    return parseRawResponse(models.Order, try getOrderByIdRaw(client, orderId));
 }
 
 /////////////////
@@ -1192,25 +969,25 @@ pub fn logoutUserRaw(client: *Client) !RawResponse {
 
 pub const resources = struct {
     pub const pet = struct {
-        pub fn addpet(client: *Client, requestBody: Pet) !Owned(Pet) {
+        pub fn addpet(client: *Client, requestBody: models.Pet) !Owned(models.Pet) {
             return addPet(client, requestBody);
         }
-        pub fn addpetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
+        pub fn addpetResult(client: *Client, requestBody: models.Pet) !ApiResult(models.Pet) {
             return addPetResult(client, requestBody);
         }
         pub fn delete(client: *Client, api_key: []const u8, petId: i64) !void {
             return deletePet(client, api_key, petId);
         }
-        pub fn get(client: *Client, petId: i64) !Owned(Pet) {
+        pub fn get(client: *Client, petId: i64) !Owned(models.Pet) {
             return getPetById(client, petId);
         }
-        pub fn getResult(client: *Client, petId: i64) !ApiResult(Pet) {
+        pub fn getResult(client: *Client, petId: i64) !ApiResult(models.Pet) {
             return getPetByIdResult(client, petId);
         }
-        pub fn updatepet_(client: *Client, requestBody: Pet) !Owned(Pet) {
+        pub fn updatepet_(client: *Client, requestBody: models.Pet) !Owned(models.Pet) {
             return updatePet(client, requestBody);
         }
-        pub fn updatepet_Result(client: *Client, requestBody: Pet) !ApiResult(Pet) {
+        pub fn updatepet_Result(client: *Client, requestBody: models.Pet) !ApiResult(models.Pet) {
             return updatePetResult(client, requestBody);
         }
         pub fn updatepetwithform_(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
@@ -1233,10 +1010,10 @@ pub const resources = struct {
             }
         };
         pub const uploadimage = struct {
-            pub fn uploadfile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(ApiResponse) {
+            pub fn uploadfile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(models.ApiResponse) {
                 return uploadFile(client, petId, additionalMetadata, requestBody);
             }
-            pub fn uploadfileResult(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(ApiResponse) {
+            pub fn uploadfileResult(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(models.ApiResponse) {
                 return uploadFileResult(client, petId, additionalMetadata, requestBody);
             }
         };
@@ -1254,41 +1031,41 @@ pub const resources = struct {
             pub fn delete(client: *Client, orderId: i64) !void {
                 return deleteOrder(client, orderId);
             }
-            pub fn get(client: *Client, orderId: i64) !Owned(Order) {
+            pub fn get(client: *Client, orderId: i64) !Owned(models.Order) {
                 return getOrderById(client, orderId);
             }
-            pub fn getResult(client: *Client, orderId: i64) !ApiResult(Order) {
+            pub fn getResult(client: *Client, orderId: i64) !ApiResult(models.Order) {
                 return getOrderByIdResult(client, orderId);
             }
-            pub fn placeorder(client: *Client, requestBody: Order) !Owned(Order) {
+            pub fn placeorder(client: *Client, requestBody: models.Order) !Owned(models.Order) {
                 return placeOrder(client, requestBody);
             }
-            pub fn placeorderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
+            pub fn placeorderResult(client: *Client, requestBody: models.Order) !ApiResult(models.Order) {
                 return placeOrderResult(client, requestBody);
             }
         };
     };
     pub const user = struct {
-        pub fn create(client: *Client, requestBody: User) !void {
+        pub fn create(client: *Client, requestBody: models.User) !void {
             return createUser(client, requestBody);
         }
         pub fn delete(client: *Client, username: []const u8) !void {
             return deleteUser(client, username);
         }
-        pub fn get(client: *Client, username: []const u8) !Owned(User) {
+        pub fn get(client: *Client, username: []const u8) !Owned(models.User) {
             return getUserByName(client, username);
         }
-        pub fn getResult(client: *Client, username: []const u8) !ApiResult(User) {
+        pub fn getResult(client: *Client, username: []const u8) !ApiResult(models.User) {
             return getUserByNameResult(client, username);
         }
-        pub fn update(client: *Client, username: []const u8, requestBody: User) !void {
+        pub fn update(client: *Client, username: []const u8, requestBody: models.User) !void {
             return updateUser(client, username, requestBody);
         }
         pub const createwithlist = struct {
-            pub fn createuserswithlistinput_(client: *Client, requestBody: []const std.json.Value) !Owned(User) {
+            pub fn createuserswithlistinput_(client: *Client, requestBody: []const std.json.Value) !Owned(models.User) {
                 return createUsersWithListInput(client, requestBody);
             }
-            pub fn createuserswithlistinput_Result(client: *Client, requestBody: []const std.json.Value) !ApiResult(User) {
+            pub fn createuserswithlistinput_Result(client: *Client, requestBody: []const std.json.Value) !ApiResult(models.User) {
                 return createUsersWithListInputResult(client, requestBody);
             }
         };
