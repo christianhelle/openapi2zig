@@ -123,6 +123,8 @@ pub const UnifiedApiGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
     args: cli.CliArgs,
+    model_prefix: []const u8 = "",
+    emit_imports: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
@@ -139,6 +141,16 @@ pub const UnifiedApiGenerator = struct {
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
         self.buffer.clearRetainingCapacity();
         try self.generateHeader();
+        try self.generateApiClient(document);
+        if (self.args.resource_wrappers != .none) {
+            try self.generateResourceWrappers(document);
+        }
+        return try self.allocator.dupe(u8, self.buffer.items);
+    }
+
+    pub fn generateClientOnly(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
+        self.buffer.clearRetainingCapacity();
+        try self.generateHeaderMulti();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
@@ -163,6 +175,26 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
         try self.buffer.appendSlice(self.allocator, "// Generated Zig API client from OpenAPI\n");
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
+        try self.generateRuntimePreamble();
+        try self.generateClientPreamble();
+        try self.generateSsePreamble();
+        try self.generateSseBufferConstants();
+    }
+
+    fn generateHeaderMulti(self: *UnifiedApiGenerator) !void {
+        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
+        try self.buffer.appendSlice(self.allocator, "// Generated Zig API client from OpenAPI\n");
+        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
+        try self.buffer.appendSlice(self.allocator,
+            \\const models = @import("models.zig");
+            \\const runtime = @import("runtime.zig");
+            \\
+        );
+        try self.generateRuntimeReexports();
+        try self.generateClientPreamble();
+    }
+
+    fn generateRuntimePreamble(self: *UnifiedApiGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
             \\
             \\pub fn Owned(comptime T: type) type {
@@ -215,6 +247,26 @@ pub const UnifiedApiGenerator = struct {
             \\
         );
         try self.generateHttpObserverType();
+    }
+
+    fn generateRuntimeReexports(self: *UnifiedApiGenerator) !void {
+        try self.buffer.appendSlice(self.allocator,
+            \\const HttpObserver = runtime.HttpObserver;
+            \\const RawResponse = runtime.RawResponse;
+            \\const ParseErrorResponse = runtime.ParseErrorResponse;
+            \\const ApiResult = runtime.ApiResult;
+            \\const CancellationToken = runtime.CancellationToken;
+            \\const checkCancellation = runtime.checkCancellation;
+            \\const parseSseReader = runtime.parseSseReader;
+            \\const parseSseBytes = runtime.parseSseBytes;
+            \\const parseSseBytesTyped = runtime.parseSseBytesTyped;
+            \\const parseSseReaderTyped = runtime.parseSseReaderTyped;
+            \\const TypedSseCallback = runtime.TypedSseCallback;
+            \\
+        );
+    }
+
+    fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
             \\
             \\pub const Client = struct {
@@ -371,6 +423,12 @@ pub const UnifiedApiGenerator = struct {
             \\    return parseRawResponse(T, try postJsonRaw(client, path, payload));
             \\}
             \\
+        );
+        try self.generateStreamAuthCode();
+    }
+
+    fn generateSsePreamble(self: *UnifiedApiGenerator) !void {
+        try self.buffer.appendSlice(self.allocator,
             \\pub const CancellationToken = struct {
             \\    cancelled: std.atomic.Value(bool),
             \\
@@ -487,6 +545,11 @@ pub const UnifiedApiGenerator = struct {
             \\    try parseSseReader(allocator, reader, &typed_callback, cancellation_token);
             \\}
             \\
+        );
+    }
+
+    fn generateStreamAuthCode(self: *UnifiedApiGenerator) !void {
+        try self.buffer.appendSlice(self.allocator,
             \\fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![]u8 {
             \\    var buf: std.Io.Writer.Allocating = .init(allocator);
             \\    defer buf.deinit();
@@ -602,7 +665,6 @@ pub const UnifiedApiGenerator = struct {
             \\
             \\
         );
-        try self.generateSseBufferConstants();
     }
 
     fn generateSseBufferConstants(self: *UnifiedApiGenerator) !void {
@@ -1848,6 +1910,7 @@ pub const UnifiedApiGenerator = struct {
 
         if (schema.ref) |ref| {
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
+                try self.buffer.appendSlice(self.allocator, self.model_prefix);
                 try self.appendIdentifier(ref[last_slash + 1 ..]);
                 return;
             }
