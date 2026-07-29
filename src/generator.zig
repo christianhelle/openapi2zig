@@ -11,8 +11,10 @@ const OpenApi32Converter = @import("generators/converters/openapi32_converter.zi
 const SwaggerConverter = @import("generators/converters/swagger_converter.zig").SwaggerConverter;
 const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
 const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
+const RuntimeGenerator = @import("generators/unified/runtime_generator.zig").RuntimeGenerator;
 
 const default_output_file: []const u8 = "generated.zig";
+const default_output_dir: []const u8 = "generated";
 
 const Extension = enum {
     YAML,
@@ -106,6 +108,13 @@ fn generateCodeFromJsonContents(allocator: std.mem.Allocator, io: std.Io, json_c
 }
 
 fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, unified_doc: @import("models/common/document.zig").UnifiedDocument, args: cli.CliArgs) !void {
+    const cwd = std.Io.Dir.cwd();
+
+    if (args.multiple_files) {
+        try generateMultipleFiles(allocator, io, cwd, unified_doc, args);
+        return;
+    }
+
     var model_generator = UnifiedModelGenerator.init(allocator);
     defer model_generator.deinit();
     const generated_models = try model_generator.generate(unified_doc);
@@ -130,7 +139,6 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     defer allocator.free(output_code);
 
     const output_path = args.output_path orelse default_output_file;
-    const cwd = std.Io.Dir.cwd();
     if (std.fs.path.dirname(output_path)) |dir_path| {
         try cwd.createDirPath(io, dir_path);
     }
@@ -138,6 +146,54 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     defer output_file.close(io);
     try output_file.writeStreamingAll(io, output_code);
     std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
+}
+
+fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path: []const u8, file_name: []const u8, content: []const u8) !void {
+    const full_path = try std.fs.path.join(allocator, &.{ dir_path, file_name });
+    defer allocator.free(full_path);
+    const output_file = try cwd.createFile(io, full_path, .{});
+    defer output_file.close(io);
+    try output_file.writeStreamingAll(io, content);
+    std.log.info("Wrote '{s}'", .{full_path});
+}
+
+fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, unified_doc: @import("models/common/document.zig").UnifiedDocument, args: cli.CliArgs) !void {
+    const dir_path = args.output_path orelse default_output_dir;
+    try cwd.createDirPath(io, dir_path);
+
+    var model_generator = UnifiedModelGenerator.init(allocator);
+    defer model_generator.deinit();
+    const generated_models = try model_generator.generate(unified_doc);
+    defer allocator.free(generated_models);
+
+    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
+    defer allocator.free(header);
+
+    const models_content = try std.mem.concat(allocator, u8, &.{ header, generated_models });
+    defer allocator.free(models_content);
+    try writeFile(allocator, io, cwd, dir_path, "models.zig", models_content);
+
+    if (args.models_only) return;
+
+    var runtime_gen = RuntimeGenerator.init(allocator, args.sse_buffer);
+    defer runtime_gen.deinit();
+    const generated_runtime = try runtime_gen.generate();
+    defer allocator.free(generated_runtime);
+
+    const runtime_content = try std.mem.concat(allocator, u8, &.{ header, generated_runtime });
+    defer allocator.free(runtime_content);
+    try writeFile(allocator, io, cwd, dir_path, "runtime.zig", runtime_content);
+
+    var api_generator = UnifiedApiGenerator.init(allocator, args);
+    api_generator.model_prefix = "models.";
+    api_generator.emit_imports = true;
+    defer api_generator.deinit();
+    const generated_api = try api_generator.generateClientOnly(unified_doc);
+    defer allocator.free(generated_api);
+
+    const client_content = try std.mem.concat(allocator, u8, &.{ header, generated_api });
+    defer allocator.free(client_content);
+    try writeFile(allocator, io, cwd, dir_path, "client.zig", client_content);
 }
 
 fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anytype, args: cli.CliArgs, comptime Converter: type) !void {
