@@ -124,7 +124,7 @@ pub const UnifiedApiGenerator = struct {
     buffer: std.ArrayList(u8),
     args: cli.CliArgs,
     model_prefix: []const u8 = "",
-    emit_imports: bool = false,
+    emit_imports: bool = true,
 
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
@@ -185,13 +185,15 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
         try self.buffer.appendSlice(self.allocator, "// Generated Zig API client from OpenAPI\n");
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
-        try self.buffer.appendSlice(self.allocator,
-            \\const std = @import("std");
-            \\const models = @import("models.zig");
-            \\const runtime = @import("runtime.zig");
-            \\
-        );
-        try self.generateRuntimeReexports();
+        if (self.emit_imports) {
+            try self.buffer.appendSlice(self.allocator,
+                \\const std = @import("std");
+                \\const models = @import("models.zig");
+                \\const runtime = @import("runtime.zig");
+                \\
+            );
+            try self.generateRuntimeReexports();
+        }
         try self.generateClientPreamble();
     }
 

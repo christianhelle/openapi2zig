@@ -170,15 +170,17 @@ fn printUsage() void {
         \\
         \\ Options:
         \\   -i, --input <PATH_OR_URL>  OpenAPI/Swagger spec (file path or http/https URL)
-        \\   -o, --output <path>        Path to the output file path for the generated Zig code
+        \\   -o, --output <path>        Output file path for the generated Zig code.
         \\                              (default: generated.zig)
+        \\                              When --multiple-files is used, this specifies the
+        \\                              output directory (default: generated/)
         \\   --base-url <url>           Base URL for the API client.
         \\                              (default: server URL from OpenAPI Specification)
         \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
         \\                              (default: paths)
         \\   --models-only              Generate only Zig models, skipping the API client.
-        \\   --multiple-files           Generate separate output files for models, runtime, and API client.
-        \\                              (default: single file; -o specifies output directory)
+        \\   --multiple-files           Generate separate output files for models, runtime, and API client
+        \\                              into the output directory specified by -o.
         \\   --sse-buffer <mode>        SSE parse buffer size: small (8KB line / 64KB event)
         \\                              or large (256KB line / 1MB event). (default: small)
         \\
