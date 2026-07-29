@@ -20,6 +20,10 @@ pub const RuntimeGenerator = struct {
 
     pub fn generate(self: *RuntimeGenerator) ![]const u8 {
         self.buffer.clearRetainingCapacity();
+        try self.buffer.appendSlice(self.allocator,
+            \\const std = @import("std");
+            \\
+        );
         try self.generateRuntimeTypes();
         try self.generateSseBufferConstants();
         try self.generateSseFunctions();
@@ -28,7 +32,6 @@ pub const RuntimeGenerator = struct {
 
     fn generateRuntimeTypes(self: *RuntimeGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
-            \\
             \\pub fn Owned(comptime T: type) type {
             \\    return struct {
             \\        allocator: std.mem.Allocator,

@@ -186,6 +186,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "// Generated Zig API client from OpenAPI\n");
         try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
         try self.buffer.appendSlice(self.allocator,
+            \\const std = @import("std");
             \\const models = @import("models.zig");
             \\const runtime = @import("runtime.zig");
             \\
@@ -251,6 +252,7 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateRuntimeReexports(self: *UnifiedApiGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
+            \\const Owned = runtime.Owned;
             \\const HttpObserver = runtime.HttpObserver;
             \\const RawResponse = runtime.RawResponse;
             \\const ParseErrorResponse = runtime.ParseErrorResponse;
