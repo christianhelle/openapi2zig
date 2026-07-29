@@ -69,6 +69,7 @@ pub const OpenApi32Converter = @import("generators/converters/openapi32_converte
 // Code generators
 pub const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
 pub const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
+pub const RuntimeGenerator = @import("generators/unified/runtime_generator.zig").RuntimeGenerator;
 
 // CLI argument types for code generation
 pub const CliArgs = @import("cli.zig").CliArgs;
@@ -235,6 +236,55 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, unified_doc: Unifi
     defer allocator.free(api_code);
 
     return try std.mem.concat(allocator, u8, &.{ header, models_code, "\n", api_code });
+}
+
+/// Result of generating code in multiple-files mode.
+pub const GeneratedFiles = struct {
+    models: []const u8,
+    runtime: ?[]const u8 = null,
+    client: ?[]const u8 = null,
+};
+
+/// Generate separate Zig source files (models, runtime, client) from a unified document.
+/// Only the models field is always present; runtime and client are null when
+/// args.models_only is true.
+pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) !GeneratedFiles {
+    const models_code = try generateModels(allocator, unified_doc);
+    errdefer allocator.free(models_code);
+
+    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
+    errdefer allocator.free(header);
+
+    const models_with_header = try std.mem.concat(allocator, u8, &.{ header, models_code });
+    errdefer allocator.free(models_with_header);
+
+    if (args.models_only) {
+        return .{ .models = models_with_header };
+    }
+
+    var runtime_gen = RuntimeGenerator.init(allocator, args.sse_buffer);
+    defer runtime_gen.deinit();
+    const runtime_code = try runtime_gen.generate();
+    errdefer allocator.free(runtime_code);
+
+    const runtime_with_header = try std.mem.concat(allocator, u8, &.{ header, runtime_code });
+    errdefer allocator.free(runtime_with_header);
+
+    var api_gen = UnifiedApiGenerator.init(allocator, args);
+    api_gen.model_prefix = "models.";
+    api_gen.emit_imports = true;
+    defer api_gen.deinit();
+    const api_code = try api_gen.generateClientOnly(unified_doc);
+    errdefer allocator.free(api_code);
+
+    const client_with_header = try std.mem.concat(allocator, u8, &.{ header, api_code });
+    errdefer allocator.free(client_with_header);
+
+    return .{
+        .models = models_with_header,
+        .runtime = runtime_with_header,
+        .client = client_with_header,
+    };
 }
 
 fn convertDocument(allocator: std.mem.Allocator, doc: anytype, comptime Converter: type) !UnifiedDocument {
