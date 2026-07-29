@@ -73,6 +73,20 @@ pub fn build(b: *std.Build) void {
     const run_generate_v3_step = b.step("run-generate-v3", "Run the app with generate command");
     run_generate_v3_step.dependOn(&run_generate_v3_cmd.step);
 
+    const run_generate_v3_multi_cmd = b.addRunArtifact(exe);
+    run_generate_v3_multi_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/multi",
+        "--multiple-files",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_multi_step = b.step("run-generate-v3-multi", "Generate multiple output files (models, runtime, client)");
+    run_generate_v3_multi_step.dependOn(&run_generate_v3_multi_cmd.step);
+
     const run_generate_v2_cmd = b.addRunArtifact(exe);
     run_generate_v2_cmd.addArgs(&.{
         "generate",
@@ -188,6 +202,7 @@ pub fn build(b: *std.Build) void {
 
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
+    run_generate.dependOn(&run_generate_v3_multi_cmd.step);
     run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
     run_generate.dependOn(&run_generate_v2_yaml_cmd.step);
@@ -232,6 +247,16 @@ pub fn build(b: *std.Build) void {
     });
     const run_generated_tests = b.addRunArtifact(generated_tests);
     test_step.dependOn(&run_generated_tests.step);
+
+    const multi_generated_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("generated/compile_multi_generated.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_multi_generated_tests = b.addRunArtifact(multi_generated_tests);
+    test_step.dependOn(&run_multi_generated_tests.step);
 
     const test_package_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "build" });
     test_package_cmd.step.dependOn(package_snapshot_step);

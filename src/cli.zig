@@ -33,6 +33,7 @@ pub const CliArgs = struct {
     base_url: ?[]const u8 = null,
     resource_wrappers: ResourceWrapperMode = .paths,
     models_only: bool = false,
+    multiple_files: bool = false,
     sse_buffer: SseBufferMode = .small,
 };
 
@@ -63,6 +64,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var base_url: ?[]const u8 = null;
     var resource_wrappers: ResourceWrapperMode = .paths;
     var models_only = false;
+    var multiple_files = false;
     var sse_buffer: SseBufferMode = .small;
 
     var i: usize = 2;
@@ -107,6 +109,8 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             };
         } else if (std.mem.eql(u8, arg, "--models-only")) {
             models_only = true;
+        } else if (std.mem.eql(u8, arg, "--multiple-files")) {
+            multiple_files = true;
         } else if (std.mem.eql(u8, arg, "--sse-buffer")) {
             i += 1;
             if (i >= args.len) {
@@ -135,6 +139,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .base_url = base_url,
             .resource_wrappers = resource_wrappers,
             .models_only = models_only,
+            .multiple_files = multiple_files,
             .sse_buffer = sse_buffer,
         },
     };
@@ -165,13 +170,17 @@ fn printUsage() void {
         \\
         \\ Options:
         \\   -i, --input <PATH_OR_URL>  OpenAPI/Swagger spec (file path or http/https URL)
-        \\   -o, --output <path>        Path to the output file path for the generated Zig code
+        \\   -o, --output <path>        Output file path for the generated Zig code.
         \\                              (default: generated.zig)
+        \\                              When --multiple-files is used, this specifies the
+        \\                              output directory (default: generated/)
         \\   --base-url <url>           Base URL for the API client.
         \\                              (default: server URL from OpenAPI Specification)
         \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
         \\                              (default: paths)
         \\   --models-only              Generate only Zig models, skipping the API client.
+        \\   --multiple-files           Generate separate output files for models, runtime, and API client
+        \\                              into the output directory specified by -o.
         \\   --sse-buffer <mode>        SSE parse buffer size: small (8KB line / 64KB event)
         \\                              or large (256KB line / 1MB event). (default: small)
         \\
@@ -220,4 +229,19 @@ test "parse upgrade" {
     const parsed = try parse(&argv);
 
     try std.testing.expect(parsed.upgrade);
+}
+
+test "parse generate supports multiple-files flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expect(parsed.args.multiple_files);
+    try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
 }

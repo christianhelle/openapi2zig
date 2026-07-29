@@ -7,6 +7,7 @@ const v31_yaml = @import("generated_v31_yaml.zig");
 const lmstudio = @import("lmstudio.zig");
 const openai = @import("openai.zig");
 const anthropic = @import("anthropic.zig");
+const multi_v3 = @import("multi/client.zig");
 
 fn logRequest(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void {
     _ = ctx;
@@ -66,6 +67,14 @@ pub fn main(init: std.process.Init) !void {
     defer v2_yaml_client.deinit();
     var v31_yaml_client = v31_yaml.Client.init(allocator, io, "");
     defer v31_yaml_client.deinit();
+    var multi_v3_client = multi_v3.Client.init(allocator, io, "");
+    multi_v3_client.http_observer = .{
+        .ctx = null,
+        .onRequest = &logRequest,
+        .onResponse = &logResponse,
+        .onError = &logError,
+    };
+    defer multi_v3_client.deinit();
     _ = &v3_yaml_client;
     _ = &v2_yaml_client;
     _ = &v31_yaml_client;
@@ -87,4 +96,11 @@ pub fn main(init: std.process.Init) !void {
     };
     defer pet2.deinit();
     std.debug.print("Found Pet v2 with ID:{any}\n\n", .{pet2.value().id});
+
+    var multi_pet = multi_v3.getPetById(&multi_v3_client, 1) catch |err| {
+        std.debug.print("Failed to get Pet (multi-file): {any}\n", .{err});
+        return;
+    };
+    defer multi_pet.deinit();
+    std.debug.print("Found Pet (multi-file) with ID:{any}\n\n", .{multi_pet.value().id});
 }
