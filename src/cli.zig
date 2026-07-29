@@ -33,6 +33,7 @@ pub const CliArgs = struct {
     base_url: ?[]const u8 = null,
     resource_wrappers: ResourceWrapperMode = .paths,
     models_only: bool = false,
+    multiple_files: bool = false,
     sse_buffer: SseBufferMode = .small,
 };
 
@@ -63,6 +64,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var base_url: ?[]const u8 = null;
     var resource_wrappers: ResourceWrapperMode = .paths;
     var models_only = false;
+    var multiple_files = false;
     var sse_buffer: SseBufferMode = .small;
 
     var i: usize = 2;
@@ -107,6 +109,8 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             };
         } else if (std.mem.eql(u8, arg, "--models-only")) {
             models_only = true;
+        } else if (std.mem.eql(u8, arg, "--multiple-files")) {
+            multiple_files = true;
         } else if (std.mem.eql(u8, arg, "--sse-buffer")) {
             i += 1;
             if (i >= args.len) {
@@ -135,6 +139,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .base_url = base_url,
             .resource_wrappers = resource_wrappers,
             .models_only = models_only,
+            .multiple_files = multiple_files,
             .sse_buffer = sse_buffer,
         },
     };
@@ -172,6 +177,8 @@ fn printUsage() void {
         \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
         \\                              (default: paths)
         \\   --models-only              Generate only Zig models, skipping the API client.
+        \\   --multiple-files           Generate separate output files for models, runtime, and API client.
+        \\                              (default: single file; -o specifies output directory)
         \\   --sse-buffer <mode>        SSE parse buffer size: small (8KB line / 64KB event)
         \\                              or large (256KB line / 1MB event). (default: small)
         \\
