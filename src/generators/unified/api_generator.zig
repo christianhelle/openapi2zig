@@ -672,15 +672,7 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateSseBufferConstants(self: *UnifiedApiGenerator) !void {
-        try self.buffer.appendSlice(self.allocator, "const max_sse_line_size = ");
-        const line_size = try std.fmt.allocPrint(self.allocator, "{d}", .{self.args.sse_buffer.maxLineSize()});
-        defer self.allocator.free(line_size);
-        try self.buffer.appendSlice(self.allocator, line_size);
-        try self.buffer.appendSlice(self.allocator, ";\nconst max_sse_event_size = ");
-        const event_size = try std.fmt.allocPrint(self.allocator, "{d}", .{self.args.sse_buffer.maxEventSize()});
-        defer self.allocator.free(event_size);
-        try self.buffer.appendSlice(self.allocator, event_size);
-        try self.buffer.appendSlice(self.allocator, ";\n\n");
+        try self.buffer.appendSlice(self.allocator, "const max_sse_line_size = 256 * 1024;\nconst max_sse_event_size = 1024 * 1024;\n\n");
     }
 
     fn generateHttpObserverType(self: *UnifiedApiGenerator) !void {
@@ -1333,7 +1325,9 @@ pub const UnifiedApiGenerator = struct {
                         try self.buffer.appendSlice(self.allocator, "std.json.Value");
                     }
                 } else {
-                    if (param.location == .query and !param.required) try self.buffer.appendSlice(self.allocator, "?");
+                    if (param.location == .query and !param.required) {
+                        try self.buffer.appendSlice(self.allocator, "?");
+                    }
                     if (param.schema) |schema| {
                         try self.appendZigQueryTypeFromSchema(schema);
                     } else if (param.type) |param_type| {
@@ -1758,12 +1752,14 @@ pub const UnifiedApiGenerator = struct {
                     try self.buffer.appendSlice(self.allocator, "    // TODO(#53-followup): multipart/form-data and x-www-form-urlencoded request bodies are not yet supported; falling back to JSON encoding.\n");
                     try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
                     try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n\n");
+
                     try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
                     try self.buffer.appendSlice(self.allocator, "    const payload = str.written();\n");
                 },
                 else => {
                     try self.buffer.appendSlice(self.allocator, "\n    var str: std.Io.Writer.Allocating = .init(allocator);\n");
                     try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n\n");
+
                     try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
                     try self.buffer.appendSlice(self.allocator, "    const payload = str.written();\n");
                 },
@@ -1962,3 +1958,4 @@ test "BodyKind :: classifyBody routes media types correctly" {
     try t.expectEqual(BodyKind.text, classifyBody("text/plain; charset=utf-8"));
     try t.expectEqual(BodyKind.form, classifyBody("multipart/form-data; boundary=abc"));
 }
+

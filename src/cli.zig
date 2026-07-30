@@ -8,25 +8,6 @@ pub const ResourceWrapperMode = enum {
     hybrid,
 };
 
-pub const SseBufferMode = enum {
-    small,
-    large,
-
-    pub fn maxLineSize(self: SseBufferMode) usize {
-        return switch (self) {
-            .small => 8 * 1024,
-            .large => 256 * 1024,
-        };
-    }
-
-    pub fn maxEventSize(self: SseBufferMode) usize {
-        return switch (self) {
-            .small => 64 * 1024,
-            .large => 1024 * 1024,
-        };
-    }
-};
-
 pub const CliArgs = struct {
     input_path: []const u8,
     output_path: ?[]const u8 = null,
@@ -34,7 +15,6 @@ pub const CliArgs = struct {
     resource_wrappers: ResourceWrapperMode = .paths,
     models_only: bool = false,
     multiple_files: bool = false,
-    sse_buffer: SseBufferMode = .small,
 };
 
 pub const ParsedArgs = struct {
@@ -65,7 +45,6 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var resource_wrappers: ResourceWrapperMode = .paths;
     var models_only = false;
     var multiple_files = false;
-    var sse_buffer: SseBufferMode = .small;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -111,18 +90,6 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             models_only = true;
         } else if (std.mem.eql(u8, arg, "--multiple-files")) {
             multiple_files = true;
-        } else if (std.mem.eql(u8, arg, "--sse-buffer")) {
-            i += 1;
-            if (i >= args.len) {
-                printUsage();
-                std.debug.print("\nError: SSE buffer mode required\n", .{});
-                return error.InvalidArguments;
-            }
-            sse_buffer = parseSseBufferMode(args[i]) orelse {
-                printUsage();
-                std.debug.print("\nError: invalid SSE buffer mode '{s}'\n", .{args[i]});
-                return error.InvalidArguments;
-            };
         }
     }
 
@@ -140,7 +107,6 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .resource_wrappers = resource_wrappers,
             .models_only = models_only,
             .multiple_files = multiple_files,
-            .sse_buffer = sse_buffer,
         },
     };
 }
@@ -150,12 +116,6 @@ fn parseResourceWrapperMode(value: []const u8) ?ResourceWrapperMode {
     if (std.mem.eql(u8, value, "tags")) return .tags;
     if (std.mem.eql(u8, value, "paths")) return .paths;
     if (std.mem.eql(u8, value, "hybrid")) return .hybrid;
-    return null;
-}
-
-fn parseSseBufferMode(value: []const u8) ?SseBufferMode {
-    if (std.mem.eql(u8, value, "small")) return .small;
-    if (std.mem.eql(u8, value, "large")) return .large;
     return null;
 }
 
@@ -181,8 +141,6 @@ fn printUsage() void {
         \\   --models-only              Generate only Zig models, skipping the API client.
         \\   --multiple-files           Generate separate output files for models, runtime, and API client
         \\                              into the output directory specified by -o.
-        \\   --sse-buffer <mode>        SSE parse buffer size: small (8KB line / 64KB event)
-        \\                              or large (256KB line / 1MB event). (default: small)
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
@@ -243,5 +201,20 @@ test "parse generate supports multiple-files flag" {
     const parsed = try parse(&argv);
 
     try std.testing.expect(parsed.args.multiple_files);
+    try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
+}
+
+test "parse generate silently ignores --sse-buffer flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--sse-buffer",
+        "large",
+    };
+
+    const parsed = try parse(&argv);
+
     try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
 }
