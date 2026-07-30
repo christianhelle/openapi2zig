@@ -2,14 +2,24 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.0...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.1...HEAD)
 
 **Implemented enhancements:**
 
+- Remove --sse-buffer flag, default to large buffer sizes [\#74](https://github.com/christianhelle/openapi2zig/pull/74) ([christianhelle](https://github.com/christianhelle))
+
+## [v0.4.1](https://github.com/christianhelle/openapi2zig/tree/v0.4.1) (2026-07-29)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.0...v0.4.1)
+
+**Implemented enhancements:**
+
+- Add multi-file code generation support \(--multiple-files\) [\#73](https://github.com/christianhelle/openapi2zig/pull/73) ([christianhelle](https://github.com/christianhelle))
 - Update generated header indentation [\#72](https://github.com/christianhelle/openapi2zig/pull/72) ([christianhelle](https://github.com/christianhelle))
 - Remove vendor specific implementation details [\#71](https://github.com/christianhelle/openapi2zig/pull/71) ([christianhelle](https://github.com/christianhelle))
 - Configurable SSE buffer sizes [\#70](https://github.com/christianhelle/openapi2zig/pull/70) ([christianhelle](https://github.com/christianhelle))
 - Fix Anthropic spec compatibility [\#69](https://github.com/christianhelle/openapi2zig/pull/69) ([christianhelle](https://github.com/christianhelle))
+- Remove `type` from reserved keywords [\#68](https://github.com/christianhelle/openapi2zig/pull/68) ([christianhelle](https://github.com/christianhelle))
 
 **Fixed bugs:**
 
@@ -18,10 +28,6 @@
 **Closed issues:**
 
 - application/octet-stream content [\#53](https://github.com/christianhelle/openapi2zig/issues/53)
-
-**Merged pull requests:**
-
-- Remove 'type' from reserved keywords [\#68](https://github.com/christianhelle/openapi2zig/pull/68) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.4.0](https://github.com/christianhelle/openapi2zig/tree/v0.4.0) (2026-07-19)
 
