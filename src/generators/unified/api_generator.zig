@@ -672,7 +672,7 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateSseBufferConstants(self: *UnifiedApiGenerator) !void {
-        try self.buffer.appendSlice(self.allocator, "const max_sse_line_size = 262144;\nconst max_sse_event_size = 1048576;\n\n");
+        try self.buffer.appendSlice(self.allocator, "const max_sse_line_size = 256 * 1024;\nconst max_sse_event_size = 1024 * 1024;\n\n");
     }
 
     fn generateHttpObserverType(self: *UnifiedApiGenerator) !void {
@@ -1958,3 +1958,4 @@ test "BodyKind :: classifyBody routes media types correctly" {
     try t.expectEqual(BodyKind.text, classifyBody("text/plain; charset=utf-8"));
     try t.expectEqual(BodyKind.form, classifyBody("multipart/form-data; boundary=abc"));
 }
+

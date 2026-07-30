@@ -94,7 +94,7 @@ pub const RuntimeGenerator = struct {
     }
 
     fn generateSseBufferConstants(self: *RuntimeGenerator) !void {
-        try self.buffer.appendSlice(self.allocator, "\nconst max_sse_line_size = 262144;\nconst max_sse_event_size = 1048576;\n\n");
+        try self.buffer.appendSlice(self.allocator, "\nconst max_sse_line_size = 256 * 1024;\nconst max_sse_event_size = 1024 * 1024;\n\n");
     }
 
     fn generateSseFunctions(self: *RuntimeGenerator) !void {
@@ -218,3 +218,4 @@ pub const RuntimeGenerator = struct {
         );
     }
 };
+
