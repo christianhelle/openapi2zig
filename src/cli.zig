@@ -245,3 +245,18 @@ test "parse generate supports multiple-files flag" {
     try std.testing.expect(parsed.args.multiple_files);
     try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
 }
+
+test "parse generate accepts --sse-buffer flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--sse-buffer",
+        "large",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
+}
