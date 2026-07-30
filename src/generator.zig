@@ -175,7 +175,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
 
     if (args.models_only) return;
 
-    var runtime_gen = RuntimeGenerator.init(allocator, args.sse_buffer);
+    var runtime_gen = RuntimeGenerator.init(allocator);
     defer runtime_gen.deinit();
     const generated_runtime = try runtime_gen.generate();
     defer allocator.free(generated_runtime);
@@ -227,3 +227,4 @@ test "unsupported OpenAPI versions return a distinct generator error" {
         }),
     );
 }
+

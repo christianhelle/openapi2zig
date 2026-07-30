@@ -1,16 +1,13 @@
 const std = @import("std");
-const cli = @import("../../cli.zig");
 
 pub const RuntimeGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
-    sse_buffer: cli.SseBufferMode,
 
-    pub fn init(allocator: std.mem.Allocator, sse_buffer: cli.SseBufferMode) RuntimeGenerator {
+    pub fn init(allocator: std.mem.Allocator) RuntimeGenerator {
         return RuntimeGenerator{
             .allocator = allocator,
             .buffer = std.ArrayList(u8).empty,
-            .sse_buffer = sse_buffer,
         };
     }
 
@@ -97,15 +94,7 @@ pub const RuntimeGenerator = struct {
     }
 
     fn generateSseBufferConstants(self: *RuntimeGenerator) !void {
-        try self.buffer.appendSlice(self.allocator, "\nconst max_sse_line_size = ");
-        const line_size = try std.fmt.allocPrint(self.allocator, "{d}", .{self.sse_buffer.maxLineSize()});
-        defer self.allocator.free(line_size);
-        try self.buffer.appendSlice(self.allocator, line_size);
-        try self.buffer.appendSlice(self.allocator, ";\nconst max_sse_event_size = ");
-        const event_size = try std.fmt.allocPrint(self.allocator, "{d}", .{self.sse_buffer.maxEventSize()});
-        defer self.allocator.free(event_size);
-        try self.buffer.appendSlice(self.allocator, event_size);
-        try self.buffer.appendSlice(self.allocator, ";\n\n");
+        try self.buffer.appendSlice(self.allocator, "\nconst max_sse_line_size = 262144;\nconst max_sse_event_size = 1048576;\n\n");
     }
 
     fn generateSseFunctions(self: *RuntimeGenerator) !void {

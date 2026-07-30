@@ -268,7 +268,7 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
         return .{ .models = models_with_header };
     }
 
-    var runtime_gen = RuntimeGenerator.init(allocator, args.sse_buffer);
+    var runtime_gen = RuntimeGenerator.init(allocator);
     defer runtime_gen.deinit();
     const runtime_code = try runtime_gen.generate();
     defer allocator.free(runtime_code);
@@ -357,3 +357,4 @@ test {
     std.testing.refAllDecls(@This());
     _ = @import("tests.zig");
 }
+
