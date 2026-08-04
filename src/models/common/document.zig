@@ -234,6 +234,11 @@ pub const UnifiedDocument = struct {
     schemas: ?std.StringHashMap(Schema) = null,
     parameters: ?std.StringHashMap(Parameter) = null,
     responses: ?std.StringHashMap(Response) = null,
+    /// Optional owned copy of the version-specific source document. When set,
+    /// it is kept alive so the borrowed string slices stored in this unified
+    /// document stay valid until the unified document is deinitialized.
+    _owned_source: ?*anyopaque = null,
+    _owned_source_deinit: ?*const fn (source: *anyopaque, allocator: std.mem.Allocator) void = null,
     pub fn deinit(self: *UnifiedDocument, allocator: std.mem.Allocator) void {
         _ = self.info; // Suppress unused field warning
         var path_iterator = self.paths.iterator();
@@ -276,6 +281,10 @@ pub const UnifiedDocument = struct {
                 entry.value_ptr.deinit(allocator);
             }
             responses.deinit();
+        }
+        if (self._owned_source_deinit) |deinit_fn| {
+            deinit_fn(self._owned_source.?, allocator);
+            self._owned_source = null;
         }
     }
 };
