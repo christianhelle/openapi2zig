@@ -153,6 +153,9 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
 fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path: []const u8, file_name: []const u8, content: []const u8) !void {
     const full_path = try std.fs.path.join(allocator, &.{ dir_path, file_name });
     defer allocator.free(full_path);
+    if (std.fs.path.dirname(full_path)) |parent| {
+        try cwd.createDirPath(io, parent);
+    }
     const output_file = try cwd.createFile(io, full_path, .{});
     defer output_file.close(io);
     try output_file.writeStreamingAll(io, content);
@@ -548,3 +551,35 @@ test "generateMultipleFiles with models-only honors the custom models file name"
     try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/client.zig", .{}));
 }
 
+
+test "generateMultipleFiles creates parent directories for file names with subpaths" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .file_names = .{ .models = "gen/models.zig" },
+    });
+
+    const content = try tmp.dir.readFileAlloc(std.testing.io, "out/gen/models.zig", allocator, .unlimited);
+    defer allocator.free(content);
+    try std.testing.expect(content.len > 0);
+}
