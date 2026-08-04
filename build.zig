@@ -230,6 +230,7 @@ pub fn build(b: *std.Build) void {
     run_generate.dependOn(&run_generate_v31_cmd.step);
     run_generate.dependOn(&run_generate_v31_yaml_cmd.step);
     run_generate.dependOn(&run_generate_lmstudio_json_cmd.step);
+    run_generate.dependOn(&run_generate_lmstudio_multi_cmd.step);
     run_generate.dependOn(&run_generate_anthropic_json_cmd.step);
     run_generate.dependOn(&run_generate_openai_json_cmd.step);
 
