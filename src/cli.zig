@@ -368,25 +368,27 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
         return error.InvalidArguments;
     }
 
-    if (findDuplicateFileName(file_names)) |dup| {
-        printUsage();
-        printError("duplicate output file name '{s}' for multiple --file-name options\n", .{dup});
-        return error.InvalidArguments;
-    }
+    if (!models_only) {
+        if (findDuplicateFileName(file_names)) |dup| {
+            printUsage();
+            printError("duplicate output file name '{s}' for multiple --file-name options\n", .{dup});
+            return error.InvalidArguments;
+        }
 
-    var alias_bufs: [3][max_import_alias_len]u8 = undefined;
-    const aliases = effectiveAliasesInto(file_names, &alias_bufs);
+        var alias_bufs: [3][max_import_alias_len]u8 = undefined;
+        const aliases = effectiveAliasesInto(file_names, &alias_bufs);
 
-    if (findDuplicateAlias(aliases)) |dup| {
-        printUsage();
-        printError("output file names map to the same import alias '{s}' for multiple --file-name options\n", .{dup});
-        return error.InvalidArguments;
-    }
+        if (findDuplicateAlias(aliases)) |dup| {
+            printUsage();
+            printError("output file names map to the same import alias '{s}' for multiple --file-name options\n", .{dup});
+            return error.InvalidArguments;
+        }
 
-    if (findReservedAlias(aliases)) |alias| {
-        printUsage();
-        printError("output file name maps to import alias '{s}', which the generated client reserves\n", .{alias});
-        return error.InvalidArguments;
+        if (findReservedAlias(aliases)) |alias| {
+            printUsage();
+            printError("output file name maps to import alias '{s}', which the generated client reserves\n", .{alias});
+            return error.InvalidArguments;
+        }
     }
 
     return .{
@@ -630,6 +632,38 @@ test "parse accepts models override with --models-only" {
 
     const parsed = try parse(&argv);
     try std.testing.expectEqualStrings("types.zig", parsed.args.file_names.models.?);
+}
+
+test "parse accepts models override colliding with a default name under --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--models-only",
+        "--file-name",
+        "models=runtime.zig",
+    };
+
+    const parsed = try parse(&argv);
+    try std.testing.expectEqualStrings("runtime.zig", parsed.args.file_names.models.?);
+}
+
+test "parse accepts models override mapping to the reserved std alias under --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--models-only",
+        "--file-name",
+        "models=std.zig",
+    };
+
+    const parsed = try parse(&argv);
+    try std.testing.expectEqualStrings("std.zig", parsed.args.file_names.models.?);
 }
 
 test "parse rejects --file-name with absolute path" {
