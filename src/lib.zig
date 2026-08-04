@@ -91,30 +91,46 @@ pub fn parseToUnified(allocator: std.mem.Allocator, json_content: []const u8) !U
     const version = try detectVersion(allocator, json_content);
 
     switch (version) {
-        .v3_0 => {
-            var openapi_doc = try OpenApiDocument.parseFromJson(allocator, json_content);
-            defer openapi_doc.deinit(allocator);
-            return convertDocument(allocator, openapi_doc, OpenApiConverter);
-        },
-        .v2_0 => {
-            var swagger_doc = try SwaggerDocument.parseFromJson(allocator, json_content);
-            defer swagger_doc.deinit(allocator);
-            return convertDocument(allocator, swagger_doc, SwaggerConverter);
-        },
-        .v3_1 => {
-            var openapi31_doc = try OpenApi31Document.parseFromJson(allocator, json_content);
-            defer openapi31_doc.deinit(allocator);
-            return convertDocument(allocator, openapi31_doc, OpenApi31Converter);
-        },
-        .v3_2 => {
-            var openapi32_doc = try OpenApi32Document.parseFromJson(allocator, json_content);
-            defer openapi32_doc.deinit(allocator);
-            return convertDocument(allocator, openapi32_doc, OpenApi32Converter);
-        },
+        .v3_0 => return parseUnifiedWithSourceDoc(allocator, json_content, OpenApiDocument, OpenApiConverter),
+        .v2_0 => return parseUnifiedWithSourceDoc(allocator, json_content, SwaggerDocument, SwaggerConverter),
+        .v3_1 => return parseUnifiedWithSourceDoc(allocator, json_content, OpenApi31Document, OpenApi31Converter),
+        .v3_2 => return parseUnifiedWithSourceDoc(allocator, json_content, OpenApi32Document, OpenApi32Converter),
         .Unsupported => {
             return error.UnsupportedApiVersion;
         },
     }
+}
+
+/// Parse a version-specific document, convert it to a unified document, and
+/// keep the parsed document alive as an owned source so the borrowed string
+/// slices in the unified document remain valid until it is deinitialized.
+fn parseUnifiedWithSourceDoc(
+    allocator: std.mem.Allocator,
+    json_content: []const u8,
+    comptime DocType: type,
+    comptime Converter: type,
+) !UnifiedDocument {
+    const doc = try allocator.create(DocType);
+    errdefer allocator.destroy(doc);
+    doc.* = try DocType.parseFromJson(allocator, json_content);
+    errdefer {
+        doc.deinit(allocator);
+        allocator.destroy(doc);
+    }
+    var unified = try convertDocument(allocator, doc.*, Converter);
+    unified._owned_source = doc;
+    unified._owned_source_deinit = sourceDocDeinit(DocType);
+    return unified;
+}
+
+fn sourceDocDeinit(comptime DocType: type) *const fn (source: *anyopaque, allocator: std.mem.Allocator) void {
+    return &struct {
+        fn deinitSource(source: *anyopaque, allocator: std.mem.Allocator) void {
+            const doc: *DocType = @ptrCast(@alignCast(source));
+            doc.deinit(allocator);
+            allocator.destroy(doc);
+        }
+    }.deinitSource;
 }
 
 /// Detect the OpenAPI/Swagger version from a YAML specification.
