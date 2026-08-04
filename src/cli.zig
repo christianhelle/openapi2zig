@@ -80,6 +80,18 @@ fn findDuplicateFileName(file_names: FileNameOverrides) ?[]const u8 {
     return null;
 }
 
+fn validateFileName(name: []const u8) error{InvalidFileName}!void {
+    if (std.fs.path.isAbsolute(name)) return error.InvalidFileName;
+    var fwd = std.mem.splitScalar(u8, name, '/');
+    while (fwd.next()) |part| {
+        if (std.mem.eql(u8, part, "..")) return error.InvalidFileName;
+    }
+    var bwd = std.mem.splitScalar(u8, name, '\\');
+    while (bwd.next()) |part| {
+        if (std.mem.eql(u8, part, "..")) return error.InvalidFileName;
+    }
+}
+
 pub const CliArgs = struct {
     input_path: []const u8,
     output_path: ?[]const u8 = null,
@@ -187,7 +199,15 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
                 std.debug.print("\nError: empty file name for kind '{s}'\n", .{value[0..eq]});
                 return error.InvalidArguments;
             }
-            file_names.set(kind, value[eq + 1 ..]) catch |err| switch (err) {
+            const file_name = value[eq + 1 ..];
+            validateFileName(file_name) catch |err| switch (err) {
+                error.InvalidFileName => {
+                    printUsage();
+                    std.debug.print("\nError: invalid file name '{s}' for kind '{s}'\n", .{ file_name, value[0..eq] });
+                    return error.InvalidArguments;
+                },
+            };
+            file_names.set(kind, file_name) catch |err| switch (err) {
                 error.DuplicateFileOverride => {
                     printUsage();
                     std.debug.print("\nError: duplicate --file-name for kind '{s}'\n", .{value[0..eq]});
@@ -460,4 +480,46 @@ test "parse rejects --file-name without --multiple-files" {
     };
 
     try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects --file-name with absolute path" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--file-name",
+        "models=/etc/passwd.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects --file-name with parent traversal" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--file-name",
+        "models=../escape.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "validateFileName accepts simple relative names" {
+    try validateFileName("types.zig");
+    try validateFileName("gen/models.zig");
+}
+
+test "validateFileName rejects absolute paths" {
+    try std.testing.expectError(error.InvalidFileName, validateFileName("/etc/passwd"));
+}
+
+test "validateFileName rejects parent traversal" {
+    try std.testing.expectError(error.InvalidFileName, validateFileName("../escape.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateFileName("a/../b.zig"));
 }
