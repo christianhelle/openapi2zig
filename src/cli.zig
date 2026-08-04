@@ -120,7 +120,7 @@ fn findDuplicateFileName(file_names: FileNameOverrides) ?[]const u8 {
     while (i < names.len) : (i += 1) {
         var j = i + 1;
         while (j < names.len) : (j += 1) {
-            if (std.mem.eql(u8, names[i], names[j])) return names[i];
+            if (std.ascii.eqlIgnoreCase(names[i], names[j])) return names[i];
         }
     }
     return null;
@@ -700,6 +700,22 @@ test "parse rejects --file-name override mapping to a discard-only alias" {
         "--multiple-files",
         "--file-name",
         "models=-.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects --file-name overrides that differ only by case" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--file-name",
+        "models=Types.zig",
+        "--file-name",
+        "runtime=types.zig",
     };
 
     try std.testing.expectError(error.InvalidArguments, parse(&argv));
