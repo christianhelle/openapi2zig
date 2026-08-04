@@ -201,12 +201,31 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const models_prefix = try std.mem.concat(allocator, u8, &.{ models_alias, "." });
     defer allocator.free(models_prefix);
 
+    const models_import_path = if (std.fs.path.dirname(client_file)) |client_dir|
+        blk: {
+            const raw = try std.fs.path.relative(allocator, ".", null, client_dir, models_file);
+            defer allocator.free(raw);
+            break :blk try std.mem.replaceOwned(u8, allocator, raw, "\\", "/");
+        }
+    else
+        models_file;
+    defer if (std.fs.path.dirname(client_file) != null) allocator.free(models_import_path);
+    const runtime_import_path = if (std.fs.path.dirname(client_file)) |client_dir|
+        blk: {
+            const raw = try std.fs.path.relative(allocator, ".", null, client_dir, runtime_file);
+            defer allocator.free(raw);
+            break :blk try std.mem.replaceOwned(u8, allocator, raw, "\\", "/");
+        }
+    else
+        runtime_file;
+    defer if (std.fs.path.dirname(client_file) != null) allocator.free(runtime_import_path);
+
     var api_generator = UnifiedApiGenerator.init(allocator, args);
     api_generator.model_prefix = models_prefix;
     api_generator.emit_imports = true;
-    api_generator.models_import = models_file;
+    api_generator.models_import = models_import_path;
     api_generator.models_import_alias = models_alias;
-    api_generator.runtime_import = runtime_file;
+    api_generator.runtime_import = runtime_import_path;
     api_generator.runtime_import_alias = runtime_alias;
     defer api_generator.deinit();
     const generated_api = try api_generator.generateClientOnly(unified_doc);
@@ -616,4 +635,57 @@ test "generateMultipleFiles creates parent directories for file names with subpa
     const content = try tmp.dir.readFileAlloc(std.testing.io, "out/gen/models.zig", allocator, .unlimited);
     defer allocator.free(content);
     try std.testing.expect(content.len > 0);
+}
+
+test "generateMultipleFiles computes relative import paths for nested client" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "get": {
+        \\        "operationId": "listPets",
+        \\        "responses": {
+        \\          "200": {
+        \\            "description": "ok",
+        \\            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Pet" } } } }
+        \\          }
+        \\        }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .file_names = .{ .models = "types.zig", .runtime = "http.zig", .client = "sub/client.zig" },
+    });
+
+    const client = try tmp.dir.readFileAlloc(std.testing.io, "out/sub/client.zig", allocator, .unlimited);
+    defer allocator.free(client);
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../types.zig\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../http.zig\")") != null);
 }
