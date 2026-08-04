@@ -13,6 +13,8 @@ const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").
 const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
 const RuntimeGenerator = @import("generators/unified/runtime_generator.zig").RuntimeGenerator;
 
+const openapi2zig = @import("lib.zig");
+
 const default_output_file: []const u8 = "generated.zig";
 const default_output_dir: []const u8 = "generated";
 
@@ -161,6 +163,10 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const dir_path = args.output_path orelse default_output_dir;
     try cwd.createDirPath(io, dir_path);
 
+    const models_file = args.file_names.get(.models) orelse cli.FileKind.models.defaultName();
+    const runtime_file = args.file_names.get(.runtime) orelse cli.FileKind.runtime.defaultName();
+    const client_file = args.file_names.get(.client) orelse cli.FileKind.client.defaultName();
+
     var model_generator = UnifiedModelGenerator.init(allocator);
     defer model_generator.deinit();
     const generated_models = try model_generator.generate(unified_doc);
@@ -171,7 +177,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
 
     const models_content = try std.mem.concat(allocator, u8, &.{ header, generated_models });
     defer allocator.free(models_content);
-    try writeFile(allocator, io, cwd, dir_path, "models.zig", models_content);
+    try writeFile(allocator, io, cwd, dir_path, models_file, models_content);
 
     if (args.models_only) return;
 
@@ -182,18 +188,29 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
 
     const runtime_content = try std.mem.concat(allocator, u8, &.{ header, generated_runtime });
     defer allocator.free(runtime_content);
-    try writeFile(allocator, io, cwd, dir_path, "runtime.zig", runtime_content);
+    try writeFile(allocator, io, cwd, dir_path, runtime_file, runtime_content);
+
+    const models_alias = try deriveAlias(allocator, models_file, "models");
+    defer allocator.free(models_alias);
+    const runtime_alias = try deriveAlias(allocator, runtime_file, "runtime");
+    defer allocator.free(runtime_alias);
+    const models_prefix = try std.mem.concat(allocator, u8, &.{ models_alias, "." });
+    defer allocator.free(models_prefix);
 
     var api_generator = UnifiedApiGenerator.init(allocator, args);
-    api_generator.model_prefix = "models.";
+    api_generator.model_prefix = models_prefix;
     api_generator.emit_imports = true;
+    api_generator.models_import = models_file;
+    api_generator.models_import_alias = models_alias;
+    api_generator.runtime_import = runtime_file;
+    api_generator.runtime_import_alias = runtime_alias;
     defer api_generator.deinit();
     const generated_api = try api_generator.generateClientOnly(unified_doc);
     defer allocator.free(generated_api);
 
     const client_content = try std.mem.concat(allocator, u8, &.{ header, generated_api });
     defer allocator.free(client_content);
-    try writeFile(allocator, io, cwd, dir_path, "client.zig", client_content);
+    try writeFile(allocator, io, cwd, dir_path, client_file, client_content);
 }
 
 fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anytype, args: cli.CliArgs, comptime Converter: type) !void {
@@ -301,5 +318,233 @@ test "deriveAlias falls back to the kind name when the stem is empty" {
     const alias = try deriveAlias(allocator, ".zig", "runtime");
     defer allocator.free(alias);
     try std.testing.expectEqualStrings("runtime", alias);
+}
+
+fn buildPetstoreUnified(allocator: std.mem.Allocator) !@import("models/common/document.zig").UnifiedDocument {
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "post": {
+        \\        "operationId": "addPet",
+        \\        "requestBody": {
+        \\          "required": true,
+        \\          "content": {
+        \\            "application/json": {
+        \\              "schema": { "$ref": "#/components/schemas/Pet" }
+        \\            }
+        \\          }
+        \\        },
+        \\        "responses": {
+        \\          "200": { "description": "ok" }
+        \\        }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+    var openapi = try models.OpenApiDocument.parseFromJson(allocator, json);
+    defer openapi.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    return try converter.convert(openapi);
+}
+
+test "generateMultipleFiles writes custom file names with derived import aliases" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "post": {
+        \\        "operationId": "addPet",
+        \\        "requestBody": {
+        \\          "required": true,
+        \\          "content": {
+        \\            "application/json": {
+        \\              "schema": { "$ref": "#/components/schemas/Pet" }
+        \\            }
+        \\          }
+        \\        },
+        \\        "responses": {
+        \\          "200": { "description": "ok" }
+        \\        }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .file_names = .{ .models = "types.zig", .runtime = "http.zig", .client = "api.zig" },
+    });
+
+    const types = try tmp.dir.readFileAlloc(std.testing.io, "out/types.zig", allocator, .unlimited);
+    defer allocator.free(types);
+    try std.testing.expect(std.mem.indexOf(u8, types, "pub const Pet") != null);
+
+    const http = try tmp.dir.readFileAlloc(std.testing.io, "out/http.zig", allocator, .unlimited);
+    defer allocator.free(http);
+    try std.testing.expect(std.mem.indexOf(u8, http, "pub fn Owned") != null);
+
+    const api = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(api);
+    try std.testing.expect(std.mem.indexOf(u8, api, "const types = @import(\"types.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, api, "const http = @import(\"http.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, api, "const Owned = http.Owned;") != null);
+
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/models.zig", .{}));
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/runtime.zig", .{}));
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/client.zig", .{}));
+}
+
+test "generateMultipleFiles sanitizes the import alias from the file name" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "post": {
+        \\        "operationId": "addPet",
+        \\        "requestBody": {
+        \\          "required": true,
+        \\          "content": {
+        \\            "application/json": {
+        \\              "schema": { "$ref": "#/components/schemas/Pet" }
+        \\            }
+        \\          }
+        \\        },
+        \\        "responses": {
+        \\          "200": { "description": "ok" }
+        \\        }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .file_names = .{ .models = "my-types.zig" },
+    });
+
+    const api = try tmp.dir.readFileAlloc(std.testing.io, "out/client.zig", allocator, .unlimited);
+    defer allocator.free(api);
+    try std.testing.expect(std.mem.indexOf(u8, api, "const my_types = @import(\"my-types.zig\");") != null);
+}
+
+test "generateMultipleFiles with models-only honors the custom models file name" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "post": {
+        \\        "operationId": "addPet",
+        \\        "requestBody": {
+        \\          "required": true,
+        \\          "content": {
+        \\            "application/json": {
+        \\              "schema": { "$ref": "#/components/schemas/Pet" }
+        \\            }
+        \\          }
+        \\        },
+        \\        "responses": {
+        \\          "200": { "description": "ok" }
+        \\        }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .models_only = true,
+        .output_path = "out",
+        .file_names = .{ .models = "types.zig" },
+    });
+
+    const types = try tmp.dir.readFileAlloc(std.testing.io, "out/types.zig", allocator, .unlimited);
+    defer allocator.free(types);
+    try std.testing.expect(std.mem.indexOf(u8, types, "pub const Pet") != null);
+
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/runtime.zig", .{}));
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/client.zig", .{}));
 }
 
