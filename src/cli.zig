@@ -65,14 +65,16 @@ pub const FileNameOverrides = struct {
 };
 
 fn findDuplicateFileName(file_names: FileNameOverrides) ?[]const u8 {
-    const names = [_]?[]const u8{ file_names.models, file_names.runtime, file_names.client };
+    const names = [_][]const u8{
+        file_names.models orelse FileKind.models.defaultName(),
+        file_names.runtime orelse FileKind.runtime.defaultName(),
+        file_names.client orelse FileKind.client.defaultName(),
+    };
     var i: usize = 0;
     while (i < names.len) : (i += 1) {
-        const first = names[i] orelse continue;
         var j = i + 1;
         while (j < names.len) : (j += 1) {
-            const second = names[j] orelse continue;
-            if (std.mem.eql(u8, first, second)) return first;
+            if (std.mem.eql(u8, names[i], names[j])) return names[i];
         }
     }
     return null;
@@ -428,6 +430,20 @@ test "parse rejects --file-name overrides mapping to the same file" {
         "models=foo.zig",
         "--file-name",
         "runtime=foo.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects --file-name override that collides with another kind default" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--file-name",
+        "models=runtime.zig",
     };
 
     try std.testing.expectError(error.InvalidArguments, parse(&argv));
