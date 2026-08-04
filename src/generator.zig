@@ -12,6 +12,7 @@ const SwaggerConverter = @import("generators/converters/swagger_converter.zig").
 const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
 const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
 const RuntimeGenerator = @import("generators/unified/runtime_generator.zig").RuntimeGenerator;
+const ident = @import("generators/unified/ident_utils.zig");
 
 const openapi2zig = @import("lib.zig");
 
@@ -240,7 +241,16 @@ fn deriveAlias(allocator: std.mem.Allocator, file_name: []const u8, fallback: []
             try buf.append(allocator, '_');
         }
     }
-    return buf.toOwnedSlice(allocator);
+    const result = try buf.toOwnedSlice(allocator);
+    if (ident.isReservedIdent(result)) {
+        defer allocator.free(result);
+        var prefixed = std.ArrayList(u8).empty;
+        defer prefixed.deinit(allocator);
+        try prefixed.append(allocator, '_');
+        try prefixed.appendSlice(allocator, result);
+        return try prefixed.toOwnedSlice(allocator);
+    }
+    return result;
 }
 
 test "unsupported OpenAPI versions return a distinct generator error" {
@@ -321,6 +331,30 @@ test "deriveAlias falls back to the kind name when the stem is empty" {
     const alias = try deriveAlias(allocator, ".zig", "runtime");
     defer allocator.free(alias);
     try std.testing.expectEqualStrings("runtime", alias);
+}
+
+test "deriveAlias prefixes underscore for reserved Zig keywords" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const alias = try deriveAlias(allocator, "if.zig", "models");
+    defer allocator.free(alias);
+    try std.testing.expectEqualStrings("_if", alias);
+}
+
+test "deriveAlias handles collision between models.zig and a-b.zig" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const alias1 = try deriveAlias(allocator, "models.zig", "models");
+    defer allocator.free(alias1);
+    const alias2 = try deriveAlias(allocator, "a-b.zig", "models");
+    defer allocator.free(alias2);
+    try std.testing.expect(!std.mem.eql(u8, alias1, alias2));
 }
 
 fn buildPetstoreUnified(allocator: std.mem.Allocator) !@import("models/common/document.zig").UnifiedDocument {
