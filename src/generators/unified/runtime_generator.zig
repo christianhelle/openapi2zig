@@ -20,6 +20,7 @@ pub const RuntimeGenerator = struct {
         try self.buffer.appendSlice(self.allocator,
             \\const std = @import("std");
             \\
+            \\
         );
         try self.generateRuntimeTypes();
         try self.generateSseBufferConstants();
@@ -218,4 +219,3 @@ pub const RuntimeGenerator = struct {
         );
     }
 };
-
