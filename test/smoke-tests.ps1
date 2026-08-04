@@ -256,6 +256,62 @@ foreach ($spec in $Specs) {
 }
 
 # ---------------------------------------------------------------------------
+# Multi-file with custom file names
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "==> Multi-file with custom file names" -ForegroundColor Cyan
+
+$multiSpec = Join-Path $RepoRoot "openapi/v3.0/petstore.json"
+$multiOutDir = Join-Path $OutputDir "multi-custom"
+if (-not (Test-Path $multiOutDir)) { New-Item -ItemType Directory -Path $multiOutDir -Force | Out-Null }
+
+$multiFileArgs = @(
+    "generate",
+    "-i", $multiSpec,
+    "-o", $multiOutDir,
+    "--multiple-files",
+    "--file-name", "models=types.zig",
+    "--file-name", "runtime=http.zig",
+    "--file-name", "client=api.zig"
+)
+
+$genOutput = & $Cli @multiFileArgs 2>&1
+$genExit = $LASTEXITCODE
+if ($genExit -ne 0) {
+    Write-Host "FAIL (multi-file generate)" -ForegroundColor Red
+    Write-Host ($genOutput | Out-String)
+    $results.Add([pscustomobject]@{
+        Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "fail"; Phase = "generate"
+        ExitCode = $genExit; Output = ($genOutput | Out-String)
+    })
+} else {
+    $clientFile = Join-Path $multiOutDir "api.zig"
+    if (-not (Test-Path $clientFile)) {
+        Write-Host "FAIL (multi-file: api.zig not found)" -ForegroundColor Red
+        $results.Add([pscustomobject]@{
+            Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "fail"; Phase = "generate"
+            ExitCode = 0; Output = "api.zig not found"
+        })
+    } else {
+        $testOutput = & $ZigPath test $clientFile 2>&1
+        $testExit = $LASTEXITCODE
+        if ($testExit -ne 0) {
+            Write-Host "FAIL (multi-file compile)" -ForegroundColor Red
+            Write-Host ($testOutput | Out-String)
+            $results.Add([pscustomobject]@{
+                Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "fail"; Phase = "compile"
+                ExitCode = $testExit; Output = ($testOutput | Out-String)
+            })
+        } else {
+            Write-Host "PASS multi-file with custom names" -ForegroundColor Green
+            $results.Add([pscustomobject]@{
+                Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "pass"
+            })
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 $pass = @($results | Where-Object Status -eq "pass").Count
