@@ -96,13 +96,13 @@ fn getTempDir(allocator: std.mem.Allocator, environ_map: *std.process.Environ.Ma
 fn fetchLatestVersion(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     const command = if (builtin.os.tag == .windows)
         [_][]const u8{
-            "powershell", "-NoProfile", "-Command",
+            "powershell",                                                                                                                                   "-NoProfile", "-Command",
             "(Invoke-RestMethod 'https://api.github.com/repos/" ++ GITHUB_REPO ++ "/releases/latest' -Headers @{ 'User-Agent' = 'openapi2zig' }).tag_name",
         }
     else
         [_][]const u8{
-            "curl", "-s",
-            "-H", "User-Agent: openapi2zig",
+            "curl",                                                               "-s",
+            "-H",                                                                 "User-Agent: openapi2zig",
             "https://api.github.com/repos/" ++ GITHUB_REPO ++ "/releases/latest",
         };
 
@@ -196,37 +196,104 @@ fn extractArchive(allocator: std.mem.Allocator, io: std.Io, archive_path: []cons
     if (result.term != .exited or result.term.exited != 0) return error.UpgradeFailed;
 }
 
-fn replaceBinary(allocator: std.mem.Allocator, io: std.Io, new_binary_path: []const u8) !void {
+/// Name of the PowerShell helper script written to the temporary upgrade dir.
+const upgrade_helper_script_name = "upgrade_helper.ps1";
+
+/// PowerShell script executed by a detached helper process. It waits for the
+/// parent process to fully exit (releasing the OS lock on the running
+/// executable), replaces the executable, and removes the temporary upgrade
+/// directory. Paths and the parent PID are passed as command-line arguments.
+const upgrade_helper_script =
+    \\param(
+    \\    [int]$ParentPid,
+    \\    [string]$ExePath,
+    \\    [string]$NewBinary,
+    \\    [string]$TempDir
+    \\)
+    \\
+    \\$ErrorActionPreference = 'Stop'
+    \\
+    \\# Wait for the parent process to fully exit and release the exe lock.
+    \\$deadline = (Get-Date).AddSeconds(60)
+    \\while (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue) {
+    \\    if ((Get-Date) -gt $deadline) { exit 1 }
+    \\    Start-Sleep -Milliseconds 200
+    \\}
+    \\
+    \\# Resolve the real file when the exe path is a symlink (e.g. winget Links).
+    \\$item = Get-Item -LiteralPath $ExePath -ErrorAction SilentlyContinue
+    \\$realExe = $ExePath
+    \\if ($null -ne $item -and $null -ne $item.LinkType) {
+    \\    $realExe = $item.Target
+    \\}
+    \\
+    \\# Copy with retries in case the file lock lingers briefly after exit.
+    \\$maxAttempts = 10
+    \\for ($i = 0; $i -lt $maxAttempts; $i++) {
+    \\    try {
+    \\        Copy-Item -LiteralPath $NewBinary -Destination $realExe -Force
+    \\        break
+    \\    } catch {
+    \\        if ($i -eq ($maxAttempts - 1)) { exit 2 }
+    \\        Start-Sleep -Milliseconds 300
+    \\    }
+    \\}
+    \\
+    \\# Remove the temporary upgrade directory (including this script).
+    \\Remove-Item -LiteralPath $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+;
+
+/// On Windows the running executable cannot be renamed or overwritten while in
+/// use (error.FileBusy). Instead of attempting the swap directly, we write a
+/// helper script and spawn a detached PowerShell process that waits for this
+/// process to exit, then replaces the executable.
+fn deferBinarySwap(allocator: std.mem.Allocator, io: std.Io, exe_path: []const u8, new_binary_path: []const u8, tmp_sub_path: []const u8) !void {
+    const parent_pid = std.os.windows.GetCurrentProcessId();
+
+    const script_path = try std.fs.path.join(allocator, &.{ tmp_sub_path, upgrade_helper_script_name });
+    defer allocator.free(script_path);
+
+    var sub_dir = try std.Io.Dir.cwd().openDir(io, tmp_sub_path, .{});
+    defer sub_dir.close(io);
+    try sub_dir.writeFile(io, .{ .sub_path = upgrade_helper_script_name, .data = upgrade_helper_script });
+
+    const pid_str = try std.fmt.allocPrint(allocator, "{d}", .{parent_pid});
+    defer allocator.free(pid_str);
+
+    // Spawn the helper without waiting for it: it must outlive this process to
+    // replace the running executable once the OS releases the file lock.
+    if (std.process.spawn(io, .{
+        .argv = &.{
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            script_path,
+            pid_str,
+            exe_path,
+            new_binary_path,
+            tmp_sub_path,
+        },
+        .create_no_window = true,
+        .stdin = .ignore,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    })) |child| {
+        // Intentionally leave the helper running; do not wait or kill it.
+        _ = child;
+    } else |err| {
+        std.debug.print("  Warning: could not launch upgrade helper: {}\n", .{err});
+        return error.UpgradeFailed;
+    }
+}
+
+fn replaceBinary(allocator: std.mem.Allocator, io: std.Io, new_binary_path: []const u8, tmp_sub_path: []const u8) !void {
     const exe_path = try std.process.executablePathAlloc(io, allocator);
     defer allocator.free(exe_path);
 
-    const platform = getPlatform();
-
-    if (isWindows(platform)) {
-        const old_path = try std.fmt.allocPrint(allocator, "{s}.old", .{exe_path});
-        defer allocator.free(old_path);
-
-        std.Io.Dir.renameAbsolute(exe_path, old_path, io) catch |err| {
-            std.debug.print("  Warning: could not rename current binary: {}\n", .{err});
-            try copyFile(allocator, io, new_binary_path, exe_path);
-            return;
-        };
-
-        copyFile(allocator, io, new_binary_path, exe_path) catch |err| {
-            std.debug.print("  Warning: could not copy new binary: {}\n", .{err});
-            std.Io.Dir.renameAbsolute(old_path, exe_path, io) catch {};
-            return error.UpgradeFailed;
-        };
-
-        const cleanup_cmd = try std.fmt.allocPrint(allocator, "Start-Sleep 2; Remove-Item -Force '{s}'", .{old_path});
-        defer allocator.free(cleanup_cmd);
-
-        if (std.process.run(allocator, io, .{
-            .argv = &[_][]const u8{ "powershell", "-NoProfile", "-Command", cleanup_cmd },
-        })) |cleanup_result| {
-            allocator.free(cleanup_result.stdout);
-            allocator.free(cleanup_result.stderr);
-        } else |_| {}
+    if (builtin.os.tag == .windows) {
+        try deferBinarySwap(allocator, io, exe_path, new_binary_path, tmp_sub_path);
     } else {
         try copyFile(allocator, io, new_binary_path, exe_path);
     }
@@ -241,8 +308,13 @@ fn copyFile(allocator: std.mem.Allocator, io: std.Io, src: []const u8, dst: []co
         try std.process.run(allocator, io, .{
             .argv = &[_][]const u8{ "cp", "-f", src, dst },
         });
-    allocator.free(result.stdout);
-    allocator.free(result.stderr);
+    defer allocator.free(result.stdout);
+    defer allocator.free(result.stderr);
+
+    if (result.term != .exited or result.term.exited != 0) {
+        std.debug.print("  Warning: could not copy {s} to {s}: term={}\n", .{ src, dst, result.term });
+        return error.UpgradeFailed;
+    }
 }
 
 pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !void {
@@ -303,7 +375,7 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.E
     defer allocator.free(new_binary);
 
     std.debug.print("  Installing...\n", .{});
-    try replaceBinary(allocator, io, new_binary);
+    try replaceBinary(allocator, io, new_binary, tmp_sub);
 
     std.debug.print("  Upgrade complete. Re-run the command to use the new version.\n", .{});
 }
@@ -335,4 +407,13 @@ test "isLinux returns true only for linux" {
 test "version comparison skips v prefix" {
     try std.testing.expect(std.mem.eql(u8, "0.2.0", (if (std.mem.startsWith(u8, "v0.2.0", "v")) "v0.2.0"[1..] else "v0.2.0")));
     try std.testing.expect(std.mem.eql(u8, "0.2.0", (if (std.mem.startsWith(u8, "0.2.0", "v")) "0.2.0"[1..] else "0.2.0")));
+}
+
+test "upgrade helper script waits for the parent process to exit" {
+    try std.testing.expect(std.mem.indexOf(u8, upgrade_helper_script, "Get-Process -Id $ParentPid") != null);
+}
+
+test "upgrade helper script copies the binary and cleans up" {
+    try std.testing.expect(std.mem.indexOf(u8, upgrade_helper_script, "Copy-Item") != null);
+    try std.testing.expect(std.mem.indexOf(u8, upgrade_helper_script, "Remove-Item") != null);
 }

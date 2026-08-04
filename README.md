@@ -253,6 +253,23 @@ openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --base-url https:/
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --resource-wrappers none
 ```
 
+### Upgrading
+
+`openapi2zig upgrade` checks for the latest release, downloads it, and replaces the current binary.
+
+```bash
+openapi2zig upgrade
+```
+
+After the upgrade finishes, re-run the command to use the new version.
+
+On Windows the running executable is locked by the operating system and cannot be
+replaced while the process is alive. The upgrade therefore defers the swap to a small
+detached PowerShell helper: it waits for the current process to exit, replaces the
+executable (resolving symlinks, e.g. winget `Links`), and removes the temporary upgrade
+files. The helper survives the parent process, so the new version is in place the next
+time the command is run.
+
 ### Generated sample files
 
 The build script also includes curated sample-generation targets used by the checked-in generated harness:
