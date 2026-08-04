@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
+## [v0.4.2](https://github.com/christianhelle/openapi2zig/tree/v0.4.2) (2026-07-30)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.1...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.1...v0.4.2)
 
 **Implemented enhancements:**
 
