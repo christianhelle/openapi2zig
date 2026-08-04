@@ -263,7 +263,8 @@ Write-Host "==> Multi-file with custom file names" -ForegroundColor Cyan
 
 $multiSpec = Join-Path $RepoRoot "openapi/v3.0/petstore.json"
 $multiOutDir = Join-Path $OutputDir "multi-custom"
-if (-not (Test-Path $multiOutDir)) { New-Item -ItemType Directory -Path $multiOutDir -Force | Out-Null }
+if (Test-Path $multiOutDir) { Remove-Item $multiOutDir -Recurse -Force }
+New-Item -ItemType Directory -Path $multiOutDir -Force | Out-Null
 
 $multiFileArgs = @(
     "generate",
@@ -272,7 +273,7 @@ $multiFileArgs = @(
     "--multiple-files",
     "--file-name", "models=types.zig",
     "--file-name", "runtime=http.zig",
-    "--file-name", "client=api.zig"
+    "--file-name", "client=sub/api.zig"
 )
 
 $genOutput = & $Cli @multiFileArgs 2>&1
@@ -285,12 +286,18 @@ if ($genExit -ne 0) {
         ExitCode = $genExit; Output = ($genOutput | Out-String)
     })
 } else {
-    $clientFile = Join-Path $multiOutDir "api.zig"
-    if (-not (Test-Path $clientFile)) {
-        Write-Host "FAIL (multi-file: api.zig not found)" -ForegroundColor Red
+    $modelsFile = Join-Path $multiOutDir "types.zig"
+    $runtimeFile = Join-Path $multiOutDir "http.zig"
+    $clientFile = Join-Path $multiOutDir "sub/api.zig"
+    $missing = @()
+    if (-not (Test-Path $modelsFile)) { $missing += "types.zig" }
+    if (-not (Test-Path $runtimeFile)) { $missing += "http.zig" }
+    if (-not (Test-Path $clientFile)) { $missing += "sub/api.zig" }
+    if ($missing.Count -gt 0) {
+        Write-Host "FAIL (multi-file: $($missing -join ', ') not found)" -ForegroundColor Red
         $results.Add([pscustomobject]@{
             Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "fail"; Phase = "generate"
-            ExitCode = 0; Output = "api.zig not found"
+            ExitCode = 0; Output = "$($missing -join ', ') not found"
         })
     } else {
         $testOutput = & $ZigPath test $clientFile 2>&1
