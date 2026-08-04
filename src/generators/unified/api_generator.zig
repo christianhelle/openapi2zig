@@ -20,6 +20,22 @@ fn endsWithIgnoreCase(haystack: []const u8, suffix: []const u8) bool {
     return std.ascii.eqlIgnoreCase(haystack[haystack.len - suffix.len ..], suffix);
 }
 
+fn escapeZigString(allocator: std.mem.Allocator, input: []const u8) ![]const u8 {
+    var buf = std.ArrayList(u8).empty;
+    defer buf.deinit(allocator);
+    for (input) |c| {
+        switch (c) {
+            '\\' => try buf.appendSlice(allocator, "\\\\"),
+            '"' => try buf.appendSlice(allocator, "\\\""),
+            '\n' => try buf.appendSlice(allocator, "\\n"),
+            '\r' => try buf.appendSlice(allocator, "\\r"),
+            '\t' => try buf.appendSlice(allocator, "\\t"),
+            else => try buf.append(allocator, c),
+        }
+    }
+    return try buf.toOwnedSlice(allocator);
+}
+
 fn classifyBody(content_type: ?[]const u8) BodyKind {
     const raw = content_type orelse return .json;
     const ct = media_type.baseMediaType(raw);
@@ -184,12 +200,16 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateHeaderMulti(self: *UnifiedApiGenerator) !void {
         if (self.emit_imports) {
+            const escaped_models = try escapeZigString(self.allocator, self.models_import);
+            defer self.allocator.free(escaped_models);
+            const escaped_runtime = try escapeZigString(self.allocator, self.runtime_import);
+            defer self.allocator.free(escaped_runtime);
             const imports = try std.fmt.allocPrint(self.allocator,
                 \\const std = @import("std");
                 \\const {s} = @import("{s}");
                 \\const {s} = @import("{s}");
                 \\
-            , .{ self.models_import_alias, self.models_import, self.runtime_import_alias, self.runtime_import });
+            , .{ self.models_import_alias, escaped_models, self.runtime_import_alias, escaped_runtime });
             defer self.allocator.free(imports);
             try self.buffer.appendSlice(self.allocator, imports);
             try self.generateRuntimeReexports();
