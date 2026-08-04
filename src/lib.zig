@@ -113,10 +113,7 @@ fn parseUnifiedWithSourceDoc(
     const doc = try allocator.create(DocType);
     errdefer allocator.destroy(doc);
     doc.* = try DocType.parseFromJson(allocator, json_content);
-    errdefer {
-        doc.deinit(allocator);
-        allocator.destroy(doc);
-    }
+    errdefer doc.deinit(allocator);
     var unified = try convertDocument(allocator, doc.*, Converter);
     unified._owned_source = doc;
     unified._owned_source_deinit = sourceDocDeinit(DocType);
