@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.2...HEAD)
+
+**Implemented enhancements:**
+
+- Add empty lines between headers and generated content [\#75](https://github.com/christianhelle/openapi2zig/pull/75) ([christianhelle](https://github.com/christianhelle))
+
 ## [v0.4.2](https://github.com/christianhelle/openapi2zig/tree/v0.4.2) (2026-07-30)
 
 [Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.1...v0.4.2)
