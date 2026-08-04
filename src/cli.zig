@@ -120,10 +120,23 @@ fn findDuplicateFileName(file_names: FileNameOverrides) ?[]const u8 {
     while (i < names.len) : (i += 1) {
         var j = i + 1;
         while (j < names.len) : (j += 1) {
-            if (std.ascii.eqlIgnoreCase(names[i], names[j])) return names[i];
+            if (fileNamesCollide(names[i], names[j])) return names[i];
         }
     }
     return null;
+}
+
+/// Compare two output file names treating '/' and '\' as equivalent path
+/// separators and ignoring case, matching how the same on-disk path resolves on
+/// case-insensitive filesystems.
+fn fileNamesCollide(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    for (a, b) |ca, cb| {
+        const na = if (ca == '/' or ca == '\\') '/' else std.ascii.toLower(ca);
+        const nb = if (cb == '/' or cb == '\\') '/' else std.ascii.toLower(cb);
+        if (na != nb) return false;
+    }
+    return true;
 }
 
 const max_import_alias_len = 128;
@@ -763,4 +776,27 @@ test "parse rejects --file-name overrides that differ only by case" {
     };
 
     try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects --file-name overrides colliding across separator styles" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--file-name",
+        "models=dir/Types.zig",
+        "--file-name",
+        "runtime=DIR\\types.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "fileNamesCollide treats separator styles and case as equivalent" {
+    try std.testing.expect(fileNamesCollide("dir/Types.zig", "DIR\\types.zig"));
+    try std.testing.expect(fileNamesCollide("a/b.zig", "a/b.zig"));
+    try std.testing.expect(!fileNamesCollide("dir/Types.zig", "dir/Other.zig"));
+    try std.testing.expect(!fileNamesCollide("dir/Types.zig", "dirOther.zig"));
 }
