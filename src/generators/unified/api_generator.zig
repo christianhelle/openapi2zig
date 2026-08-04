@@ -172,9 +172,6 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateHeader(self: *UnifiedApiGenerator) !void {
-        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
-        try self.buffer.appendSlice(self.allocator, "// Generated Zig API client from OpenAPI\n");
-        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
         try self.generateRuntimePreamble();
         try self.generateClientPreamble();
         try self.generateSsePreamble();
@@ -182,9 +179,6 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateHeaderMulti(self: *UnifiedApiGenerator) !void {
-        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n");
-        try self.buffer.appendSlice(self.allocator, "// Generated Zig API client from OpenAPI\n");
-        try self.buffer.appendSlice(self.allocator, "///////////////////////////////////////////\n\n");
         if (self.emit_imports) {
             try self.buffer.appendSlice(self.allocator,
                 \\const std = @import("std");
@@ -1958,4 +1952,3 @@ test "BodyKind :: classifyBody routes media types correctly" {
     try t.expectEqual(BodyKind.text, classifyBody("text/plain; charset=utf-8"));
     try t.expectEqual(BodyKind.form, classifyBody("multipart/form-data; boundary=abc"));
 }
-
