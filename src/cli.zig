@@ -1,5 +1,6 @@
 const std = @import("std");
 const version_info = @import("build_info");
+const ident = @import("generators/unified/ident_utils.zig");
 
 /// Print usage text unless running inside a test binary, where writing
 /// diagnostics to stderr during the listen-mode test run produces spurious
@@ -120,6 +121,84 @@ fn findDuplicateFileName(file_names: FileNameOverrides) ?[]const u8 {
         var j = i + 1;
         while (j < names.len) : (j += 1) {
             if (std.mem.eql(u8, names[i], names[j])) return names[i];
+        }
+    }
+    return null;
+}
+
+const max_import_alias_len = 128;
+
+/// Derive the Zig import alias for a generated file name into a caller-provided
+/// buffer. This is the single source of truth for alias derivation; the
+/// allocating `deriveAlias` used by the generator wraps this.
+fn deriveAliasInto(buf: []u8, file_name: []const u8, fallback: []const u8) []const u8 {
+    const stem = if (std.mem.lastIndexOfScalar(u8, file_name, '.')) |dot|
+        file_name[0..dot]
+    else
+        file_name;
+    if (stem.len == 0 or stem.len + 1 > buf.len) return fallback;
+
+    var n: usize = 0;
+    if (std.ascii.isDigit(stem[0])) {
+        buf[n] = '_';
+        n += 1;
+    }
+    for (stem) |c| {
+        buf[n] = if (std.ascii.isAlphanumeric(c) or c == '_') c else '_';
+        n += 1;
+    }
+    if (ident.isReservedIdent(buf[0..n])) {
+        std.mem.copyBackwards(u8, buf[1 .. n + 1], buf[0..n]);
+        buf[0] = '_';
+        n += 1;
+    }
+    return buf[0..n];
+}
+
+/// Derive the Zig import alias for a generated file name. The caller owns the
+/// returned slice. Mirrors the alias used by the multi-file generator so
+/// parse-time validation agrees with the generated imports.
+pub fn deriveAlias(allocator: std.mem.Allocator, file_name: []const u8, fallback: []const u8) ![]const u8 {
+    var buf: [max_import_alias_len]u8 = undefined;
+    return allocator.dupe(u8, deriveAliasInto(&buf, file_name, fallback));
+}
+
+fn effectiveAliasesInto(file_names: FileNameOverrides, bufs: *[3][max_import_alias_len]u8) [3][]const u8 {
+    var aliases: [3][]const u8 = undefined;
+    const kinds = [_]FileKind{ .models, .runtime, .client };
+    for (kinds, 0..) |kind, i| {
+        const name = file_names.get(kind) orelse kind.defaultName();
+        aliases[i] = deriveAliasInto(&bufs[i], name, switch (kind) {
+            .models => "models",
+            .runtime => "runtime",
+            .client => "client",
+        });
+    }
+    return aliases;
+}
+
+fn findDuplicateAlias(file_names: FileNameOverrides) ?[]const u8 {
+    var bufs: [3][max_import_alias_len]u8 = undefined;
+    const aliases = effectiveAliasesInto(file_names, &bufs);
+    var i: usize = 0;
+    while (i < aliases.len) : (i += 1) {
+        var j = i + 1;
+        while (j < aliases.len) : (j += 1) {
+            if (std.mem.eql(u8, aliases[i], aliases[j])) return aliases[i];
+        }
+    }
+    return null;
+}
+
+/// Aliases that collide with names the generated client declares itself.
+const reserved_aliases = [_][]const u8{ "std", "Client", "_" };
+
+fn findReservedAlias(file_names: FileNameOverrides) ?[]const u8 {
+    var bufs: [3][max_import_alias_len]u8 = undefined;
+    const aliases = effectiveAliasesInto(file_names, &bufs);
+    for (aliases) |alias| {
+        for (reserved_aliases) |reserved| {
+            if (std.mem.eql(u8, alias, reserved)) return alias;
         }
     }
     return null;
@@ -277,6 +356,18 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     if (findDuplicateFileName(file_names)) |dup| {
         printUsage();
         printError("duplicate output file name '{s}' for multiple --file-name options\n", .{dup});
+        return error.InvalidArguments;
+    }
+
+    if (findDuplicateAlias(file_names)) |dup| {
+        printUsage();
+        printError("output file names map to the same import alias '{s}' for multiple --file-name options\n", .{dup});
+        return error.InvalidArguments;
+    }
+
+    if (findReservedAlias(file_names)) |alias| {
+        printUsage();
+        printError("output file name maps to import alias '{s}', which the generated client reserves\n", .{alias});
         return error.InvalidArguments;
     }
 
@@ -532,4 +623,84 @@ test "validateFileName rejects absolute paths" {
 test "validateFileName rejects parent traversal" {
     try std.testing.expectError(error.InvalidFileName, validateFileName("../escape.zig"));
     try std.testing.expectError(error.InvalidFileName, validateFileName("a/../b.zig"));
+}
+
+test "deriveAlias returns the file stem as the import alias" {
+    const alias = try deriveAlias(std.testing.allocator, "types.zig", "models");
+    defer std.testing.allocator.free(alias);
+    try std.testing.expectEqualStrings("types", alias);
+}
+
+test "deriveAlias sanitizes non-identifier characters in the stem" {
+    const alias = try deriveAlias(std.testing.allocator, "my-types.zig", "models");
+    defer std.testing.allocator.free(alias);
+    try std.testing.expectEqualStrings("my_types", alias);
+}
+
+test "deriveAlias prefixes underscore when the stem starts with a digit" {
+    const alias = try deriveAlias(std.testing.allocator, "1types.zig", "models");
+    defer std.testing.allocator.free(alias);
+    try std.testing.expectEqualStrings("_1types", alias);
+}
+
+test "deriveAlias handles file names without an extension" {
+    const alias = try deriveAlias(std.testing.allocator, "models", "models");
+    defer std.testing.allocator.free(alias);
+    try std.testing.expectEqualStrings("models", alias);
+}
+
+test "deriveAlias falls back to the kind name when the stem is empty" {
+    const alias = try deriveAlias(std.testing.allocator, ".zig", "runtime");
+    defer std.testing.allocator.free(alias);
+    try std.testing.expectEqualStrings("runtime", alias);
+}
+
+test "deriveAlias prefixes underscore for reserved Zig keywords" {
+    const alias = try deriveAlias(std.testing.allocator, "if.zig", "models");
+    defer std.testing.allocator.free(alias);
+    try std.testing.expectEqualStrings("_if", alias);
+}
+
+test "parse rejects --file-name overrides mapping to the same import alias" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--file-name",
+        "models=my-models.zig",
+        "--file-name",
+        "runtime=my_models.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects --file-name override mapping to the reserved std alias" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--file-name",
+        "models=std.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects --file-name override mapping to a discard-only alias" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--file-name",
+        "models=-.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
 }

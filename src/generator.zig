@@ -12,7 +12,6 @@ const SwaggerConverter = @import("generators/converters/swagger_converter.zig").
 const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
 const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
 const RuntimeGenerator = @import("generators/unified/runtime_generator.zig").RuntimeGenerator;
-const ident = @import("generators/unified/ident_utils.zig");
 
 const openapi2zig = @import("lib.zig");
 
@@ -194,9 +193,9 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     defer allocator.free(runtime_content);
     try writeFile(allocator, io, cwd, dir_path, runtime_file, runtime_content);
 
-    const models_alias = try deriveAlias(allocator, models_file, "models");
+    const models_alias = try cli.deriveAlias(allocator, models_file, "models");
     defer allocator.free(models_alias);
-    const runtime_alias = try deriveAlias(allocator, runtime_file, "runtime");
+    const runtime_alias = try cli.deriveAlias(allocator, runtime_file, "runtime");
     defer allocator.free(runtime_alias);
     const models_prefix = try std.mem.concat(allocator, u8, &.{ models_alias, "." });
     defer allocator.free(models_prefix);
@@ -243,35 +242,6 @@ fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anyty
     try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
 }
 
-fn deriveAlias(allocator: std.mem.Allocator, file_name: []const u8, fallback: []const u8) ![]const u8 {
-    const stem = if (std.mem.lastIndexOfScalar(u8, file_name, '.')) |dot|
-        file_name[0..dot]
-    else
-        file_name;
-    if (stem.len == 0) return allocator.dupe(u8, fallback);
-
-    var buf = std.ArrayList(u8).empty;
-    defer buf.deinit(allocator);
-    if (std.ascii.isDigit(stem[0])) try buf.append(allocator, '_');
-    for (stem) |c| {
-        if (std.ascii.isAlphanumeric(c) or c == '_') {
-            try buf.append(allocator, c);
-        } else {
-            try buf.append(allocator, '_');
-        }
-    }
-    const result = try buf.toOwnedSlice(allocator);
-    if (ident.isReservedIdent(result)) {
-        defer allocator.free(result);
-        var prefixed = std.ArrayList(u8).empty;
-        defer prefixed.deinit(allocator);
-        try prefixed.append(allocator, '_');
-        try prefixed.appendSlice(allocator, result);
-        return try prefixed.toOwnedSlice(allocator);
-    }
-    return result;
-}
-
 test "unsupported OpenAPI versions return a distinct generator error" {
     const test_utils = @import("tests/test_utils.zig");
 
@@ -295,85 +265,6 @@ test "unsupported OpenAPI versions return a distinct generator error" {
             .input_path = "unsupported.json",
         }),
     );
-}
-
-test "deriveAlias returns the file stem as the import alias" {
-    const test_utils = @import("tests/test_utils.zig");
-
-    var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-
-    const alias = try deriveAlias(allocator, "types.zig", "models");
-    defer allocator.free(alias);
-    try std.testing.expectEqualStrings("types", alias);
-}
-
-test "deriveAlias sanitizes non-identifier characters in the stem" {
-    const test_utils = @import("tests/test_utils.zig");
-
-    var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-
-    const alias = try deriveAlias(allocator, "my-types.zig", "models");
-    defer allocator.free(alias);
-    try std.testing.expectEqualStrings("my_types", alias);
-}
-
-test "deriveAlias prefixes underscore when the stem starts with a digit" {
-    const test_utils = @import("tests/test_utils.zig");
-
-    var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-
-    const alias = try deriveAlias(allocator, "1types.zig", "models");
-    defer allocator.free(alias);
-    try std.testing.expectEqualStrings("_1types", alias);
-}
-
-test "deriveAlias handles file names without an extension" {
-    const test_utils = @import("tests/test_utils.zig");
-
-    var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-
-    const alias = try deriveAlias(allocator, "models", "models");
-    defer allocator.free(alias);
-    try std.testing.expectEqualStrings("models", alias);
-}
-
-test "deriveAlias falls back to the kind name when the stem is empty" {
-    const test_utils = @import("tests/test_utils.zig");
-
-    var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-
-    const alias = try deriveAlias(allocator, ".zig", "runtime");
-    defer allocator.free(alias);
-    try std.testing.expectEqualStrings("runtime", alias);
-}
-
-test "deriveAlias prefixes underscore for reserved Zig keywords" {
-    const test_utils = @import("tests/test_utils.zig");
-
-    var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-
-    const alias = try deriveAlias(allocator, "if.zig", "models");
-    defer allocator.free(alias);
-    try std.testing.expectEqualStrings("_if", alias);
-}
-
-test "deriveAlias handles collision between models.zig and a-b.zig" {
-    const test_utils = @import("tests/test_utils.zig");
-
-    var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-
-    const alias1 = try deriveAlias(allocator, "models.zig", "models");
-    defer allocator.free(alias1);
-    const alias2 = try deriveAlias(allocator, "a-b.zig", "models");
-    defer allocator.free(alias2);
-    try std.testing.expect(!std.mem.eql(u8, alias1, alias2));
 }
 
 fn buildPetstoreUnified(allocator: std.mem.Allocator) !@import("models/common/document.zig").UnifiedDocument {
