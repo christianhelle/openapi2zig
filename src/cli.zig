@@ -353,6 +353,12 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
         return error.InvalidArguments;
     }
 
+    if (models_only and (file_names.runtime != null or file_names.client != null)) {
+        printUsage();
+        printError("--file-name for runtime or client has no effect with --models-only\n", .{});
+        return error.InvalidArguments;
+    }
+
     if (findDuplicateFileName(file_names)) |dup| {
         printUsage();
         printError("duplicate output file name '{s}' for multiple --file-name options\n", .{dup});
@@ -581,6 +587,37 @@ test "parse rejects --file-name without --multiple-files" {
     };
 
     try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects runtime or client overrides with --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--models-only",
+        "--file-name",
+        "runtime=http.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse accepts models override with --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--models-only",
+        "--file-name",
+        "models=types.zig",
+    };
+
+    const parsed = try parse(&argv);
+    try std.testing.expectEqualStrings("types.zig", parsed.args.file_names.models.?);
 }
 
 test "parse rejects --file-name with absolute path" {
