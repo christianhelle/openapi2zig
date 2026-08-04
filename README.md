@@ -224,6 +224,9 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `-o`, `--output <path>` | Output file for the generated Zig code. Defaults to `generated.zig`. Parent directories are created when needed. |
 | `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
 | `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`. |
+| `--models-only` | Generate only Zig models, skipping the API client. |
+| `--multiple-files` | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`. |
+| `--file-name <kind>=<name>` | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. Can be specified multiple times. |
 
 
 ### Examples
