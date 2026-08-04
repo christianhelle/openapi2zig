@@ -185,10 +185,12 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
                 std.debug.print("\nError: empty file name for kind '{s}'\n", .{value[0..eq]});
                 return error.InvalidArguments;
             }
-            file_names.set(kind, value[eq + 1 ..]) catch {
-                printUsage();
-                std.debug.print("\nError: duplicate --file-name for kind '{s}'\n", .{value[0..eq]});
-                return error.InvalidArguments;
+            file_names.set(kind, value[eq + 1 ..]) catch |err| switch (err) {
+                error.DuplicateFileOverride => {
+                    printUsage();
+                    std.debug.print("\nError: duplicate --file-name for kind '{s}'\n", .{value[0..eq]});
+                    return error.InvalidArguments;
+                },
             };
         }
     }
