@@ -1,6 +1,51 @@
 const std = @import("std");
 const version_info = @import("build_info");
 
+/// Print usage text unless running inside a test binary, where writing
+/// diagnostics to stderr during the listen-mode test run produces spurious
+/// "failed command" noise in `zig build test` output.
+fn printUsage() void {
+    if (@import("builtin").is_test) return;
+    std.debug.print(
+        \\
+        \\ openapi2zig - OpenAPI/Swagger to Zig code generator
+        \\ version: {s} ({s})
+        \\
+        \\ Usage: openapi2zig generate [options]
+        \\        openapi2zig upgrade
+        \\
+        \\ Options:
+        \\   -i, --input <PATH_OR_URL>  OpenAPI/Swagger spec (file path or http/https URL)
+        \\   -o, --output <path>        Output file path for the generated Zig code.
+        \\                              (default: generated.zig)
+        \\                              When --multiple-files is used, this specifies the
+        \\                              output directory (default: generated/)
+        \\   --base-url <url>           Base URL for the API client.
+        \\                              (default: server URL from OpenAPI Specification)
+        \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
+        \\                              (default: paths)
+        \\   --models-only              Generate only Zig models, skipping the API client.
+        \\   --multiple-files           Generate separate output files for models, runtime, and API client
+        \\                              into the output directory specified by -o.
+        \\   --file-name <kind>=<name>  Customize an output file name in --multiple-files mode.
+        \\                              <kind> is models, runtime, or client.
+        \\                              (default: models.zig, runtime.zig, client.zig)
+        \\                              Can be specified multiple times.
+        \\
+        \\ EXAMPLES:
+        \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
+        \\   openapi2zig generate -i ./openapi/petstore.json -o models.zig --models-only
+        \\   openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
+        \\
+    , .{ version_info.VERSION, version_info.GIT_COMMIT });
+}
+
+/// Print an error diagnostic unless running inside a test binary.
+fn printError(comptime fmt: []const u8, args: anytype) void {
+    if (@import("builtin").is_test) return;
+    std.debug.print("\nError: " ++ fmt, args);
+}
+
 pub const ResourceWrapperMode = enum {
     none,
     tags,
@@ -140,7 +185,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             i += 1;
             if (i >= args.len) {
                 printUsage();
-                std.debug.print("\nError: OpenAPI spec path or URL required\n", .{});
+                printError("OpenAPI spec path or URL required\n", .{});
                 return error.InvalidArguments;
             }
             input_path = args[i];
@@ -148,7 +193,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             i += 1;
             if (i >= args.len) {
                 printUsage();
-                std.debug.print("\nError: output path required\n", .{});
+                printError("output path required\n", .{});
                 return error.InvalidArguments;
             }
             output_path = args[i];
@@ -156,7 +201,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             i += 1;
             if (i >= args.len) {
                 printUsage();
-                std.debug.print("\nError: base URL required\n", .{});
+                printError("base URL required\n", .{});
                 return error.InvalidArguments;
             }
             base_url = args[i];
@@ -164,12 +209,12 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             i += 1;
             if (i >= args.len) {
                 printUsage();
-                std.debug.print("\nError: resource wrapper mode required\n", .{});
+                printError("resource wrapper mode required\n", .{});
                 return error.InvalidArguments;
             }
             resource_wrappers = parseResourceWrapperMode(args[i]) orelse {
                 printUsage();
-                std.debug.print("\nError: invalid resource wrapper mode '{s}'\n", .{args[i]});
+                printError("invalid resource wrapper mode '{s}'\n", .{args[i]});
                 return error.InvalidArguments;
             };
         } else if (std.mem.eql(u8, arg, "--models-only")) {
@@ -180,37 +225,37 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             i += 1;
             if (i >= args.len) {
                 printUsage();
-                std.debug.print("\nError: --file-name value required\n", .{});
+                printError("--file-name value required\n", .{});
                 return error.InvalidArguments;
             }
             const value = args[i];
             const eq = std.mem.indexOfScalar(u8, value, '=') orelse {
                 printUsage();
-                std.debug.print("\nError: invalid --file-name value '{s}', expected format <kind>=<name>\n", .{value});
+                printError("invalid --file-name value '{s}', expected format <kind>=<name>\n", .{value});
                 return error.InvalidArguments;
             };
             const kind = FileKind.fromString(value[0..eq]) orelse {
                 printUsage();
-                std.debug.print("\nError: invalid file kind '{s}', expected models, runtime, or client\n", .{value[0..eq]});
+                printError("invalid file kind '{s}', expected models, runtime, or client\n", .{value[0..eq]});
                 return error.InvalidArguments;
             };
             if (eq + 1 >= value.len) {
                 printUsage();
-                std.debug.print("\nError: empty file name for kind '{s}'\n", .{value[0..eq]});
+                printError("empty file name for kind '{s}'\n", .{value[0..eq]});
                 return error.InvalidArguments;
             }
             const file_name = value[eq + 1 ..];
             validateFileName(file_name) catch |err| switch (err) {
                 error.InvalidFileName => {
                     printUsage();
-                    std.debug.print("\nError: invalid file name '{s}' for kind '{s}'\n", .{ file_name, value[0..eq] });
+                    printError("invalid file name '{s}' for kind '{s}'\n", .{ file_name, value[0..eq] });
                     return error.InvalidArguments;
                 },
             };
             file_names.set(kind, file_name) catch |err| switch (err) {
                 error.DuplicateFileOverride => {
                     printUsage();
-                    std.debug.print("\nError: duplicate --file-name for kind '{s}'\n", .{value[0..eq]});
+                    printError("duplicate --file-name for kind '{s}'\n", .{value[0..eq]});
                     return error.InvalidArguments;
                 },
             };
@@ -219,19 +264,19 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
 
     if (input_path == null) {
         printUsage();
-        std.debug.print("\nError: OpenAPI spec path or URL required\n", .{});
+        printError("OpenAPI spec path or URL required\n", .{});
         return error.InvalidArguments;
     }
 
     if (!multiple_files and file_names.any()) {
         printUsage();
-        std.debug.print("\nError: --file-name requires --multiple-files\n", .{});
+        printError("--file-name requires --multiple-files\n", .{});
         return error.InvalidArguments;
     }
 
     if (findDuplicateFileName(file_names)) |dup| {
         printUsage();
-        std.debug.print("\nError: duplicate output file name '{s}' for multiple --file-name options\n", .{dup});
+        printError("duplicate output file name '{s}' for multiple --file-name options\n", .{dup});
         return error.InvalidArguments;
     }
 
@@ -254,41 +299,6 @@ fn parseResourceWrapperMode(value: []const u8) ?ResourceWrapperMode {
     if (std.mem.eql(u8, value, "paths")) return .paths;
     if (std.mem.eql(u8, value, "hybrid")) return .hybrid;
     return null;
-}
-
-fn printUsage() void {
-    std.debug.print(
-        \\
-        \\ openapi2zig - OpenAPI/Swagger to Zig code generator
-        \\ version: {s} ({s})
-        \\
-        \\ Usage: openapi2zig generate [options]
-        \\        openapi2zig upgrade
-        \\
-        \\ Options:
-        \\   -i, --input <PATH_OR_URL>  OpenAPI/Swagger spec (file path or http/https URL)
-        \\   -o, --output <path>        Output file path for the generated Zig code.
-        \\                              (default: generated.zig)
-        \\                              When --multiple-files is used, this specifies the
-        \\                              output directory (default: generated/)
-        \\   --base-url <url>           Base URL for the API client.
-        \\                              (default: server URL from OpenAPI Specification)
-        \\   --resource-wrappers <mode> Generate resource wrappers: none, tags, paths, hybrid.
-        \\                              (default: paths)
-        \\   --models-only              Generate only Zig models, skipping the API client.
-        \\   --multiple-files           Generate separate output files for models, runtime, and API client
-        \\                              into the output directory specified by -o.
-        \\   --file-name <kind>=<name>  Customize an output file name in --multiple-files mode.
-        \\                              <kind> is models, runtime, or client.
-        \\                              (default: models.zig, runtime.zig, client.zig)
-        \\                              Can be specified multiple times.
-        \\
-        \\ EXAMPLES:
-        \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
-        \\   openapi2zig generate -i ./openapi/petstore.json -o models.zig --models-only
-        \\   openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
-        \\
-    , .{ version_info.VERSION, version_info.GIT_COMMIT });
 }
 
 test "parse generate supports models-only flag" {
