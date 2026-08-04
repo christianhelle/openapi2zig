@@ -208,11 +208,11 @@ fn validateFileName(name: []const u8) error{InvalidFileName}!void {
     if (std.fs.path.isAbsolute(name)) return error.InvalidFileName;
     var fwd = std.mem.splitScalar(u8, name, '/');
     while (fwd.next()) |part| {
-        if (std.mem.eql(u8, part, "..")) return error.InvalidFileName;
+        if (part.len == 0 or std.mem.eql(u8, part, ".") or std.mem.eql(u8, part, "..")) return error.InvalidFileName;
     }
     var bwd = std.mem.splitScalar(u8, name, '\\');
     while (bwd.next()) |part| {
-        if (std.mem.eql(u8, part, "..")) return error.InvalidFileName;
+        if (part.len == 0 or std.mem.eql(u8, part, ".") or std.mem.eql(u8, part, "..")) return error.InvalidFileName;
     }
 }
 
@@ -623,6 +623,14 @@ test "validateFileName rejects absolute paths" {
 test "validateFileName rejects parent traversal" {
     try std.testing.expectError(error.InvalidFileName, validateFileName("../escape.zig"));
     try std.testing.expectError(error.InvalidFileName, validateFileName("a/../b.zig"));
+}
+
+test "validateFileName rejects empty, dot, and dot-relative parts" {
+    try std.testing.expectError(error.InvalidFileName, validateFileName("."));
+    try std.testing.expectError(error.InvalidFileName, validateFileName("./foo.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateFileName("//foo.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateFileName("foo/"));
+    try std.testing.expectError(error.InvalidFileName, validateFileName("foo\\"));
 }
 
 test "deriveAlias returns the file stem as the import alias" {
