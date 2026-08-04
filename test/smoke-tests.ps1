@@ -300,7 +300,24 @@ if ($genExit -ne 0) {
             ExitCode = 0; Output = "$($missing -join ', ') not found"
         })
     } else {
-        $testOutput = & $ZigPath test $clientFile 2>&1
+        # The client file may live in a subdirectory of the output dir (e.g.
+        # --file-name client=sub/api.zig). `zig test <file>` roots the module at
+        # the file's own directory, so sibling imports like
+        # `@import("../types.zig")` would be rejected as outside the module path.
+        # Compile through a temporary entry point at the output root so the whole
+        # generated tree is a single module.
+        $clientRel = ([System.IO.Path]::GetRelativePath($multiOutDir, $clientFile)) -replace '\\', '/'
+        $entryFile = Join-Path $multiOutDir "smoke-entry.zig"
+        $entryContent = @"
+const std = @import("std");
+const client = @import("$clientRel");
+test "multi-file client compiles" {
+    std.testing.refAllDecls(client);
+}
+"@
+        [System.IO.File]::WriteAllText($entryFile, $entryContent)
+
+        $testOutput = & $ZigPath test $entryFile 2>&1
         $testExit = $LASTEXITCODE
         if ($testExit -ne 0) {
             Write-Host "FAIL (multi-file compile)" -ForegroundColor Red
