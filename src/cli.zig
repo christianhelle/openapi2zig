@@ -177,9 +177,7 @@ fn effectiveAliasesInto(file_names: FileNameOverrides, bufs: *[3][max_import_ali
     return aliases;
 }
 
-fn findDuplicateAlias(file_names: FileNameOverrides) ?[]const u8 {
-    var bufs: [3][max_import_alias_len]u8 = undefined;
-    const aliases = effectiveAliasesInto(file_names, &bufs);
+fn findDuplicateAlias(aliases: [3][]const u8) ?[]const u8 {
     var i: usize = 0;
     while (i < aliases.len) : (i += 1) {
         var j = i + 1;
@@ -193,9 +191,7 @@ fn findDuplicateAlias(file_names: FileNameOverrides) ?[]const u8 {
 /// Aliases that collide with names the generated client declares itself.
 const reserved_aliases = [_][]const u8{ "std", "Client", "_" };
 
-fn findReservedAlias(file_names: FileNameOverrides) ?[]const u8 {
-    var bufs: [3][max_import_alias_len]u8 = undefined;
-    const aliases = effectiveAliasesInto(file_names, &bufs);
+fn findReservedAlias(aliases: [3][]const u8) ?[]const u8 {
     for (aliases) |alias| {
         for (reserved_aliases) |reserved| {
             if (std.mem.eql(u8, alias, reserved)) return alias;
@@ -365,13 +361,16 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
         return error.InvalidArguments;
     }
 
-    if (findDuplicateAlias(file_names)) |dup| {
+    var alias_bufs: [3][max_import_alias_len]u8 = undefined;
+    const aliases = effectiveAliasesInto(file_names, &alias_bufs);
+
+    if (findDuplicateAlias(aliases)) |dup| {
         printUsage();
         printError("output file names map to the same import alias '{s}' for multiple --file-name options\n", .{dup});
         return error.InvalidArguments;
     }
 
-    if (findReservedAlias(file_names)) |alias| {
+    if (findReservedAlias(aliases)) |alias| {
         printUsage();
         printError("output file name maps to import alias '{s}', which the generated client reserves\n", .{alias});
         return error.InvalidArguments;
