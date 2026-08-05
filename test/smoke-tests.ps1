@@ -256,6 +256,86 @@ foreach ($spec in $Specs) {
 }
 
 # ---------------------------------------------------------------------------
+# Multi-file with custom file names
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "==> Multi-file with custom file names" -ForegroundColor Cyan
+
+$multiSpec = Join-Path $RepoRoot "openapi/v3.0/petstore.json"
+$multiOutDir = Join-Path $OutputDir "multi-custom"
+if (Test-Path $multiOutDir) { Remove-Item $multiOutDir -Recurse -Force }
+New-Item -ItemType Directory -Path $multiOutDir -Force | Out-Null
+
+$multiFileArgs = @(
+    "generate",
+    "-i", $multiSpec,
+    "-o", $multiOutDir,
+    "--multiple-files",
+    "--file-name", "models=types.zig",
+    "--file-name", "runtime=http.zig",
+    "--file-name", "client=sub/api.zig"
+)
+
+$genOutput = & $Cli @multiFileArgs 2>&1
+$genExit = $LASTEXITCODE
+if ($genExit -ne 0) {
+    Write-Host "FAIL (multi-file generate)" -ForegroundColor Red
+    Write-Host ($genOutput | Out-String)
+    $results.Add([pscustomobject]@{
+        Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "fail"; Phase = "generate"
+        ExitCode = $genExit; Output = ($genOutput | Out-String)
+    })
+} else {
+    $modelsFile = Join-Path $multiOutDir "types.zig"
+    $runtimeFile = Join-Path $multiOutDir "http.zig"
+    $clientFile = Join-Path $multiOutDir "sub/api.zig"
+    $missing = @()
+    if (-not (Test-Path $modelsFile)) { $missing += "types.zig" }
+    if (-not (Test-Path $runtimeFile)) { $missing += "http.zig" }
+    if (-not (Test-Path $clientFile)) { $missing += "sub/api.zig" }
+    if ($missing.Count -gt 0) {
+        Write-Host "FAIL (multi-file: $($missing -join ', ') not found)" -ForegroundColor Red
+        $results.Add([pscustomobject]@{
+            Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "fail"; Phase = "generate"
+            ExitCode = 0; Output = "$($missing -join ', ') not found"
+        })
+    } else {
+        # The client file may live in a subdirectory of the output dir (e.g.
+        # --file-name client=sub/api.zig). `zig test <file>` roots the module at
+        # the file's own directory, so sibling imports like
+        # `@import("../types.zig")` would be rejected as outside the module path.
+        # Compile through a temporary entry point at the output root so the whole
+        # generated tree is a single module.
+        $clientRel = ([System.IO.Path]::GetRelativePath($multiOutDir, $clientFile)) -replace '\\', '/'
+        $entryFile = Join-Path $multiOutDir "smoke-entry.zig"
+        $entryContent = @"
+const std = @import("std");
+const client = @import("$clientRel");
+test "multi-file client compiles" {
+    std.testing.refAllDecls(client);
+}
+"@
+        [System.IO.File]::WriteAllText($entryFile, $entryContent)
+
+        $testOutput = & $ZigPath test $entryFile 2>&1
+        $testExit = $LASTEXITCODE
+        if ($testExit -ne 0) {
+            Write-Host "FAIL (multi-file compile)" -ForegroundColor Red
+            Write-Host ($testOutput | Out-String)
+            $results.Add([pscustomobject]@{
+                Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "fail"; Phase = "compile"
+                ExitCode = $testExit; Output = ($testOutput | Out-String)
+            })
+        } else {
+            Write-Host "PASS multi-file with custom names" -ForegroundColor Green
+            $results.Add([pscustomobject]@{
+                Spec = "v3.0/petstore.json"; Mode = "multi-custom"; Status = "pass"
+            })
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 $pass = @($results | Where-Object Status -eq "pass").Count

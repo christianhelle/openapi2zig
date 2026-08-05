@@ -8,6 +8,7 @@ const lmstudio = @import("lmstudio.zig");
 const openai = @import("openai.zig");
 const anthropic = @import("anthropic.zig");
 const multi_v3 = @import("multi/client.zig");
+const multi_v3_custom = @import("lmstudio-multi/api.zig");
 
 fn logRequest(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void {
     _ = ctx;

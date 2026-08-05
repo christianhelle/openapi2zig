@@ -20,6 +20,22 @@ fn endsWithIgnoreCase(haystack: []const u8, suffix: []const u8) bool {
     return std.ascii.eqlIgnoreCase(haystack[haystack.len - suffix.len ..], suffix);
 }
 
+fn escapeZigString(allocator: std.mem.Allocator, input: []const u8) ![]const u8 {
+    var buf = std.ArrayList(u8).empty;
+    defer buf.deinit(allocator);
+    for (input) |c| {
+        switch (c) {
+            '\\' => try buf.appendSlice(allocator, "\\\\"),
+            '"' => try buf.appendSlice(allocator, "\\\""),
+            '\n' => try buf.appendSlice(allocator, "\\n"),
+            '\r' => try buf.appendSlice(allocator, "\\r"),
+            '\t' => try buf.appendSlice(allocator, "\\t"),
+            else => try buf.append(allocator, c),
+        }
+    }
+    return try buf.toOwnedSlice(allocator);
+}
+
 fn classifyBody(content_type: ?[]const u8) BodyKind {
     const raw = content_type orelse return .json;
     const ct = media_type.baseMediaType(raw);
@@ -125,6 +141,10 @@ pub const UnifiedApiGenerator = struct {
     args: cli.CliArgs,
     model_prefix: []const u8 = "",
     emit_imports: bool = true,
+    models_import: []const u8 = "models.zig",
+    models_import_alias: []const u8 = "models",
+    runtime_import: []const u8 = "runtime.zig",
+    runtime_import_alias: []const u8 = "runtime",
 
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
@@ -180,12 +200,18 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateHeaderMulti(self: *UnifiedApiGenerator) !void {
         if (self.emit_imports) {
-            try self.buffer.appendSlice(self.allocator,
+            const escaped_models = try escapeZigString(self.allocator, self.models_import);
+            defer self.allocator.free(escaped_models);
+            const escaped_runtime = try escapeZigString(self.allocator, self.runtime_import);
+            defer self.allocator.free(escaped_runtime);
+            const imports = try std.fmt.allocPrint(self.allocator,
                 \\const std = @import("std");
-                \\const models = @import("models.zig");
-                \\const runtime = @import("runtime.zig");
+                \\const {s} = @import("{s}");
+                \\const {s} = @import("{s}");
                 \\
-            );
+            , .{ self.models_import_alias, escaped_models, self.runtime_import_alias, escaped_runtime });
+            defer self.allocator.free(imports);
+            try self.buffer.appendSlice(self.allocator, imports);
             try self.generateRuntimeReexports();
         }
         try self.generateClientPreamble();
@@ -247,21 +273,24 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateRuntimeReexports(self: *UnifiedApiGenerator) !void {
-        try self.buffer.appendSlice(self.allocator,
-            \\const Owned = runtime.Owned;
-            \\const HttpObserver = runtime.HttpObserver;
-            \\const RawResponse = runtime.RawResponse;
-            \\const ParseErrorResponse = runtime.ParseErrorResponse;
-            \\const ApiResult = runtime.ApiResult;
-            \\const CancellationToken = runtime.CancellationToken;
-            \\const checkCancellation = runtime.checkCancellation;
-            \\const parseSseReader = runtime.parseSseReader;
-            \\const parseSseBytes = runtime.parseSseBytes;
-            \\const parseSseBytesTyped = runtime.parseSseBytesTyped;
-            \\const parseSseReaderTyped = runtime.parseSseReaderTyped;
-            \\const TypedSseCallback = runtime.TypedSseCallback;
+        const alias = self.runtime_import_alias;
+        const exports = try std.fmt.allocPrint(self.allocator,
+            \\const Owned = {s}.Owned;
+            \\const HttpObserver = {s}.HttpObserver;
+            \\const RawResponse = {s}.RawResponse;
+            \\const ParseErrorResponse = {s}.ParseErrorResponse;
+            \\const ApiResult = {s}.ApiResult;
+            \\const CancellationToken = {s}.CancellationToken;
+            \\const checkCancellation = {s}.checkCancellation;
+            \\const parseSseReader = {s}.parseSseReader;
+            \\const parseSseBytes = {s}.parseSseBytes;
+            \\const parseSseBytesTyped = {s}.parseSseBytesTyped;
+            \\const parseSseReaderTyped = {s}.parseSseReaderTyped;
+            \\const TypedSseCallback = {s}.TypedSseCallback;
             \\
-        );
+        , .{ alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias });
+        defer self.allocator.free(exports);
+        try self.buffer.appendSlice(self.allocator, exports);
     }
 
     fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
