@@ -6,7 +6,7 @@
 
 **Implemented enhancements:**
 
-- Add `--file-name` option to customize output file names in `--multiple-files` mode
+- Add --file-name option to customize multi-file output names [\#77](https://github.com/christianhelle/openapi2zig/pull/77) ([christianhelle](https://github.com/christianhelle))
 - Add empty lines between headers and generated content [\#75](https://github.com/christianhelle/openapi2zig/pull/75) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.4.2](https://github.com/christianhelle/openapi2zig/tree/v0.4.2) (2026-07-30)
