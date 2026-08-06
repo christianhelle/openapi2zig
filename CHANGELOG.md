@@ -9,6 +9,10 @@
 - Add --file-name option to customize multi-file output names [\#77](https://github.com/christianhelle/openapi2zig/pull/77) ([christianhelle](https://github.com/christianhelle))
 - Add empty lines between headers and generated content [\#75](https://github.com/christianhelle/openapi2zig/pull/75) ([christianhelle](https://github.com/christianhelle))
 
+**Merged pull requests:**
+
+- Fix Windows self-upgrade failing with error.FileBusy [\#76](https://github.com/christianhelle/openapi2zig/pull/76) ([christianhelle](https://github.com/christianhelle))
+
 ## [v0.4.2](https://github.com/christianhelle/openapi2zig/tree/v0.4.2) (2026-07-30)
 
 [Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.1...v0.4.2)
