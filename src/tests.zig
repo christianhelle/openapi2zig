@@ -14,6 +14,7 @@ const generated_header_tests = @import("tests/generated_header_tests.zig");
 const media_type = @import("media_type.zig");
 const generator = @import("generator.zig");
 const cli = @import("cli.zig");
+const upgrade = @import("upgrade.zig");
 comptime {
     _ = openapi_v3_tests;
     _ = openapi_v31_tests;
@@ -31,4 +32,5 @@ comptime {
     _ = media_type;
     _ = generator;
     _ = cli;
+    _ = upgrade;
 }
