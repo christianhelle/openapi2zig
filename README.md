@@ -185,7 +185,7 @@ pwsh test/smoke-tests.ps1
 What it does:
 
 - Validates all eligible JSON and YAML API specs under `openapi/v2.0`, `openapi/v3.0`, `openapi/v3.1`, and `openapi/v3.2`.
-- Runs each spec through every resource-wrapper mode: `none`, `tags`, `paths`, and `hybrid`.
+- Runs each spec through every resource-wrapper mode: `none`, `tags`, `paths`, and `hybrid`, plus `PerTag` and `PerEndpoint` multiple-client modes when `-MultipleClients` is passed (default smoke runs use resource-wrapper modes only).
 - Ignores the meta-schema documents under `openapi/json-schema/`, which are outside the smoke-test discovery roots.
 - Writes generated outputs to `test/output/` (gitignored), with filenames shaped like `<basename>__<format>__<mode>.zig` so JSON/YAML sibling fixtures do not collide.
 - Continues through individual failures and prints a final summary listing every failing spec/mode combination, then exits non-zero if any case failed.
@@ -224,6 +224,7 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `-o`, `--output <path>` | Output file for the generated Zig code. Defaults to `generated.zig`. Parent directories are created when needed. |
 | `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
 | `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`. |
+| `--multiple-clients <mode>` | Generate per-tag or per-endpoint client structs that delegate to the flat API functions. Modes: `PerTag` (default when the flag is given without a value) and `PerEndpoint`. Mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`. |
 | `--models-only` | Generate only Zig models, skipping the API client. |
 | `--multiple-files` | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`. |
 | `--file-name <kind>=<name>` | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. `<name>` may include a relative subpath (e.g. `models=gen/types.zig`); any required parent directories are created automatically. Can be specified multiple times. |
@@ -256,6 +257,41 @@ openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --base-url https:/
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --resource-wrappers none
 ```
 
+**Generate per-tag client structs (default when the flag is given without a value):**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerTag
+```
+
+**Generate per-endpoint client structs:**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerEndpoint
+```
+
+With `PerTag`, operations are grouped into one struct per tag (untagged operations land in `DefaultClient`), each with an `init(client: *Client)` constructor and methods that delegate to the flat API functions:
+
+```zig
+var client = api.Client.init(allocator, io, "");
+defer client.deinit();
+
+var pets = api.PetClient.init(&client);
+var pet = try pets.getPetById(1);
+defer pet.deinit();
+```
+
+With `PerEndpoint`, each operation gets its own struct with an `init` plus `execute` (and `executeRaw`/`executeResult`/`executeStreaming` where applicable):
+
+```zig
+var client = api.Client.init(allocator, io, "");
+defer client.deinit();
+
+var op = api.GetPetById.init(&client);
+var pet = try op.execute(1);
+defer pet.deinit();
+```
+
+`--multiple-clients` is mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`; combining them is a parse error. It composes with `--multiple-files`: the client structs are emitted into the client file.
+
 ### Upgrading
 
 `openapi2zig upgrade` checks for the latest release, downloads it, and replaces the current binary.
@@ -282,6 +318,8 @@ zig build run-generate-v2   # openapi/v2.0/petstore.json  -> generated/generated
 zig build run-generate-v2-yaml  # openapi/v2.0/petstore.yaml -> generated/generated_v2_yaml.zig
 zig build run-generate-v3   # openapi/v3.0/petstore.json  -> generated/generated_v3.zig
 zig build run-generate-v3-yaml  # openapi/v3.0/petstore.yaml -> generated/generated_v3_yaml.zig
+zig build run-generate-v3-multiclient-tag  # petstore -> generated/generated_v3_multiclient_tag.zig (PerTag)
+zig build run-generate-v3-multiclient-endpoint  # petstore -> generated/generated_v3_multiclient_endpoint.zig (PerEndpoint)
 zig build run-generate-v31  # openapi/v3.1/webhook-example.json -> generated/generated_v31.zig
 zig build run-generate-v31-yaml # openapi/v3.1/webhook-example.yaml -> generated/generated_v31_yaml.zig
 zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated_v32.zig
