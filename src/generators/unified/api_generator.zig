@@ -1245,6 +1245,37 @@ pub const UnifiedApiGenerator = struct {
 
         std.mem.sort(TagClient, groups.items, {}, tagClientLessThan);
 
+        // Emit file-scope aliases for operations whose tag-client method name
+        // matches the flat function it delegates to. Without the alias, the
+        // unqualified call inside the method (e.g. `return listPets(self.client)`)
+        // is an ambiguous reference between the struct method and the flat fn.
+        var alias_count: usize = 0;
+        for (operations.items) |op_ref| {
+            const op_id = op_ref.operation.operationId orelse continue;
+            const prospective = try self.tagClientMethodNameAlloc(op_id);
+            defer self.allocator.free(prospective);
+            if (!std.mem.eql(u8, prospective, op_id)) continue;
+
+            const main_alias = try std.fmt.allocPrint(self.allocator, "const _{s} = {s};\n", .{ op_id, op_id });
+            defer self.allocator.free(main_alias);
+            try self.buffer.appendSlice(self.allocator, main_alias);
+            const raw_alias = try std.fmt.allocPrint(self.allocator, "const _{s}Raw = {s}Raw;\n", .{ op_id, op_id });
+            defer self.allocator.free(raw_alias);
+            try self.buffer.appendSlice(self.allocator, raw_alias);
+            if (self.hasReturnValue(op_ref.method, op_ref.operation)) {
+                const result_alias = try std.fmt.allocPrint(self.allocator, "const _{s}Result = {s}Result;\n", .{ op_id, op_id });
+                defer self.allocator.free(result_alias);
+                try self.buffer.appendSlice(self.allocator, result_alias);
+            }
+            if (op_ref.operation.streaming and std.mem.eql(u8, op_ref.method, "POST")) {
+                const stream_alias = try std.fmt.allocPrint(self.allocator, "const _{s}Streaming = {s}Streaming;\n", .{ op_id, op_id });
+                defer self.allocator.free(stream_alias);
+                try self.buffer.appendSlice(self.allocator, stream_alias);
+            }
+            alias_count += 1;
+        }
+        if (alias_count > 0) try self.buffer.appendSlice(self.allocator, "\n");
+
         var used_struct_names = std.StringHashMap(void).init(self.allocator);
         defer {
             var name_iterator = used_struct_names.keyIterator();
@@ -1520,6 +1551,14 @@ pub const UnifiedApiGenerator = struct {
         const operation_id = operation.operationId orelse return;
         const has_return = self.hasReturnValue(op_ref.method, operation);
 
+        // When the method name matches the operation id, the unqualified
+        // delegation call inside the method would be an ambiguous reference to
+        // the file-scope flat function. Route through the `_` aliases emitted
+        // by generateTagClients instead.
+        const prospective_name = try self.tagClientMethodNameAlloc(operation_id);
+        defer self.allocator.free(prospective_name);
+        const needs_alias = std.mem.eql(u8, prospective_name, operation_id);
+
         try self.buffer.appendSlice(self.allocator, "    pub fn ");
         try self.buffer.appendSlice(self.allocator, method_name);
         try self.buffer.appendSlice(self.allocator, "(self: *");
@@ -1533,6 +1572,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, ") !void {\n");
         }
         try self.buffer.appendSlice(self.allocator, "        return ");
+        if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
         try self.appendIdentifier(operation_id);
         try self.appendTagClientCallArguments(operation);
         try self.buffer.appendSlice(self.allocator, ";\n");
@@ -1550,6 +1590,7 @@ pub const UnifiedApiGenerator = struct {
         try self.appendFlatOperationParameters(operation);
         try self.buffer.appendSlice(self.allocator, ") !RawResponse {\n");
         try self.buffer.appendSlice(self.allocator, "        return ");
+        if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
         try self.appendIdentifier(raw_operation_name);
         try self.appendTagClientCallArguments(operation);
         try self.buffer.appendSlice(self.allocator, ";\n");
@@ -1570,6 +1611,7 @@ pub const UnifiedApiGenerator = struct {
             try self.appendReturnType(op_ref.method, operation);
             try self.buffer.appendSlice(self.allocator, ") {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
+            if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
             try self.appendIdentifier(result_operation_name);
             try self.appendTagClientCallArguments(operation);
             try self.buffer.appendSlice(self.allocator, ";\n");
@@ -1588,6 +1630,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, struct_name);
             try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
+            if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
             try self.appendIdentifier(stream_operation_name);
             try self.buffer.appendSlice(self.allocator, "(self.client, requestBody, callback, cancellation_token);\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");

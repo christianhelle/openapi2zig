@@ -242,27 +242,34 @@ test "multiple-clients PerTag groups operations into client structs" {
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init(client: *Client) StoreClient {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init(client: *Client) DefaultClient {") != null);
 
+    // Method names that match flat function names (e.g. listPets) are resolved
+    // through file-scope aliases so the delegation is not an ambiguous reference.
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _listPets = listPets;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _listPetsRaw = listPetsRaw;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _listPetsResult = listPetsResult;") != null);
+
     // Full triplet parity: main, Raw, Result.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(self: *PetClient) !Owned(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return listPets(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _listPets(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPetsRaw(self: *PetClient) !RawResponse {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return listPetsRaw(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _listPetsRaw(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPetsResult(self: *PetClient) !ApiResult(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return listPetsResult(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _listPetsResult(self.client);") != null);
 
     // Path parameters and body parameters flow through the delegation.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPetById(self: *PetClient, petId: i64) !Owned(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return getPetById(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _getPetById(self.client, petId);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn placeOrder(self: *StoreClient, requestBody: std.json.Value) !Owned(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return placeOrder(self.client, requestBody);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _placeOrder(self.client, requestBody);") != null);
 
     // Untagged operations land in DefaultClient.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn searchUntagged(self: *DefaultClient) !Owned(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return searchUntagged(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _searchUntagged(self.client);") != null);
 
     // Streaming parity: {opId}Streaming and {opId}StreamEvents methods delegate to flat functions.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn streamPetsStreaming(self: *PetClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return streamPetsStreaming(self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _streamPetsStreaming(self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _streamPetsStreaming = streamPetsStreaming;") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn streamPetsStreamEvents(comptime Event: type, self: *PetClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return streamPetsStreamingEvents(Event, self.client, requestBody, callback, cancellation_token);") != null);
 }
@@ -290,17 +297,21 @@ test "multiple-clients PerTag dedupes struct names, reserved methods, and method
     // Tags "pet" and "Pet" merge into a single PetClient (case/punctuation dedupe).
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const PetClient = struct {") != null);
 
-    // Reserved method name "init" → init_.
+    // Reserved method name "init" → init_. The flat fn `init` exists, so the
+    // delegation resolves through the `_init` alias.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init_(self: *PetClient") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return init(self.client, requestBody);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _init(self.client, requestBody);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _init = init;") != null);
 
     // Method collision: get-pet and getPet both sanitize to getPet → getPet, getPet_.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(self: *PetClient) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return @\"get-pet\"(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet_(self: *PetClient, petId: i64) !Owned(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return getPet(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _getPet(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _getPet = getPet;") != null);
 
     // The "Pet" tag operation landed in the merged PetClient too.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listUsers(self: *PetClient") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return listUsers(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _listUsers(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _listUsers = listUsers;") != null);
 }
