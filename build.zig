@@ -85,6 +85,36 @@ pub fn build(b: *std.Build) void {
         "https://petstore3.swagger.io/api/v3",
     });
     const run_generate_v3_multi_step = b.step("run-generate-v3-multi", "Generate multiple output files (models, runtime, client)");
+
+    const run_generate_v3_per_tag_cmd = b.addRunArtifact(exe);
+    run_generate_v3_per_tag_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/generated_v3_per_tag.zig",
+        "--multiple-clients",
+        "PerTag",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_per_tag_step = b.step("run-generate-v3-per-tag", "Generate per-tag client structs from the v3.0 petstore spec");
+    run_generate_v3_per_tag_step.dependOn(&run_generate_v3_per_tag_cmd.step);
+
+    const run_generate_v3_per_endpoint_cmd = b.addRunArtifact(exe);
+    run_generate_v3_per_endpoint_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/generated_v3_per_endpoint.zig",
+        "--multiple-clients",
+        "PerEndpoint",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_per_endpoint_step = b.step("run-generate-v3-per-endpoint", "Generate per-endpoint client structs from the v3.0 petstore spec");
+    run_generate_v3_per_endpoint_step.dependOn(&run_generate_v3_per_endpoint_cmd.step);
     run_generate_v3_multi_step.dependOn(&run_generate_v3_multi_cmd.step);
 
     const run_generate_v2_cmd = b.addRunArtifact(exe);
@@ -222,6 +252,8 @@ pub fn build(b: *std.Build) void {
 
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
+    run_generate.dependOn(&run_generate_v3_per_tag_cmd.step);
+    run_generate.dependOn(&run_generate_v3_per_endpoint_cmd.step);
     run_generate.dependOn(&run_generate_v3_multi_cmd.step);
     run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
@@ -277,6 +309,16 @@ pub fn build(b: *std.Build) void {
         }),
     });
     const run_multi_generated_tests = b.addRunArtifact(multi_generated_tests);
+
+    const multiple_clients_generated_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("generated/compile_multiple_clients.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_multiple_clients_generated_tests = b.addRunArtifact(multiple_clients_generated_tests);
+    test_step.dependOn(&run_multiple_clients_generated_tests.step);
     test_step.dependOn(&run_multi_generated_tests.step);
 
     const test_package_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "build" });
