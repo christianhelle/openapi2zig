@@ -320,6 +320,8 @@ zig build run-generate-v3   # openapi/v3.0/petstore.json  -> generated/generated
 zig build run-generate-v3-yaml  # openapi/v3.0/petstore.yaml -> generated/generated_v3_yaml.zig
 zig build run-generate-v3-multiclient-tag  # petstore -> generated/generated_v3_multiclient_tag.zig (PerTag)
 zig build run-generate-v3-multiclient-endpoint  # petstore -> generated/generated_v3_multiclient_endpoint.zig (PerEndpoint)
+zig build run-generate-v3-multiclient-tag-multi  # petstore -> generated/multiple-clients/tag/ (PerTag, multi-file)
+zig build run-generate-v3-multiclient-endpoint-multi  # petstore -> generated/multiple-clients/endpoint/ (PerEndpoint, multi-file)
 zig build run-generate-v31  # openapi/v3.1/webhook-example.json -> generated/generated_v31.zig
 zig build run-generate-v31-yaml # openapi/v3.1/webhook-example.yaml -> generated/generated_v31_yaml.zig
 zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated_v32.zig
