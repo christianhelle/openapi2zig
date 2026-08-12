@@ -84,6 +84,42 @@ fn buildPerTagFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     };
 }
 
+fn buildCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    // Tag "store" would produce StoreClient, which collides with the StoreClient model below.
+    try paths.put(try allocator.dupe(u8, "/store"), .{
+        .get = try opWithTags(allocator, "listStore", false, false, true, &.{"store"}),
+    });
+    // Tag "pet": two operations whose sanitized methods collide ("getPet" from get-pet and getPet).
+    try paths.put(try allocator.dupe(u8, "/pets"), .{
+        .get = try opWithTags(allocator, "get-pet", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/pets/{petId}"), .{
+        .get = try opWithTags(allocator, "getPet", true, false, true, &.{"pet"}),
+    });
+    // Reserved method name: operationId "init" sanitizes to "init".
+    try paths.put(try allocator.dupe(u8, "/init"), .{
+        .post = try opWithTags(allocator, "init", false, true, true, &.{"pet"}),
+    });
+    // Tag "Pet" (uppercase) sanitizes to the same PetClient as tag "pet" and merges.
+    try paths.put(try allocator.dupe(u8, "/users"), .{
+        .get = try opWithTags(allocator, "listUsers", false, false, true, &.{"Pet"}),
+    });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "StoreClient"), .{ .type = .object });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
 test "multiple-clients PerTag groups operations into client structs" {
     const allocator = std.testing.allocator;
     var document = try buildPerTagFixture(allocator);
@@ -127,4 +163,42 @@ test "multiple-clients PerTag groups operations into client structs" {
     // Untagged operations land in DefaultClient.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn searchUntagged(self: *DefaultClient) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return searchUntagged(self.client);") != null);
+}
+
+test "multiple-clients PerTag dedupes struct names, reserved methods, and method collisions" {
+    const allocator = std.testing.allocator;
+    var document = try buildCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_tag,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // Tag "store" collides with the StoreClient model → StoreClient_.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const StoreClient_ = struct {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const StoreClient = struct {") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listStore(self: *StoreClient_") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init(client: *Client) StoreClient_ {") != null);
+
+    // Tags "pet" and "Pet" merge into a single PetClient (case/punctuation dedupe).
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const PetClient = struct {") != null);
+
+    // Reserved method name "init" → init_.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init_(self: *PetClient") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return init(self.client, requestBody);") != null);
+
+    // Method collision: get-pet and getPet both sanitize to getPet → getPet, getPet_.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(self: *PetClient) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return @\"get-pet\"(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet_(self: *PetClient, petId: i64) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return getPet(self.client, petId);") != null);
+
+    // The "Pet" tag operation landed in the merged PetClient too.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listUsers(self: *PetClient") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return listUsers(self.client);") != null);
 }

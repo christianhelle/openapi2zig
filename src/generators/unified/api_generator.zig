@@ -1239,25 +1239,105 @@ pub const UnifiedApiGenerator = struct {
 
         std.mem.sort(TagClient, groups.items, {}, tagClientLessThan);
 
+        var used_struct_names = std.StringHashMap(void).init(self.allocator);
+        defer {
+            var name_iterator = used_struct_names.keyIterator();
+            while (name_iterator.next()) |key| self.allocator.free(key.*);
+            used_struct_names.deinit();
+        }
+
         for (groups.items) |group| {
+            const struct_name = try self.uniqueTagClientStructNameAlloc(group.name, document, used_struct_names);
+            used_struct_names.put(struct_name, {}) catch {
+                self.allocator.free(struct_name);
+                return error.OutOfMemory;
+            };
+
             try self.buffer.appendSlice(self.allocator, "pub const ");
-            try self.buffer.appendSlice(self.allocator, group.name);
+            try self.buffer.appendSlice(self.allocator, struct_name);
             try self.buffer.appendSlice(self.allocator, " = struct {\n");
             try self.buffer.appendSlice(self.allocator, "    client: *Client,\n\n");
             try self.buffer.appendSlice(self.allocator, "    pub fn init(client: *Client) ");
-            try self.buffer.appendSlice(self.allocator, group.name);
+            try self.buffer.appendSlice(self.allocator, struct_name);
             try self.buffer.appendSlice(self.allocator, " {\n");
             try self.buffer.appendSlice(self.allocator, "        return .{ .client = client };\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
+            var used_method_names = std.StringHashMap(void).init(self.allocator);
+            defer {
+                var method_iterator = used_method_names.keyIterator();
+                while (method_iterator.next()) |key| self.allocator.free(key.*);
+                used_method_names.deinit();
+            }
+
             for (group.methods.items) |op_ref| {
-                const method_name = try self.tagClientMethodNameAlloc(op_ref.operation.operationId.?);
-                defer self.allocator.free(method_name);
-                try self.generateTagClientMethod(group.name, method_name, op_ref);
+                const method_name = try self.uniqueTagClientMethodNameAlloc(op_ref.operation.operationId.?, used_method_names);
+                used_method_names.put(method_name, {}) catch {
+                    self.allocator.free(method_name);
+                    return error.OutOfMemory;
+                };
+                try self.generateTagClientMethod(struct_name, method_name, op_ref);
             }
 
             try self.buffer.appendSlice(self.allocator, "};\n\n");
         }
+    }
+
+    fn tagClientNameConflicts(self: *UnifiedApiGenerator, name: []const u8, document: UnifiedDocument) bool {
+        const runtime_names = [_][]const u8{
+            "Client",        "Owned",                     "RawResponse",        "ParseErrorResponse",  "ApiResult",        "HttpObserver",  "CancellationToken",
+            "requestRaw",    "requestRawWithContentType", "getRaw",             "postJsonRaw",         "parseRawResponse", "getJsonResult", "postJsonResult",
+            "parseSseBytes", "parseSseReader",            "parseSseBytesTyped", "parseSseReaderTyped",
+        };
+        for (runtime_names) |runtime_name| {
+            if (std.mem.eql(u8, name, runtime_name)) return true;
+        }
+
+        if (document.schemas) |schemas| {
+            var schema_iterator = schemas.iterator();
+            while (schema_iterator.next()) |entry| {
+                if (std.mem.eql(u8, entry.key_ptr.*, name)) return true;
+            }
+        }
+
+        var path_iterator = document.paths.iterator();
+        while (path_iterator.next()) |entry| {
+            const path_item = entry.value_ptr.*;
+            if (operationDeclaresTopLevelName(self, path_item.get, "GET", name)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.post, "POST", name)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.put, "PUT", name)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.delete, "DELETE", name)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.patch, "PATCH", name)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.head, "HEAD", name)) return true;
+            if (operationDeclaresTopLevelName(self, path_item.options, "OPTIONS", name)) return true;
+        }
+        return false;
+    }
+
+    fn uniqueTagClientStructNameAlloc(self: *UnifiedApiGenerator, name: []const u8, document: UnifiedDocument, used_names: std.StringHashMap(void)) ![]const u8 {
+        var candidate = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(candidate);
+        while (self.tagClientNameConflicts(candidate, document) or used_names.contains(candidate)) {
+            const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
+            self.allocator.free(candidate);
+            candidate = suffixed;
+        }
+        return candidate;
+    }
+
+    fn isReservedTagClientMethod(name: []const u8) bool {
+        return std.mem.eql(u8, name, "init") or std.mem.eql(u8, name, "client") or std.mem.eql(u8, name, "deinit");
+    }
+
+    fn uniqueTagClientMethodNameAlloc(self: *UnifiedApiGenerator, operation_id: []const u8, used_names: std.StringHashMap(void)) ![]const u8 {
+        var candidate = try self.tagClientMethodNameAlloc(operation_id);
+        errdefer self.allocator.free(candidate);
+        while (isReservedTagClientMethod(candidate) or used_names.contains(candidate)) {
+            const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
+            self.allocator.free(candidate);
+            candidate = suffixed;
+        }
+        return candidate;
     }
 
     fn tagClientNameAlloc(self: *UnifiedApiGenerator, operation: Operation) ![]const u8 {
