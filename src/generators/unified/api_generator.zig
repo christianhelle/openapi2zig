@@ -99,6 +99,22 @@ fn resourceWrapperLessThan(_: void, lhs: ResourceWrapper, rhs: ResourceWrapper) 
     return std.mem.order(u8, lhs.operation_id, rhs.operation_id) == .lt;
 }
 
+const TagClientRef = struct {
+    struct_name: []const u8,
+    method_name: []const u8,
+    path: []const u8,
+    method: []const u8,
+    operation: Operation,
+};
+
+fn tagClientRefLessThan(_: void, lhs: TagClientRef, rhs: TagClientRef) bool {
+    const name_order = std.mem.order(u8, lhs.struct_name, rhs.struct_name);
+    if (name_order != .eq) return name_order == .lt;
+    const path_order = std.mem.order(u8, lhs.path, rhs.path);
+    if (path_order != .eq) return path_order == .lt;
+    return std.mem.order(u8, lhs.method, rhs.method) == .lt;
+}
+
 fn stringLessThan(_: void, lhs: []const u8, rhs: []const u8) bool {
     return std.mem.order(u8, lhs, rhs) == .lt;
 }
@@ -162,7 +178,9 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         try self.generateHeader();
         try self.generateApiClient(document);
-        if (self.args.resource_wrappers != .none) {
+        if (self.args.multiple_clients != null) {
+            try self.generateMultipleClients(document);
+        } else if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
         }
         return try self.allocator.dupe(u8, self.buffer.items);
@@ -172,10 +190,204 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         try self.generateHeaderMulti();
         try self.generateApiClient(document);
-        if (self.args.resource_wrappers != .none) {
+        if (self.args.multiple_clients != null) {
+            try self.generateMultipleClients(document);
+        } else if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
         }
         return try self.allocator.dupe(u8, self.buffer.items);
+    }
+
+    fn generateMultipleClients(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
+        switch (self.args.multiple_clients orelse return) {
+            .per_tag => try self.generateTagClients(document),
+            .per_endpoint => {},
+        }
+    }
+
+    fn generateTagClients(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
+        var refs = std.ArrayList(TagClientRef).empty;
+        defer {
+            for (refs.items) |ref| {
+                self.allocator.free(ref.struct_name);
+                self.allocator.free(ref.method_name);
+            }
+            refs.deinit(self.allocator);
+        }
+
+        var path_iterator = document.paths.iterator();
+        while (path_iterator.next()) |entry| {
+            const path = entry.key_ptr.*;
+            const path_item = entry.value_ptr.*;
+            try self.collectTagClientRefs(&refs, path, "GET", path_item.get);
+            try self.collectTagClientRefs(&refs, path, "POST", path_item.post);
+            try self.collectTagClientRefs(&refs, path, "PUT", path_item.put);
+            try self.collectTagClientRefs(&refs, path, "DELETE", path_item.delete);
+            try self.collectTagClientRefs(&refs, path, "PATCH", path_item.patch);
+            try self.collectTagClientRefs(&refs, path, "HEAD", path_item.head);
+            try self.collectTagClientRefs(&refs, path, "OPTIONS", path_item.options);
+        }
+
+        std.mem.sort(TagClientRef, refs.items, {}, tagClientRefLessThan);
+
+        var i: usize = 0;
+        while (i < refs.items.len) {
+            const struct_name = refs.items[i].struct_name;
+            var j = i + 1;
+            while (j < refs.items.len and std.mem.eql(u8, refs.items[j].struct_name, struct_name)) j += 1;
+            try self.emitTagClient(refs.items[i..j]);
+            i = j;
+        }
+    }
+
+    fn collectTagClientRefs(self: *UnifiedApiGenerator, refs: *std.ArrayList(TagClientRef), path: []const u8, method: []const u8, maybe_operation: ?Operation) !void {
+        const operation = maybe_operation orelse return;
+        try refs.append(self.allocator, .{
+            .struct_name = try self.tagClientNameAlloc(operation),
+            .method_name = try self.operationMethodNameAlloc(path, operation),
+            .path = path,
+            .method = method,
+            .operation = operation,
+        });
+    }
+
+    fn tagClientNameAlloc(self: *UnifiedApiGenerator, operation: Operation) ![]const u8 {
+        if (operation.tags) |tags| {
+            if (tags.len > 0) {
+                const pascal = try self.pascalCaseAlloc(tags[0]);
+                defer self.allocator.free(pascal);
+                return try std.fmt.allocPrint(self.allocator, "{s}Client", .{pascal});
+            }
+        }
+        return try self.allocator.dupe(u8, "DefaultClient");
+    }
+
+    fn operationMethodNameAlloc(self: *UnifiedApiGenerator, path: []const u8, operation: Operation) ![]const u8 {
+        if (operation.operationId) |id| return try self.allocator.dupe(u8, id);
+        return try std.fmt.allocPrint(self.allocator, "operation{s}", .{path[1..]});
+    }
+
+    fn pascalCaseAlloc(self: *UnifiedApiGenerator, value: []const u8) ![]const u8 {
+        var out = std.ArrayList(u8).empty;
+        errdefer out.deinit(self.allocator);
+        var capitalize_next = true;
+        for (value) |c| {
+            if (std.ascii.isAlphanumeric(c)) {
+                try out.append(self.allocator, if (capitalize_next) std.ascii.toUpper(c) else std.ascii.toLower(c));
+                capitalize_next = false;
+            } else {
+                capitalize_next = true;
+            }
+        }
+        if (out.items.len == 0 or !ident.isIdentStart(out.items[0])) {
+            try out.insert(self.allocator, 0, '_');
+        }
+        if (ident.isReservedIdent(out.items)) try out.appendSlice(self.allocator, "_");
+        return try out.toOwnedSlice(self.allocator);
+    }
+
+    fn emitTagClient(self: *UnifiedApiGenerator, refs: []const TagClientRef) !void {
+        const struct_name = refs[0].struct_name;
+        try self.buffer.appendSlice(self.allocator, "pub const ");
+        try self.buffer.appendSlice(self.allocator, struct_name);
+        try self.buffer.appendSlice(self.allocator, " = struct {\n");
+        try self.buffer.appendSlice(self.allocator, "    client: *Client,\n\n");
+        try self.buffer.appendSlice(self.allocator, "    pub fn init(client: *Client) ");
+        try self.buffer.appendSlice(self.allocator, struct_name);
+        try self.buffer.appendSlice(self.allocator, " {\n");
+        try self.buffer.appendSlice(self.allocator, "        return .{ .client = client };\n");
+        try self.buffer.appendSlice(self.allocator, "    }\n\n");
+        for (refs) |ref| {
+            try self.emitTagClientMethod(struct_name, ref);
+        }
+        try self.buffer.appendSlice(self.allocator, "};\n\n");
+    }
+
+    fn emitTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const u8, ref: TagClientRef) !void {
+        const operation = ref.operation;
+        const forbidden = [_][]const u8{"self"};
+        const has_return = self.hasReturnValue(ref.method, operation);
+
+        try self.buffer.appendSlice(self.allocator, "    pub fn ");
+        try self.appendIdentifier(ref.method_name);
+        try self.buffer.appendSlice(self.allocator, "(self: *");
+        try self.buffer.appendSlice(self.allocator, struct_name);
+        try self.appendOperationParameters(operation, &forbidden);
+        if (has_return) {
+            try self.buffer.appendSlice(self.allocator, ") !Owned(");
+            try self.appendReturnType(ref.method, operation);
+            try self.buffer.appendSlice(self.allocator, ") {\n");
+        } else {
+            try self.buffer.appendSlice(self.allocator, ") !void {\n");
+        }
+        try self.buffer.appendSlice(self.allocator, "        return ");
+        try self.appendFlatOperationName(ref);
+        try self.appendTagClientCallArguments(operation, &forbidden);
+        try self.buffer.appendSlice(self.allocator, ";\n");
+        try self.buffer.appendSlice(self.allocator, "    }\n\n");
+
+        if (operation.operationId) |operation_id| {
+            const raw_method_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{ref.method_name});
+            defer self.allocator.free(raw_method_name);
+            const flat_raw_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id});
+            defer self.allocator.free(flat_raw_name);
+
+            try self.buffer.appendSlice(self.allocator, "    pub fn ");
+            try self.appendIdentifier(raw_method_name);
+            try self.buffer.appendSlice(self.allocator, "(self: *");
+            try self.buffer.appendSlice(self.allocator, struct_name);
+            try self.appendOperationParameters(operation, &forbidden);
+            try self.buffer.appendSlice(self.allocator, ") !RawResponse {\n");
+            try self.buffer.appendSlice(self.allocator, "        return ");
+            try self.appendIdentifier(flat_raw_name);
+            try self.appendTagClientCallArguments(operation, &forbidden);
+            try self.buffer.appendSlice(self.allocator, ";\n");
+            try self.buffer.appendSlice(self.allocator, "    }\n\n");
+
+            if (has_return) {
+                const result_method_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{ref.method_name});
+                defer self.allocator.free(result_method_name);
+                const flat_result_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{operation_id});
+                defer self.allocator.free(flat_result_name);
+
+                try self.buffer.appendSlice(self.allocator, "    pub fn ");
+                try self.appendIdentifier(result_method_name);
+                try self.buffer.appendSlice(self.allocator, "(self: *");
+                try self.buffer.appendSlice(self.allocator, struct_name);
+                try self.appendOperationParameters(operation, &forbidden);
+                try self.buffer.appendSlice(self.allocator, ") !ApiResult(");
+                try self.appendReturnType(ref.method, operation);
+                try self.buffer.appendSlice(self.allocator, ") {\n");
+                try self.buffer.appendSlice(self.allocator, "        return ");
+                try self.appendIdentifier(flat_result_name);
+                try self.appendTagClientCallArguments(operation, &forbidden);
+                try self.buffer.appendSlice(self.allocator, ";\n");
+                try self.buffer.appendSlice(self.allocator, "    }\n\n");
+            }
+        }
+    }
+
+    fn appendFlatOperationName(self: *UnifiedApiGenerator, ref: TagClientRef) !void {
+        if (ref.operation.operationId) |id| {
+            try self.appendIdentifier(id);
+        } else {
+            try self.buffer.appendSlice(self.allocator, "@\"");
+            try self.buffer.appendSlice(self.allocator, "operation");
+            try self.buffer.appendSlice(self.allocator, ref.path[1..]);
+            try self.buffer.appendSlice(self.allocator, "\"");
+        }
+    }
+
+    fn appendTagClientCallArguments(self: *UnifiedApiGenerator, operation: Operation, forbidden_names: []const []const u8) !void {
+        try self.buffer.appendSlice(self.allocator, "(self.client");
+        if (operation.parameters) |params| {
+            for (params) |param| {
+                try self.buffer.appendSlice(self.allocator, ", ");
+                const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
+                try self.appendParameterName(name, forbidden_names);
+            }
+        }
+        try self.buffer.appendSlice(self.allocator, ")");
     }
 
     fn appendIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
