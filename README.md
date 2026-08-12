@@ -302,6 +302,7 @@ zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated
 zig build run-generate-v3-per-tag  # openapi/v3.0/petstore.json -> generated/multiple-clients/generated_v3_per_tag.zig
 zig build run-generate-v3-per-endpoint  # openapi/v3.0/petstore.json -> generated/multiple-clients/generated_v3_per_endpoint.zig
 zig build run-generate-v3-multiple-clients  # runs both, outputs under generated/multiple-clients/
+zig build run-generate-v3-multiple-files-clients  # per-tag + per-endpoint with --multiple-files under generated/multiple-files-clients/
 zig build run-generate      # runs all of the above
 ```
 
