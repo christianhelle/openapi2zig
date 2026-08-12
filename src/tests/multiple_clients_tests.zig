@@ -94,6 +94,58 @@ fn buildTaggedFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     };
 }
 
+/// Fixture where the schemas section declares names that collide with the
+/// generated tag-client struct names (PetClient, DefaultClient).
+fn buildCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    try paths.put(try allocator.dupe(u8, "/pets"), .{
+        .get = try opWithTags(allocator, "listPets", "GET", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/health"), .{
+        .get = try op(allocator, "healthCheck", "GET", false, false, true),
+    });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "PetClient"), .{ .type = .object });
+    try schemas.put(try allocator.dupe(u8, "DefaultClient"), .{ .type = .object });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+/// Fixture with operation ids that collide with reserved struct members
+/// (init, client, deinit) inside the tag client.
+fn buildReservedMemberFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    try paths.put(try allocator.dupe(u8, "/init"), .{
+        .get = try opWithTags(allocator, "init", "GET", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/client"), .{
+        .get = try opWithTags(allocator, "client", "GET", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/deinit"), .{
+        .get = try opWithTags(allocator, "deinit", "GET", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/pets"), .{
+        .get = try opWithTags(allocator, "listPets", "GET", false, false, true, &.{"pet"}),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
 test "per-tag clients group operations by first tag" {
     const allocator = std.testing.allocator;
     var document = try buildTaggedFixture(allocator);
@@ -217,4 +269,55 @@ test "per-tag clients are not emitted without the flag" {
 
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const PetClient = struct") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const DefaultClient = struct") == null);
+}
+
+test "per-tag clients rename struct names colliding with schema names" {
+    const allocator = std.testing.allocator;
+    var document = try buildCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_tag,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // The colliding structs get a trailing underscore; the plain names are
+    // left for the schema declarations emitted by the model generator.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const PetClient_ = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const DefaultClient_ = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const PetClient = struct") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const DefaultClient = struct") == null);
+    // Methods on the renamed structs reference the renamed struct.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(self: *PetClient_)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init(client: *Client) PetClient_ {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn healthCheck(self: *DefaultClient_)") != null);
+}
+
+test "per-tag clients rename methods colliding with reserved struct members" {
+    const allocator = std.testing.allocator;
+    var document = try buildReservedMemberFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_tag,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // Reserved members init/client/deinit get a trailing underscore.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init_(self: *PetClient)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return init(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn client_(self: *PetClient)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn deinit_(self: *PetClient)") != null);
+    // The constructor keeps the exact init name.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init(client: *Client) PetClient {") != null);
+    // Normal operations are untouched.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(self: *PetClient)") != null);
 }

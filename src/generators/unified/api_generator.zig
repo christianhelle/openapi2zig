@@ -206,6 +206,10 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateTagClients(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+
         var refs = std.ArrayList(TagClientRef).empty;
         defer {
             for (refs.items) |ref| {
@@ -230,13 +234,72 @@ pub const UnifiedApiGenerator = struct {
 
         std.mem.sort(TagClientRef, refs.items, {}, tagClientRefLessThan);
 
+        var taken = try self.topLevelNamesAlloc(document, arena_allocator);
+        defer taken.deinit();
+
         var i: usize = 0;
         while (i < refs.items.len) {
-            const struct_name = refs.items[i].struct_name;
+            const base_name = refs.items[i].struct_name;
             var j = i + 1;
-            while (j < refs.items.len and std.mem.eql(u8, refs.items[j].struct_name, struct_name)) j += 1;
-            try self.emitTagClient(refs.items[i..j]);
+            while (j < refs.items.len and std.mem.eql(u8, refs.items[j].struct_name, base_name)) j += 1;
+
+            var emitted_name: []const u8 = base_name;
+            var owned_emitted: ?[]const u8 = null;
+            var suffix_buf: [64]u8 = undefined;
+            var suffix_len: usize = 0;
+            while (taken.contains(emitted_name)) : (suffix_len += 1) {
+                if (suffix_len >= suffix_buf.len) return error.TooManyCollisions;
+                @memset(suffix_buf[0 .. suffix_len + 1], '_');
+                owned_emitted = try std.fmt.allocPrint(arena_allocator, "{s}{s}", .{ base_name, suffix_buf[0 .. suffix_len + 1] });
+                emitted_name = owned_emitted.?;
+            }
+
+            _ = try taken.put(try arena_allocator.dupe(u8, emitted_name), {});
+            try self.emitTagClient(emitted_name, refs.items[i..j], arena_allocator);
             i = j;
+        }
+    }
+
+    fn topLevelNamesAlloc(self: *UnifiedApiGenerator, document: UnifiedDocument, arena_allocator: std.mem.Allocator) !std.StringHashMap(void) {
+        var names = std.StringHashMap(void).init(arena_allocator);
+        errdefer names.deinit();
+        const runtime_names = [_][]const u8{ "Client", "Owned", "RawResponse", "ParseErrorResponse", "ApiResult", "HttpObserver", "CancellationToken", "resources" };
+        for (runtime_names) |name| _ = try names.getOrPut(try arena_allocator.dupe(u8, name));
+
+        if (document.schemas) |schemas| {
+            var schema_iterator = schemas.iterator();
+            while (schema_iterator.next()) |entry| _ = try names.getOrPut(try arena_allocator.dupe(u8, entry.key_ptr.*));
+        }
+
+        var path_iterator = document.paths.iterator();
+        while (path_iterator.next()) |entry| {
+            const path_item = entry.value_ptr.*;
+            try self.collectTopLevelOperationNames(&names, path_item.get, "GET", arena_allocator);
+            try self.collectTopLevelOperationNames(&names, path_item.post, "POST", arena_allocator);
+            try self.collectTopLevelOperationNames(&names, path_item.put, "PUT", arena_allocator);
+            try self.collectTopLevelOperationNames(&names, path_item.delete, "DELETE", arena_allocator);
+            try self.collectTopLevelOperationNames(&names, path_item.patch, "PATCH", arena_allocator);
+            try self.collectTopLevelOperationNames(&names, path_item.head, "HEAD", arena_allocator);
+            try self.collectTopLevelOperationNames(&names, path_item.options, "OPTIONS", arena_allocator);
+        }
+        return names;
+    }
+
+    fn collectTopLevelOperationNames(self: *UnifiedApiGenerator, names: *std.StringHashMap(void), maybe_operation: ?Operation, method: []const u8, arena_allocator: std.mem.Allocator) !void {
+        const operation = maybe_operation orelse return;
+        const operation_id = operation.operationId orelse return;
+        _ = try names.getOrPut(try arena_allocator.dupe(u8, operation_id));
+        const raw_name = try std.fmt.allocPrint(arena_allocator, "{s}Raw", .{operation_id});
+        _ = try names.getOrPut(raw_name);
+        if (self.hasReturnValue(method, operation)) {
+            const result_name = try std.fmt.allocPrint(arena_allocator, "{s}Result", .{operation_id});
+            _ = try names.getOrPut(result_name);
+        }
+        if (operation.streaming) {
+            const stream_name = try std.fmt.allocPrint(arena_allocator, "{s}Streaming", .{operation_id});
+            _ = try names.getOrPut(stream_name);
+            const events_name = try std.fmt.allocPrint(arena_allocator, "{s}StreamingEvents", .{operation_id});
+            _ = try names.getOrPut(events_name);
         }
     }
 
@@ -286,8 +349,7 @@ pub const UnifiedApiGenerator = struct {
         return try out.toOwnedSlice(self.allocator);
     }
 
-    fn emitTagClient(self: *UnifiedApiGenerator, refs: []const TagClientRef) !void {
-        const struct_name = refs[0].struct_name;
+    fn emitTagClient(self: *UnifiedApiGenerator, struct_name: []const u8, refs: []const TagClientRef, arena_allocator: std.mem.Allocator) !void {
         try self.buffer.appendSlice(self.allocator, "pub const ");
         try self.buffer.appendSlice(self.allocator, struct_name);
         try self.buffer.appendSlice(self.allocator, " = struct {\n");
@@ -297,19 +359,35 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, " {\n");
         try self.buffer.appendSlice(self.allocator, "        return .{ .client = client };\n");
         try self.buffer.appendSlice(self.allocator, "    }\n\n");
+
+        var used_names = std.StringHashMap(void).init(arena_allocator);
+        defer used_names.deinit();
         for (refs) |ref| {
-            try self.emitTagClientMethod(struct_name, ref);
+            try self.emitTagClientMethod(struct_name, ref, &used_names, arena_allocator);
         }
         try self.buffer.appendSlice(self.allocator, "};\n\n");
     }
 
-    fn emitTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const u8, ref: TagClientRef) !void {
+    fn emitTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const u8, ref: TagClientRef, used_names: *std.StringHashMap(void), arena_allocator: std.mem.Allocator) !void {
         const operation = ref.operation;
         const forbidden = [_][]const u8{"self"};
         const has_return = self.hasReturnValue(ref.method, operation);
+        const reserved_members = [_][]const u8{ "init", "client", "deinit" };
+
+        var method_name: []const u8 = ref.method_name;
+        var owned_name: ?[]const u8 = null;
+        var suffix_buf: [64]u8 = undefined;
+        var suffix_len: usize = 0;
+        while (containsString(&reserved_members, method_name) or used_names.contains(method_name)) : (suffix_len += 1) {
+            if (suffix_len >= suffix_buf.len) return error.TooManyCollisions;
+            @memset(suffix_buf[0 .. suffix_len + 1], '_');
+            owned_name = try std.fmt.allocPrint(arena_allocator, "{s}{s}", .{ ref.method_name, suffix_buf[0 .. suffix_len + 1] });
+            method_name = owned_name.?;
+        }
+        _ = try used_names.put(try arena_allocator.dupe(u8, method_name), {});
 
         try self.buffer.appendSlice(self.allocator, "    pub fn ");
-        try self.appendIdentifier(ref.method_name);
+        try self.appendIdentifier(method_name);
         try self.buffer.appendSlice(self.allocator, "(self: *");
         try self.buffer.appendSlice(self.allocator, struct_name);
         try self.appendOperationParameters(operation, &forbidden);
@@ -327,7 +405,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
         if (operation.operationId) |operation_id| {
-            const raw_method_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{ref.method_name});
+            const raw_method_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{method_name});
             defer self.allocator.free(raw_method_name);
             const flat_raw_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id});
             defer self.allocator.free(flat_raw_name);
@@ -345,7 +423,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
             if (has_return) {
-                const result_method_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{ref.method_name});
+                const result_method_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{method_name});
                 defer self.allocator.free(result_method_name);
                 const flat_result_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{operation_id});
                 defer self.allocator.free(flat_result_name);
@@ -389,7 +467,6 @@ pub const UnifiedApiGenerator = struct {
         }
         try self.buffer.appendSlice(self.allocator, ")");
     }
-
     fn appendIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
         try ident.appendIdentifier(&self.buffer, self.allocator, name);
     }
