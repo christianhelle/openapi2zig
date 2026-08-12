@@ -299,8 +299,9 @@ zig build run-generate-v3-yaml  # openapi/v3.0/petstore.yaml -> generated/genera
 zig build run-generate-v31  # openapi/v3.1/webhook-example.json -> generated/generated_v31.zig
 zig build run-generate-v31-yaml # openapi/v3.1/webhook-example.yaml -> generated/generated_v31_yaml.zig
 zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated_v32.zig
-zig build run-generate-v3-per-tag  # openapi/v3.0/petstore.json -> generated/generated_v3_per_tag.zig
-zig build run-generate-v3-per-endpoint  # openapi/v3.0/petstore.json -> generated/generated_v3_per_endpoint.zig
+zig build run-generate-v3-per-tag  # openapi/v3.0/petstore.json -> generated/multiple-clients/generated_v3_per_tag.zig
+zig build run-generate-v3-per-endpoint  # openapi/v3.0/petstore.json -> generated/multiple-clients/generated_v3_per_endpoint.zig
+zig build run-generate-v3-multiple-clients  # runs both, outputs under generated/multiple-clients/
 zig build run-generate      # runs all of the above
 ```
 

@@ -92,7 +92,7 @@ pub fn build(b: *std.Build) void {
         "-i",
         "openapi/v3.0/petstore.json",
         "-o",
-        "generated/generated_v3_per_tag.zig",
+        "generated/multiple-clients/generated_v3_per_tag.zig",
         "--multiple-clients",
         "PerTag",
         "--base-url",
@@ -107,7 +107,7 @@ pub fn build(b: *std.Build) void {
         "-i",
         "openapi/v3.0/petstore.json",
         "-o",
-        "generated/generated_v3_per_endpoint.zig",
+        "generated/multiple-clients/generated_v3_per_endpoint.zig",
         "--multiple-clients",
         "PerEndpoint",
         "--base-url",
@@ -116,6 +116,10 @@ pub fn build(b: *std.Build) void {
     const run_generate_v3_per_endpoint_step = b.step("run-generate-v3-per-endpoint", "Generate per-endpoint client structs from the v3.0 petstore spec");
     run_generate_v3_per_endpoint_step.dependOn(&run_generate_v3_per_endpoint_cmd.step);
     run_generate_v3_multi_step.dependOn(&run_generate_v3_multi_cmd.step);
+
+    const run_generate_v3_multiple_clients_step = b.step("run-generate-v3-multiple-clients", "Generate per-tag and per-endpoint client structs into generated/multiple-clients/");
+    run_generate_v3_multiple_clients_step.dependOn(&run_generate_v3_per_tag_cmd.step);
+    run_generate_v3_multiple_clients_step.dependOn(&run_generate_v3_per_endpoint_cmd.step);
 
     const run_generate_v2_cmd = b.addRunArtifact(exe);
     run_generate_v2_cmd.addArgs(&.{
@@ -252,8 +256,7 @@ pub fn build(b: *std.Build) void {
 
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
-    run_generate.dependOn(&run_generate_v3_per_tag_cmd.step);
-    run_generate.dependOn(&run_generate_v3_per_endpoint_cmd.step);
+    run_generate.dependOn(run_generate_v3_multiple_clients_step);
     run_generate.dependOn(&run_generate_v3_multi_cmd.step);
     run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
