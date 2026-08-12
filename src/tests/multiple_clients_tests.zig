@@ -146,6 +146,31 @@ fn buildReservedMemberFixture(allocator: std.mem.Allocator) !common.UnifiedDocum
     };
 }
 
+/// Fixture with one operation missing an operationId (fallback naming) and
+/// two operations whose PascalCase names collide.
+fn buildEndpointCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    // getPet and get_pet both sanitize to GetPet.
+    try paths.put(try allocator.dupe(u8, "/pets/{petId}"), .{
+        .get = try op(allocator, "getPet", "GET", false, true, true),
+    });
+    try paths.put(try allocator.dupe(u8, "/pets/{petId}/photo"), .{
+        .get = try op(allocator, "get_pet", "GET", false, true, true),
+    });
+    // No operationId -> method+path fallback.
+    try paths.put(try allocator.dupe(u8, "/status"), .{
+        .get = try opWithTags(allocator, "", "GET", false, false, true, null),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
 test "per-tag clients group operations by first tag" {
     const allocator = std.testing.allocator;
     var document = try buildTaggedFixture(allocator);
@@ -320,4 +345,124 @@ test "per-tag clients rename methods colliding with reserved struct members" {
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init(client: *Client) PetClient {") != null);
     // Normal operations are untouched.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(self: *PetClient)") != null);
+}
+
+test "per-endpoint clients emit one struct per operation with init and execute" {
+    const allocator = std.testing.allocator;
+    var document = try buildTaggedFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_endpoint,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const ListPets = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const GetPet = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const CreatePet = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const DeletePet = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const PlaceOrder = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const ListUsers = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const HealthCheck = struct") != null);
+}
+
+test "per-endpoint clients wrap the base client and expose execute parity" {
+    const allocator = std.testing.allocator;
+    var document = try buildTaggedFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_endpoint,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "    client: *Client,") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init(client: *Client) GetPet {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "        return .{ .client = client };") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *GetPet, petId: i64) !Owned(std.json.Value)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return getPet(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeRaw(self: *GetPet, petId: i64) !RawResponse") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return getPetRaw(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeResult(self: *GetPet, petId: i64) !ApiResult(std.json.Value)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return getPetResult(self.client, petId);") != null);
+}
+
+test "per-endpoint clients emit execute for operations without a response schema" {
+    const allocator = std.testing.allocator;
+    var document = try buildTaggedFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_endpoint,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *DeletePet, petId: i64) !void") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeResult(self: *DeletePet") == null);
+}
+
+test "per-endpoint clients keep the flat functions and base client" {
+    const allocator = std.testing.allocator;
+    var document = try buildTaggedFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_endpoint,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const Client = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(client: *Client, petId: i64) !Owned(std.json.Value)") != null);
+}
+
+test "per-endpoint clients are not emitted without the flag" {
+    const allocator = std.testing.allocator;
+    var document = try buildTaggedFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const GetPet = struct") == null);
+}
+
+test "per-endpoint clients fall back to path names and dedupe collisions" {
+    const allocator = std.testing.allocator;
+    var document = try buildEndpointCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_endpoint,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const GetPet = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const GetPet_ = struct") != null);
+    // Missing operationId falls back to a path-derived name.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const StatusGet = struct") != null);
 }
