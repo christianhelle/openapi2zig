@@ -32,6 +32,11 @@ fn printUsage() void {
         \\                              <kind> is models, runtime, or client.
         \\                              (default: models.zig, runtime.zig, client.zig)
         \\                              Can be specified multiple times.
+        \\   --multiple-clients [PerTag|PerEndpoint]
+        \\                              Generate multiple client structs instead of a single
+        \\                              flat client. PerTag (default): one client per OpenAPI
+        \\                              tag. PerEndpoint: one struct per operation with an
+        \\                              execute() method.
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
@@ -52,6 +57,27 @@ pub const ResourceWrapperMode = enum {
     tags,
     paths,
     hybrid,
+};
+
+pub const MultipleClientsMode = enum {
+    per_tag,
+    per_endpoint,
+
+    pub fn fromString(value: []const u8) ?MultipleClientsMode {
+        if (std.ascii.eqlIgnoreCase(value, "pertag") or
+            std.ascii.eqlIgnoreCase(value, "per-tag") or
+            std.ascii.eqlIgnoreCase(value, "per_tag"))
+        {
+            return .per_tag;
+        }
+        if (std.ascii.eqlIgnoreCase(value, "perendpoint") or
+            std.ascii.eqlIgnoreCase(value, "per-endpoint") or
+            std.ascii.eqlIgnoreCase(value, "per_endpoint"))
+        {
+            return .per_endpoint;
+        }
+        return null;
+    }
 };
 
 pub const FileKind = enum {
@@ -233,6 +259,7 @@ pub const CliArgs = struct {
     models_only: bool = false,
     multiple_files: bool = false,
     file_names: FileNameOverrides = .{},
+    multiple_clients: ?MultipleClientsMode = null,
 };
 
 pub const ParsedArgs = struct {
@@ -261,9 +288,11 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var output_path: ?[]const u8 = null;
     var base_url: ?[]const u8 = null;
     var resource_wrappers: ResourceWrapperMode = .paths;
+    var explicit_resource_wrappers = false;
     var models_only = false;
     var multiple_files = false;
     var file_names: FileNameOverrides = .{};
+    var multiple_clients: ?MultipleClientsMode = null;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -300,6 +329,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
                 printError("resource wrapper mode required\n", .{});
                 return error.InvalidArguments;
             }
+            explicit_resource_wrappers = true;
             resource_wrappers = parseResourceWrapperMode(args[i]) orelse {
                 printUsage();
                 printError("invalid resource wrapper mode '{s}'\n", .{args[i]});
@@ -309,6 +339,17 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             models_only = true;
         } else if (std.mem.eql(u8, arg, "--multiple-files")) {
             multiple_files = true;
+        } else if (std.mem.eql(u8, arg, "--multiple-clients")) {
+            if (i + 1 < args.len and !std.mem.startsWith(u8, args[i + 1], "-")) {
+                i += 1;
+                multiple_clients = MultipleClientsMode.fromString(args[i]) orelse {
+                    printUsage();
+                    printError("invalid multiple-clients mode '{s}', expected PerTag or PerEndpoint\n", .{args[i]});
+                    return error.InvalidArguments;
+                };
+            } else {
+                multiple_clients = .per_tag;
+            }
         } else if (std.mem.eql(u8, arg, "--file-name")) {
             i += 1;
             if (i >= args.len) {
@@ -368,6 +409,21 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
         return error.InvalidArguments;
     }
 
+    if (multiple_clients != null) {
+        if (explicit_resource_wrappers and resource_wrappers != .none) {
+            printUsage();
+            printError("--multiple-clients is mutually exclusive with --resource-wrappers, use --resource-wrappers none or omit it\n", .{});
+            return error.InvalidArguments;
+        }
+        resource_wrappers = .none;
+    }
+
+    if (multiple_clients != null and models_only) {
+        printUsage();
+        printError("--multiple-clients has no effect with --models-only\n", .{});
+        return error.InvalidArguments;
+    }
+
     if (!models_only) {
         if (findDuplicateFileName(file_names)) |dup| {
             printUsage();
@@ -400,6 +456,7 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .models_only = models_only,
             .multiple_files = multiple_files,
             .file_names = file_names,
+            .multiple_clients = multiple_clients,
         },
     };
 }
@@ -479,6 +536,157 @@ test "parse generate silently ignores --sse-buffer flag" {
     const parsed = try parse(&argv);
 
     try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
+}
+
+test "parse generate defaults multiple-clients to null" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expect(parsed.args.multiple_clients == null);
+}
+
+test "parse generate --multiple-clients defaults to PerTag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-clients",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expect(parsed.args.multiple_clients != null);
+    try std.testing.expectEqual(MultipleClientsMode.per_tag, parsed.args.multiple_clients.?);
+}
+
+test "parse generate --multiple-clients PerTag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-clients",
+        "PerTag",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expectEqual(MultipleClientsMode.per_tag, parsed.args.multiple_clients.?);
+}
+
+test "parse generate --multiple-clients PerEndpoint" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-clients",
+        "PerEndpoint",
+    };
+
+    const parsed = try parse(&argv);
+
+    try std.testing.expectEqual(MultipleClientsMode.per_endpoint, parsed.args.multiple_clients.?);
+}
+
+test "parse generate --multiple-clients accepts case-insensitive values" {
+    const values = [_][:0]const u8{ "pertag", "PER_TAG", "per-tag", "PerTag", "perendpoint", "PER_ENDPOINT", "per-endpoint", "PerEndpoint" };
+    for (values) |value| {
+        const argv = [_][:0]const u8{
+            "openapi2zig",
+            "generate",
+            "-i",
+            "openapi.json",
+            "--multiple-clients",
+            value,
+        };
+        const parsed = try parse(&argv);
+        try std.testing.expect(parsed.args.multiple_clients != null);
+    }
+}
+
+test "parse rejects invalid --multiple-clients value" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-clients",
+        "PerThing",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse rejects --multiple-clients with non-none resource wrappers" {
+    const modes = [_][:0]const u8{ "tags", "paths", "hybrid" };
+    for (modes) |mode| {
+        const argv = [_][:0]const u8{
+            "openapi2zig",
+            "generate",
+            "-i",
+            "openapi.json",
+            "--multiple-clients",
+            "PerTag",
+            "--resource-wrappers",
+            mode,
+        };
+        try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    }
+}
+
+test "parse accepts --multiple-clients with --resource-wrappers none" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-clients",
+        "PerTag",
+        "--resource-wrappers",
+        "none",
+    };
+
+    const parsed = try parse(&argv);
+    try std.testing.expectEqual(MultipleClientsMode.per_tag, parsed.args.multiple_clients.?);
+    try std.testing.expectEqual(ResourceWrapperMode.none, parsed.args.resource_wrappers);
+}
+
+test "parse rejects --multiple-clients with --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-clients",
+        "PerTag",
+        "--models-only",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+}
+
+test "parse accepts --multiple-clients with --multiple-files" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--multiple-clients",
+        "PerEndpoint",
+    };
+
+    const parsed = try parse(&argv);
+    try std.testing.expectEqual(MultipleClientsMode.per_endpoint, parsed.args.multiple_clients.?);
+    try std.testing.expect(parsed.args.multiple_files);
 }
 
 test "parse generate supports --file-name overrides" {
