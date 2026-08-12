@@ -9,6 +9,8 @@ const openai = @import("openai.zig");
 const anthropic = @import("anthropic.zig");
 const multi_v3 = @import("multi/client.zig");
 const multi_v3_custom = @import("lmstudio-multi/api.zig");
+const v3_multiclient_tag = @import("generated_v3_multiclient_tag.zig");
+const v3_multiclient_endpoint = @import("generated_v3_multiclient_endpoint.zig");
 
 fn logRequest(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void {
     _ = ctx;
@@ -76,6 +78,10 @@ pub fn main(init: std.process.Init) !void {
         .onError = &logError,
     };
     defer multi_v3_client.deinit();
+    var v3_multiclient_tag_client = v3_multiclient_tag.Client.init(allocator, io, "");
+    defer v3_multiclient_tag_client.deinit();
+    var v3_multiclient_endpoint_client = v3_multiclient_endpoint.Client.init(allocator, io, "");
+    defer v3_multiclient_endpoint_client.deinit();
     _ = &v3_yaml_client;
     _ = &v2_yaml_client;
     _ = &v31_yaml_client;
@@ -104,4 +110,20 @@ pub fn main(init: std.process.Init) !void {
     };
     defer multi_pet.deinit();
     std.debug.print("Found Pet (multi-file) with ID:{any}\n\n", .{multi_pet.value().id});
+
+    var v3_tag_pets = v3_multiclient_tag.PetClient.init(&v3_multiclient_tag_client);
+    var v3_tag_pet = v3_tag_pets.getPetById(1) catch |err| {
+        std.debug.print("Failed to get Pet (per-tag client): {any}\n", .{err});
+        return;
+    };
+    defer v3_tag_pet.deinit();
+    std.debug.print("Found Pet (per-tag client) with ID:{any}\n\n", .{v3_tag_pet.value().id});
+
+    var v3_endpoint_op = v3_multiclient_endpoint.GetPetById.init(&v3_multiclient_endpoint_client);
+    var v3_endpoint_pet = v3_endpoint_op.execute(1) catch |err| {
+        std.debug.print("Failed to get Pet (per-endpoint client): {any}\n", .{err});
+        return;
+    };
+    defer v3_endpoint_pet.deinit();
+    std.debug.print("Found Pet (per-endpoint client) with ID:{any}\n\n", .{v3_endpoint_pet.value().id});
 }

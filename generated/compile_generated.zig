@@ -7,6 +7,8 @@ const v3_yaml = @import("generated_v3_yaml.zig");
 const v31 = @import("generated_v31.zig");
 const v31_yaml = @import("generated_v31_yaml.zig");
 const v32 = @import("generated_v32.zig");
+const v3_multiclient_tag = @import("generated_v3_multiclient_tag.zig");
+const v3_multiclient_endpoint = @import("generated_v3_multiclient_endpoint.zig");
 
 test "generated clients compile" {
     std.testing.refAllDecls(v2);
@@ -16,6 +18,8 @@ test "generated clients compile" {
     std.testing.refAllDecls(v31);
     std.testing.refAllDecls(v31_yaml);
     std.testing.refAllDecls(v32);
+    std.testing.refAllDecls(v3_multiclient_tag);
+    std.testing.refAllDecls(v3_multiclient_endpoint);
 }
 
 const SseCallback = struct {
