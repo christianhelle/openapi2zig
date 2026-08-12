@@ -21,7 +21,7 @@ fn dupTags(allocator: std.mem.Allocator, tags: []const []const u8) ![][]const u8
 
 fn opWithTags(
     allocator: std.mem.Allocator,
-    operation_id: []const u8,
+    operation_id: ?[]const u8,
     has_path_param: bool,
     has_body: bool,
     has_response: bool,
@@ -54,6 +54,32 @@ fn opWithTags(
         .operationId = operation_id,
         .parameters = if (params.items.len == 0) null else try params.toOwnedSlice(allocator),
         .responses = try responseMap(allocator, has_response),
+    };
+}
+
+fn buildPerEndpointFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    // Duplicate operationId "getPetById" on two paths → GetPetById, GetPetById_ (ordered by path+method).
+    try paths.put(try allocator.dupe(u8, "/pets"), .{
+        .get = try opWithTags(allocator, "getPetById", false, false, true, null),
+    });
+    try paths.put(try allocator.dupe(u8, "/pets/{petId}"), .{
+        .get = try opWithTags(allocator, "getPetById", true, false, true, null),
+    });
+    try paths.put(try allocator.dupe(u8, "/store/order"), .{
+        .post = try opWithTags(allocator, "placeOrder", false, true, true, null),
+    });
+    // No operationId → method+path derived fallback struct name.
+    try paths.put(try allocator.dupe(u8, "/search"), .{
+        .get = try opWithTags(allocator, null, false, false, true, null),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
     };
 }
 
@@ -118,6 +144,57 @@ fn buildCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
         .paths = paths,
         .schemas = schemas,
     };
+}
+
+test "multiple-clients PerEndpoint generates one struct per operation with init + execute parity" {
+    const allocator = std.testing.allocator;
+    var document = try buildPerEndpointFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_endpoint,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // One flat top-level struct per operation, named PascalCase(operationId).
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const GetPetById = struct {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const PlaceOrder = struct {") != null);
+
+    // Duplicate operationId "getPetById" on /pets/{petId} → GetPetById_ (ordered by path+method).
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const GetPetById_ = struct {") != null);
+
+    // init returns a struct holding the base Client.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init(client: *Client) GetPetById {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "    client: *Client,") != null);
+
+    // execute delegates to the flat function.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *GetPetById) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return getPetById(self.client);") != null);
+
+    // executeRaw and executeResult parity.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeRaw(self: *GetPetById) !RawResponse {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return getPetByIdRaw(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeResult(self: *GetPetById) !ApiResult(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return getPetByIdResult(self.client);") != null);
+
+    // Path parameters flow through to the flat function.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *GetPetById_, petId: i64) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return getPetById(self.client, petId);") != null);
+
+    // Body parameters use requestBody.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *PlaceOrder, requestBody: std.json.Value) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return placeOrder(self.client, requestBody);") != null);
+
+    // No operationId → method+path derived fallback struct name, delegating to the flat fallback function.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const GetSearch = struct {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return @\"operationsearch\"(self.client);") != null);
+    // No Raw/Result flat functions exist for a fallback-named operation → no executeRaw/executeResult.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeRaw(self: *GetSearch") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeResult(self: *GetSearch") == null);
 }
 
 test "multiple-clients PerTag groups operations into client structs" {
