@@ -75,6 +75,12 @@ fn buildPerEndpointFixture(allocator: std.mem.Allocator) !common.UnifiedDocument
     try paths.put(try allocator.dupe(u8, "/search"), .{
         .get = try opWithTags(allocator, null, false, false, true, null),
     });
+    // Streaming operation → executeStreaming/executeStreamingEvents.
+    var stream_op = try opWithTags(allocator, "streamPets", false, true, true, null);
+    stream_op.streaming = true;
+    try paths.put(try allocator.dupe(u8, "/stream"), .{
+        .post = stream_op,
+    });
 
     return .{
         .version = "3.0.0",
@@ -101,6 +107,12 @@ fn buildPerTagFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     });
     try paths.put(try allocator.dupe(u8, "/search"), .{
         .get = try opWithTags(allocator, "searchUntagged", false, false, true, null),
+    });
+    // Streaming operation → {opId}Streaming / {opId}StreamEvents methods.
+    var stream_op = try opWithTags(allocator, "streamPets", false, true, true, &.{"pet"});
+    stream_op.streaming = true;
+    try paths.put(try allocator.dupe(u8, "/stream"), .{
+        .post = stream_op,
     });
 
     return .{
@@ -195,6 +207,13 @@ test "multiple-clients PerEndpoint generates one struct per operation with init 
     // No Raw/Result flat functions exist for a fallback-named operation → no executeRaw/executeResult.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeRaw(self: *GetSearch") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeResult(self: *GetSearch") == null);
+
+    // Streaming parity: executeStreaming and executeStreamingEvents delegate to flat functions.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const StreamPets = struct {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeStreaming(self: *StreamPets, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return streamPetsStreaming(self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeStreamingEvents(comptime Event: type, self: *StreamPets, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return streamPetsStreamingEvents(Event, self.client, requestBody, callback, cancellation_token);") != null);
 }
 
 test "multiple-clients PerTag groups operations into client structs" {
@@ -240,6 +259,12 @@ test "multiple-clients PerTag groups operations into client structs" {
     // Untagged operations land in DefaultClient.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn searchUntagged(self: *DefaultClient) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return searchUntagged(self.client);") != null);
+
+    // Streaming parity: {opId}Streaming and {opId}StreamEvents methods delegate to flat functions.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn streamPetsStreaming(self: *PetClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return streamPetsStreaming(self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn streamPetsStreamEvents(comptime Event: type, self: *PetClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return streamPetsStreamingEvents(Event, self.client, requestBody, callback, cancellation_token);") != null);
 }
 
 test "multiple-clients PerTag dedupes struct names, reserved methods, and method collisions" {
