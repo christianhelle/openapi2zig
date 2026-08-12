@@ -226,13 +226,13 @@ test "per-tag clients delegate to flat functions with full operation names" {
 
     // Main operation methods delegate to the flat functions.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(self: *PetClient) !Owned(std.json.Value)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return listPets(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _listPets(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(self: *PetClient, petId: i64) !Owned(std.json.Value)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return getPet(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _getPet(self.client, petId);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn deletePet(self: *PetClient, petId: i64) !void") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return deletePet(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _deletePet(self.client, petId);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn placeOrder(self: *StoreClient, requestBody: std.json.Value) !Owned(std.json.Value)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return placeOrder(self.client, requestBody);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _placeOrder(self.client, requestBody);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listUsers(self: *UserClient) !Owned(std.json.Value)") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn healthCheck(self: *DefaultClient) !Owned(std.json.Value)") != null);
 }
@@ -252,9 +252,9 @@ test "per-tag clients expose Raw and Result parity" {
     defer allocator.free(code);
 
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPetsRaw(self: *PetClient) !RawResponse") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return listPetsRaw(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _listPetsRaw(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPetsResult(self: *PetClient) !ApiResult(std.json.Value)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return listPetsResult(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _listPetsResult(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn deletePetRaw(self: *PetClient, petId: i64) !RawResponse") != null);
     // Operations without a response schema get Raw but no Result.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn deletePetResult(self: *PetClient") == null);
@@ -338,7 +338,7 @@ test "per-tag clients rename methods colliding with reserved struct members" {
 
     // Reserved members init/client/deinit get a trailing underscore.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn init_(self: *PetClient)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return init(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _init(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn client_(self: *PetClient)") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn deinit_(self: *PetClient)") != null);
     // The constructor keeps the exact init name.
@@ -519,9 +519,9 @@ test "per-tag clients expose streaming methods for streaming operations" {
     defer allocator.free(code);
 
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chatStreaming(self: *ChatClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return chatStreaming(self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _chatStreaming(self.client, requestBody, callback, cancellation_token);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chatStreamingEvents(comptime Event: type, self: *ChatClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return chatStreamingEvents(Event, self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _chatStreamingEvents(Event, self.client, requestBody, callback, cancellation_token);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn completeStreaming(self: *ChatClient") != null);
 }
 

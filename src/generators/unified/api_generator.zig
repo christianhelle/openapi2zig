@@ -434,6 +434,7 @@ pub const UnifiedApiGenerator = struct {
 
         std.mem.sort(TagClientRef, refs.items, {}, tagClientRefLessThan);
 
+        try self.emitTagClientAliases(refs.items);
         var taken = try self.topLevelNamesAlloc(document, arena_allocator);
         defer taken.deinit();
 
@@ -458,6 +459,69 @@ pub const UnifiedApiGenerator = struct {
             try self.emitTagClient(emitted_name, refs.items[i..j], arena_allocator);
             i = j;
         }
+    }
+
+    fn emitTagClientAliases(self: *UnifiedApiGenerator, refs: []const TagClientRef) !void {
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+        var emitted = std.StringHashMap(void).init(arena_allocator);
+        defer emitted.deinit();
+
+        for (refs) |ref| {
+            const operation_id = ref.operation.operationId orelse "";
+            try self.emitFlatAlias(&emitted, ref.path, ref.operation, "", arena_allocator);
+            if (operation_id.len > 0) {
+                try self.emitFlatAlias(&emitted, ref.path, ref.operation, "Raw", arena_allocator);
+                if (self.hasReturnValue(ref.method, ref.operation)) {
+                    try self.emitFlatAlias(&emitted, ref.path, ref.operation, "Result", arena_allocator);
+                }
+                if (ref.operation.streaming and std.mem.eql(u8, ref.method, "POST")) {
+                    try self.emitFlatAlias(&emitted, ref.path, ref.operation, "Streaming", arena_allocator);
+                    try self.emitFlatAlias(&emitted, ref.path, ref.operation, "StreamingEvents", arena_allocator);
+                }
+            }
+        }
+        if (refs.len > 0) try self.buffer.appendSlice(self.allocator, "\n");
+    }
+
+    fn emitFlatAlias(self: *UnifiedApiGenerator, emitted: *std.StringHashMap(void), path: []const u8, operation: Operation, suffix: []const u8, arena_allocator: std.mem.Allocator) !void {
+        var alias_buf = std.ArrayList(u8).empty;
+        defer alias_buf.deinit(self.allocator);
+        try alias_buf.append(self.allocator, '_');
+        const operation_id = operation.operationId orelse "";
+        if (operation_id.len > 0) {
+            for (operation_id) |c| try alias_buf.append(self.allocator, if (ident.isIdentContinue(c)) c else '_');
+        } else {
+            try alias_buf.appendSlice(self.allocator, "operation");
+            for (path[1..]) |c| try alias_buf.append(self.allocator, if (ident.isIdentContinue(c)) c else '_');
+        }
+        try alias_buf.appendSlice(self.allocator, suffix);
+        if (emitted.contains(alias_buf.items)) return;
+        _ = try emitted.put(try arena_allocator.dupe(u8, alias_buf.items), {});
+
+        try self.buffer.appendSlice(self.allocator, "const ");
+        try self.buffer.appendSlice(self.allocator, alias_buf.items);
+        try self.buffer.appendSlice(self.allocator, " = ");
+        const flat_name = if (operation_id.len > 0)
+            try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ operation_id, suffix })
+        else
+            try std.fmt.allocPrint(self.allocator, "operation{s}{s}", .{ path[1..], suffix });
+        defer self.allocator.free(flat_name);
+        try self.appendIdentifier(flat_name);
+        try self.buffer.appendSlice(self.allocator, ";\n");
+    }
+
+    fn appendFlatAliasRef(self: *UnifiedApiGenerator, path: []const u8, operation: Operation, suffix: []const u8) !void {
+        try self.buffer.appendSlice(self.allocator, "_");
+        const operation_id = operation.operationId orelse "";
+        if (operation_id.len > 0) {
+            for (operation_id) |c| try self.buffer.append(self.allocator, if (ident.isIdentContinue(c)) c else '_');
+        } else {
+            try self.buffer.appendSlice(self.allocator, "operation");
+            for (path[1..]) |c| try self.buffer.append(self.allocator, if (ident.isIdentContinue(c)) c else '_');
+        }
+        try self.buffer.appendSlice(self.allocator, suffix);
     }
 
     fn topLevelNamesAlloc(self: *UnifiedApiGenerator, document: UnifiedDocument, arena_allocator: std.mem.Allocator) !std.StringHashMap(void) {
@@ -599,7 +663,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, ") !void {\n");
         }
         try self.buffer.appendSlice(self.allocator, "        return ");
-        try self.appendFlatOperationName(ref.path, ref.operation);
+        try self.appendFlatAliasRef(ref.path, ref.operation, "");
         try self.appendTagClientCallArguments(operation, &forbidden);
         try self.buffer.appendSlice(self.allocator, ";\n");
         try self.buffer.appendSlice(self.allocator, "    }\n\n");
@@ -617,7 +681,7 @@ pub const UnifiedApiGenerator = struct {
             try self.appendOperationParameters(operation, &forbidden);
             try self.buffer.appendSlice(self.allocator, ") !RawResponse {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
-            try self.appendIdentifier(flat_raw_name);
+            try self.appendFlatAliasRef(ref.path, ref.operation, "Raw");
             try self.appendTagClientCallArguments(operation, &forbidden);
             try self.buffer.appendSlice(self.allocator, ";\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
@@ -637,7 +701,7 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendReturnType(ref.method, operation);
                 try self.buffer.appendSlice(self.allocator, ") {\n");
                 try self.buffer.appendSlice(self.allocator, "        return ");
-                try self.appendIdentifier(flat_result_name);
+                try self.appendFlatAliasRef(ref.path, ref.operation, "Result");
                 try self.appendTagClientCallArguments(operation, &forbidden);
                 try self.buffer.appendSlice(self.allocator, ";\n");
                 try self.buffer.appendSlice(self.allocator, "    }\n\n");
@@ -661,7 +725,7 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, struct_name);
                 try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
                 try self.buffer.appendSlice(self.allocator, "        return ");
-                try self.appendIdentifier(flat_stream);
+                try self.appendFlatAliasRef(ref.path, ref.operation, "Streaming");
                 try self.buffer.appendSlice(self.allocator, "(self.client, requestBody, callback, cancellation_token);\n");
                 try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
@@ -671,7 +735,7 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, struct_name);
                 try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
                 try self.buffer.appendSlice(self.allocator, "        return ");
-                try self.appendIdentifier(flat_events);
+                try self.appendFlatAliasRef(ref.path, ref.operation, "StreamingEvents");
                 try self.buffer.appendSlice(self.allocator, "(Event, self.client, requestBody, callback, cancellation_token);\n");
                 try self.buffer.appendSlice(self.allocator, "    }\n\n");
             }
