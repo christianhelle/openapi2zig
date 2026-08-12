@@ -227,6 +227,7 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `--models-only` | Generate only Zig models, skipping the API client. |
 | `--multiple-files` | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`. |
 | `--file-name <kind>=<name>` | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. `<name>` may include a relative subpath (e.g. `models=gen/types.zig`); any required parent directories are created automatically. Can be specified multiple times. |
+| `--multiple-clients [PerTag\|PerEndpoint]` | Generate multiple client structs instead of a single flat client. `PerTag` (default when the flag is given without a value): one client struct per OpenAPI tag, e.g. `PetClient`. `PerEndpoint`: one struct per operation with an `execute()` method, e.g. `GetPetById`. Mutually exclusive with `--resource-wrappers` (other than `none`) and `--models-only`. |
 
 
 ### Examples
@@ -255,6 +256,19 @@ openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --base-url https:/
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --resource-wrappers none
 ```
+
+**Generate one client struct per OpenAPI tag (PerTag is the default when the flag has no value):**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerTag
+```
+
+**Generate one struct per operation with an `execute()` method:**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerEndpoint
+```
+
+The flag value is parsed case-insensitively (`pertag`, `per-tag`, `PerEndpoint`, `per_endpoint` are all accepted). The generated per-tag/per-endpoint structs wrap the base `Client` and delegate to the flat endpoint functions, so the flat surface and the base `Client` are still available.
 
 ### Upgrading
 
@@ -285,6 +299,8 @@ zig build run-generate-v3-yaml  # openapi/v3.0/petstore.yaml -> generated/genera
 zig build run-generate-v31  # openapi/v3.1/webhook-example.json -> generated/generated_v31.zig
 zig build run-generate-v31-yaml # openapi/v3.1/webhook-example.yaml -> generated/generated_v31_yaml.zig
 zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated_v32.zig
+zig build run-generate-v3-per-tag  # openapi/v3.0/petstore.json -> generated/generated_v3_per_tag.zig
+zig build run-generate-v3-per-endpoint  # openapi/v3.0/petstore.json -> generated/generated_v3_per_endpoint.zig
 zig build run-generate      # runs all of the above
 ```
 
@@ -428,6 +444,8 @@ Generated files are self-contained Zig source files. The current unified generat
 - Query parameter helpers that percent-encode names and string values with `std.Uri.Component.percentEncode`; optional query parameters are nullable.
 - Bounded SSE parsing helpers: `parseSseBytes`, `parseSseReader`, `parseSseBytesTyped`, and `parseSseReaderTyped`. SSE buffer size is fixed at 256KB for lines and 1MB for events. Stream helpers are generated for every POST operation whose response declares `text/event-stream` content — the function name is `{operationId}Streaming` (with an `Events` variant for typed JSON events).
 - Resource wrapper namespaces by default, for example `pet.get(...)` and `store.order.get(...)`, derived from paths unless `--resource-wrappers` changes the mode. Wrapper names are sanitized generated conveniences, not hand-designed SDK names.
+- With `--multiple-clients PerTag`, one client struct per OpenAPI tag (e.g. `PetClient`), each wrapping a `*Client` with an `init(client: *Client)` constructor and full method parity (`operation`, `operationRaw`, `operationResult`, and streaming variants). Untagged operations land in `DefaultClient`. Methods delegate through generated file-scope aliases so they cannot shadow the flat functions.
+- With `--multiple-clients PerEndpoint`, one struct per operation named from the Pascal-cased `operationId` (e.g. `GetPetById`) with `init(client: *Client)` and `execute`, `executeRaw`, `executeResult`, plus streaming variants when applicable. Operations without an `operationId` fall back to a path+method derived name.
 
 Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`; see [`docs/json-value-typing-policy.md`](docs/json-value-typing-policy.md) for the current policy. For OpenAPI 3.1, the converter has stronger composite-schema handling for object/ref `allOf`, preserved `oneOf`/`anyOf` metadata, and nullable type arrays; do not assume every converter has identical composite support.
 
