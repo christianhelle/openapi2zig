@@ -322,6 +322,29 @@ pub const UnifiedApiGenerator = struct {
         try self.emitEndpointExecute(struct_name, ref);
         if (ref.operation.operationId != null) {
             try self.emitEndpointExecuteRaw(struct_name, ref);
+            if (ref.operation.streaming and std.mem.eql(u8, ref.method, "POST")) {
+                const stream_operation_id = ref.operation.operationId orelse return;
+                const flat_stream = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{stream_operation_id});
+                defer self.allocator.free(flat_stream);
+                const flat_events = try std.fmt.allocPrint(self.allocator, "{s}StreamingEvents", .{stream_operation_id});
+                defer self.allocator.free(flat_events);
+
+                try self.buffer.appendSlice(self.allocator, "    pub fn executeStreaming(self: *");
+                try self.buffer.appendSlice(self.allocator, struct_name);
+                try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+                try self.buffer.appendSlice(self.allocator, "        return ");
+                try self.appendIdentifier(flat_stream);
+                try self.buffer.appendSlice(self.allocator, "(self.client, requestBody, callback, cancellation_token);\n");
+                try self.buffer.appendSlice(self.allocator, "    }\n\n");
+
+                try self.buffer.appendSlice(self.allocator, "    pub fn executeStreamingEvents(comptime Event: type, self: *");
+                try self.buffer.appendSlice(self.allocator, struct_name);
+                try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+                try self.buffer.appendSlice(self.allocator, "        return ");
+                try self.appendIdentifier(flat_events);
+                try self.buffer.appendSlice(self.allocator, "(Event, self.client, requestBody, callback, cancellation_token);\n");
+                try self.buffer.appendSlice(self.allocator, "    }\n\n");
+            }
             if (self.hasReturnValue(ref.method, ref.operation)) {
                 try self.emitEndpointExecuteResult(struct_name, ref);
             }
@@ -617,6 +640,39 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendIdentifier(flat_result_name);
                 try self.appendTagClientCallArguments(operation, &forbidden);
                 try self.buffer.appendSlice(self.allocator, ";\n");
+                try self.buffer.appendSlice(self.allocator, "    }\n\n");
+            }
+            if (operation.streaming and std.mem.eql(u8, ref.method, "POST")) {
+                const stream_operation_id = operation.operationId orelse return;
+                const stream_method = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{method_name});
+                defer self.allocator.free(stream_method);
+                const events_method = try std.fmt.allocPrint(self.allocator, "{s}StreamingEvents", .{method_name});
+                defer self.allocator.free(events_method);
+                const flat_stream = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{stream_operation_id});
+                defer self.allocator.free(flat_stream);
+                const flat_events = try std.fmt.allocPrint(self.allocator, "{s}StreamingEvents", .{stream_operation_id});
+                defer self.allocator.free(flat_events);
+                _ = try used_names.put(try arena_allocator.dupe(u8, stream_method), {});
+                _ = try used_names.put(try arena_allocator.dupe(u8, events_method), {});
+
+                try self.buffer.appendSlice(self.allocator, "    pub fn ");
+                try self.appendIdentifier(stream_method);
+                try self.buffer.appendSlice(self.allocator, "(self: *");
+                try self.buffer.appendSlice(self.allocator, struct_name);
+                try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+                try self.buffer.appendSlice(self.allocator, "        return ");
+                try self.appendIdentifier(flat_stream);
+                try self.buffer.appendSlice(self.allocator, "(self.client, requestBody, callback, cancellation_token);\n");
+                try self.buffer.appendSlice(self.allocator, "    }\n\n");
+
+                try self.buffer.appendSlice(self.allocator, "    pub fn ");
+                try self.appendIdentifier(events_method);
+                try self.buffer.appendSlice(self.allocator, "(comptime Event: type, self: *");
+                try self.buffer.appendSlice(self.allocator, struct_name);
+                try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+                try self.buffer.appendSlice(self.allocator, "        return ");
+                try self.appendIdentifier(flat_events);
+                try self.buffer.appendSlice(self.allocator, "(Event, self.client, requestBody, callback, cancellation_token);\n");
                 try self.buffer.appendSlice(self.allocator, "    }\n\n");
             }
         }

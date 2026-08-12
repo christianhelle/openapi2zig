@@ -466,3 +466,81 @@ test "per-endpoint clients fall back to path names and dedupe collisions" {
     // Missing operationId falls back to a path-derived name.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const StatusGet = struct") != null);
 }
+
+fn streamingOp(allocator: std.mem.Allocator, operation_id: []const u8, tags: []const []const u8) !common.Operation {
+    var params = std.ArrayList(common.Parameter).empty;
+    errdefer params.deinit(allocator);
+    try params.append(allocator, .{
+        .name = "body",
+        .location = .body,
+        .required = true,
+        .schema = .{ .type = .object },
+    });
+    return .{
+        .tags = try dupTags(allocator, tags),
+        .operationId = operation_id,
+        .parameters = try params.toOwnedSlice(allocator),
+        .responses = try responseMap(allocator, false),
+        .streaming = true,
+    };
+}
+
+/// Fixture with streaming operations in the chat tag.
+fn buildStreamingFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    try paths.put(try allocator.dupe(u8, "/chat/completions"), .{
+        .post = try streamingOp(allocator, "chat", &.{"chat"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/completions"), .{
+        .post = try streamingOp(allocator, "complete", &.{"chat"}),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+test "per-tag clients expose streaming methods for streaming operations" {
+    const allocator = std.testing.allocator;
+    var document = try buildStreamingFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_tag,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chatStreaming(self: *ChatClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return chatStreaming(self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chatStreamingEvents(comptime Event: type, self: *ChatClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return chatStreamingEvents(Event, self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn completeStreaming(self: *ChatClient") != null);
+}
+
+test "per-endpoint clients expose streaming methods for streaming operations" {
+    const allocator = std.testing.allocator;
+    var document = try buildStreamingFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_endpoint,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeStreaming(self: *Chat, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return chatStreaming(self.client, requestBody, callback, cancellation_token);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeStreamingEvents(comptime Event: type, self: *Chat, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return chatStreamingEvents(Event, self.client, requestBody, callback, cancellation_token);") != null);
+}
