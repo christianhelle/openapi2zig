@@ -66,6 +66,9 @@ pub const OpenApiConverter = @import("generators/converters/openapi_converter.zi
 pub const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
 pub const OpenApi32Converter = @import("generators/converters/openapi32_converter.zig").OpenApi32Converter;
 
+// Document filtering
+pub const DocumentFilter = @import("document_filter.zig");
+
 // Code generators
 pub const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
 pub const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
