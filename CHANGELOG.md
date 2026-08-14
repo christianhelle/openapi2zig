@@ -6,6 +6,8 @@
 
 **Implemented enhancements:**
 
+- Add --multiple-clients flag for per-tag and per-endpoint client generation [\#79](https://github.com/christianhelle/openapi2zig/pull/79) ([christianhelle](https://github.com/christianhelle))
+- Add PerTag methods for operations without an operationId [\#78](https://github.com/christianhelle/openapi2zig/pull/78) ([christianhelle](https://github.com/christianhelle))
 - Add --file-name option to customize multi-file output names [\#77](https://github.com/christianhelle/openapi2zig/pull/77) ([christianhelle](https://github.com/christianhelle))
 - Add empty lines between headers and generated content [\#75](https://github.com/christianhelle/openapi2zig/pull/75) ([christianhelle](https://github.com/christianhelle))
 
