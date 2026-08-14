@@ -89,6 +89,11 @@ fn collectOperationRefs(allocator: std.mem.Allocator, schemas: ?*const std.Strin
 }
 
 fn collectPathItemRefs(allocator: std.mem.Allocator, schemas: ?*const std.StringHashMap(common.Schema), keep: *std.StringHashMap(void), path_item: common.PathItem) !void {
+    if (path_item.parameters) |params| {
+        for (params) |param| {
+            if (param.schema) |schema| try collectSchemaRefs(allocator, schemas, keep, schema);
+        }
+    }
     inline for (std.meta.fields(common.PathItem)) |field| {
         if (field.type != ?common.Operation) continue;
         if (@field(path_item, field.name)) |operation| {

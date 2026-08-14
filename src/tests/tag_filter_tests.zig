@@ -218,3 +218,40 @@ test "filterByTags keeps nested schemas referenced by kept operations" {
     try std.testing.expect(!schemas.contains("Order"));
     try std.testing.expect(!schemas.contains("SearchResult"));
 }
+
+test "filterByTags keeps schemas referenced by path-level parameters" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var doc = common.UnifiedDocument{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = std.StringHashMap(common.PathItem).init(allocator),
+        .schemas = std.StringHashMap(common.Schema).init(allocator),
+    };
+    defer doc.deinit(allocator);
+
+    var schemas = &(doc.schemas orelse unreachable);
+
+    const path_key = try allocator.dupe(u8, "/regions/{region}");
+    var path_parameters = try allocator.alloc(common.Parameter, 1);
+    path_parameters[0] = .{
+        .name = "region",
+        .location = .path,
+        .required = true,
+        .schema = .{ .ref = "#/components/schemas/Region" },
+    };
+
+    try doc.paths.put(path_key, .{
+        .get = try operationWithRef(allocator, "listRegions", &.{"geo"}, null, null),
+        .parameters = path_parameters,
+    });
+
+    const schema_key = try allocator.dupe(u8, "Region");
+    try schemas.put(schema_key, .{ .type = .string });
+
+    try filter.filterByTags(allocator, &doc, &.{"geo"});
+
+    try std.testing.expect(doc.paths.contains("/regions/{region}"));
+    try std.testing.expect(doc.schemas.?.contains("Region"));
+}
