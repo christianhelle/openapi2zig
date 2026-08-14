@@ -108,6 +108,14 @@ fn buildPerTagFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     try paths.put(try allocator.dupe(u8, "/search"), .{
         .get = try opWithTags(allocator, "searchUntagged", false, false, true, null),
     });
+    // No operationId: tagged op lands in PetClient with a method+path derived name.
+    try paths.put(try allocator.dupe(u8, "/orphan"), .{
+        .get = try opWithTags(allocator, null, false, false, true, &.{"pet"}),
+    });
+    // No operationId and untagged: lands in DefaultClient with a method+path derived name.
+    try paths.put(try allocator.dupe(u8, "/root"), .{
+        .get = try opWithTags(allocator, null, false, false, true, null),
+    });
     // Streaming operation → {opId}Streaming / {opId}StreamEvents methods.
     var stream_op = try opWithTags(allocator, "streamPets", false, true, true, &.{"pet"});
     stream_op.streaming = true;
@@ -140,6 +148,14 @@ fn buildCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     // Reserved method name: operationId "init" sanitizes to "init".
     try paths.put(try allocator.dupe(u8, "/init"), .{
         .post = try opWithTags(allocator, "init", false, true, true, &.{"pet"}),
+    });
+    // Fallback method name (no operationId) collides with an opId-derived
+    // method name: no-opId GET /pets/list → "getPetsList", opId "getPetsList" → "getPetsList".
+    try paths.put(try allocator.dupe(u8, "/other"), .{
+        .get = try opWithTags(allocator, "getPetsList", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/pets/list"), .{
+        .get = try opWithTags(allocator, null, false, false, true, &.{"pet"}),
     });
     // Tag "Pet" (uppercase) sanitizes to the same PetClient as tag "pet" and merges.
     try paths.put(try allocator.dupe(u8, "/users"), .{
@@ -274,6 +290,40 @@ test "multiple-clients PerTag groups operations into client structs" {
     try std.testing.expect(std.mem.indexOf(u8, code, "return streamPetsStreamingEvents(Event, self.client, requestBody, callback, cancellation_token);") != null);
 }
 
+test "multiple-clients PerTag derives methods for operations without an operationId" {
+    const allocator = std.testing.allocator;
+    var document = try buildPerTagFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_tag,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // Tagged operation without an operationId lands in PetClient under a
+    // method+path derived camelCase name, delegating to the flat fallback fn.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getOrphan(self: *PetClient) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return @\"operationorphan\"(self.client);") != null);
+
+    // Untagged operation without an operationId lands in DefaultClient.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getRoot(self: *DefaultClient) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return @\"operationroot\"(self.client);") != null);
+
+    // No Raw/Result flat functions exist for a fallback-named operation.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getOrphanRaw(self: *PetClient") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getOrphanResult(self: *PetClient") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getRootRaw(self: *DefaultClient") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getRootResult(self: *DefaultClient") == null);
+
+    // Fallback-named operations do not produce file-scope aliases.
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _getOrphan = ") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _getRoot = ") == null);
+}
+
 test "multiple-clients PerTag dedupes struct names, reserved methods, and method collisions" {
     const allocator = std.testing.allocator;
     var document = try buildCollisionFixture(allocator);
@@ -314,4 +364,13 @@ test "multiple-clients PerTag dedupes struct names, reserved methods, and method
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listUsers(self: *PetClient") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return _listUsers(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "const _listUsers = listUsers;") != null);
+
+    // Fallback method name collides with an opId-derived name: the second one
+    // (ordered by path+method) gets the underscore suffix. The no-opId op
+    // (/pets/list sorts after /other) delegates through the raw fallback fn.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPetsList(self: *PetClient) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _getPetsList(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPetsList_(self: *PetClient) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return @\"operationpets/list\"(self.client);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _getPetsList = getPetsList;") != null);
 }
