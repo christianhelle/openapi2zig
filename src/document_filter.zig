@@ -42,7 +42,7 @@ fn refName(ref: []const u8) []const u8 {
 
 /// Add a schema reference and transitively everything it points to to the
 /// keep set. References to names absent from the schemas map are ignored.
-fn keepRef(allocator: std.mem.Allocator, schemas: ?*const std.StringHashMap(common.Schema), keep: *std.StringHashMap(void), ref: []const u8) anyerror!void {
+fn keepRef(allocator: std.mem.Allocator, schemas: ?*const std.StringHashMap(common.Schema), keep: *std.StringHashMap(void), ref: []const u8) std.mem.Allocator.Error!void {
     const schemas_map = schemas orelse return;
     const name = refName(ref);
     if (keep.contains(name)) return;
@@ -53,7 +53,7 @@ fn keepRef(allocator: std.mem.Allocator, schemas: ?*const std.StringHashMap(comm
 }
 
 /// Walk a schema tree and add every reachable schema name to the keep set.
-fn collectSchemaRefs(allocator: std.mem.Allocator, schemas: ?*const std.StringHashMap(common.Schema), keep: *std.StringHashMap(void), schema: common.Schema) anyerror!void {
+fn collectSchemaRefs(allocator: std.mem.Allocator, schemas: ?*const std.StringHashMap(common.Schema), keep: *std.StringHashMap(void), schema: common.Schema) std.mem.Allocator.Error!void {
     if (schema.ref) |ref| try keepRef(allocator, schemas, keep, ref);
     if (schema.items) |items| try collectSchemaRefs(allocator, schemas, keep, items.*);
     if (schema.properties) |properties| {
