@@ -225,7 +225,7 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
 | `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`. |
 | `--multiple-clients <mode>` | Generate per-tag or per-endpoint client structs that delegate to the flat API functions. Modes: `PerTag` (default when the flag is given without a value) and `PerEndpoint`. Mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`. |
-| `--tag <name>` | Include only operations carrying the specified OpenAPI tag, and only the models those operations reference. Operations without any of the requested tags (including untagged operations) and their models are skipped. Can be specified multiple times, e.g. `--tag Pet --tag Store --tag User`. |
+| `--tag <name>` | Include only operations carrying the specified OpenAPI tag, and only the models those operations reference. Operations without any of the requested tags (including untagged operations) and their models are skipped. Can be specified multiple times, e.g. `--tag pet --tag store --tag user`. |
 | `--models-only` | Generate only Zig models, skipping the API client. |
 | `--multiple-files` | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`. |
 | `--file-name <kind>=<name>` | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. `<name>` may include a relative subpath (e.g. `models=gen/types.zig`); any required parent directories are created automatically. Can be specified multiple times. |
@@ -271,7 +271,7 @@ openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients
 
 **Generate only endpoints and models for selected tags:**
 ```bash
-openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --tag Pet --tag Store
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --tag pet --tag store
 ```
 
 When `--tag` is given, only operations carrying at least one of the requested tags are generated, and models unreferenced by the kept operations are trimmed from the output.
