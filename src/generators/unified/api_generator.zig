@@ -1515,7 +1515,10 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn isReservedTagClientMethod(name: []const u8) bool {
-        return std.mem.eql(u8, name, "init") or std.mem.eql(u8, name, "client") or std.mem.eql(u8, name, "deinit");
+        return ident.isReservedIdent(name) or
+            std.mem.eql(u8, name, "init") or
+            std.mem.eql(u8, name, "client") or
+            std.mem.eql(u8, name, "deinit");
     }
 
     fn uniqueTagClientMethodNameAlloc(self: *UnifiedApiGenerator, op_ref: OperationRef, used_names: std.StringHashMap(void)) ![]const u8 {

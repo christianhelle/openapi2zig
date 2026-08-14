@@ -6,8 +6,10 @@
 .DESCRIPTION
     Discovers JSON and YAML OpenAPI/Swagger specs under openapi/v2.0,
     openapi/v3.0, openapi/v3.1, and openapi/v3.2, then for each
-    (spec, resource-wrapper mode) pair runs `openapi2zig generate` and
-    compile-checks the generated file with `zig test`. Continues after
+    (spec, mode) pair runs `openapi2zig generate` and compile-checks the
+    generated file with `zig test`. Modes are the resource-wrapper modes
+    (none, tags, paths, hybrid) plus any `--multiple-clients` modes
+    (PerTag, PerEndpoint) passed via -MultipleClients. Continues after
     individual failures and exits non-zero if any non-denylisted case fails.
 
     Cross-platform: works on PowerShell 7+ (Windows, Linux, macOS).
