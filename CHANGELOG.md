@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Add --tag option to filter generated endpoints and models [\#80](https://github.com/christianhelle/openapi2zig/pull/80) ([christianhelle](https://github.com/christianhelle))
 - Add --multiple-clients flag for per-tag and per-endpoint client generation [\#79](https://github.com/christianhelle/openapi2zig/pull/79) ([christianhelle](https://github.com/christianhelle))
 - Add PerTag methods for operations without an operationId [\#78](https://github.com/christianhelle/openapi2zig/pull/78) ([christianhelle](https://github.com/christianhelle))
 - Add --file-name option to customize multi-file output names [\#77](https://github.com/christianhelle/openapi2zig/pull/77) ([christianhelle](https://github.com/christianhelle))
