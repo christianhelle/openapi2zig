@@ -268,7 +268,7 @@ openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerEndpoint
 ```
 
-With `PerTag`, operations are grouped into one struct per tag (untagged operations land in `DefaultClient`), each with an `init(client: *Client)` constructor and methods that delegate to the flat API functions:
+With `PerTag`, operations are grouped into one struct per tag (untagged operations land in `DefaultClient`), each with an `init(client: *Client)` constructor and methods that delegate to the flat API functions. Operations without an `operationId` still get a tag-client method, named from the HTTP method + path (e.g. a `GET /orphan` becomes `getOrphan`), which delegates to the flat fallback function:
 
 ```zig
 var client = api.Client.init(allocator, io, "");

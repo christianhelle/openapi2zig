@@ -1220,7 +1220,6 @@ pub const UnifiedApiGenerator = struct {
         }
 
         for (operations.items) |op_ref| {
-            if (op_ref.operation.operationId == null) continue;
             const struct_name = try self.tagClientNameAlloc(op_ref.operation);
             errdefer self.allocator.free(struct_name);
 
@@ -1308,7 +1307,7 @@ pub const UnifiedApiGenerator = struct {
             }
 
             for (group.methods.items) |op_ref| {
-                const method_name = try self.uniqueTagClientMethodNameAlloc(op_ref.operation.operationId.?, used_method_names);
+                const method_name = try self.uniqueTagClientMethodNameAlloc(op_ref, used_method_names);
                 used_method_names.put(method_name, {}) catch {
                     self.allocator.free(method_name);
                     return error.OutOfMemory;
@@ -1519,8 +1518,11 @@ pub const UnifiedApiGenerator = struct {
         return std.mem.eql(u8, name, "init") or std.mem.eql(u8, name, "client") or std.mem.eql(u8, name, "deinit");
     }
 
-    fn uniqueTagClientMethodNameAlloc(self: *UnifiedApiGenerator, operation_id: []const u8, used_names: std.StringHashMap(void)) ![]const u8 {
-        var candidate = try self.tagClientMethodNameAlloc(operation_id);
+    fn uniqueTagClientMethodNameAlloc(self: *UnifiedApiGenerator, op_ref: OperationRef, used_names: std.StringHashMap(void)) ![]const u8 {
+        var candidate = if (op_ref.operation.operationId) |op_id|
+            try self.tagClientMethodNameAlloc(op_id)
+        else
+            try self.tagClientFallbackMethodNameAlloc(op_ref);
         errdefer self.allocator.free(candidate);
         while (isReservedTagClientMethod(candidate) or used_names.contains(candidate)) {
             const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
@@ -1528,6 +1530,14 @@ pub const UnifiedApiGenerator = struct {
             candidate = suffixed;
         }
         return candidate;
+    }
+
+    fn tagClientFallbackMethodNameAlloc(self: *UnifiedApiGenerator, op_ref: OperationRef) ![]const u8 {
+        const pascal = try self.endpointFallbackNameAlloc(op_ref.method, op_ref.path);
+        defer self.allocator.free(pascal);
+        const method = try self.allocator.dupe(u8, pascal);
+        if (method.len > 0) method[0] = std.ascii.toLower(method[0]);
+        return method;
     }
 
     fn tagClientNameAlloc(self: *UnifiedApiGenerator, operation: Operation) ![]const u8 {
@@ -1548,16 +1558,20 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const u8, method_name: []const u8, op_ref: OperationRef) !void {
         const operation = op_ref.operation;
-        const operation_id = operation.operationId orelse return;
+        const op_id = operation.operationId;
         const has_return = self.hasReturnValue(op_ref.method, operation);
 
         // When the method name matches the operation id, the unqualified
         // delegation call inside the method would be an ambiguous reference to
         // the file-scope flat function. Route through the `_` aliases emitted
-        // by generateTagClients instead.
-        const prospective_name = try self.tagClientMethodNameAlloc(operation_id);
-        defer self.allocator.free(prospective_name);
-        const needs_alias = std.mem.eql(u8, prospective_name, operation_id);
+        // by generateTagClients instead. Operations without an operationId
+        // delegate to the raw @"operation{path}" flat fallback, which never
+        // matches the derived method name, so no alias is needed.
+        const needs_alias = if (op_id) |id| blk: {
+            const prospective_name = try self.tagClientMethodNameAlloc(id);
+            defer self.allocator.free(prospective_name);
+            break :blk std.mem.eql(u8, prospective_name, id);
+        } else false;
 
         try self.buffer.appendSlice(self.allocator, "    pub fn ");
         try self.buffer.appendSlice(self.allocator, method_name);
@@ -1573,82 +1587,90 @@ pub const UnifiedApiGenerator = struct {
         }
         try self.buffer.appendSlice(self.allocator, "        return ");
         if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
-        try self.appendIdentifier(operation_id);
+        if (op_id) |id| {
+            try self.appendIdentifier(id);
+        } else {
+            try self.buffer.appendSlice(self.allocator, "@\"operation");
+            try self.buffer.appendSlice(self.allocator, op_ref.path[1..]);
+            try self.buffer.appendSlice(self.allocator, "\"");
+        }
         try self.appendTagClientCallArguments(operation);
         try self.buffer.appendSlice(self.allocator, ";\n");
         try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
-        const raw_method_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{method_name});
-        defer self.allocator.free(raw_method_name);
-        const raw_operation_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id});
-        defer self.allocator.free(raw_operation_name);
-
-        try self.buffer.appendSlice(self.allocator, "    pub fn ");
-        try self.buffer.appendSlice(self.allocator, raw_method_name);
-        try self.buffer.appendSlice(self.allocator, "(self: *");
-        try self.buffer.appendSlice(self.allocator, struct_name);
-        try self.appendFlatOperationParameters(operation);
-        try self.buffer.appendSlice(self.allocator, ") !RawResponse {\n");
-        try self.buffer.appendSlice(self.allocator, "        return ");
-        if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
-        try self.appendIdentifier(raw_operation_name);
-        try self.appendTagClientCallArguments(operation);
-        try self.buffer.appendSlice(self.allocator, ";\n");
-        try self.buffer.appendSlice(self.allocator, "    }\n\n");
-
-        if (has_return) {
-            const result_method_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{method_name});
-            defer self.allocator.free(result_method_name);
-            const result_operation_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{operation_id});
-            defer self.allocator.free(result_operation_name);
+        if (op_id) |id| {
+            const raw_method_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{method_name});
+            defer self.allocator.free(raw_method_name);
+            const raw_operation_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{id});
+            defer self.allocator.free(raw_operation_name);
 
             try self.buffer.appendSlice(self.allocator, "    pub fn ");
-            try self.buffer.appendSlice(self.allocator, result_method_name);
+            try self.buffer.appendSlice(self.allocator, raw_method_name);
             try self.buffer.appendSlice(self.allocator, "(self: *");
             try self.buffer.appendSlice(self.allocator, struct_name);
             try self.appendFlatOperationParameters(operation);
-            try self.buffer.appendSlice(self.allocator, ") !ApiResult(");
-            try self.appendReturnType(op_ref.method, operation);
-            try self.buffer.appendSlice(self.allocator, ") {\n");
+            try self.buffer.appendSlice(self.allocator, ") !RawResponse {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
             if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
-            try self.appendIdentifier(result_operation_name);
+            try self.appendIdentifier(raw_operation_name);
             try self.appendTagClientCallArguments(operation);
             try self.buffer.appendSlice(self.allocator, ";\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
-        }
 
-        if (operation.streaming and std.mem.eql(u8, op_ref.method, "POST")) {
-            const stream_method_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{method_name});
-            defer self.allocator.free(stream_method_name);
-            const stream_operation_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{operation_id});
-            defer self.allocator.free(stream_operation_name);
+            if (has_return) {
+                const result_method_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{method_name});
+                defer self.allocator.free(result_method_name);
+                const result_operation_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{id});
+                defer self.allocator.free(result_operation_name);
 
-            try self.buffer.appendSlice(self.allocator, "    pub fn ");
-            try self.buffer.appendSlice(self.allocator, stream_method_name);
-            try self.buffer.appendSlice(self.allocator, "(self: *");
-            try self.buffer.appendSlice(self.allocator, struct_name);
-            try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
-            try self.buffer.appendSlice(self.allocator, "        return ");
-            if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
-            try self.appendIdentifier(stream_operation_name);
-            try self.buffer.appendSlice(self.allocator, "(self.client, requestBody, callback, cancellation_token);\n");
-            try self.buffer.appendSlice(self.allocator, "    }\n\n");
+                try self.buffer.appendSlice(self.allocator, "    pub fn ");
+                try self.buffer.appendSlice(self.allocator, result_method_name);
+                try self.buffer.appendSlice(self.allocator, "(self: *");
+                try self.buffer.appendSlice(self.allocator, struct_name);
+                try self.appendFlatOperationParameters(operation);
+                try self.buffer.appendSlice(self.allocator, ") !ApiResult(");
+                try self.appendReturnType(op_ref.method, operation);
+                try self.buffer.appendSlice(self.allocator, ") {\n");
+                try self.buffer.appendSlice(self.allocator, "        return ");
+                if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
+                try self.appendIdentifier(result_operation_name);
+                try self.appendTagClientCallArguments(operation);
+                try self.buffer.appendSlice(self.allocator, ";\n");
+                try self.buffer.appendSlice(self.allocator, "    }\n\n");
+            }
 
-            const stream_events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{method_name});
-            defer self.allocator.free(stream_events_method_name);
-            const stream_events_operation_name = try std.fmt.allocPrint(self.allocator, "{s}StreamingEvents", .{operation_id});
-            defer self.allocator.free(stream_events_operation_name);
+            if (operation.streaming and std.mem.eql(u8, op_ref.method, "POST")) {
+                const stream_method_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{method_name});
+                defer self.allocator.free(stream_method_name);
+                const stream_operation_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{id});
+                defer self.allocator.free(stream_operation_name);
 
-            try self.buffer.appendSlice(self.allocator, "    pub fn ");
-            try self.buffer.appendSlice(self.allocator, stream_events_method_name);
-            try self.buffer.appendSlice(self.allocator, "(comptime Event: type, self: *");
-            try self.buffer.appendSlice(self.allocator, struct_name);
-            try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
-            try self.buffer.appendSlice(self.allocator, "        return ");
-            try self.appendIdentifier(stream_events_operation_name);
-            try self.buffer.appendSlice(self.allocator, "(Event, self.client, requestBody, callback, cancellation_token);\n");
-            try self.buffer.appendSlice(self.allocator, "    }\n\n");
+                try self.buffer.appendSlice(self.allocator, "    pub fn ");
+                try self.buffer.appendSlice(self.allocator, stream_method_name);
+                try self.buffer.appendSlice(self.allocator, "(self: *");
+                try self.buffer.appendSlice(self.allocator, struct_name);
+                try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+                try self.buffer.appendSlice(self.allocator, "        return ");
+                if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
+                try self.appendIdentifier(stream_operation_name);
+                try self.buffer.appendSlice(self.allocator, "(self.client, requestBody, callback, cancellation_token);\n");
+                try self.buffer.appendSlice(self.allocator, "    }\n\n");
+
+                const stream_events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{method_name});
+                defer self.allocator.free(stream_events_method_name);
+                const stream_events_operation_name = try std.fmt.allocPrint(self.allocator, "{s}StreamingEvents", .{id});
+                defer self.allocator.free(stream_events_operation_name);
+
+                try self.buffer.appendSlice(self.allocator, "    pub fn ");
+                try self.buffer.appendSlice(self.allocator, stream_events_method_name);
+                try self.buffer.appendSlice(self.allocator, "(comptime Event: type, self: *");
+                try self.buffer.appendSlice(self.allocator, struct_name);
+                try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+                try self.buffer.appendSlice(self.allocator, "        return ");
+                try self.appendIdentifier(stream_events_operation_name);
+                try self.buffer.appendSlice(self.allocator, "(Event, self.client, requestBody, callback, cancellation_token);\n");
+                try self.buffer.appendSlice(self.allocator, "    }\n\n");
+            }
         }
     }
 
