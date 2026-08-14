@@ -4,6 +4,7 @@ const detector = @import("detector.zig");
 const models = @import("models.zig");
 const input_loader = @import("input_loader.zig");
 const yaml_loader = @import("yaml_loader.zig");
+const document_filter = @import("document_filter.zig");
 const generated_header = @import("generators/generated_header.zig");
 const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
 const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
@@ -109,17 +110,18 @@ fn generateCodeFromJsonContents(allocator: std.mem.Allocator, io: std.Io, json_c
     }
 }
 
-fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, unified_doc: @import("models/common/document.zig").UnifiedDocument, args: cli.CliArgs) !void {
-    const cwd = std.Io.Dir.cwd();
+fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, unified_doc: @import("models/common/document.zig").UnifiedDocument, args: cli.CliArgs) !void {
+    var filtered_doc = unified_doc;
+    try document_filter.filterByTags(allocator, &filtered_doc, args.tags);
 
     if (args.multiple_files) {
-        try generateMultipleFiles(allocator, io, cwd, unified_doc, args);
+        try generateMultipleFiles(allocator, io, cwd, filtered_doc, args);
         return;
     }
 
     var model_generator = UnifiedModelGenerator.init(allocator);
     defer model_generator.deinit();
-    const generated_models = try model_generator.generate(unified_doc);
+    const generated_models = try model_generator.generate(filtered_doc);
     defer allocator.free(generated_models);
 
     const generated_code = if (args.models_only)
@@ -127,7 +129,7 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, uni
     else blk: {
         var api_generator = UnifiedApiGenerator.init(allocator, args);
         defer api_generator.deinit();
-        const generated_api = try api_generator.generate(unified_doc);
+        const generated_api = try api_generator.generate(filtered_doc);
         defer allocator.free(generated_api);
 
         const joined_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
@@ -233,7 +235,7 @@ fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anyty
     var converter = Converter.init(allocator);
     var unified_doc = try converter.convert(doc);
     defer unified_doc.deinit(allocator);
-    try generateCodeFromUnifiedDocument(allocator, io, unified_doc, args);
+    try generateCodeFromUnifiedDocument(allocator, io, std.Io.Dir.cwd(), unified_doc, args);
 }
 
 test "unsupported OpenAPI versions return a distinct generator error" {
@@ -572,6 +574,79 @@ test "generateMultipleFiles computes relative import paths for nested client" {
     defer allocator.free(client);
     try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../types.zig\")") != null);
     try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../http.zig\")") != null);
+}
+
+test "generateCodeFromUnifiedDocument filters operations and models by requested tags" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "get": {
+        \\        "operationId": "listPets",
+        \\        "tags": ["pet"],
+        \\        "responses": {
+        \\          "200": {
+        \\            "description": "ok",
+        \\            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Pet" } } } }
+        \\          }
+        \\        }
+        \\      }
+        \\    },
+        \\    "/store/order": {
+        \\      "post": {
+        \\        "operationId": "placeOrder",
+        \\        "tags": ["store"],
+        \\        "requestBody": {
+        \\          "required": true,
+        \\          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } }
+        \\        },
+        \\        "responses": {
+        \\          "200": { "description": "ok" }
+        \\        }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      },
+        \\      "Order": {
+        \\        "type": "object",
+        \\        "properties": { "id": { "type": "integer" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "api.zig",
+        .tags = &.{"pet"},
+    });
+
+    const api = try tmp.dir.readFileAlloc(std.testing.io, "api.zig", allocator, .unlimited);
+    defer allocator.free(api);
+
+    try std.testing.expect(std.mem.indexOf(u8, api, "pub const Pet") != null);
+    try std.testing.expect(std.mem.indexOf(u8, api, "pub const Order") == null);
+    try std.testing.expect(std.mem.indexOf(u8, api, "pub fn listPets") != null);
+    try std.testing.expect(std.mem.indexOf(u8, api, "placeOrder") == null);
 }
 
 test "generateMultipleFiles composes per-tag client structs into the client file" {

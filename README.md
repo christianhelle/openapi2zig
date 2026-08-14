@@ -225,6 +225,7 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
 | `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`. |
 | `--multiple-clients <mode>` | Generate per-tag or per-endpoint client structs that delegate to the flat API functions. Modes: `PerTag` (default when the flag is given without a value) and `PerEndpoint`. Mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`. |
+| `--tag <name>` | Include only operations carrying the specified OpenAPI tag. Schemas are removed only when unreachable from retained operations; transitively referenced schemas remain preserved. Operations without any of the requested tags (including untagged operations) are skipped. The `--tag` option can be specified multiple times, e.g. `--tag pet --tag store --tag user`. |
 | `--models-only` | Generate only Zig models, skipping the API client. |
 | `--multiple-files` | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`. |
 | `--file-name <kind>=<name>` | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. `<name>` may include a relative subpath (e.g. `models=gen/types.zig`); any required parent directories are created automatically. Can be specified multiple times. |
@@ -267,6 +268,13 @@ openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerEndpoint
 ```
+
+**Generate only endpoints and models for selected tags:**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --tag pet --tag store
+```
+
+When `--tag` is given, only operations carrying at least one of the requested tags are generated, and models unreferenced by the kept operations are trimmed from the output.
 
 With `PerTag`, operations are grouped into one struct per tag (untagged operations land in `DefaultClient`), each with an `init(client: *Client)` constructor and methods that delegate to the flat API functions. Operations without an `operationId` still get a tag-client method, named from the HTTP method + path (e.g. a `GET /orphan` becomes `getOrphan`), which delegates to the flat fallback function:
 

@@ -10,21 +10,6 @@ pub const Category = struct {
     name: ?[]const u8 = null,
 };
 
-pub const Pet = struct {
-    status: ?[]const u8 = null,
-    tags: ?[]const Tag = null,
-    category: ?Category = null,
-    id: ?i64 = null,
-    name: []const u8,
-    photoUrls: []const []const u8,
-};
-
-pub const ApiResponse = struct {
-    type: ?[]const u8 = null,
-    message: ?[]const u8 = null,
-    code: ?i64 = null,
-};
-
 pub const Tag = struct {
     id: ?i64 = null,
     name: ?[]const u8 = null,
@@ -39,15 +24,19 @@ pub const Order = struct {
     shipDate: ?[]const u8 = null,
 };
 
-pub const User = struct {
-    password: ?[]const u8 = null,
-    userStatus: ?i64 = null,
-    username: ?[]const u8 = null,
-    email: ?[]const u8 = null,
-    firstName: ?[]const u8 = null,
+pub const Pet = struct {
+    status: ?[]const u8 = null,
+    tags: ?[]const Tag = null,
+    category: ?Category = null,
     id: ?i64 = null,
-    lastName: ?[]const u8 = null,
-    phone: ?[]const u8 = null,
+    name: []const u8,
+    photoUrls: []const []const u8,
+};
+
+pub const ApiResponse = struct {
+    type: ?[]const u8 = null,
+    message: ?[]const u8 = null,
+    code: ?i64 = null,
 };
 
 
@@ -112,7 +101,7 @@ pub const Client = struct {
     io: std.Io,
     http: std.http.Client,
     api_key: []const u8,
-    base_url: []const u8 = "https://petstore.swagger.io/v2",
+    base_url: []const u8 = "https://petstore3.swagger.io/api/v3",
     organization: ?[]const u8 = null,
     project: ?[]const u8 = null,
     default_headers: []const std.http.Header = &.{},
@@ -492,7 +481,7 @@ const max_sse_event_size = 1024 * 1024;
 // Place an order for a pet
 //
 // Description:
-// 
+// Place a new order in the store
 //
 pub fn placeOrder(client: *Client, requestBody: Order) !Owned(Order) {
     var result = try placeOrderResult(client, requestBody);
@@ -534,8 +523,8 @@ pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
 // Description:
 // 
 //
-pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: []const u8, file: []const u8) !Owned(ApiResponse) {
-    var result = try uploadFileResult(client, petId, additionalMetadata, file);
+pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(ApiResponse) {
+    var result = try uploadFileResult(client, petId, additionalMetadata, requestBody);
     switch (result) {
         .ok => |ok| return ok,
         .api_error => |*err| {
@@ -549,20 +538,59 @@ pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: []const u8, f
     }
 }
 
-pub fn uploadFileRaw(client: *Client, petId: i64, additionalMetadata: []const u8, file: []const u8) !RawResponse {
+pub fn uploadFileRaw(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !RawResponse {
     const allocator = client.allocator;
-    _ = additionalMetadata;
-    _ = file;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
     try uri_buf.writer.print("{s}/pet/{d}/uploadImage", .{client.base_url, petId});
-    const payload: ?[]const u8 = null;
+    var first_query = true;
+    if (additionalMetadata) |value| {
+        try appendQueryParam(&uri_buf.writer, &first_query, "additionalMetadata", value);
+    }
+    const payload: ?[]const u8 = requestBody;
 
-    return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
+    var headers = std.ArrayList(std.http.Header).empty;
+    defer headers.deinit(allocator);
+    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/octet-stream", "application/json");
+    defer if (auth_header) |value| allocator.free(value);
+
+    if (client.http_observer) |obs| {
+        if (obs.onRequest) |cb| cb(obs.ctx, std.http.Method.POST, uri_buf.written(), headers.items, payload);
+    }
+
+    const uri = try std.Uri.parse(uri_buf.written());
+    var response_body: std.Io.Writer.Allocating = .init(allocator);
+    defer response_body.deinit();
+    const start = std.Io.Clock.awake.now(client.io);
+    const result = client.http.fetch(.{
+        .location = .{ .uri = uri },
+        .method = std.http.Method.POST,
+        .extra_headers = headers.items,
+        .payload = payload,
+        .response_writer = &response_body.writer,
+    }) catch |err| {
+        if (client.http_observer) |obs| {
+            if (obs.onError) |cb| cb(obs.ctx, std.http.Method.POST, uri_buf.written(), @errorName(err));
+        }
+        return err;
+    };
+    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));
+
+    const body = try response_body.toOwnedSlice();
+
+    if (client.http_observer) |obs| {
+        if (obs.onResponse) |cb| cb(obs.ctx, std.http.Method.POST, uri_buf.written(), result.status, &.{}, body, elapsed_ns);
+    }
+
+    return .{
+        .allocator = allocator,
+        .status = result.status,
+        .body = body,
+    };
 }
 
-pub fn uploadFileResult(client: *Client, petId: i64, additionalMetadata: []const u8, file: []const u8) !ApiResult(ApiResponse) {
-    return parseRawResponse(ApiResponse, try uploadFileRaw(client, petId, additionalMetadata, file));
+pub fn uploadFileResult(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(ApiResponse) {
+    return parseRawResponse(ApiResponse, try uploadFileRaw(client, petId, additionalMetadata, requestBody));
 }
 
 /////////////////
@@ -608,19 +636,24 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
 // Description:
 // 
 //
-pub fn updatePetWithForm(client: *Client, petId: i64, name: []const u8, status: []const u8) !void {
+pub fn updatePetWithForm(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
     var raw = try updatePetWithFormRaw(client, petId, name, status);
     defer raw.deinit();
     if (raw.status.class() != .success) return error.ResponseError;
 }
 
-pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: []const u8, status: []const u8) !RawResponse {
+pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !RawResponse {
     const allocator = client.allocator;
-    _ = name;
-    _ = status;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
     try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
+    var first_query = true;
+    if (name) |value| {
+        try appendQueryParam(&uri_buf.writer, &first_query, "name", value);
+    }
+    if (status) |value| {
+        try appendQueryParam(&uri_buf.writer, &first_query, "status", value);
+    }
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
@@ -657,7 +690,7 @@ pub fn deletePetRaw(client: *Client, api_key: []const u8, petId: i64) !RawRespon
 // Description:
 // Multiple tags can be provided with comma separated strings. Use tag1, tag2, tag3 for testing.
 //
-pub fn findPetsByTags(client: *Client, tags: []const std.json.Value) !Owned([]const std.json.Value) {
+pub fn findPetsByTags(client: *Client, tags: ?[]const u8) !Owned([]const std.json.Value) {
     var result = try findPetsByTagsResult(client, tags);
     switch (result) {
         .ok => |ok| return ok,
@@ -672,86 +705,22 @@ pub fn findPetsByTags(client: *Client, tags: []const std.json.Value) !Owned([]co
     }
 }
 
-pub fn findPetsByTagsRaw(client: *Client, tags: []const std.json.Value) !RawResponse {
+pub fn findPetsByTagsRaw(client: *Client, tags: ?[]const u8) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
     try uri_buf.writer.print("{s}/pet/findByTags", .{client.base_url});
     var first_query = true;
-    try appendQueryParam(&uri_buf.writer, &first_query, "tags", tags);
-    const payload: ?[]const u8 = null;
-
-    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
-}
-
-pub fn findPetsByTagsResult(client: *Client, tags: []const std.json.Value) !ApiResult([]const std.json.Value) {
-    return parseRawResponse([]const std.json.Value, try findPetsByTagsRaw(client, tags));
-}
-
-/////////////////
-// Summary:
-// Logs user into the system
-//
-// Description:
-// 
-//
-pub fn loginUser(client: *Client, username: []const u8, password: []const u8) !Owned([]const u8) {
-    var result = try loginUserResult(client, username, password);
-    switch (result) {
-        .ok => |ok| return ok,
-        .api_error => |*err| {
-            err.deinit();
-            return error.ResponseError;
-        },
-        .parse_error => |*err| {
-            err.raw.deinit();
-            return error.ResponseParseError;
-        },
+    if (tags) |value| {
+        try appendQueryParam(&uri_buf.writer, &first_query, "tags", value);
     }
-}
-
-pub fn loginUserRaw(client: *Client, username: []const u8, password: []const u8) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/login", .{client.base_url});
-    var first_query = true;
-    try appendQueryParam(&uri_buf.writer, &first_query, "username", username);
-    try appendQueryParam(&uri_buf.writer, &first_query, "password", password);
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
 
-pub fn loginUserResult(client: *Client, username: []const u8, password: []const u8) !ApiResult([]const u8) {
-    return parseRawResponse([]const u8, try loginUserRaw(client, username, password));
-}
-
-/////////////////
-// Summary:
-// Creates list of users with given input array
-//
-// Description:
-// 
-//
-pub fn createUsersWithArrayInput(client: *Client, requestBody: []const std.json.Value) !void {
-    var raw = try createUsersWithArrayInputRaw(client, requestBody);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
-}
-
-pub fn createUsersWithArrayInputRaw(client: *Client, requestBody: []const std.json.Value) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/createWithArray", .{client.base_url});
-
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);
-    const payload: ?[]const u8 = str.written();
-
-    return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
+pub fn findPetsByTagsResult(client: *Client, tags: ?[]const u8) !ApiResult([]const std.json.Value) {
+    return parseRawResponse([]const std.json.Value, try findPetsByTagsRaw(client, tags));
 }
 
 /////////////////
@@ -761,7 +730,7 @@ pub fn createUsersWithArrayInputRaw(client: *Client, requestBody: []const std.js
 // Description:
 // Multiple status values can be provided with comma separated strings
 //
-pub fn findPetsByStatus(client: *Client, status: []const std.json.Value) !Owned([]const std.json.Value) {
+pub fn findPetsByStatus(client: *Client, status: ?[]const u8) !Owned([]const std.json.Value) {
     var result = try findPetsByStatusResult(client, status);
     switch (result) {
         .ok => |ok| return ok,
@@ -776,19 +745,21 @@ pub fn findPetsByStatus(client: *Client, status: []const std.json.Value) !Owned(
     }
 }
 
-pub fn findPetsByStatusRaw(client: *Client, status: []const std.json.Value) !RawResponse {
+pub fn findPetsByStatusRaw(client: *Client, status: ?[]const u8) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
     try uri_buf.writer.print("{s}/pet/findByStatus", .{client.base_url});
     var first_query = true;
-    try appendQueryParam(&uri_buf.writer, &first_query, "status", status);
+    if (status) |value| {
+        try appendQueryParam(&uri_buf.writer, &first_query, "status", value);
+    }
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
 
-pub fn findPetsByStatusResult(client: *Client, status: []const std.json.Value) !ApiResult([]const std.json.Value) {
+pub fn findPetsByStatusResult(client: *Client, status: ?[]const u8) !ApiResult([]const std.json.Value) {
     return parseRawResponse([]const std.json.Value, try findPetsByStatusRaw(client, status));
 }
 
@@ -830,13 +801,13 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 
 /////////////////
 // Summary:
-// Get user by user name
+// Add a new pet to the store
 //
 // Description:
-// 
+// Add a new pet to the store
 //
-pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
-    var result = try getUserByNameResult(client, username);
+pub fn addPet(client: *Client, requestBody: Pet) !Owned(Pet) {
+    var result = try addPetResult(client, requestBody);
     switch (result) {
         .ok => |ok| return ok,
         .api_error => |*err| {
@@ -848,137 +819,6 @@ pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
             return error.ResponseParseError;
         },
     }
-}
-
-pub fn getUserByNameRaw(client: *Client, username: []const u8) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
-    const payload: ?[]const u8 = null;
-
-    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
-}
-
-pub fn getUserByNameResult(client: *Client, username: []const u8) !ApiResult(User) {
-    return parseRawResponse(User, try getUserByNameRaw(client, username));
-}
-
-/////////////////
-// Summary:
-// Updated user
-//
-// Description:
-// This can only be done by the logged in user.
-//
-pub fn updateUser(client: *Client, username: []const u8, requestBody: User) !void {
-    var raw = try updateUserRaw(client, username, requestBody);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
-}
-
-pub fn updateUserRaw(client: *Client, username: []const u8, requestBody: User) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
-
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);
-    const payload: ?[]const u8 = str.written();
-
-    return requestRaw(client, std.http.Method.PUT, uri_buf.written(), payload);
-}
-
-/////////////////
-// Summary:
-// Delete user
-//
-// Description:
-// This can only be done by the logged in user.
-//
-pub fn deleteUser(client: *Client, username: []const u8) !void {
-    var raw = try deleteUserRaw(client, username);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
-}
-
-pub fn deleteUserRaw(client: *Client, username: []const u8) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
-    const payload: ?[]const u8 = null;
-
-    return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
-}
-
-/////////////////
-// Summary:
-// Create user
-//
-// Description:
-// This can only be done by the logged in user.
-//
-pub fn createUser(client: *Client, requestBody: User) !void {
-    var raw = try createUserRaw(client, requestBody);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
-}
-
-pub fn createUserRaw(client: *Client, requestBody: User) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user", .{client.base_url});
-
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);
-    const payload: ?[]const u8 = str.written();
-
-    return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
-}
-
-/////////////////
-// Summary:
-// Creates list of users with given input array
-//
-// Description:
-// 
-//
-pub fn createUsersWithListInput(client: *Client, requestBody: []const std.json.Value) !void {
-    var raw = try createUsersWithListInputRaw(client, requestBody);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
-}
-
-pub fn createUsersWithListInputRaw(client: *Client, requestBody: []const std.json.Value) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/createWithList", .{client.base_url});
-
-    var str: std.Io.Writer.Allocating = .init(allocator);
-    defer str.deinit();
-    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);
-    const payload: ?[]const u8 = str.written();
-
-    return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
-}
-
-/////////////////
-// Summary:
-// Add a new pet to the store
-//
-// Description:
-// 
-//
-pub fn addPet(client: *Client, requestBody: Pet) !void {
-    var raw = try addPetRaw(client, requestBody);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
 }
 
 pub fn addPetRaw(client: *Client, requestBody: Pet) !RawResponse {
@@ -995,17 +835,30 @@ pub fn addPetRaw(client: *Client, requestBody: Pet) !RawResponse {
     return requestRaw(client, std.http.Method.POST, uri_buf.written(), payload);
 }
 
+pub fn addPetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
+    return parseRawResponse(Pet, try addPetRaw(client, requestBody));
+}
+
 /////////////////
 // Summary:
 // Update an existing pet
 //
 // Description:
-// 
+// Update an existing pet by Id
 //
-pub fn updatePet(client: *Client, requestBody: Pet) !void {
-    var raw = try updatePetRaw(client, requestBody);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
+pub fn updatePet(client: *Client, requestBody: Pet) !Owned(Pet) {
+    var result = try updatePetResult(client, requestBody);
+    switch (result) {
+        .ok => |ok| return ok,
+        .api_error => |*err| {
+            err.deinit();
+            return error.ResponseError;
+        },
+        .parse_error => |*err| {
+            err.raw.deinit();
+            return error.ResponseParseError;
+        },
+    }
 }
 
 pub fn updatePetRaw(client: *Client, requestBody: Pet) !RawResponse {
@@ -1022,12 +875,16 @@ pub fn updatePetRaw(client: *Client, requestBody: Pet) !RawResponse {
     return requestRaw(client, std.http.Method.PUT, uri_buf.written(), payload);
 }
 
+pub fn updatePetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
+    return parseRawResponse(Pet, try updatePetRaw(client, requestBody));
+}
+
 /////////////////
 // Summary:
 // Find purchase order by ID
 //
 // Description:
-// For valid response try integer IDs with value >= 1 and <= 10. Other values will generated exceptions
+// For valid response try integer IDs with value <= 5 or > 10. Other values will generated exceptions
 //
 pub fn getOrderById(client: *Client, orderId: i64) !Owned(Order) {
     var result = try getOrderByIdResult(client, orderId);
@@ -1063,7 +920,7 @@ pub fn getOrderByIdResult(client: *Client, orderId: i64) !ApiResult(Order) {
 // Delete purchase order by ID
 //
 // Description:
-// For valid response try integer IDs with positive integer value. Negative or non-integer values will generate API errors
+// For valid response try integer IDs with value < 1000. Anything above 1000 or nonintegers will generate API errors
 //
 pub fn deleteOrder(client: *Client, orderId: i64) !void {
     var raw = try deleteOrderRaw(client, orderId);
@@ -1081,34 +938,14 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
     return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
 }
 
-/////////////////
-// Summary:
-// Logs out current logged in user session
-//
-// Description:
-// 
-//
-pub fn logoutUser(client: *Client) !void {
-    var raw = try logoutUserRaw(client);
-    defer raw.deinit();
-    if (raw.status.class() != .success) return error.ResponseError;
-}
-
-pub fn logoutUserRaw(client: *Client) !RawResponse {
-    const allocator = client.allocator;
-    var uri_buf: std.Io.Writer.Allocating = .init(allocator);
-    defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/logout", .{client.base_url});
-    const payload: ?[]const u8 = null;
-
-    return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
-}
-
 
 pub const resources = struct {
     pub const pet = struct {
-        pub fn addpet(client: *Client, requestBody: Pet) !void {
+        pub fn addpet(client: *Client, requestBody: Pet) !Owned(Pet) {
             return addPet(client, requestBody);
+        }
+        pub fn addpetResult(client: *Client, requestBody: Pet) !ApiResult(Pet) {
+            return addPetResult(client, requestBody);
         }
         pub fn delete(client: *Client, api_key: []const u8, petId: i64) !void {
             return deletePet(client, api_key, petId);
@@ -1119,34 +956,37 @@ pub const resources = struct {
         pub fn getResult(client: *Client, petId: i64) !ApiResult(Pet) {
             return getPetByIdResult(client, petId);
         }
-        pub fn updatepet_(client: *Client, requestBody: Pet) !void {
+        pub fn updatepet_(client: *Client, requestBody: Pet) !Owned(Pet) {
             return updatePet(client, requestBody);
         }
-        pub fn updatepetwithform_(client: *Client, petId: i64, name: []const u8, status: []const u8) !void {
+        pub fn updatepet_Result(client: *Client, requestBody: Pet) !ApiResult(Pet) {
+            return updatePetResult(client, requestBody);
+        }
+        pub fn updatepetwithform_(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
             return updatePetWithForm(client, petId, name, status);
         }
         pub const findbystatus = struct {
-            pub fn findpetsbystatus(client: *Client, status: []const std.json.Value) !Owned([]const std.json.Value) {
+            pub fn findpetsbystatus(client: *Client, status: ?[]const u8) !Owned([]const std.json.Value) {
                 return findPetsByStatus(client, status);
             }
-            pub fn findpetsbystatusResult(client: *Client, status: []const std.json.Value) !ApiResult([]const std.json.Value) {
+            pub fn findpetsbystatusResult(client: *Client, status: ?[]const u8) !ApiResult([]const std.json.Value) {
                 return findPetsByStatusResult(client, status);
             }
         };
         pub const findbytags = struct {
-            pub fn findpetsbytags(client: *Client, tags: []const std.json.Value) !Owned([]const std.json.Value) {
+            pub fn findpetsbytags(client: *Client, tags: ?[]const u8) !Owned([]const std.json.Value) {
                 return findPetsByTags(client, tags);
             }
-            pub fn findpetsbytagsResult(client: *Client, tags: []const std.json.Value) !ApiResult([]const std.json.Value) {
+            pub fn findpetsbytagsResult(client: *Client, tags: ?[]const u8) !ApiResult([]const std.json.Value) {
                 return findPetsByTagsResult(client, tags);
             }
         };
         pub const uploadimage = struct {
-            pub fn uploadfile(client: *Client, petId: i64, additionalMetadata: []const u8, file: []const u8) !Owned(ApiResponse) {
-                return uploadFile(client, petId, additionalMetadata, file);
+            pub fn uploadfile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(ApiResponse) {
+                return uploadFile(client, petId, additionalMetadata, requestBody);
             }
-            pub fn uploadfileResult(client: *Client, petId: i64, additionalMetadata: []const u8, file: []const u8) !ApiResult(ApiResponse) {
-                return uploadFileResult(client, petId, additionalMetadata, file);
+            pub fn uploadfileResult(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(ApiResponse) {
+                return uploadFileResult(client, petId, additionalMetadata, requestBody);
             }
         };
     };
@@ -1177,49 +1017,8 @@ pub const resources = struct {
             }
         };
     };
-    pub const user = struct {
-        pub fn create(client: *Client, requestBody: User) !void {
-            return createUser(client, requestBody);
-        }
-        pub fn delete(client: *Client, username: []const u8) !void {
-            return deleteUser(client, username);
-        }
-        pub fn get(client: *Client, username: []const u8) !Owned(User) {
-            return getUserByName(client, username);
-        }
-        pub fn getResult(client: *Client, username: []const u8) !ApiResult(User) {
-            return getUserByNameResult(client, username);
-        }
-        pub fn update(client: *Client, username: []const u8, requestBody: User) !void {
-            return updateUser(client, username, requestBody);
-        }
-        pub const createwitharray = struct {
-            pub fn createuserswitharrayinput_(client: *Client, requestBody: []const std.json.Value) !void {
-                return createUsersWithArrayInput(client, requestBody);
-            }
-        };
-        pub const createwithlist = struct {
-            pub fn createuserswithlistinput_(client: *Client, requestBody: []const std.json.Value) !void {
-                return createUsersWithListInput(client, requestBody);
-            }
-        };
-        pub const login = struct {
-            pub fn loginuser(client: *Client, username: []const u8, password: []const u8) !Owned([]const u8) {
-                return loginUser(client, username, password);
-            }
-            pub fn loginuserResult(client: *Client, username: []const u8, password: []const u8) !ApiResult([]const u8) {
-                return loginUserResult(client, username, password);
-            }
-        };
-        pub const logout = struct {
-            pub fn logoutuser(client: *Client) !void {
-                return logoutUser(client);
-            }
-        };
-    };
 };
 
 pub const pet = resources.pet;
 pub const store = resources.store;
-pub const user = resources.user;
 

@@ -30,6 +30,9 @@ fn printUsage() void {
         \\                              flat client. PerTag (default): one client per OpenAPI
         \\                              tag. PerEndpoint: one struct per operation with an
         \\                              execute() method.
+        \\   --tag <name>              Include only operations with the specified OpenAPI
+        \\                              tag and only the models they reference.
+        \\                              Can be specified multiple times.
         \\   --models-only              Generate only Zig models, skipping the API client.
         \\   --multiple-files           Generate separate output files for models, runtime, and API client
         \\                              into the output directory specified by -o.
@@ -251,15 +254,30 @@ pub const CliArgs = struct {
     multiple_files: bool = false,
     multiple_clients: ?MultipleClientsMode = null,
     file_names: FileNameOverrides = .{},
+    /// OpenAPI tags to include. When empty, no tag filtering is applied.
+    /// The slice is freed by `deinit(allocator)` when `owns_tags` is true.
+    tags: []const []const u8 = &.{},
+    /// Whether `tags` was allocated by the parser and must be freed.
+    owns_tags: bool = false,
+
+    pub fn deinit(self: *CliArgs, allocator: std.mem.Allocator) void {
+        if (self.owns_tags) allocator.free(self.tags);
+        self.tags = &.{};
+        self.owns_tags = false;
+    }
 };
 
 pub const ParsedArgs = struct {
     args: CliArgs,
     upgrade: bool = false,
     help: bool = false,
+
+    pub fn deinit(self: *ParsedArgs, allocator: std.mem.Allocator) void {
+        self.args.deinit(allocator);
+    }
 };
 
-pub fn parse(args: []const [:0]const u8) !ParsedArgs {
+pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedArgs {
     if (args.len >= 2 and std.mem.eql(u8, args[1], "upgrade")) {
         return .{
             .upgrade = true,
@@ -284,6 +302,10 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
     var multiple_files = false;
     var multiple_clients: ?MultipleClientsMode = null;
     var file_names: FileNameOverrides = .{};
+    var tags_list = std.ArrayList([]const u8).empty;
+    defer tags_list.deinit(allocator);
+    var tags: []const []const u8 = &.{};
+    var tags_owned = false;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -328,6 +350,19 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             resource_wrappers_explicit = true;
         } else if (std.mem.eql(u8, arg, "--models-only")) {
             models_only = true;
+        } else if (std.mem.eql(u8, arg, "--tag")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                printError("--tag value required\n", .{});
+                return error.InvalidArguments;
+            }
+            if (std.mem.startsWith(u8, args[i], "-")) {
+                printUsage();
+                printError("--tag value must not start with '-'\n", .{});
+                return error.InvalidArguments;
+            }
+            try tags_list.append(allocator, args[i]);
         } else if (std.mem.eql(u8, arg, "--multiple-files")) {
             multiple_files = true;
         } else if (std.mem.eql(u8, arg, "--multiple-clients")) {
@@ -442,6 +477,12 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
         }
     }
 
+    if (tags_list.items.len > 0) {
+        tags = try tags_list.toOwnedSlice(allocator);
+        tags_owned = true;
+    }
+    errdefer if (tags_owned) allocator.free(tags);
+
     return .{
         .args = .{
             .input_path = input_path.?,
@@ -452,6 +493,8 @@ pub fn parse(args: []const [:0]const u8) !ParsedArgs {
             .multiple_files = multiple_files,
             .multiple_clients = multiple_clients,
             .file_names = file_names,
+            .tags = tags,
+            .owns_tags = tags_owned,
         },
     };
 }
@@ -492,7 +535,7 @@ test "parse generate supports models-only flag" {
         "--models-only",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.args.models_only);
     try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
@@ -506,7 +549,7 @@ test "parse generate defaults to complete output" {
         "openapi.json",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(!parsed.args.models_only);
 }
@@ -517,7 +560,7 @@ test "parse upgrade" {
         "upgrade",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.upgrade);
 }
@@ -531,7 +574,7 @@ test "parse generate supports multiple-files flag" {
         "--multiple-files",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.args.multiple_files);
     try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
@@ -547,7 +590,7 @@ test "parse generate silently ignores --sse-buffer flag" {
         "large",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
 }
@@ -565,7 +608,7 @@ test "parse generate supports --file-name overrides" {
         "runtime=http.zig",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expectEqualStrings("types.zig", parsed.args.file_names.models.?);
     try std.testing.expectEqualStrings("http.zig", parsed.args.file_names.runtime.?);
@@ -584,7 +627,7 @@ test "parse rejects --file-name with unknown kind" {
         "foo=bar.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name without equals sign" {
@@ -598,7 +641,7 @@ test "parse rejects --file-name without equals sign" {
         "models",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name with empty name" {
@@ -612,7 +655,7 @@ test "parse rejects --file-name with empty name" {
         "models=",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects duplicate --file-name for same kind" {
@@ -628,7 +671,7 @@ test "parse rejects duplicate --file-name for same kind" {
         "models=b.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name overrides mapping to the same file" {
@@ -644,7 +687,7 @@ test "parse rejects --file-name overrides mapping to the same file" {
         "runtime=foo.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name override that collides with another kind default" {
@@ -658,7 +701,7 @@ test "parse rejects --file-name override that collides with another kind default
         "models=runtime.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name without --multiple-files" {
@@ -671,7 +714,7 @@ test "parse rejects --file-name without --multiple-files" {
         "models=types.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects runtime or client overrides with --models-only" {
@@ -686,7 +729,7 @@ test "parse rejects runtime or client overrides with --models-only" {
         "runtime=http.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse accepts models override with --models-only" {
@@ -701,7 +744,7 @@ test "parse accepts models override with --models-only" {
         "models=types.zig",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
     try std.testing.expectEqualStrings("types.zig", parsed.args.file_names.models.?);
 }
 
@@ -717,7 +760,7 @@ test "parse accepts models override colliding with a default name under --models
         "models=runtime.zig",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
     try std.testing.expectEqualStrings("runtime.zig", parsed.args.file_names.models.?);
 }
 
@@ -733,7 +776,7 @@ test "parse accepts models override mapping to the reserved std alias under --mo
         "models=std.zig",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
     try std.testing.expectEqualStrings("std.zig", parsed.args.file_names.models.?);
 }
 
@@ -748,7 +791,7 @@ test "parse rejects --file-name with absolute path" {
         "models=/etc/passwd.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name with parent traversal" {
@@ -762,7 +805,7 @@ test "parse rejects --file-name with parent traversal" {
         "models=../escape.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "validateFileName accepts simple relative names" {
@@ -836,7 +879,7 @@ test "parse rejects --file-name overrides mapping to the same import alias" {
         "runtime=my_models.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name override mapping to the reserved std alias" {
@@ -850,7 +893,7 @@ test "parse rejects --file-name override mapping to the reserved std alias" {
         "models=std.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name override mapping to a discard-only alias" {
@@ -864,7 +907,7 @@ test "parse rejects --file-name override mapping to a discard-only alias" {
         "models=-.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name overrides that differ only by case" {
@@ -880,7 +923,7 @@ test "parse rejects --file-name overrides that differ only by case" {
         "runtime=types.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --file-name overrides colliding across separator styles" {
@@ -896,7 +939,7 @@ test "parse rejects --file-name overrides colliding across separator styles" {
         "runtime=DIR\\types.zig",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "fileNamesCollide treats separator styles and case as equivalent" {
@@ -914,7 +957,7 @@ test "parse generate leaves multiple_clients unset when flag absent" {
         "openapi.json",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.args.multiple_clients == null);
 }
@@ -928,7 +971,7 @@ test "parse generate defaults multiple-clients to PerTag when no value given" {
         "--multiple-clients",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.args.multiple_clients == .per_tag);
     try std.testing.expect(parsed.args.resource_wrappers == .none);
@@ -944,7 +987,7 @@ test "parse generate accepts --multiple-clients PerTag" {
         "PerTag",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.args.multiple_clients == .per_tag);
 }
@@ -959,7 +1002,7 @@ test "parse generate accepts --multiple-clients PerEndpoint" {
         "PerEndpoint",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.args.multiple_clients == .per_endpoint);
 }
@@ -977,7 +1020,7 @@ test "parse generate accepts case-insensitive multiple-clients values" {
                 variant,
             };
 
-            const parsed = try parse(&argv);
+            const parsed = try parse(std.testing.allocator, &argv);
             try std.testing.expect(parsed.args.multiple_clients == .per_tag);
         }
     }
@@ -993,7 +1036,7 @@ test "parse generate accepts case-insensitive multiple-clients values" {
                 variant,
             };
 
-            const parsed = try parse(&argv);
+            const parsed = try parse(std.testing.allocator, &argv);
             try std.testing.expect(parsed.args.multiple_clients == .per_endpoint);
         }
     }
@@ -1009,7 +1052,7 @@ test "parse rejects --multiple-clients with an invalid mode value" {
         "bogus",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --multiple-clients with non-none resource wrappers" {
@@ -1024,7 +1067,7 @@ test "parse rejects --multiple-clients with non-none resource wrappers" {
         "tags",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse rejects --multiple-clients with resource wrappers hybrid" {
@@ -1039,7 +1082,7 @@ test "parse rejects --multiple-clients with resource wrappers hybrid" {
         "PerEndpoint",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse accepts --multiple-clients with resource wrappers none" {
@@ -1054,7 +1097,7 @@ test "parse accepts --multiple-clients with resource wrappers none" {
         "none",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.args.multiple_clients == .per_tag);
     try std.testing.expect(parsed.args.resource_wrappers == .none);
@@ -1071,7 +1114,7 @@ test "parse rejects --multiple-clients with --models-only" {
         "--models-only",
     };
 
-    try std.testing.expectError(error.InvalidArguments, parse(&argv));
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse accepts --multiple-clients with --multiple-files" {
@@ -1085,8 +1128,115 @@ test "parse accepts --multiple-clients with --multiple-files" {
         "PerTag",
     };
 
-    const parsed = try parse(&argv);
+    const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(parsed.args.multiple_clients == .per_tag);
     try std.testing.expect(parsed.args.multiple_files);
+}
+
+test "CliArgs deinit does not free unowned tags" {
+    var args = CliArgs{
+        .input_path = "",
+        .tags = &.{"Pet"},
+    };
+
+    args.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(@as(usize, 0), args.tags.len);
+}
+
+test "parse generate accepts repeatable --tag flags" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--tag",
+        "Pet",
+        "--tag",
+        "Store",
+        "--tag",
+        "User",
+    };
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(@as(usize, 3), parsed.args.tags.len);
+    try std.testing.expectEqualStrings("Pet", parsed.args.tags[0]);
+    try std.testing.expectEqualStrings("Store", parsed.args.tags[1]);
+    try std.testing.expectEqualStrings("User", parsed.args.tags[2]);
+}
+
+test "parse generate accepts a single --tag flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--tag",
+        "Pet",
+    };
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(@as(usize, 1), parsed.args.tags.len);
+    try std.testing.expectEqualStrings("Pet", parsed.args.tags[0]);
+}
+
+test "parse generate leaves tags empty when --tag is absent" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+
+    try std.testing.expectEqual(@as(usize, 0), parsed.args.tags.len);
+}
+
+test "parse rejects --tag without a value" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--tag",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --tag followed by another flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--tag",
+        "--models-only",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse accepts --tag with --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--models-only",
+        "--tag",
+        "Pet",
+    };
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+
+    try std.testing.expect(parsed.args.models_only);
+    try std.testing.expectEqual(@as(usize, 1), parsed.args.tags.len);
 }
