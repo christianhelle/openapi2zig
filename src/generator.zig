@@ -649,7 +649,8 @@ test "generateCodeFromUnifiedDocument filters operations and models by requested
     try std.testing.expect(std.mem.indexOf(u8, api, "placeOrder") == null);
 }
 
-test "generateMultipleFiles composes per-tag client structs into the client file" {    const test_utils = @import("tests/test_utils.zig");
+test "generateMultipleFiles composes per-tag client structs into the client file" {
+    const test_utils = @import("tests/test_utils.zig");
 
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
