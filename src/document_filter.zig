@@ -46,9 +46,9 @@ fn keepRef(allocator: std.mem.Allocator, schemas: ?*const std.StringHashMap(comm
     const schemas_map = schemas orelse return;
     const name = refName(ref);
     if (keep.contains(name)) return;
-    if (schemas_map.getPtr(name)) |target| {
+    if (schemas_map.get(name)) |target| {
         try keep.put(name, {});
-        try collectSchemaRefs(allocator, schemas, keep, target.*);
+        try collectSchemaRefs(allocator, schemas, keep, target);
     }
 }
 
