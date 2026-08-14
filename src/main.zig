@@ -8,7 +8,8 @@ pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const args = try init.minimal.args.toSlice(init.arena.allocator());
 
-    const parsed_args = cli.parse(init.arena.allocator(), args) catch std.process.exit(1);
+    var parsed_args = cli.parse(init.arena.allocator(), args) catch std.process.exit(1);
+    defer parsed_args.deinit(init.arena.allocator());
     if (parsed_args.help) {
         return;
     }

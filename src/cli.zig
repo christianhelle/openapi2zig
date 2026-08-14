@@ -255,14 +255,26 @@ pub const CliArgs = struct {
     multiple_clients: ?MultipleClientsMode = null,
     file_names: FileNameOverrides = .{},
     /// OpenAPI tags to include. When empty, no tag filtering is applied.
-    /// The slice is owned by the caller-provided allocator when non-empty.
+    /// The slice is freed by `deinit(allocator)` when `owns_tags` is true.
     tags: []const []const u8 = &.{},
+    /// Whether `tags` was allocated by the parser and must be freed.
+    owns_tags: bool = false,
+
+    pub fn deinit(self: *CliArgs, allocator: std.mem.Allocator) void {
+        if (self.owns_tags) allocator.free(self.tags);
+        self.tags = &.{};
+        self.owns_tags = false;
+    }
 };
 
 pub const ParsedArgs = struct {
     args: CliArgs,
     upgrade: bool = false,
     help: bool = false,
+
+    pub fn deinit(self: *ParsedArgs, allocator: std.mem.Allocator) void {
+        self.args.deinit(allocator);
+    }
 };
 
 pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedArgs {
@@ -293,6 +305,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var tags_list = std.ArrayList([]const u8).empty;
     defer tags_list.deinit(allocator);
     var tags: []const []const u8 = &.{};
+    var tags_owned = false;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -464,8 +477,11 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
         }
     }
 
-    if (tags_list.items.len > 0) tags = try tags_list.toOwnedSlice(allocator);
-    errdefer if (tags.len > 0) allocator.free(tags);
+    if (tags_list.items.len > 0) {
+        tags = try tags_list.toOwnedSlice(allocator);
+        tags_owned = true;
+    }
+    errdefer if (tags_owned) allocator.free(tags);
 
     return .{
         .args = .{
@@ -478,6 +494,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .multiple_clients = multiple_clients,
             .file_names = file_names,
             .tags = tags,
+            .owns_tags = tags_owned,
         },
     };
 }
@@ -1117,6 +1134,17 @@ test "parse accepts --multiple-clients with --multiple-files" {
     try std.testing.expect(parsed.args.multiple_files);
 }
 
+test "CliArgs deinit does not free unowned tags" {
+    var args = CliArgs{
+        .input_path = "",
+        .tags = &.{"Pet"},
+    };
+
+    args.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(@as(usize, 0), args.tags.len);
+}
+
 test "parse generate accepts repeatable --tag flags" {
     const argv = [_][:0]const u8{
         "openapi2zig",
@@ -1131,8 +1159,8 @@ test "parse generate accepts repeatable --tag flags" {
         "User",
     };
 
-    const parsed = try parse(std.testing.allocator, &argv);
-    defer std.testing.allocator.free(parsed.args.tags);
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
 
     try std.testing.expectEqual(@as(usize, 3), parsed.args.tags.len);
     try std.testing.expectEqualStrings("Pet", parsed.args.tags[0]);
@@ -1150,8 +1178,8 @@ test "parse generate accepts a single --tag flag" {
         "Pet",
     };
 
-    const parsed = try parse(std.testing.allocator, &argv);
-    defer std.testing.allocator.free(parsed.args.tags);
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
 
     try std.testing.expectEqual(@as(usize, 1), parsed.args.tags.len);
     try std.testing.expectEqualStrings("Pet", parsed.args.tags[0]);
@@ -1206,8 +1234,8 @@ test "parse accepts --tag with --models-only" {
         "Pet",
     };
 
-    const parsed = try parse(std.testing.allocator, &argv);
-    defer std.testing.allocator.free(parsed.args.tags);
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
 
     try std.testing.expect(parsed.args.models_only);
     try std.testing.expectEqual(@as(usize, 1), parsed.args.tags.len);
