@@ -21,6 +21,16 @@ fn dupTags(allocator: std.mem.Allocator, tags: []const []const u8) ![][]const u8
     return out;
 }
 
+fn countSubstring(haystack: []const u8, needle: []const u8) usize {
+    var count: usize = 0;
+    var pos: usize = 0;
+    while (std.mem.indexOfPos(u8, haystack, pos, needle)) |found| {
+        count += 1;
+        pos = found + needle.len;
+    }
+    return count;
+}
+
 fn opWithTags(
     allocator: std.mem.Allocator,
     operation_id: ?[]const u8,
@@ -181,6 +191,49 @@ fn buildCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
         .info = .{ .title = "fixture", .version = "1.0.0" },
         .paths = paths,
         .schemas = schemas,
+    };
+}
+
+fn buildDerivedMethodCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    // "get-pet" derives getPetRaw/getPetResult members; sibling operationIds
+    // getPetRaw and getPetResult collide with those derived names (sorted after).
+    try paths.put(try allocator.dupe(u8, "/pets"), .{
+        .get = try opWithTags(allocator, "get-pet", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/pets/result"), .{
+        .get = try opWithTags(allocator, "getPetResult", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/pets/{petId}"), .{
+        .get = try opWithTags(allocator, "getPetRaw", true, false, true, &.{"pet"}),
+    });
+    // Streaming op derives streamPetsStreaming/streamPetsStreamEvents; a sibling
+    // operationId streamPetsStreaming collides with the derived name.
+    var stream_op = try opWithTags(allocator, "stream-pets", false, true, true, &.{"pet"});
+    stream_op.streaming = true;
+    try paths.put(try allocator.dupe(u8, "/stream"), .{
+        .post = stream_op,
+    });
+    var stream_collide_op = try opWithTags(allocator, "streamPetsStreaming", false, true, true, &.{"pet"});
+    stream_collide_op.streaming = true;
+    try paths.put(try allocator.dupe(u8, "/stream/events"), .{
+        .post = stream_collide_op,
+    });
+    // Reverse order: operationId "listUsersRaw" is processed first, then a
+    // "list-users" operation whose derived listUsersRaw collides with that main.
+    try paths.put(try allocator.dupe(u8, "/users"), .{
+        .get = try opWithTags(allocator, "listUsersRaw", false, false, true, &.{"pet"}),
+    });
+    try paths.put(try allocator.dupe(u8, "/users/all"), .{
+        .get = try opWithTags(allocator, "list-users", false, false, true, &.{"pet"}),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
     };
 }
 
@@ -396,4 +449,44 @@ test "multiple-clients PerTag dedupes struct names, reserved methods, and method
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPetsList_(self: *PetClient) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return @\"operationpets/list\"(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "const _getPetsList = getPetsList;") != null);
+}
+
+test "multiple-clients PerTag dedupes derived Raw/Result/Streaming method names" {
+    const allocator = std.testing.allocator;
+    var document = try buildDerivedMethodCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_tag,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // "get-pet" keeps its derived getPetRaw/getPetResult members.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(self: *PetClient) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPetRaw(self: *PetClient) !RawResponse {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPetResult(self: *PetClient) !ApiResult(std.json.Value) {") != null);
+
+    // Sibling operationIds colliding with those derived names get suffixed.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPetRaw_(self: *PetClient, petId: i64) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPetResult_(self: *PetClient) !Owned(std.json.Value) {") != null);
+
+    // Streaming derived names collide with a sibling operationId; the colliding
+    // operationId keeps its main method (standard signature) suffixed.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn streamPetsStreaming(self: *PetClient, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn streamPetsStreaming_(self: *PetClient, requestBody: std.json.Value) !Owned(std.json.Value) {") != null);
+
+    // Reverse collision: an operationId main name is registered first, and a
+    // sibling's derived name collides with it, so the sibling is suffixed.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listUsersRaw(self: *PetClient) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listUsers_(self: *PetClient) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listUsers_Raw(self: *PetClient) !RawResponse {") != null);
+
+    // Every struct member name is emitted at most once.
+    try std.testing.expect(countSubstring(code, "pub fn getPetRaw(self: *PetClient") == 1);
+    try std.testing.expect(countSubstring(code, "pub fn getPetResult(self: *PetClient") == 1);
+    try std.testing.expect(countSubstring(code, "pub fn listUsersRaw(self: *PetClient") == 1);
 }

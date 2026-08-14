@@ -1312,10 +1312,7 @@ pub const UnifiedApiGenerator = struct {
 
             for (group.methods.items) |op_ref| {
                 const method_name = try self.uniqueTagClientMethodNameAlloc(op_ref, used_method_names);
-                used_method_names.put(method_name, {}) catch {
-                    self.allocator.free(method_name);
-                    return error.OutOfMemory;
-                };
+                try self.registerTagClientMethodNames(method_name, op_ref, &used_method_names);
                 try self.generateTagClientMethod(struct_name, method_name, op_ref);
             }
 
@@ -1531,12 +1528,62 @@ pub const UnifiedApiGenerator = struct {
         else
             try self.tagClientFallbackMethodNameAlloc(op_ref);
         errdefer self.allocator.free(candidate);
-        while (isReservedTagClientMethod(candidate) or used_names.contains(candidate)) {
+        while (try self.tagClientMethodNamesCollide(candidate, op_ref, used_names)) {
             const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
             self.allocator.free(candidate);
             candidate = suffixed;
         }
         return candidate;
+    }
+
+    // True when any struct member name the tag-client method for op_ref emits
+    // (the main name plus its Raw/Result/Streaming variants) collides with a
+    // name already claimed by a sibling method or a reserved identifier.
+    fn tagClientMethodNamesCollide(self: *UnifiedApiGenerator, candidate: []const u8, op_ref: OperationRef, used_names: std.StringHashMap(void)) !bool {
+        if (isReservedTagClientMethod(candidate) or used_names.contains(candidate)) return true;
+        if (op_ref.operation.operationId == null) return false;
+
+        const raw = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{candidate});
+        defer self.allocator.free(raw);
+        if (used_names.contains(raw)) return true;
+
+        if (self.hasReturnValue(op_ref.method, op_ref.operation)) {
+            const result = try std.fmt.allocPrint(self.allocator, "{s}Result", .{candidate});
+            defer self.allocator.free(result);
+            if (used_names.contains(result)) return true;
+        }
+        if (op_ref.operation.streaming and std.mem.eql(u8, op_ref.method, "POST")) {
+            const streaming = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{candidate});
+            defer self.allocator.free(streaming);
+            if (used_names.contains(streaming)) return true;
+            const stream_events = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{candidate});
+            defer self.allocator.free(stream_events);
+            if (used_names.contains(stream_events)) return true;
+        }
+        return false;
+    }
+
+    // Registers every struct member name the tag-client method for op_ref will
+    // emit, transferring ownership of each to used_names.
+    fn registerTagClientMethodNames(self: *UnifiedApiGenerator, method_name: []const u8, op_ref: OperationRef, used_names: *std.StringHashMap(void)) !void {
+        try self.registerTagClientMethodName(method_name, used_names);
+        if (op_ref.operation.operationId == null) return;
+
+        try self.registerTagClientMethodName(try std.fmt.allocPrint(self.allocator, "{s}Raw", .{method_name}), used_names);
+        if (self.hasReturnValue(op_ref.method, op_ref.operation)) {
+            try self.registerTagClientMethodName(try std.fmt.allocPrint(self.allocator, "{s}Result", .{method_name}), used_names);
+        }
+        if (op_ref.operation.streaming and std.mem.eql(u8, op_ref.method, "POST")) {
+            try self.registerTagClientMethodName(try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{method_name}), used_names);
+            try self.registerTagClientMethodName(try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{method_name}), used_names);
+        }
+    }
+
+    fn registerTagClientMethodName(self: *UnifiedApiGenerator, name: []const u8, used_names: *std.StringHashMap(void)) !void {
+        used_names.put(name, {}) catch {
+            self.allocator.free(name);
+            return error.OutOfMemory;
+        };
     }
 
     fn tagClientFallbackMethodNameAlloc(self: *UnifiedApiGenerator, op_ref: OperationRef) ![]const u8 {
