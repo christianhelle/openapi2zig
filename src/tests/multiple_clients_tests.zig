@@ -155,6 +155,10 @@ fn buildCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     try paths.put(try allocator.dupe(u8, "/error"), .{
         .get = try opWithTags(allocator, "Error", false, false, true, &.{"pet"}),
     });
+    // operationId that is exactly a Zig keyword: "if" → "if_" method, quoted aliases.
+    try paths.put(try allocator.dupe(u8, "/keyword"), .{
+        .post = try opWithTags(allocator, "if", false, true, true, &.{"pet"}),
+    });
     // Fallback method name (no operationId) collides with an opId-derived
     // method name: no-opId GET /pets/list → "getPetsList", opId "getPetsList" → "getPetsList".
     try paths.put(try allocator.dupe(u8, "/other"), .{
@@ -363,6 +367,14 @@ test "multiple-clients PerTag dedupes struct names, reserved methods, and method
     // is suffixed so the generated method name is a valid identifier.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn error_(self: *PetClient) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return Error(self.client);") != null);
+
+    // operationId that is exactly a Zig keyword ("if") is suffixed ("if_") and
+    // the flat-fn aliases are quoted so the generated file still compiles.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn if_(self: *PetClient, requestBody: std.json.Value) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _if = @\"if\";") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _if(self.client, requestBody);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _ifRaw = ifRaw;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _ifRaw(self.client, requestBody);") != null);
 
     // Method collision: get-pet and getPet both sanitize to getPet → getPet, getPet_.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(self: *PetClient) !Owned(std.json.Value) {") != null);
