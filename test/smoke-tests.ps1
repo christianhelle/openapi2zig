@@ -200,7 +200,7 @@ foreach ($mc in $MultipleClients) {
         $value = $value.Trim()
         if ($value -eq "") { continue }
         $Cases.Add([pscustomobject]@{
-            Name = "mc-$value"
+            Name = $value
             Flag = "--multiple-clients"
             Value = $value
         })

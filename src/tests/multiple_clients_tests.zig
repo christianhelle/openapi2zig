@@ -6,7 +6,9 @@ const common = @import("../models/common/document.zig");
 fn responseMap(allocator: std.mem.Allocator, with_schema: bool) !std.StringHashMap(common.Response) {
     var responses = std.StringHashMap(common.Response).init(allocator);
     errdefer responses.deinit();
-    try responses.put(try allocator.dupe(u8, if (with_schema) "200" else "204"), .{
+    const key = try allocator.dupe(u8, if (with_schema) "200" else "204");
+    errdefer allocator.free(key);
+    try responses.put(key, .{
         .description = "ok",
         .schema = if (with_schema) common.Schema{ .type = .object } else null,
     });
