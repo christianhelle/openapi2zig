@@ -375,6 +375,67 @@ test "multi-file client compiles" {
 }
 
 # ---------------------------------------------------------------------------
+# Tag filtering
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "==> Tag filtering (pet and store tags)" -ForegroundColor Cyan
+
+$tagSpec = Join-Path $RepoRoot "openapi/v3.0/petstore.json"
+$tagOutFile = Join-Path $OutputDir "tagfilter.zig"
+
+$tagFilterArgs = @(
+    "generate",
+    "-i", $tagSpec,
+    "-o", $tagOutFile,
+    "--tag", "pet",
+    "--tag", "store",
+    "--base-url", "https://petstore3.swagger.io/api/v3"
+)
+
+$genOutput = & $Cli @tagFilterArgs 2>&1
+$genExit = $LASTEXITCODE
+if ($genExit -ne 0) {
+    Write-Host "FAIL (tag-filter generate)" -ForegroundColor Red
+    Write-Host ($genOutput | Out-String)
+    $results.Add([pscustomobject]@{
+        Spec = "v3.0/petstore.json"; Mode = "tagfilter"; Status = "fail"; Phase = "generate"
+        ExitCode = $genExit; Output = ($genOutput | Out-String)
+    })
+} else {
+    $content = [System.IO.File]::ReadAllText($tagOutFile)
+    $hasPet = $content.Contains("getPetById")
+    $hasStore = $content.Contains("placeOrder")
+    $hasUser = $content.Contains("createUser")
+    if (-not $hasPet -or -not $hasStore -or $hasUser) {
+        $missing = @()
+        if (-not $hasPet) { $missing += "pet-tagged operation" }
+        if (-not $hasStore) { $missing += "store-tagged operation" }
+        if ($hasUser) { $missing += "user-tagged operation should be filtered out" }
+        Write-Host "FAIL (tag-filter content: $($missing -join ', '))" -ForegroundColor Red
+        $results.Add([pscustomobject]@{
+            Spec = "v3.0/petstore.json"; Mode = "tagfilter"; Status = "fail"; Phase = "generate"
+            ExitCode = 0; Output = "filtered content mismatch: $($missing -join ', ')"
+        })
+    } else {
+        $testOutput = & $ZigPath test $tagOutFile 2>&1
+        $testExit = $LASTEXITCODE
+        if ($testExit -ne 0) {
+            Write-Host "FAIL (tag-filter compile)" -ForegroundColor Red
+            Write-Host ($testOutput | Out-String)
+            $results.Add([pscustomobject]@{
+                Spec = "v3.0/petstore.json"; Mode = "tagfilter"; Status = "fail"; Phase = "compile"
+                ExitCode = $testExit; Output = ($testOutput | Out-String)
+            })
+        } else {
+            Write-Host "PASS tag filtering (pet and store tags)" -ForegroundColor Green
+            $results.Add([pscustomobject]@{
+                Spec = "v3.0/petstore.json"; Mode = "tagfilter"; Status = "pass"
+            })
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 $pass = @($results | Where-Object Status -eq "pass").Count
