@@ -344,6 +344,11 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
                 printError("--tag value required\n", .{});
                 return error.InvalidArguments;
             }
+            if (std.mem.startsWith(u8, args[i], "-")) {
+                printUsage();
+                printError("--tag value must not start with '-'\n", .{});
+                return error.InvalidArguments;
+            }
             try tags_list.append(allocator, args[i]);
         } else if (std.mem.eql(u8, arg, "--multiple-files")) {
             multiple_files = true;
@@ -1172,6 +1177,19 @@ test "parse rejects --tag without a value" {
         "-i",
         "openapi.json",
         "--tag",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --tag followed by another flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--tag",
+        "--models-only",
     };
 
     try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
