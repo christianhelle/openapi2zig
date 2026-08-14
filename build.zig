@@ -87,6 +87,68 @@ pub fn build(b: *std.Build) void {
     const run_generate_v3_multi_step = b.step("run-generate-v3-multi", "Generate multiple output files (models, runtime, client)");
     run_generate_v3_multi_step.dependOn(&run_generate_v3_multi_cmd.step);
 
+    const run_generate_v3_multiclient_tag_cmd = b.addRunArtifact(exe);
+    run_generate_v3_multiclient_tag_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/generated_v3_multiclient_tag.zig",
+        "--multiple-clients",
+        "PerTag",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_multiclient_tag_step = b.step("run-generate-v3-multiclient-tag", "Generate per-tag client structs from petstore");
+    run_generate_v3_multiclient_tag_step.dependOn(&run_generate_v3_multiclient_tag_cmd.step);
+
+    const run_generate_v3_multiclient_endpoint_cmd = b.addRunArtifact(exe);
+    run_generate_v3_multiclient_endpoint_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/generated_v3_multiclient_endpoint.zig",
+        "--multiple-clients",
+        "PerEndpoint",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_multiclient_endpoint_step = b.step("run-generate-v3-multiclient-endpoint", "Generate per-endpoint client structs from petstore");
+    run_generate_v3_multiclient_endpoint_step.dependOn(&run_generate_v3_multiclient_endpoint_cmd.step);
+
+    const run_generate_v3_multiclient_tag_multi_cmd = b.addRunArtifact(exe);
+    run_generate_v3_multiclient_tag_multi_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/multiple-clients/tag",
+        "--multiple-files",
+        "--multiple-clients",
+        "PerTag",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_multiclient_tag_multi_step = b.step("run-generate-v3-multiclient-tag-multi", "Generate per-tag multi-file client from petstore");
+    run_generate_v3_multiclient_tag_multi_step.dependOn(&run_generate_v3_multiclient_tag_multi_cmd.step);
+
+    const run_generate_v3_multiclient_endpoint_multi_cmd = b.addRunArtifact(exe);
+    run_generate_v3_multiclient_endpoint_multi_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/multiple-clients/endpoint",
+        "--multiple-files",
+        "--multiple-clients",
+        "PerEndpoint",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_multiclient_endpoint_multi_step = b.step("run-generate-v3-multiclient-endpoint-multi", "Generate per-endpoint multi-file client from petstore");
+    run_generate_v3_multiclient_endpoint_multi_step.dependOn(&run_generate_v3_multiclient_endpoint_multi_cmd.step);
+
     const run_generate_v2_cmd = b.addRunArtifact(exe);
     run_generate_v2_cmd.addArgs(&.{
         "generate",
@@ -223,6 +285,10 @@ pub fn build(b: *std.Build) void {
     const run_generate = b.step("run-generate", "Run the app with generate commands");
     run_generate.dependOn(&run_generate_v3_cmd.step);
     run_generate.dependOn(&run_generate_v3_multi_cmd.step);
+    run_generate.dependOn(&run_generate_v3_multiclient_tag_cmd.step);
+    run_generate.dependOn(&run_generate_v3_multiclient_endpoint_cmd.step);
+    run_generate.dependOn(&run_generate_v3_multiclient_tag_multi_cmd.step);
+    run_generate.dependOn(&run_generate_v3_multiclient_endpoint_multi_cmd.step);
     run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
     run_generate.dependOn(&run_generate_v2_yaml_cmd.step);

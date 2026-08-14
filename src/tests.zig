@@ -7,6 +7,7 @@ const comprehensive_converter_tests = @import("tests/comprehensive_converter_tes
 const test_input_loader = @import("tests/test_input_loader.zig");
 const yaml_loader_tests = @import("tests/yaml_loader_tests.zig");
 const resource_wrapper_tests = @import("tests/resource_wrapper_tests.zig");
+const multiple_clients_tests = @import("tests/multiple_clients_tests.zig");
 const model_typing_tests = @import("tests/model_typing_tests.zig");
 const binary_payload_tests = @import("tests/binary_payload_tests.zig");
 const schema_bounds_parsing_tests = @import("tests/schema_bounds_parsing_tests.zig");
@@ -25,6 +26,7 @@ comptime {
     _ = test_input_loader;
     _ = yaml_loader_tests;
     _ = resource_wrapper_tests;
+    _ = multiple_clients_tests;
     _ = model_typing_tests;
     _ = binary_payload_tests;
     _ = schema_bounds_parsing_tests;

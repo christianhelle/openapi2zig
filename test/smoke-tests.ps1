@@ -6,8 +6,10 @@
 .DESCRIPTION
     Discovers JSON and YAML OpenAPI/Swagger specs under openapi/v2.0,
     openapi/v3.0, openapi/v3.1, and openapi/v3.2, then for each
-    (spec, resource-wrapper mode) pair runs `openapi2zig generate` and
-    compile-checks the generated file with `zig test`. Continues after
+    (spec, mode) pair runs `openapi2zig generate` and compile-checks the
+    generated file with `zig test`. Modes are the resource-wrapper modes
+    (none, tags, paths, hybrid) plus any `--multiple-clients` modes
+    (PerTag, PerEndpoint) passed via -MultipleClients. Continues after
     individual failures and exits non-zero if any non-denylisted case fails.
 
     Cross-platform: works on PowerShell 7+ (Windows, Linux, macOS).
@@ -22,6 +24,11 @@
 .PARAMETER Modes
     Resource-wrapper modes to test. Defaults to all four: none, tags, paths, hybrid.
 
+.PARAMETER MultipleClients
+    Multiple-client modes to test: PerTag, PerEndpoint, or both. Empty by
+    default; when set, each mode is tested via `--multiple-clients <mode>`
+    across all discovered specs.
+
 .PARAMETER KeepOutput
     If set, the test/output directory is not cleaned before the run.
 
@@ -30,12 +37,16 @@
 
 .EXAMPLE
     pwsh test/smoke-tests.ps1 -Filter "v3.0/petstore*" -Modes paths
+
+.EXAMPLE
+    pwsh test/smoke-tests.ps1 -Filter "v3.0/petstore*" -MultipleClients PerTag,PerEndpoint
 #>
 [CmdletBinding()]
 param(
     [string]$Optimize = "ReleaseFast",
     [string]$Filter = "*",
     [string[]]$Modes = @("none", "tags", "paths", "hybrid"),
+    [string[]]$MultipleClients = @(),
     [switch]$KeepOutput
 )
 
@@ -57,7 +68,7 @@ $OutputDir = Join-Path $RepoRoot "test/output"
 # Format: each entry is a hashtable with:
 #   Spec   - relative spec path using forward slashes (e.g. "openapi/v3.0/petstore.json")
 #            or "*" to match any spec
-#   Mode   - one of none|tags|paths|hybrid, or "*" to match any mode
+#   Mode   - one of none|tags|paths|hybrid|PerTag|PerEndpoint, or "*" to match any mode
 #   Reason - short justification, included in skip output
 #
 # Keep this list small and explicit. Each entry is a generator gap to fix.
@@ -174,13 +185,40 @@ foreach ($rel in $IncludedDirs) {
 }
 
 $Specs = $Specs | Sort-Object Rel
-$totalCases = $Specs.Count * $Modes.Count
+
+# Build the mode-case matrix. Each case carries the flag and value used for
+# generation. Resource-wrapper modes use `--resource-wrappers <mode>`; the
+# multi-client modes use `--multiple-clients <mode>`.
+$Cases = New-Object System.Collections.Generic.List[object]
+foreach ($mode in $Modes) {
+    $Cases.Add([pscustomobject]@{
+        Name = $mode
+        Flag = "--resource-wrappers"
+        Value = $mode
+    })
+}
+foreach ($mc in $MultipleClients) {
+    foreach ($value in ($mc -split ',')) {
+        $value = $value.Trim()
+        if ($value -eq "") { continue }
+        $Cases.Add([pscustomobject]@{
+            Name = $value
+            Flag = "--multiple-clients"
+            Value = $value
+        })
+    }
+}
+
+$totalCases = $Specs.Count * $Cases.Count
 
 Write-Host ""
 Write-Host "Discovered $($Specs.Count) specs across $($IncludedDirs.Count) directories"
 Write-Host "JSON specs:             $($SpecCounts.Json)"
 Write-Host "YAML specs:             $($SpecCounts.Yaml)"
 Write-Host "Resource-wrapper modes: $($Modes -join ', ')"
+if ($MultipleClients.Count -gt 0) {
+    Write-Host "Multiple-client modes:  $($MultipleClients -join ', ')"
+}
 Write-Host "Total cases to run:     $totalCases (sequential)"
 Write-Host "Output directory:       $OutputDir"
 Write-Host ""
@@ -192,7 +230,8 @@ $results = New-Object System.Collections.Generic.List[object]
 $idx = 0
 
 foreach ($spec in $Specs) {
-    foreach ($mode in $Modes) {
+    foreach ($case in $Cases) {
+        $mode = $case.Name
         $idx++
         $caseLabel = "[{0}/{1}] {2} :: {3}" -f $idx, $totalCases, $spec.Rel, $mode
 
@@ -212,7 +251,7 @@ foreach ($spec in $Specs) {
         if (-not (Test-Path $outParent)) { New-Item -ItemType Directory -Path $outParent -Force | Out-Null }
 
         # ---- Generate ----
-        $genOutput = & $Cli generate -i $spec.Abs -o $outFile --resource-wrappers $mode 2>&1
+        $genOutput = & $Cli generate -i $spec.Abs -o $outFile $case.Flag $case.Value 2>&1
         $genExit = $LASTEXITCODE
         if ($genExit -ne 0) {
             Write-Host "FAIL (generate) $caseLabel" -ForegroundColor Red
