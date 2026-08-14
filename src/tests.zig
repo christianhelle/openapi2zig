@@ -12,6 +12,7 @@ const model_typing_tests = @import("tests/model_typing_tests.zig");
 const binary_payload_tests = @import("tests/binary_payload_tests.zig");
 const schema_bounds_parsing_tests = @import("tests/schema_bounds_parsing_tests.zig");
 const generated_header_tests = @import("tests/generated_header_tests.zig");
+const tag_filter_tests = @import("tests/tag_filter_tests.zig");
 const media_type = @import("media_type.zig");
 const generator = @import("generator.zig");
 const cli = @import("cli.zig");
@@ -31,6 +32,7 @@ comptime {
     _ = binary_payload_tests;
     _ = schema_bounds_parsing_tests;
     _ = generated_header_tests;
+    _ = tag_filter_tests;
     _ = media_type;
     _ = generator;
     _ = cli;
