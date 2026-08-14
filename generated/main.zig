@@ -11,6 +11,7 @@ const multi_v3 = @import("multi/client.zig");
 const multi_v3_custom = @import("lmstudio-multi/api.zig");
 const v3_multiclient_tag = @import("generated_v3_multiclient_tag.zig");
 const v3_multiclient_endpoint = @import("generated_v3_multiclient_endpoint.zig");
+const v3_tagfilter = @import("generated_v3_tagfilter.zig");
 
 fn logRequest(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, headers: []const std.http.Header, body: ?[]const u8) void {
     _ = ctx;
@@ -82,6 +83,8 @@ pub fn main(init: std.process.Init) !void {
     defer v3_multiclient_tag_client.deinit();
     var v3_multiclient_endpoint_client = v3_multiclient_endpoint.Client.init(allocator, io, "");
     defer v3_multiclient_endpoint_client.deinit();
+    var v3_tagfilter_client = v3_tagfilter.Client.init(allocator, io, "");
+    defer v3_tagfilter_client.deinit();
     _ = &v3_yaml_client;
     _ = &v2_yaml_client;
     _ = &v31_yaml_client;
@@ -126,4 +129,18 @@ pub fn main(init: std.process.Init) !void {
     };
     defer v3_endpoint_pet.deinit();
     std.debug.print("Found Pet (per-endpoint client) with ID:{any}\n\n", .{v3_endpoint_pet.value().id});
+
+    var tagfilter_pet = v3_tagfilter.getPetById(&v3_tagfilter_client, 1) catch |err| {
+        std.debug.print("Failed to get Pet (tag-filtered client): {any}\n", .{err});
+        return;
+    };
+    defer tagfilter_pet.deinit();
+    std.debug.print("Found Pet (tag-filtered client) with ID:{any}\n\n", .{tagfilter_pet.value().id});
+
+    var tagfilter_order = v3_tagfilter.getOrderById(&v3_tagfilter_client, 1) catch |err| {
+        std.debug.print("Failed to get Order (tag-filtered client): {any}\n", .{err});
+        return;
+    };
+    defer tagfilter_order.deinit();
+    std.debug.print("Found Order (tag-filtered client) with ID:{any}\n\n", .{tagfilter_order.value().id});
 }
