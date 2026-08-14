@@ -1221,7 +1221,6 @@ pub const UnifiedApiGenerator = struct {
 
         for (operations.items) |op_ref| {
             const struct_name = try self.tagClientNameAlloc(op_ref.operation);
-            errdefer self.allocator.free(struct_name);
 
             var group_index: ?usize = null;
             for (groups.items, 0..) |group, i| {
@@ -1235,6 +1234,7 @@ pub const UnifiedApiGenerator = struct {
                 self.allocator.free(struct_name);
                 try groups.items[idx].methods.append(self.allocator, op_ref);
             } else {
+                errdefer self.allocator.free(struct_name);
                 var methods = std.ArrayList(OperationRef).empty;
                 errdefer methods.deinit(self.allocator);
                 try methods.append(self.allocator, op_ref);
