@@ -1255,9 +1255,13 @@ pub const UnifiedApiGenerator = struct {
             defer self.allocator.free(prospective);
             if (!std.mem.eql(u8, prospective, op_id)) continue;
 
-            const main_alias = try std.fmt.allocPrint(self.allocator, "const _{s} = {s};\n", .{ op_id, op_id });
+            // The alias target is the flat function name, which may be a Zig
+            // keyword (e.g. operationId "if" → @"if") and so must be quoted.
+            const main_alias = try std.fmt.allocPrint(self.allocator, "const _{s} = ", .{op_id});
             defer self.allocator.free(main_alias);
             try self.buffer.appendSlice(self.allocator, main_alias);
+            try self.appendIdentifier(op_id);
+            try self.buffer.appendSlice(self.allocator, ";\n");
             const raw_alias = try std.fmt.allocPrint(self.allocator, "const _{s}Raw = {s}Raw;\n", .{ op_id, op_id });
             defer self.allocator.free(raw_alias);
             try self.buffer.appendSlice(self.allocator, raw_alias);
@@ -1589,9 +1593,15 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, ") !void {\n");
         }
         try self.buffer.appendSlice(self.allocator, "        return ");
-        if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
         if (op_id) |id| {
-            try self.appendIdentifier(id);
+            if (needs_alias) {
+                // The alias name is the literal `_` + operationId, which stays a
+                // valid bare identifier even when the operationId is a Zig keyword.
+                try self.buffer.appendSlice(self.allocator, "_");
+                try self.buffer.appendSlice(self.allocator, id);
+            } else {
+                try self.appendIdentifier(id);
+            }
         } else {
             try self.buffer.appendSlice(self.allocator, "@\"operation");
             try self.buffer.appendSlice(self.allocator, op_ref.path[1..]);
