@@ -137,7 +137,8 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
     };
     defer if (!args.models_only) allocator.free(generated_code);
 
-    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
+    const checksum = generated_header.computeChecksum(generated_code);
+    const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
     defer allocator.free(header);
     const output_code = try std.mem.concat(allocator, u8, &.{ header, generated_code });
     defer allocator.free(output_code);
@@ -146,15 +147,42 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
     if (std.fs.path.dirname(output_path)) |dir_path| {
         try cwd.createDirPath(io, dir_path);
     }
+
+    const full_path = try std.fs.path.join(allocator, &.{ ".", output_path });
+    defer allocator.free(full_path);
+    if (cwd.readFileAlloc(io, full_path, allocator, .limited(1024 * 1024))) |existing| {
+        defer allocator.free(existing);
+        if (!generated_header.hasChanged(existing, generated_code)) {
+            std.log.info("Skipping '{s}' (unchanged)", .{output_path});
+            return;
+        }
+    } else |_| {}
+
     const output_file = try cwd.createFile(io, output_path, .{});
     defer output_file.close(io);
     try output_file.writeStreamingAll(io, output_code);
     std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
 }
 
-fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path: []const u8, file_name: []const u8, content: []const u8) !void {
+fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path: []const u8, file_name: []const u8, raw_code: []const u8) !void {
     const full_path = try std.fs.path.join(allocator, &.{ dir_path, file_name });
     defer allocator.free(full_path);
+
+    if (cwd.readFileAlloc(io, full_path, allocator, .limited(1024 * 1024))) |existing| {
+        defer allocator.free(existing);
+        if (!generated_header.hasChanged(existing, raw_code)) {
+            std.log.info("Skipping '{s}' (unchanged)", .{full_path});
+            return;
+        }
+    } else |_| {}
+
+    const checksum = generated_header.computeChecksum(raw_code);
+    const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
+    defer allocator.free(header);
+
+    const content = try std.mem.concat(allocator, u8, &.{ header, raw_code });
+    defer allocator.free(content);
+
     if (std.fs.path.dirname(full_path)) |parent| {
         try cwd.createDirPath(io, parent);
     }
@@ -177,12 +205,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const generated_models = try model_generator.generate(unified_doc);
     defer allocator.free(generated_models);
 
-    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
-    defer allocator.free(header);
-
-    const models_content = try std.mem.concat(allocator, u8, &.{ header, generated_models });
-    defer allocator.free(models_content);
-    try writeFile(allocator, io, cwd, dir_path, models_file, models_content);
+    try writeFile(allocator, io, cwd, dir_path, models_file, generated_models);
 
     if (args.models_only) return;
 
@@ -191,9 +214,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const generated_runtime = try runtime_gen.generate();
     defer allocator.free(generated_runtime);
 
-    const runtime_content = try std.mem.concat(allocator, u8, &.{ header, generated_runtime });
-    defer allocator.free(runtime_content);
-    try writeFile(allocator, io, cwd, dir_path, runtime_file, runtime_content);
+    try writeFile(allocator, io, cwd, dir_path, runtime_file, generated_runtime);
 
     const models_alias = try cli.deriveAlias(allocator, models_file, "models");
     defer allocator.free(models_alias);
@@ -226,9 +247,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const generated_api = try api_generator.generateClientOnly(unified_doc);
     defer allocator.free(generated_api);
 
-    const client_content = try std.mem.concat(allocator, u8, &.{ header, generated_api });
-    defer allocator.free(client_content);
-    try writeFile(allocator, io, cwd, dir_path, client_file, client_content);
+    try writeFile(allocator, io, cwd, dir_path, client_file, generated_api);
 }
 
 fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anytype, args: cli.CliArgs, comptime Converter: type) !void {
@@ -706,4 +725,84 @@ test "generateMultipleFiles composes per-tag client structs into the client file
     defer allocator.free(models_content);
     try std.testing.expect(std.mem.indexOf(u8, models_content, "pub const Pet") != null);
     try std.testing.expect(std.mem.indexOf(u8, models_content, "PetClient") == null);
+}
+
+test "generateCodeFromUnifiedDocument preserves timestamp when code unchanged" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "out/api.zig",
+    });
+
+    const first = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(first);
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "out/api.zig",
+    });
+
+    const second = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(second);
+
+    try std.testing.expectEqualStrings(first, second);
+}
+
+test "generateMultipleFiles preserves timestamps when code unchanged" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+    });
+
+    const first_models = try tmp.dir.readFileAlloc(std.testing.io, "out/models.zig", allocator, .unlimited);
+    defer allocator.free(first_models);
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+    });
+
+    const second_models = try tmp.dir.readFileAlloc(std.testing.io, "out/models.zig", allocator, .unlimited);
+    defer allocator.free(second_models);
+
+    try std.testing.expectEqualStrings(first_models, second_models);
 }
