@@ -3,6 +3,26 @@ FROM ubuntu:24.04
 ENV NO_COLOR=true
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
+RUN echo "Types: deb" > /etc/apt/sources.list.d/plucky.sources && \
+    echo "URIs: http://archive.ubuntu.com/ubuntu/" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "Suites: plucky plucky-updates plucky-backports" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "Components: main restricted universe multiverse" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "Types: deb" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "URIs: http://security.ubuntu.com/ubuntu/" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "Suites: plucky-security" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "Components: main restricted universe multiverse" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "" >> /etc/apt/sources.list.d/plucky.sources && \
+    echo "Package: *" > /etc/apt/preferences.d/plucky-pin && \
+    echo "Pin: release n=plucky" >> /etc/apt/preferences.d/plucky-pin && \
+    echo "Pin-Priority: -10" >> /etc/apt/preferences.d/plucky-pin && \
+    echo "" >> /etc/apt/preferences.d/plucky-pin && \
+    echo "Package: kcov" >> /etc/apt/preferences.d/plucky-pin && \
+    echo "Pin: release n=plucky" >> /etc/apt/preferences.d/plucky-pin && \
+    echo "Pin-Priority: 500" >> /etc/apt/preferences.d/plucky-pin
+
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends -y \
     curl xz-utils ca-certificates kcov git && \
     rm -rf /var/lib/apt/lists/*

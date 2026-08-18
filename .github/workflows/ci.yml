@@ -99,7 +99,6 @@ jobs:
           docker buildx create --name insecure-builder --buildkitd-flags "--allow-insecure-entitlement security.insecure" 2>/dev/null || true
           docker buildx use insecure-builder
           docker buildx build --progress plain --builder insecure-builder --allow security.insecure --file Dockerfile.coverage --output type=local,dest=. .
-        continue-on-error: true
 
       - name: Upload coverage to Codecov
         if: hashFiles('output/cobertura.xml') != ''
