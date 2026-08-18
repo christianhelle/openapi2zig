@@ -150,7 +150,7 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
 
     const full_path = try std.fs.path.join(allocator, &.{ ".", output_path });
     defer allocator.free(full_path);
-    if (cwd.readFileAlloc(io, full_path, allocator, .limited(1024 * 1024))) |existing| {
+    if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
         defer allocator.free(existing);
         if (!generated_header.hasChanged(existing, generated_code)) {
             std.log.info("Skipping '{s}' (unchanged)", .{output_path});
@@ -168,7 +168,7 @@ fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path
     const full_path = try std.fs.path.join(allocator, &.{ dir_path, file_name });
     defer allocator.free(full_path);
 
-    if (cwd.readFileAlloc(io, full_path, allocator, .limited(1024 * 1024))) |existing| {
+    if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
         defer allocator.free(existing);
         if (!generated_header.hasChanged(existing, raw_code)) {
             std.log.info("Skipping '{s}' (unchanged)", .{full_path});
