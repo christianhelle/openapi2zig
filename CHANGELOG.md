@@ -15,6 +15,7 @@
 
 **Merged pull requests:**
 
+- Add build-time Zig coverage reporting and Codecov publishing [\#82](https://github.com/christianhelle/openapi2zig/pull/82) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Fix Windows self-upgrade failing with error.FileBusy [\#76](https://github.com/christianhelle/openapi2zig/pull/76) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.4.2](https://github.com/christianhelle/openapi2zig/tree/v0.4.2) (2026-07-30)
