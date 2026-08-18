@@ -1,0 +1,29 @@
+FROM ubuntu:24.04
+
+ENV NO_COLOR=true
+RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends -y \
+    curl xz-utils ca-certificates kcov git && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG ZIG_VERSION=0.16.0
+RUN curl -sSL --fail -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz" && \
+    mkdir -p /usr/local/zig && \
+    tar -xf zig.tar.xz -C /usr/local/zig --strip-components=1 && \
+    rm zig.tar.xz
+
+ENV PATH=/usr/local/zig:$PATH
+RUN zig version
+
+COPY . /app
+WORKDIR /app
+
+RUN zig build test-coverage --summary all
+# kcov relies on ptrace to instrument the test binary; this coverage-only build is intentionally
+# scoped to the generated test executable and is enabled only for the temporary builder container.
+RUN --security=insecure kcov --clean --cobertura-only --include-pattern=src/ coverage zig-out/bin/test
+RUN [ -f coverage/cov.xml ]
+
+RUN mkdir -p /output
+RUN cp coverage/cov.xml /output/cobertura.xml
