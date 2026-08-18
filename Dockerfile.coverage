@@ -28,7 +28,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends -y \
     rm -rf /var/lib/apt/lists/*
 
 ARG ZIG_VERSION=0.16.0
-RUN curl -sSL --fail -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz" && \
+RUN curl -sSL --fail -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" && \
     mkdir -p /usr/local/zig && \
     tar -xf zig.tar.xz -C /usr/local/zig --strip-components=1 && \
     rm zig.tar.xz
