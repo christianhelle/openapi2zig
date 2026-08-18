@@ -241,17 +241,24 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, unified_doc: Unifi
     const models_code = try generateModels(allocator, unified_doc);
     defer allocator.free(models_code);
 
-    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
-    defer allocator.free(header);
-
     if (args.models_only) {
+        const checksum = generated_header.computeChecksum(models_code);
+        const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
+        defer allocator.free(header);
         return try std.mem.concat(allocator, u8, &.{ header, models_code });
     }
 
     const api_code = try generateApi(allocator, unified_doc, args);
     defer allocator.free(api_code);
 
-    return try std.mem.concat(allocator, u8, &.{ header, models_code, "\n", api_code });
+    const combined = try std.mem.concat(allocator, u8, &.{ models_code, "\n", api_code });
+    defer allocator.free(combined);
+
+    const checksum = generated_header.computeChecksum(combined);
+    const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
+    defer allocator.free(header);
+
+    return try std.mem.concat(allocator, u8, &.{ header, combined });
 }
 
 /// Result of generating code in multiple-files mode.
@@ -274,10 +281,11 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     const models_code = try generateModels(allocator, unified_doc);
     defer allocator.free(models_code);
 
-    const header = try generated_header.renderNowFromBuildInfo(allocator, io);
-    defer allocator.free(header);
+    const models_checksum = generated_header.computeChecksum(models_code);
+    const models_header = try generated_header.renderNowWithChecksum(allocator, io, models_checksum);
+    defer allocator.free(models_header);
 
-    const models_with_header = try std.mem.concat(allocator, u8, &.{ header, models_code });
+    const models_with_header = try std.mem.concat(allocator, u8, &.{ models_header, models_code });
     errdefer allocator.free(models_with_header);
 
     if (args.models_only) {
@@ -289,7 +297,11 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     const runtime_code = try runtime_gen.generate();
     defer allocator.free(runtime_code);
 
-    const runtime_with_header = try std.mem.concat(allocator, u8, &.{ header, runtime_code });
+    const runtime_checksum = generated_header.computeChecksum(runtime_code);
+    const runtime_header = try generated_header.renderNowWithChecksum(allocator, io, runtime_checksum);
+    defer allocator.free(runtime_header);
+
+    const runtime_with_header = try std.mem.concat(allocator, u8, &.{ runtime_header, runtime_code });
     errdefer allocator.free(runtime_with_header);
 
     var api_gen = UnifiedApiGenerator.init(allocator, args);
@@ -299,7 +311,11 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     const api_code = try api_gen.generateClientOnly(unified_doc);
     defer allocator.free(api_code);
 
-    const client_with_header = try std.mem.concat(allocator, u8, &.{ header, api_code });
+    const client_checksum = generated_header.computeChecksum(api_code);
+    const client_header = try generated_header.renderNowWithChecksum(allocator, io, client_checksum);
+    defer allocator.free(client_header);
+
+    const client_with_header = try std.mem.concat(allocator, u8, &.{ client_header, api_code });
     errdefer allocator.free(client_with_header);
 
     return .{
