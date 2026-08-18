@@ -9,6 +9,9 @@ on:
 env:
   ZIG_VERSION: "0.16.0"
 
+permissions:
+  contents: read
+
 jobs:
   lint-and-format:
     name: Lint and Format Check
@@ -81,6 +84,29 @@ jobs:
           name: test-binaries
           path: zig-out/tests/
           retention-days: 7
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate coverage report
+        run: |
+          docker buildx create --name insecure-builder --buildkitd-flags "--allow-insecure-entitlement security.insecure" 2>/dev/null || true
+          docker buildx use insecure-builder
+          docker buildx build --progress plain --builder insecure-builder --allow security.insecure --file Dockerfile.coverage --output type=local,dest=. .
+
+      - name: Upload coverage to Codecov
+        if: hashFiles('output/cobertura.xml') != ''
+        uses: codecov/codecov-action@v5
+        with:
+          files: output/cobertura.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   cross-compile:
     name: Cross-compile Check

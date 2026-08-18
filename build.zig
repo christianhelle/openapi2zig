@@ -343,6 +343,16 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
 
+    const coverage_exe = b.addTest(.{
+        .name = "test",
+        .root_module = tests_mod,
+        .use_llvm = true,
+    });
+    coverage_exe.root_module.addImport("openapi2zig", openapi2zig_mod);
+    b.installArtifact(coverage_exe);
+    const test_coverage_step = b.step("test-coverage", "Build test binary for coverage");
+    test_coverage_step.dependOn(b.getInstallStep());
+
     const generated_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("generated/compile_generated.zig"),
