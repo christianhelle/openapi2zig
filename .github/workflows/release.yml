@@ -127,23 +127,10 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: ${{ steps.version.outputs.version }}
-          body: |
-            ## What's Changed
-            ${{ steps.changelog.outputs.changelog }}
-
-            ## Download
-            Download the appropriate binary for your platform below.
-
-            ## Installation
-            1. Download the archive for your platform
-            2. Extract the binary
-            3. Add to your PATH or run directly
-
-            ## Checksums
-            See the attached checksums file for verification.
           files: |
             artifacts/**/*
           draft: false
+          generate_release_notes: true
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
 
   publish-container:
