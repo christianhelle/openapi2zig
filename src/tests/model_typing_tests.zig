@@ -3,13 +3,17 @@ const common = @import("../models/common/document.zig");
 const models = @import("../models.zig");
 const OpenApi31Converter = @import("../generators/converters/openapi31_converter.zig").OpenApi31Converter;
 const UnifiedModelGenerator = @import("../generators/unified/model_generator.zig").UnifiedModelGenerator;
+const test_utils = @import("test_utils.zig");
 
 fn stringSchema() common.Schema {
     return .{ .type = .string };
 }
 
 test "model generator treats properties without type as struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var properties = std.StringHashMap(common.Schema).init(allocator);
     defer {
         var iterator = properties.iterator();
@@ -44,14 +48,18 @@ test "model generator treats properties without type as struct" {
     try std.testing.expect(std.mem.indexOf(u8, code, "foo: ?[]const u8 = null") != null);
 }
 
-test "model generator sanitizes reserved property names like type" {
-    const allocator = std.testing.allocator;
+test "model generator sanitizes only reserved property names and keeps camelCase wire names" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var properties = std.StringHashMap(common.Schema).init(allocator);
     defer {
         var iterator = properties.iterator();
         while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
         properties.deinit();
     }
+    try properties.put(try allocator.dupe(u8, "petId"), stringSchema());
     try properties.put(try allocator.dupe(u8, "type"), stringSchema());
 
     var schemas = std.StringHashMap(common.Schema).init(allocator);
@@ -76,8 +84,55 @@ test "model generator sanitizes reserved property names like type" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
+    try std.testing.expect(std.mem.indexOf(u8, code, "petId: ?[]const u8 = null") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pet_id: ?[]const u8 = null") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "type_: ?[]const u8 = null") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "type: ?[]const u8 = null") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "objectField(\"type\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "self.type_") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "source.object.get(\"type\")") != null);
+}
+
+test "model generator disambiguates type and type_ collisions deterministically" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var properties = std.StringHashMap(common.Schema).init(allocator);
+    defer {
+        var iterator = properties.iterator();
+        while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
+        properties.deinit();
+    }
+    try properties.put(try allocator.dupe(u8, "type"), stringSchema());
+    try properties.put(try allocator.dupe(u8, "type_"), stringSchema());
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    defer {
+        var iterator = schemas.iterator();
+        while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
+        schemas.deinit();
+    }
+    try schemas.put(try allocator.dupe(u8, "Thing"), .{ .properties = properties });
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    defer paths.deinit();
+    const document: common.UnifiedDocument = .{
+        .version = "3.1.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "type_: ?[]const u8 = null") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "type__: ?[]const u8 = null") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "objectField(\"type\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "objectField(\"type_\")") != null);
 }
 
 test "model generator emits empty struct for empty-property object" {
@@ -392,7 +447,7 @@ test "model generator emits named types for field-level composite schemas" {
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const ThingValue = union(enum)") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "value: ThingValue") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const ThingContent = union(enum)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "text_part_items: []const TextPart") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "TextPart_items: []const TextPart") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "content: ThingContent") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "[]const std.json.Value") == null);
 }

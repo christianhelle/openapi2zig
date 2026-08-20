@@ -42,6 +42,15 @@ pub const UnifiedModelGenerator = struct {
         try ident.appendIdentifier(&self.buffer, self.allocator, name);
     }
 
+    fn appendStructFieldName(self: *UnifiedModelGenerator, name: []const u8) !void {
+        if (ident.isReservedIdent(name)) {
+            try self.buffer.appendSlice(self.allocator, name);
+            try self.buffer.append(self.allocator, '_');
+            return;
+        }
+        try self.appendIdentifier(name);
+    }
+
     fn generateHeader(self: *UnifiedModelGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
             \\const std = @import("std");
@@ -81,6 +90,9 @@ pub const UnifiedModelGenerator = struct {
                 try self.generateStructFields(name, properties, schema.required);
                 if (std.mem.eql(u8, name, "ChatCompletionRequestAssistantMessage") and !properties.contains("reasoning_details")) {
                     try self.buffer.appendSlice(self.allocator, "    reasoning_details: ?std.json.Value = null,\n");
+                }
+                if (try self.structNeedsWireNameMapping(properties)) {
+                    try self.generateStructJsonCodec(name, properties, schema.required);
                 }
                 if (isExtensibleRequest(name)) {
                     try self.buffer.appendSlice(self.allocator, "    extra_body: ?std.json.Value = null,\n");
@@ -179,19 +191,18 @@ pub const UnifiedModelGenerator = struct {
         var out = std.ArrayList(u8).empty;
         errdefer out.deinit(self.allocator);
         var prev_was_underscore = false;
-        for (value, 0..) |c, i| {
-            const next = if (i + 1 < value.len) value[i + 1] else 0;
-            const prev = if (i > 0) value[i - 1] else 0;
-            const insert_word_break = std.ascii.isUpper(c) and i > 0 and out.items.len > 0 and !prev_was_underscore and
-                ((std.ascii.isLower(prev) or std.ascii.isDigit(prev)) or (std.ascii.isUpper(prev) and std.ascii.isLower(next)));
-            if (insert_word_break) try out.append(self.allocator, '_');
-
-            const lower = std.ascii.toLower(c);
-            const valid = if (out.items.len == 0) ident.isIdentStart(lower) else ident.isIdentContinue(lower);
-            const byte = if (valid) lower else '_';
-            if (byte == '_' and prev_was_underscore) continue;
-            try out.append(self.allocator, byte);
-            prev_was_underscore = byte == '_';
+        for (value) |c| {
+            const valid = ident.isIdentStart(c) or ident.isIdentContinue(c);
+            if (valid) {
+                if (c == '_' and prev_was_underscore) continue;
+                try out.append(self.allocator, c);
+                prev_was_underscore = c == '_';
+                continue;
+            }
+            if (!prev_was_underscore) {
+                try out.append(self.allocator, '_');
+                prev_was_underscore = true;
+            }
         }
         while (out.items.len > 0 and out.items[out.items.len - 1] == '_') _ = out.pop();
         if (out.items.len == 0 or !ident.isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
@@ -1052,13 +1063,72 @@ pub const UnifiedModelGenerator = struct {
         return true;
     }
 
-    fn generateStructFields(self: *UnifiedModelGenerator, owner_name: []const u8, properties: std.StringHashMap(Schema), required: ?[][]const u8) !void {
+    fn uniqueSanitizedIdentifierAlloc(self: *UnifiedModelGenerator, value: []const u8, used_names: *std.StringHashMap(void)) ![]const u8 {
+        var candidate = if (ident.isReservedIdent(value))
+            try std.fmt.allocPrint(self.allocator, "{s}_", .{value})
+        else
+            try self.allocator.dupe(u8, value);
+        errdefer self.allocator.free(candidate);
+
+        while (std.mem.eql(u8, candidate, "raw") or used_names.contains(candidate)) {
+            const suffix = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
+            self.allocator.free(candidate);
+            candidate = suffix;
+        }
+
+        const result = try self.allocator.dupe(u8, candidate);
+        errdefer self.allocator.free(result);
+        const tracked = try self.allocator.dupe(u8, candidate);
+        errdefer self.allocator.free(tracked);
+
+        try used_names.put(tracked, {});
+        self.allocator.free(candidate);
+        return result;
+    }
+
+    const StructFieldBinding = struct {
+        raw_name: []const u8,
+        sanitized_name: []const u8,
+        field_schema: Schema,
+        is_required: bool,
+    };
+
+    fn collectStructFieldBindings(self: *UnifiedModelGenerator, properties: std.StringHashMap(Schema), required: ?[][]const u8) ![]StructFieldBinding {
+        var bindings = std.ArrayList(StructFieldBinding).empty;
+        errdefer bindings.deinit(self.allocator);
+
+        var used_names = std.StringHashMap(void).init(self.allocator);
+        defer {
+            var iterator = used_names.iterator();
+            while (iterator.next()) |entry| self.allocator.free(entry.key_ptr.*);
+            used_names.deinit();
+        }
+
         var prop_iterator = properties.iterator();
         while (prop_iterator.next()) |entry| {
             const field_name = entry.key_ptr.*;
             const field_schema = entry.value_ptr.*;
-            const is_required = self.isFieldRequired(field_name, required);
-            try self.generateStructField(owner_name, field_name, field_schema, is_required);
+            const sanitized_name = try self.uniqueSanitizedIdentifierAlloc(field_name, &used_names);
+            try bindings.append(self.allocator, .{
+                .raw_name = field_name,
+                .sanitized_name = sanitized_name,
+                .field_schema = field_schema,
+                .is_required = self.isFieldRequired(field_name, required),
+            });
+        }
+
+        return try bindings.toOwnedSlice(self.allocator);
+    }
+
+    fn generateStructFields(self: *UnifiedModelGenerator, owner_name: []const u8, properties: std.StringHashMap(Schema), required: ?[][]const u8) !void {
+        const bindings = try self.collectStructFieldBindings(properties, required);
+        defer {
+            for (bindings) |binding| self.allocator.free(binding.sanitized_name);
+            self.allocator.free(bindings);
+        }
+
+        for (bindings) |binding| {
+            try self.generateStructField(owner_name, binding.raw_name, binding.field_schema, binding.is_required, binding.sanitized_name);
         }
     }
 
@@ -1106,19 +1176,8 @@ pub const UnifiedModelGenerator = struct {
         return false;
     }
 
-    fn generateStructField(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8, field_schema: Schema, is_required: bool) !void {
-        const sanitized_field_name = try self.sanitizeIdentifierAlloc(field_name);
-        defer self.allocator.free(sanitized_field_name);
-
-        try self.buffer.appendSlice(self.allocator, "    ");
-        try self.buffer.appendSlice(self.allocator, sanitized_field_name);
-        try self.buffer.appendSlice(self.allocator, ": ");
-
-        if (try self.appendManualFieldType(owner_name, field_name)) {
-            if (!is_required) try self.buffer.appendSlice(self.allocator, " = null");
-            try self.buffer.appendSlice(self.allocator, ",\n");
-            return;
-        }
+    fn appendFieldTypeForSchema(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8, field_schema: Schema, is_required: bool) !void {
+        if (try self.appendManualFieldType(owner_name, field_name)) return;
 
         if (!is_required and !isNullableSchema(field_schema)) {
             try self.buffer.appendSlice(self.allocator, "?");
@@ -1133,12 +1192,117 @@ pub const UnifiedModelGenerator = struct {
                 try self.appendZigType(field_schema);
             }
         }
+    }
+
+    fn generateStructField(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8, field_schema: Schema, is_required: bool, sanitized_field_name: []const u8) !void {
+        try self.buffer.appendSlice(self.allocator, "    ");
+        try self.buffer.appendSlice(self.allocator, sanitized_field_name);
+        try self.buffer.appendSlice(self.allocator, ": ");
+
+        if (try self.appendManualFieldType(owner_name, field_name)) {
+            if (!is_required) try self.buffer.appendSlice(self.allocator, " = null");
+            try self.buffer.appendSlice(self.allocator, ",\n");
+            return;
+        }
+
+        try self.appendFieldTypeForSchema(owner_name, field_name, field_schema, is_required);
 
         if (!is_required) {
             try self.buffer.appendSlice(self.allocator, " = null");
         }
 
         try self.buffer.appendSlice(self.allocator, ",\n");
+    }
+
+    fn structNeedsWireNameMapping(self: *UnifiedModelGenerator, properties: std.StringHashMap(Schema)) !bool {
+        const bindings = try self.collectStructFieldBindings(properties, null);
+        defer {
+            for (bindings) |binding| self.allocator.free(binding.sanitized_name);
+            self.allocator.free(bindings);
+        }
+
+        for (bindings) |binding| {
+            if (!std.mem.eql(u8, binding.raw_name, binding.sanitized_name)) return true;
+        }
+        return false;
+    }
+
+    fn generateStructJsonCodec(self: *UnifiedModelGenerator, owner_name: []const u8, properties: std.StringHashMap(Schema), required: ?[][]const u8) !void {
+        const bindings = try self.collectStructFieldBindings(properties, required);
+        defer {
+            for (bindings) |binding| self.allocator.free(binding.sanitized_name);
+            self.allocator.free(bindings);
+        }
+
+        var needs_mapping = false;
+        for (bindings) |binding| {
+            if (!std.mem.eql(u8, binding.raw_name, binding.sanitized_name)) {
+                needs_mapping = true;
+                break;
+            }
+        }
+        if (!needs_mapping) return;
+
+        try self.buffer.appendSlice(self.allocator,
+            \\
+            \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
+            \\        const value = try std.json.innerParse(std.json.Value, allocator, source, options);
+            \\        return jsonParseFromValue(allocator, value, options);
+            \\    }
+            \\
+            \\    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !@This() {
+            \\        if (source != .object) return error.UnexpectedToken;
+            \\        var result: @This() = .{};
+        );
+
+        for (bindings) |binding| {
+            if (std.mem.eql(u8, binding.raw_name, binding.sanitized_name)) continue;
+            try self.buffer.appendSlice(self.allocator, "        if (source.object.get(");
+            try self.appendStringLiteral(binding.raw_name);
+            try self.buffer.appendSlice(self.allocator, ")) |value| {\n");
+            try self.buffer.appendSlice(self.allocator, "            result.");
+            try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
+            try self.buffer.appendSlice(self.allocator, " = try std.json.parseFromValueLeaky(");
+            try self.appendFieldTypeForSchema(owner_name, binding.raw_name, binding.field_schema, binding.is_required);
+            try self.buffer.appendSlice(self.allocator, ", allocator, value, options);\n");
+            try self.buffer.appendSlice(self.allocator, "        }\n");
+        }
+
+        try self.buffer.appendSlice(self.allocator,
+            \\
+            \\        return result;
+            \\    }
+            \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
+            \\        try jw.beginObject();
+        );
+
+        for (bindings) |binding| {
+            if (binding.is_required) {
+                try self.buffer.appendSlice(self.allocator, "        try jw.objectField(");
+                try self.appendStringLiteral(binding.raw_name);
+                try self.buffer.appendSlice(self.allocator, ");\n");
+                try self.buffer.appendSlice(self.allocator, "        try jw.write(self.");
+                try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
+                try self.buffer.appendSlice(self.allocator, ");\n");
+            } else {
+                try self.buffer.appendSlice(self.allocator, "        if (self.");
+                try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
+                try self.buffer.appendSlice(self.allocator, ") |value| {\n");
+                try self.buffer.appendSlice(self.allocator, "            try jw.objectField(");
+                try self.appendStringLiteral(binding.raw_name);
+                try self.buffer.appendSlice(self.allocator, ");\n");
+                try self.buffer.appendSlice(self.allocator, "            try jw.write(value);\n");
+                try self.buffer.appendSlice(self.allocator, "        }\n");
+            }
+        }
+
+        try self.buffer.appendSlice(self.allocator,
+            \\
+            \\        try jw.endObject();
+            \\    }
+            \\}
+            \\
+        );
     }
 
     fn generateJsonStringify(self: *UnifiedModelGenerator, properties: std.StringHashMap(Schema), required: ?[][]const u8) !void {
@@ -1149,25 +1313,27 @@ pub const UnifiedModelGenerator = struct {
             \\
         );
 
-        var prop_iterator = properties.iterator();
-        while (prop_iterator.next()) |entry| {
-            const field_name = entry.key_ptr.*;
-            const sanitized_field_name = try self.sanitizeIdentifierAlloc(field_name);
-            defer self.allocator.free(sanitized_field_name);
-            if (self.isFieldRequired(field_name, required)) {
-                try self.buffer.appendSlice(self.allocator, "        try jw.objectField(\"");
-                try self.buffer.appendSlice(self.allocator, field_name);
-                try self.buffer.appendSlice(self.allocator, "\");\n");
+        const bindings = try self.collectStructFieldBindings(properties, required);
+        defer {
+            for (bindings) |binding| self.allocator.free(binding.sanitized_name);
+            self.allocator.free(bindings);
+        }
+
+        for (bindings) |binding| {
+            if (binding.is_required) {
+                try self.buffer.appendSlice(self.allocator, "        try jw.objectField(");
+                try self.appendStringLiteral(binding.raw_name);
+                try self.buffer.appendSlice(self.allocator, ");\n");
                 try self.buffer.appendSlice(self.allocator, "        try jw.write(self.");
-                try self.buffer.appendSlice(self.allocator, sanitized_field_name);
+                try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
                 try self.buffer.appendSlice(self.allocator, ");\n");
             } else {
                 try self.buffer.appendSlice(self.allocator, "        if (self.");
-                try self.buffer.appendSlice(self.allocator, sanitized_field_name);
+                try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
                 try self.buffer.appendSlice(self.allocator, ") |value| {\n");
-                try self.buffer.appendSlice(self.allocator, "            try jw.objectField(\"");
-                try self.buffer.appendSlice(self.allocator, field_name);
-                try self.buffer.appendSlice(self.allocator, "\");\n");
+                try self.buffer.appendSlice(self.allocator, "            try jw.objectField(");
+                try self.appendStringLiteral(binding.raw_name);
+                try self.buffer.appendSlice(self.allocator, ");\n");
                 try self.buffer.appendSlice(self.allocator, "            try jw.write(value);\n");
                 try self.buffer.appendSlice(self.allocator, "        }\n");
             }
