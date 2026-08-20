@@ -1107,8 +1107,11 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn generateStructField(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8, field_schema: Schema, is_required: bool) !void {
+        const sanitized_field_name = try self.sanitizeIdentifierAlloc(field_name);
+        defer self.allocator.free(sanitized_field_name);
+
         try self.buffer.appendSlice(self.allocator, "    ");
-        try self.appendIdentifier(field_name);
+        try self.buffer.appendSlice(self.allocator, sanitized_field_name);
         try self.buffer.appendSlice(self.allocator, ": ");
 
         if (try self.appendManualFieldType(owner_name, field_name)) {
@@ -1149,16 +1152,18 @@ pub const UnifiedModelGenerator = struct {
         var prop_iterator = properties.iterator();
         while (prop_iterator.next()) |entry| {
             const field_name = entry.key_ptr.*;
+            const sanitized_field_name = try self.sanitizeIdentifierAlloc(field_name);
+            defer self.allocator.free(sanitized_field_name);
             if (self.isFieldRequired(field_name, required)) {
                 try self.buffer.appendSlice(self.allocator, "        try jw.objectField(\"");
                 try self.buffer.appendSlice(self.allocator, field_name);
                 try self.buffer.appendSlice(self.allocator, "\");\n");
                 try self.buffer.appendSlice(self.allocator, "        try jw.write(self.");
-                try self.appendIdentifier(field_name);
+                try self.buffer.appendSlice(self.allocator, sanitized_field_name);
                 try self.buffer.appendSlice(self.allocator, ");\n");
             } else {
                 try self.buffer.appendSlice(self.allocator, "        if (self.");
-                try self.appendIdentifier(field_name);
+                try self.buffer.appendSlice(self.allocator, sanitized_field_name);
                 try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                 try self.buffer.appendSlice(self.allocator, "            try jw.objectField(\"");
                 try self.buffer.appendSlice(self.allocator, field_name);

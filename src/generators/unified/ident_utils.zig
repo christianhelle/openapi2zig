@@ -16,7 +16,7 @@ pub fn isReservedIdent(name: []const u8) bool {
         "extern",    "false",    "fn",        "for",    "if",          "inline",   "isize",          "linksection",
         "noalias",   "noreturn", "nosuspend", "null",   "opaque",      "or",       "orelse",         "packed",
         "pub",       "resume",   "return",    "struct", "suspend",     "switch",   "test",           "threadlocal",
-        "true",      "try",      "undefined", "union",  "unreachable", "usize",    "usingnamespace", "var",
+        "true",      "try",      "type",      "undefined", "union",  "unreachable", "usize",    "usingnamespace", "var",
         "void",      "volatile", "while",
     };
     for (reserved) |word| {
