@@ -1,22 +1,19 @@
 # Changelog
 
-## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
+## [v0.5.0](https://github.com/christianhelle/openapi2zig/tree/v0.5.0) (2026-08-18)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.2...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.2...v0.5.0)
 
 **Implemented enhancements:**
 
+- Add build-time Zig coverage reporting and Codecov publishing [\#82](https://github.com/christianhelle/openapi2zig/pull/82) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Add checksum-based change detection to avoid unnecessary timestamp updates [\#81](https://github.com/christianhelle/openapi2zig/pull/81) ([christianhelle](https://github.com/christianhelle))
 - Add --tag option to filter generated endpoints and models [\#80](https://github.com/christianhelle/openapi2zig/pull/80) ([christianhelle](https://github.com/christianhelle))
 - Add --multiple-clients flag for per-tag and per-endpoint client generation [\#79](https://github.com/christianhelle/openapi2zig/pull/79) ([christianhelle](https://github.com/christianhelle))
 - Add PerTag methods for operations without an operationId [\#78](https://github.com/christianhelle/openapi2zig/pull/78) ([christianhelle](https://github.com/christianhelle))
 - Add --file-name option to customize multi-file output names [\#77](https://github.com/christianhelle/openapi2zig/pull/77) ([christianhelle](https://github.com/christianhelle))
-- Add empty lines between headers and generated content [\#75](https://github.com/christianhelle/openapi2zig/pull/75) ([christianhelle](https://github.com/christianhelle))
-
-**Merged pull requests:**
-
-- Add build-time Zig coverage reporting and Codecov publishing [\#82](https://github.com/christianhelle/openapi2zig/pull/82) ([Copilot](https://github.com/apps/copilot-swe-agent))
 - Fix Windows self-upgrade failing with error.FileBusy [\#76](https://github.com/christianhelle/openapi2zig/pull/76) ([christianhelle](https://github.com/christianhelle))
+- Add empty lines between headers and generated content [\#75](https://github.com/christianhelle/openapi2zig/pull/75) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.4.2](https://github.com/christianhelle/openapi2zig/tree/v0.4.2) (2026-07-30)
 
