@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.0...HEAD)
+
+**Implemented enhancements:**
+
+- Reserve Zig type keyword in generated identifiers [\#86](https://github.com/christianhelle/openapi2zig/pull/86) ([christianhelle](https://github.com/christianhelle))
+
+**Fixed bugs:**
+
+- "type" needs to be a reserved word [\#84](https://github.com/christianhelle/openapi2zig/issues/84)
+
 ## [v0.5.0](https://github.com/christianhelle/openapi2zig/tree/v0.5.0) (2026-08-18)
 
 [Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.4.2...v0.5.0)
