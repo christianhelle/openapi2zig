@@ -226,8 +226,13 @@ pub const UnifiedApiGenerator = struct {
     fn appendLineComment(self: *UnifiedApiGenerator, text: []const u8) !void {
         var lines = std.mem.splitScalar(u8, text, '\n');
         while (lines.next()) |line| {
-            try self.buffer.appendSlice(self.allocator, "// ");
-            try self.buffer.appendSlice(self.allocator, std.mem.trim(u8, line, "\r"));
+            const trimmed = std.mem.trim(u8, line, "\r");
+            if (trimmed.len > 0) {
+                try self.buffer.appendSlice(self.allocator, "// ");
+                try self.buffer.appendSlice(self.allocator, trimmed);
+            } else {
+                try self.buffer.appendSlice(self.allocator, "//");
+            }
             try self.buffer.appendSlice(self.allocator, "\n");
         }
     }
