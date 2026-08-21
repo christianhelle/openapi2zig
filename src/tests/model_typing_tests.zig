@@ -86,11 +86,8 @@ test "model generator sanitizes only reserved property names and keeps camelCase
 
     try std.testing.expect(std.mem.indexOf(u8, code, "petId: ?[]const u8 = null") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pet_id: ?[]const u8 = null") == null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "type_: ?[]const u8 = null") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "type: ?[]const u8 = null") == null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "objectField(\"type\")") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "self.type_") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "source.object.get(\"type\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "@\"type\": ?[]const u8 = null") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "type_: ?[]const u8 = null") == null);
 }
 
 test "model generator disambiguates type and type_ collisions deterministically" {
@@ -129,10 +126,8 @@ test "model generator disambiguates type and type_ collisions deterministically"
     const code = try generator.generate(document);
     defer allocator.free(code);
 
+    try std.testing.expect(std.mem.indexOf(u8, code, "@\"type\": ?[]const u8 = null") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "type_: ?[]const u8 = null") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "type__: ?[]const u8 = null") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "objectField(\"type\")") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "objectField(\"type_\")") != null);
 }
 
 test "model generator emits empty struct for empty-property object" {

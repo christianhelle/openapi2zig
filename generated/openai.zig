@@ -29,7 +29,7 @@ pub const FineTuningJobCheckpoint = struct {
 pub const ApplyPatchCreateFileOperationParam = struct {
     path: []const u8,
     diff: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateGroupBody = struct {
@@ -57,7 +57,7 @@ pub const DoneEvent = struct {
 pub const RealtimeBetaServerEventInputAudioBufferCommitted = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     previous_item_id: ?[]const u8 = null,
 };
 
@@ -66,7 +66,7 @@ pub const FunctionShellCallItemStatus = []const u8;
 pub const RealtimeBetaResponseCreateParamsToolsItem = struct {
     description: ?[]const u8 = null,
     name: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     parameters: ?std.json.Value = null,
 };
 
@@ -151,14 +151,14 @@ pub const RealtimeBetaResponseCreateParams = struct {
 pub const RealtimeClientEventConversationItemRetrieve = struct {
     event_id: ?[]const u8 = null,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseContentPartDoneEvent = struct {
     sequence_number: i64,
     item_id: []const u8,
     output_index: i64,
-    type: []const u8,
+    @"type": []const u8,
     part: OutputContent,
     content_index: i64,
 };
@@ -176,7 +176,7 @@ pub const ContainerListResource = struct {
 pub const EvalGraderPython = struct {
     source: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     image_tag: ?[]const u8 = null,
     pass_threshold: ?f64 = null,
 };
@@ -234,7 +234,7 @@ pub const ResponsesClientEventResponseCreate = struct {
     text: ?ResponseTextParam = null,
     metadata: ?Metadata = null,
     input: ?InputParam = null,
-    type: []const u8,
+    @"type": []const u8,
     previous_response_id: ?[]const u8 = null,
     top_logprobs: ?i64 = null,
     reasoning: ?Reasoning = null,
@@ -260,17 +260,17 @@ pub const ResponseTextParam = struct {
 
 pub const ApplyPatchDeleteFileOperation = struct {
     path: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FunctionShellCallOutputExitOutcomeParam = struct {
     exit_code: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FileAnnotation = struct {
     source: FileAnnotationSource,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEventResponseAudioDelta = struct {
@@ -279,7 +279,7 @@ pub const RealtimeServerEventResponseAudioDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -287,7 +287,7 @@ pub const RealtimeServerEventInputAudioBufferTimeoutTriggered = struct {
     event_id: []const u8,
     audio_start_ms: i64,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     audio_end_ms: i64,
 };
 
@@ -308,12 +308,12 @@ pub const EvalResponsesSource = struct {
     created_after: ?i64 = null,
     metadata: ?EvalResponsesSourceMetadata = null,
     model: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     instructions_search: ?[]const u8 = null,
 };
 
 pub const SpecificApplyPatchParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FileSearchRankingOptions = struct {
@@ -367,14 +367,14 @@ pub const CustomToolParamFormat = union(enum) {
 pub const CustomToolParam = struct {
     description: ?[]const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     format: ?CustomToolParamFormat = null,
     defer_loading: ?bool = null,
 };
 
 pub const EmptyModelParam = union(enum) {
     null,
-    bool: bool,
+    @"bool": bool,
     integer: i64,
     float: f64,
     number_string: []const u8,
@@ -435,28 +435,28 @@ pub const ProjectApiKeyOwnerServiceAccount = struct {
 };
 
 pub const ResponseAudioTranscriptDoneEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
 };
 
 pub const StaticChunkingStrategyResponseParam = struct {
-    type: []const u8,
+    @"type": []const u8,
     static: StaticChunkingStrategy,
 };
 
 pub const CreateEvalCustomDataSourceConfig = struct {
-    type: []const u8,
+    @"type": []const u8,
     item_schema: std.json.Value,
     include_sample_schema: ?bool = null,
 };
 
 pub const ChatCompletionAllowedToolsChoice = struct {
     allowed_tools: ChatCompletionAllowedTools,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeMCPHTTPError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
     code: i64,
 };
@@ -464,7 +464,7 @@ pub const RealtimeMCPHTTPError = struct {
 pub const InputMessage = struct {
     status: ?[]const u8 = null,
     role: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     content: InputMessageContentList,
 };
 
@@ -482,7 +482,7 @@ pub const ProjectApiKeyDeleteResponse = struct {
 
 pub const InputTextContent = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateCompletionResponseChoicesItemLogprobs = ?std.json.Value;
@@ -505,13 +505,13 @@ pub const CreateCompletionResponse = struct {
 };
 
 pub const ScreenshotParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ApplyPatchUpdateFileOperationParam = struct {
     path: []const u8,
     diff: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UsageImagesResult = struct {
@@ -529,7 +529,7 @@ pub const UsageImagesResult = struct {
 pub const RealtimeServerEventMCPListToolsCompleted = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateFineTuningJobRequestIntegrationsItemWandb = struct {
@@ -541,7 +541,7 @@ pub const CreateFineTuningJobRequestIntegrationsItemWandb = struct {
 
 pub const CreateFineTuningJobRequestIntegrationsItem = struct {
     wandb: CreateFineTuningJobRequestIntegrationsItemWandb,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateFineTuningJobRequestHyperparametersLearningRateMultiplier = union(enum) {
@@ -676,7 +676,7 @@ pub const CreateSkillVersionBody = struct {
 };
 
 pub const ResponseAudioDoneEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
 };
 
@@ -713,7 +713,7 @@ pub const CompoundFilterItem = union(enum) {
 };
 
 pub const CompoundFilter = struct {
-    type: []const u8,
+    @"type": []const u8,
     filters: []const CompoundFilterItem,
 };
 
@@ -721,7 +721,7 @@ pub const RealtimeServerEventInputAudioBufferSpeechStarted = struct {
     event_id: []const u8,
     audio_start_ms: i64,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CustomToolCallResource = struct {
@@ -732,7 +732,7 @@ pub const CustomToolCallResource = struct {
     name: []const u8,
     id: []const u8,
     input: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ErrorEvent = struct {
@@ -744,7 +744,7 @@ pub const ResponseImageGenCallPartialImageEvent = struct {
     output_index: i64,
     item_id: []const u8,
     partial_image_b64: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     partial_image_index: i64,
 };
@@ -777,7 +777,7 @@ pub const FunctionShellCallItemParam = struct {
     environment: ?FunctionShellCallItemParamEnvironment = null,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     action: FunctionShellActionParam,
 };
 
@@ -787,13 +787,13 @@ pub const RealtimeBetaServerEventResponseTextDone = struct {
     response_id: []const u8,
     item_id: []const u8,
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const ApplyPatchDeleteFileOperationParam = struct {
     path: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UsageAudioTranscriptionsResult = struct {
@@ -808,7 +808,7 @@ pub const UsageAudioTranscriptionsResult = struct {
 
 pub const RealtimeServerEventResponseCreated = struct {
     event_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     response: RealtimeResponse,
 };
 
@@ -848,7 +848,7 @@ pub const CodeInterpreterToolCall = struct {
     code: ?[]const u8,
     outputs: ?[]const CodeInterpreterToolCallOutputsItem,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     container_id: []const u8,
 };
 
@@ -898,12 +898,12 @@ pub const CreateEvalResponsesRunDataSourceInputMessagesVariant0TemplateItem = un
 
 pub const CreateEvalResponsesRunDataSourceInputMessagesVariant0 = struct {
     template: []const CreateEvalResponsesRunDataSourceInputMessagesVariant0TemplateItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateEvalResponsesRunDataSourceInputMessagesVariant1 = struct {
     item_reference: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateEvalResponsesRunDataSourceInputMessages = union(enum) {
@@ -984,7 +984,7 @@ pub const CreateEvalResponsesRunDataSource = struct {
     source: CreateEvalResponsesRunDataSourceSource,
     model: ?[]const u8 = null,
     sampling_params: ?CreateEvalResponsesRunDataSourceSamplingParams = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatSessionChatkitConfiguration = struct {
@@ -1014,7 +1014,7 @@ pub const CreateChatCompletionResponse = struct {
 };
 
 pub const SpecificFunctionShellParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ListFineTuningCheckpointPermissionResponse = struct {
@@ -1029,7 +1029,7 @@ pub const ResponseFunctionCallArgumentsDoneEvent = struct {
     item_id: []const u8,
     arguments: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -1068,7 +1068,7 @@ pub const MessageContentTextObjectText = struct {
 
 pub const MessageContentTextObject = struct {
     text: MessageContentTextObjectText,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RunStepCompletionUsage = ?std.json.Value;
@@ -1106,7 +1106,7 @@ pub const ModifyCertificateRequest = struct {
 
 pub const TranscriptTextUsageDuration = struct {
     seconds: f64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UploadPart = struct {
@@ -1134,7 +1134,7 @@ pub const ChatCompletionMessageToolCallChunkFunction = struct {
 pub const ChatCompletionMessageToolCallChunk = struct {
     id: ?[]const u8 = null,
     index: i64,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     function: ?ChatCompletionMessageToolCallChunkFunction = null,
 };
 
@@ -1142,7 +1142,7 @@ pub const SearchContextSize = []const u8;
 
 pub const RealtimeTranslationClientEventInputAudioBufferAppend = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     audio: []const u8,
 };
 
@@ -1195,13 +1195,13 @@ pub const FineTuneReinforcementMethod = struct {
 
 pub const ResponseImageGenCallCompletedEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
 
 pub const ResponseInProgressEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     response: Response,
     sequence_number: i64,
 };
@@ -1221,14 +1221,14 @@ pub const AuditLogActorUser = struct {
 
 pub const RealtimeBetaServerEventInputAudioBufferCleared = struct {
     event_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TextResponseFormatJsonSchema = struct {
     description: ?[]const u8 = null,
     schema: ResponseFormatJsonSchemaSchema,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     strict: ?bool = null,
 };
 
@@ -1273,7 +1273,7 @@ pub const ApplyPatchToolCall = struct {
     operation: ApplyPatchToolCallOperation,
     call_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     created_by: ?[]const u8 = null,
 };
 
@@ -1288,7 +1288,7 @@ pub const ProjectUserListResponse = struct {
 pub const RealtimeBetaServerEventMCPListToolsFailed = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionRequestSystemMessageContentPart = union(enum) {
@@ -1399,7 +1399,7 @@ pub const VectorStoreSearchRequest = struct {
 
 pub const InputTextContentParam = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionModalities = ?[]const []const u8;
@@ -1419,7 +1419,7 @@ pub const CreateSpeechRequest = struct {
 pub const RealtimeServerEventResponseContentPartAddedPart = struct {
     text: ?[]const u8 = null,
     transcript: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     audio: ?[]const u8 = null,
 };
 
@@ -1429,13 +1429,13 @@ pub const RealtimeServerEventResponseContentPartAdded = struct {
     event_id: []const u8,
     response_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const RealtimeClientEventInputAudioBufferAppend = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     audio: []const u8,
 };
 
@@ -1456,7 +1456,7 @@ pub const LocalShellToolCall = struct {
     status: []const u8,
     call_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     action: LocalShellExecAction,
 };
 
@@ -1464,7 +1464,7 @@ pub const RunStepDeltaStepDetailsToolCallsFileSearchObject = struct {
     file_search: std.json.Value,
     id: ?[]const u8 = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatSessionFileUpload = struct {
@@ -1537,7 +1537,7 @@ pub const CreateEvalItem = union(enum) {
 };
 
 pub const RealtimeMCPToolExecutionError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -1554,7 +1554,7 @@ pub const RealtimeServerEventResponseFunctionCallArgumentsDone = struct {
     item_id: []const u8,
     arguments: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -1566,7 +1566,7 @@ pub const RealtimeTruncationVariant1TokenLimits = struct {
 
 pub const RealtimeTruncationVariant1 = struct {
     token_limits: ?RealtimeTruncationVariant1TokenLimits = null,
-    type: []const u8,
+    @"type": []const u8,
     retention_ratio: f64,
 };
 
@@ -1601,7 +1601,7 @@ pub const RealtimeTruncation = union(enum) {
 pub const RealtimeBetaServerEventInputAudioBufferSpeechStopped = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     audio_end_ms: i64,
 };
 
@@ -1617,7 +1617,7 @@ pub const FileSearchToolCall = struct {
     status: []const u8,
     results: ?[]const FileSearchToolCallResultsItem = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     queries: []const []const u8,
 };
 
@@ -1633,7 +1633,7 @@ pub const UrlCitationBody = struct {
     end_index: i64,
     url: []const u8,
     start_index: i64,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
 };
 
@@ -1643,20 +1643,20 @@ pub const WidgetMessageItem = struct {
     thread_id: []const u8,
     widget: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const Error = struct {
     code: ?[]const u8,
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     param: ?[]const u8,
 };
 
 pub const MCPApprovalResponse = struct {
     approve: bool,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     reason: ?[]const u8 = null,
     approval_request_id: []const u8,
 };
@@ -1684,7 +1684,7 @@ pub const RealtimeTranscriptionSessionCreateResponseClientSecret = struct {
 
 pub const RealtimeTranscriptionSessionCreateResponseTurnDetection = struct {
     threshold: ?f64 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     prefix_padding_ms: ?i64 = null,
     silence_duration_ms: ?i64 = null,
 };
@@ -1701,7 +1701,7 @@ pub const RealtimeConversationItemWithReferenceContentItem = struct {
     text: ?[]const u8 = null,
     transcript: ?[]const u8 = null,
     id: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     audio: ?[]const u8 = null,
 };
 
@@ -1714,14 +1714,14 @@ pub const RealtimeConversationItemWithReference = struct {
     arguments: ?[]const u8 = null,
     name: ?[]const u8 = null,
     id: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     role: ?[]const u8 = null,
 };
 
 pub const RealtimeBetaServerEventErrorError = struct {
     event_id: ?[]const u8 = null,
     code: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
     param: ?[]const u8 = null,
 };
@@ -1729,7 +1729,7 @@ pub const RealtimeBetaServerEventErrorError = struct {
 pub const RealtimeBetaServerEventError = struct {
     event_id: []const u8,
     @"error": RealtimeBetaServerEventErrorError,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ImageGenToolSize = []const u8;
@@ -1752,7 +1752,7 @@ pub const ImageGenTool = struct {
     model: ?[]const u8 = null,
     action: ?[]const u8 = null,
     input_image_mask: ?ImageGenToolInputImageMask = null,
-    type: []const u8,
+    @"type": []const u8,
     input_fidelity: ?[]const u8 = null,
 };
 
@@ -1817,7 +1817,7 @@ pub const RunStepObject = struct {
     thread_id: []const u8,
     run_id: []const u8,
     metadata: Metadata,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateVoiceRequest = struct {
@@ -1864,13 +1864,13 @@ pub const EvalRunOutputItemResult = struct {
     score: f64,
     sample: ?EvalRunOutputItemResultSample = null,
     name: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const MCPApprovalResponseResource = struct {
     approve: bool,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     reason: ?[]const u8 = null,
     approval_request_id: []const u8,
 };
@@ -1892,7 +1892,7 @@ pub const MessageDeltaContentTextAnnotationsFilePathObject = struct {
     end_index: ?i64 = null,
     start_index: ?i64 = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
     file_path: ?MessageDeltaContentTextAnnotationsFilePathObjectFilePath = null,
 };
 
@@ -1912,14 +1912,14 @@ pub const RealtimeResponseAudio = struct {
 };
 
 pub const RealtimeResponseStatusDetailsError = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     code: ?[]const u8 = null,
 };
 
 pub const RealtimeResponseStatusDetails = struct {
     @"error": ?RealtimeResponseStatusDetailsError = null,
     reason: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeResponseUsageInputTokenDetailsCachedTokensDetails = struct {
@@ -2321,7 +2321,7 @@ pub const AuditLog = struct {
     @"external_key.registered": ?AuditLogExternalKeyRegistered = null,
     @"ip_allowlist.config.deactivated": ?AuditLogIpAllowlistConfigDeactivated = null,
     @"certificate.created": ?AuditLogCertificateCreated = null,
-    type: []const u8,
+    @"type": []const u8,
     @"scim.disabled": ?AuditLogScimDisabled = null,
     @"invite.sent": ?AuditLogInviteSent = null,
     @"rate_limit.updated": ?AuditLogRateLimitUpdated = null,
@@ -2369,27 +2369,27 @@ pub const AuditLog = struct {
 
 pub const ResponseCodeInterpreterCallCompletedEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
 
 pub const TypeParam = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ApplyPatchToolCallOutputItemParam = struct {
     status: []const u8,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     output: ?[]const u8 = null,
 };
 
 pub const ResponseWebSearchCallSearchingEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -2432,7 +2432,7 @@ pub const RunObjectIncompleteDetails = struct {
 
 pub const RunObjectTruncationStrategy = struct {
     last_messages: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RunObjectRequiredActionSubmitToolOutputs = struct {
@@ -2441,7 +2441,7 @@ pub const RunObjectRequiredActionSubmitToolOutputs = struct {
 
 pub const RunObjectRequiredAction = struct {
     submit_tool_outputs: RunObjectRequiredActionSubmitToolOutputs,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RunObjectLastError = struct {
@@ -2480,7 +2480,7 @@ pub const RunObject = struct {
 };
 
 pub const MessageContentRefusalObject = struct {
-    type: []const u8,
+    @"type": []const u8,
     refusal: []const u8,
 };
 
@@ -2532,19 +2532,19 @@ pub const ValidateGraderResponse = struct {
 
 pub const RealtimeTranslationClientEventSessionClose = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const EvalItemInputImage = struct {
     image_url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     detail: ?[]const u8 = null,
 };
 
 pub const GraderStringCheck = struct {
     operation: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: []const u8,
     reference: []const u8,
 };
@@ -2554,7 +2554,7 @@ pub const AssistantsNamedToolChoiceFunction = struct {
 };
 
 pub const AssistantsNamedToolChoice = struct {
-    type: []const u8,
+    @"type": []const u8,
     function: ?AssistantsNamedToolChoiceFunction = null,
 };
 
@@ -2601,7 +2601,7 @@ pub const DeletedConversationResource = struct {
 pub const AuditLogActor = struct {
     session: ?AuditLogActorSession = null,
     api_key: ?AuditLogActorApiKey = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const CostsResultAmount = struct {
@@ -2651,7 +2651,7 @@ pub const CreateSpeechResponseStreamEvent = union(enum) {
 
 pub const EvalCustomDataSourceConfig = struct {
     schema: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FineTuneSupervisedHyperparametersLearningRateMultiplier = union(enum) {
@@ -2739,7 +2739,7 @@ pub const FunctionShellToolParamEnvironment = ?std.json.Value;
 
 pub const FunctionShellToolParam = struct {
     environment: ?FunctionShellToolParamEnvironment = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const @"ConversationParam-2" = struct {
@@ -2749,7 +2749,7 @@ pub const @"ConversationParam-2" = struct {
 pub const RealtimeBetaServerEventConversationItemCreated = struct {
     event_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     previous_item_id: ?[]const u8 = null,
 };
 
@@ -2789,12 +2789,12 @@ pub const CreateEvalJsonlRunDataSourceSource = union(enum) {
 
 pub const CreateEvalJsonlRunDataSource = struct {
     source: CreateEvalJsonlRunDataSourceSource,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const VadConfig = struct {
     threshold: ?f64 = null,
-    type: []const u8,
+    @"type": []const u8,
     prefix_padding_ms: ?i64 = null,
     silence_duration_ms: ?i64 = null,
 };
@@ -2803,7 +2803,7 @@ pub const TruncationEnum = []const u8;
 
 pub const VectorStoreSearchResultContentObject = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const EasyInputMessageContentVariant0 = []const u8;
@@ -2838,7 +2838,7 @@ pub const EasyInputMessageContent = union(enum) {
 pub const EasyInputMessage = struct {
     phase: ?[]const u8 = null,
     role: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     content: EasyInputMessageContent,
 };
 
@@ -2850,7 +2850,7 @@ pub const DeleteCertificateResponse = struct {
 pub const MessagePhase = []const u8;
 
 pub const LocalShellToolParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebhookEvalRunSucceededData = struct {
@@ -2862,7 +2862,7 @@ pub const WebhookEvalRunSucceeded = struct {
     data: WebhookEvalRunSucceededData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const AssistantsApiResponseFormatOptionVariant0 = []const u8;
@@ -2910,25 +2910,25 @@ pub const ChatCompletionMessageCustomToolCallCustom = struct {
 pub const ChatCompletionMessageCustomToolCall = struct {
     custom: ChatCompletionMessageCustomToolCallCustom,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const SkillReferenceParam = struct {
     version: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     skill_id: []const u8,
 };
 
 pub const LocalEnvironmentParam = struct {
     skills: ?[]const LocalSkillParam = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebSearchPreviewTool = struct {
     search_context_size: ?[]const u8 = null,
     search_content_types: ?[]const SearchContentType = null,
     user_location: ?ApproximateLocation = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatkitWorkflowTracing = struct {
@@ -2937,7 +2937,7 @@ pub const ChatkitWorkflowTracing = struct {
 
 pub const RealtimeClientEventOutputAudioBufferClear = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ThreadResourceStatus = union(enum) {
@@ -2988,19 +2988,19 @@ pub const ThreadResource = struct {
 pub const RealtimeBetaServerEventResponseMCPCallCompleted = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const ResponseCodeInterpreterCallInterpretingEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
 
 pub const ResponseFormatText = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEventResponseTextDelta = struct {
@@ -3009,7 +3009,7 @@ pub const RealtimeServerEventResponseTextDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -3064,7 +3064,7 @@ pub const TranscriptTextUsageTokens = struct {
     input_token_details: ?TranscriptTextUsageTokensInputTokenDetails = null,
     output_tokens: i64,
     total_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaServerEventConversationItemInputAudioTranscriptionDelta = struct {
@@ -3072,7 +3072,7 @@ pub const RealtimeBetaServerEventConversationItemInputAudioTranscriptionDelta = 
     item_id: []const u8,
     delta: ?[]const u8 = null,
     logprobs: ?[]const LogProbProperties = null,
-    type: []const u8,
+    @"type": []const u8,
     content_index: ?i64 = null,
 };
 
@@ -3180,19 +3180,19 @@ pub const RealtimeTranslationServerEvent = union(enum) {
 pub const RealtimeServerEventResponseMCPCallCompleted = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const CodeInterpreterOutputLogs = struct {
     logs: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FileCitationBody = struct {
     file_id: []const u8,
     filename: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     index: i64,
 };
 
@@ -3204,7 +3204,7 @@ pub const ResponseOutputTextAnnotationAddedEvent = struct {
     annotation_index: i64,
     content_index: i64,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -3219,7 +3219,7 @@ pub const RunStepDeltaStepDetailsToolCallsCodeOutputImageObjectImage = struct {
 pub const RunStepDeltaStepDetailsToolCallsCodeOutputImageObject = struct {
     image: ?RunStepDeltaStepDetailsToolCallsCodeOutputImageObjectImage = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const StopConfigurationVariant0 = []const u8;
@@ -3257,7 +3257,7 @@ pub const FunctionShellCallStatus = []const u8;
 
 pub const ResponseOutputItemAddedEvent = struct {
     item: OutputItem,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -3266,7 +3266,7 @@ pub const RealtimeServerEventResponseOutputItemAdded = struct {
     event_id: []const u8,
     response_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -3274,7 +3274,7 @@ pub const OutputTextContent = struct {
     text: []const u8,
     annotations: []const Annotation,
     logprobs: []const LogProb,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateChatCompletionStreamResponseChoicesItemLogprobs = struct {
@@ -3325,12 +3325,12 @@ pub const ChatCompletionRequestToolMessageContentPart = union(enum) {
 pub const CompactionSummaryItemParam = struct {
     encrypted_content: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ReasoningTextContent = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeCreateClientSecretRequestExpiresAfter = struct {
@@ -3419,7 +3419,7 @@ pub const ChatCompletionMessageToolCallFunction = struct {
 
 pub const ChatCompletionMessageToolCall = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     function: ChatCompletionMessageToolCallFunction,
 };
 
@@ -3436,14 +3436,14 @@ pub const Reasoning = struct {
 
 pub const ResponseMCPCallCompletedEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
 
 pub const VectorStoreFileContentResponseDataItem = struct {
     text: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const VectorStoreFileContentResponse = struct {
@@ -3515,7 +3515,7 @@ pub const CustomToolCallOutputResource = struct {
     status: []const u8,
     call_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output: CustomToolCallOutputResourceOutput,
     created_by: ?[]const u8 = null,
 };
@@ -3531,7 +3531,7 @@ pub const ListBatchesResponse = struct {
 pub const RealtimeBetaServerEventConversationItemTruncated = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     audio_end_ms: i64,
     content_index: i64,
 };
@@ -3545,7 +3545,7 @@ pub const WebhookResponseCancelled = struct {
     data: WebhookResponseCancelledData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const EvalRunOutputItemSampleOutputItem = struct {
@@ -3593,14 +3593,14 @@ pub const EvalRunOutputItem = struct {
 
 pub const RealtimeConversationItemMessageSystemContentItem = struct {
     text: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeConversationItemMessageSystem = struct {
     object: ?[]const u8 = null,
     status: ?[]const u8 = null,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     role: []const u8,
     content: []const RealtimeConversationItemMessageSystemContentItem,
 };
@@ -3653,7 +3653,7 @@ pub const RealtimeBetaServerEventResponseTextDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -3662,7 +3662,7 @@ pub const RealtimeServerEventConversationItemInputAudioTranscriptionDelta = stru
     item_id: []const u8,
     delta: ?[]const u8 = null,
     logprobs: ?[]const LogProbProperties = null,
-    type: []const u8,
+    @"type": []const u8,
     content_index: ?i64 = null,
 };
 
@@ -3705,7 +3705,7 @@ pub const ApplyPatchOperationParam = union(enum) {
 pub const RealtimeServerEventTranscriptionSessionUpdated = struct {
     event_id: []const u8,
     session: RealtimeTranscriptionSessionCreateResponse,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UserUser = struct {
@@ -3749,7 +3749,7 @@ pub const RealtimeServerEventResponseAudioDone = struct {
     response_id: []const u8,
     item_id: []const u8,
     output_index: i64,
-    type: []const u8,
+    @"type": []const u8,
     content_index: i64,
 };
 
@@ -3857,7 +3857,7 @@ pub const Invite = struct {
 pub const RealtimeTranslationServerEventSessionUpdated = struct {
     event_id: []const u8,
     session: RealtimeTranslationSession,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UserMessageItemContentItem = union(enum) {
@@ -3898,20 +3898,20 @@ pub const UserMessageItem = struct {
     object: []const u8,
     thread_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const UserMessageItemContentItem,
 };
 
 pub const FunctionShellCallOutputExitOutcome = struct {
     exit_code: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const GraderLabelModel = struct {
     passing_labels: []const []const u8,
     model: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: []const EvalItem,
     labels: []const []const u8,
 };
@@ -3924,7 +3924,7 @@ pub const HistoryParam = struct {
 pub const RealtimeServerEventMCPListToolsInProgress = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ComputerCallOutputStatus = []const u8;
@@ -3933,7 +3933,7 @@ pub const AudioResponseFormat = []const u8;
 
 pub const FilePath = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     index: i64,
 };
 
@@ -3946,7 +3946,7 @@ pub const PublicCreateOrganizationRoleBody = struct {
 pub const RealtimeServerEventResponseContentPartDonePart = struct {
     text: ?[]const u8 = null,
     transcript: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     audio: ?[]const u8 = null,
 };
 
@@ -3956,7 +3956,7 @@ pub const RealtimeServerEventResponseContentPartDone = struct {
     event_id: []const u8,
     response_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -4050,7 +4050,7 @@ pub const ResponseCustomToolCallInputDoneEvent = struct {
     output_index: i64,
     item_id: []const u8,
     input: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
 };
 
@@ -4202,18 +4202,18 @@ pub const ItemField = union(enum) {
 
 pub const RealtimeBetaServerEventResponseDone = struct {
     event_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     response: RealtimeBetaResponse,
 };
 
 pub const KeyPressAction = struct {
     keys: []const []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEventResponseDone = struct {
     event_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     response: RealtimeResponse,
 };
 
@@ -4243,7 +4243,7 @@ pub const ProjectServiceAccountListResponse = struct {
 
 pub const RealtimeBetaClientEventInputAudioBufferCommit = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const VoiceResource = struct {
@@ -4291,7 +4291,7 @@ pub const InputContent = union(enum) {
 
 pub const ResponseMCPListToolsCompletedEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -4400,7 +4400,7 @@ pub const ClickParam = struct {
     x: i64,
     button: []const u8,
     keys: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     y: i64,
 };
 
@@ -4413,7 +4413,7 @@ pub const ListCertificatesResponse = struct {
 };
 
 pub const ResponseFormatTextGrammar = struct {
-    type: []const u8,
+    @"type": []const u8,
     grammar: []const u8,
 };
 
@@ -4447,7 +4447,7 @@ pub const RealtimeClientEventSessionUpdateSession = union(enum) {
 pub const RealtimeClientEventSessionUpdate = struct {
     event_id: ?[]const u8 = null,
     session: RealtimeClientEventSessionUpdateSession,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const EvalRunPerTestingCriteriaResultsItem = struct {
@@ -4522,16 +4522,16 @@ pub const EvalRun = struct {
 };
 
 pub const RealtimeAudioFormatsVariant0 = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     rate: ?i64 = null,
 };
 
 pub const RealtimeAudioFormatsVariant1 = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeAudioFormatsVariant2 = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeAudioFormats = union(enum) {
@@ -4609,12 +4609,12 @@ pub const ChatCompletionRequestMessageContentPartFileFile = struct {
 
 pub const ChatCompletionRequestMessageContentPartFile = struct {
     file: ChatCompletionRequestMessageContentPartFileFile,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeSessionCreateResponseTurnDetection = struct {
     threshold: ?f64 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     prefix_padding_ms: ?i64 = null,
     silence_duration_ms: ?i64 = null,
 };
@@ -4684,12 +4684,12 @@ pub const RealtimeSessionCreateResponseAudioOutput = struct {
 };
 
 pub const RealtimeSessionCreateResponseAudioInputNoiseReduction = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeSessionCreateResponseAudioInputTurnDetection = struct {
     threshold: ?f64 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     prefix_padding_ms: ?i64 = null,
     silence_duration_ms: ?i64 = null,
 };
@@ -4807,7 +4807,7 @@ pub const DeleteMessageResponse = struct {
 pub const RealtimeBetaServerEventResponseContentPartAddedPart = struct {
     text: ?[]const u8 = null,
     transcript: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     audio: ?[]const u8 = null,
 };
 
@@ -4817,12 +4817,12 @@ pub const RealtimeBetaServerEventResponseContentPartAdded = struct {
     event_id: []const u8,
     response_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const AutoChunkingStrategyRequestParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TranscriptTextDoneEventLogprobsItem = struct {
@@ -4835,7 +4835,7 @@ pub const TranscriptTextDoneEvent = struct {
     text: []const u8,
     logprobs: ?[]const TranscriptTextDoneEventLogprobsItem = null,
     usage: ?TranscriptTextUsageTokens = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ProjectServiceAccountCreateResponse = struct {
@@ -4854,7 +4854,7 @@ pub const ImageGenCompletedEvent = struct {
     quality: []const u8,
     output_format: []const u8,
     usage: ImagesUsage,
-    type: []const u8,
+    @"type": []const u8,
     background: []const u8,
 };
 
@@ -4875,7 +4875,7 @@ pub const MCPToolCall = struct {
     status: ?[]const u8 = null,
     arguments: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     approval_request_id: ?[]const u8 = null,
 };
@@ -4884,7 +4884,7 @@ pub const ResponseReasoningTextDeltaEvent = struct {
     delta: []const u8,
     item_id: []const u8,
     output_index: i64,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     content_index: i64,
 };
@@ -4920,7 +4920,7 @@ pub const RealtimeSessionCreateRequestInputAudioTranscription = struct {
 
 pub const RealtimeSessionCreateRequestTurnDetection = struct {
     threshold: ?f64 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     prefix_padding_ms: ?i64 = null,
     silence_duration_ms: ?i64 = null,
 };
@@ -4928,7 +4928,7 @@ pub const RealtimeSessionCreateRequestTurnDetection = struct {
 pub const RealtimeSessionCreateRequestToolsItem = struct {
     description: ?[]const u8 = null,
     name: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     parameters: ?std.json.Value = null,
 };
 
@@ -4994,7 +4994,7 @@ pub const ToolSearchCall = struct {
     status: []const u8,
     arguments: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     execution: []const u8,
     created_by: ?[]const u8 = null,
 };
@@ -5007,24 +5007,24 @@ pub const ResponseTextDoneEvent = struct {
     content_index: i64,
     text: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const ReasoningEffort = ?[]const u8;
 
 pub const AssistantToolsFileSearchTypeOnly = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebSearchActionSearchSourcesItem = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebSearchActionSearch = struct {
     queries: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     query: []const u8,
     sources: ?[]const WebSearchActionSearchSourcesItem = null,
 };
@@ -5036,7 +5036,7 @@ pub const MessageContentImageUrlObjectImageUrl = struct {
 
 pub const MessageContentImageUrlObject = struct {
     image_url: MessageContentImageUrlObjectImageUrl,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const VectorStoreFileAttributes = ?std.json.Value;
@@ -5147,12 +5147,12 @@ pub const DeleteAssistantResponse = struct {
 pub const RealtimeBetaClientEventSessionUpdate = struct {
     event_id: ?[]const u8 = null,
     session: RealtimeSessionCreateRequest,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseCodeInterpreterCallInProgressEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -5173,12 +5173,12 @@ pub const RunStepDeltaStepDetailsMessageCreationObjectMessageCreation = struct {
 };
 
 pub const RunStepDeltaStepDetailsMessageCreationObject = struct {
-    type: []const u8,
+    @"type": []const u8,
     message_creation: ?RunStepDeltaStepDetailsMessageCreationObjectMessageCreation = null,
 };
 
 pub const ResponseQueuedEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     response: Response,
     sequence_number: i64,
 };
@@ -5188,7 +5188,7 @@ pub const ResponseReasoningSummaryTextDeltaEvent = struct {
     item_id: []const u8,
     output_index: i64,
     sequence_number: i64,
-    type: []const u8,
+    @"type": []const u8,
     summary_index: i64,
 };
 
@@ -5198,7 +5198,7 @@ pub const LocalShellExecAction = struct {
     timeout_ms: ?i64 = null,
     env: std.json.Value,
     user: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const MessageContentTextAnnotationsFileCitationObjectFileCitation = struct {
@@ -5210,7 +5210,7 @@ pub const MessageContentTextAnnotationsFileCitationObject = struct {
     file_citation: MessageContentTextAnnotationsFileCitationObjectFileCitation,
     start_index: i64,
     end_index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateVideoExtendMultipartBodyVideoVariant1 = []const u8;
@@ -5332,7 +5332,7 @@ pub const FunctionCallOutputItemParam = struct {
     status: ?[]const u8 = null,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     output: FunctionCallOutputItemParamOutput,
 };
 
@@ -5342,14 +5342,14 @@ pub const ResponseTextDeltaEvent = struct {
     content_index: i64,
     delta: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const OutputAudio = struct {
     data: []const u8,
     transcript: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FunctionShellCallOutput = struct {
@@ -5358,21 +5358,21 @@ pub const FunctionShellCallOutput = struct {
     max_output_length: ?i64,
     status: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     created_by: ?[]const u8 = null,
 };
 
 pub const ParallelToolCalls = bool;
 
 pub const ResponseCreatedEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     response: Response,
     sequence_number: i64,
 };
 
 pub const RealtimeClientEventInputAudioBufferClear = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const MessageContentImageFileObjectImageFile = struct {
@@ -5382,7 +5382,7 @@ pub const MessageContentImageFileObjectImageFile = struct {
 
 pub const MessageContentImageFileObject = struct {
     image_file: MessageContentImageFileObjectImageFile,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const MessageObjectAttachmentsItemToolsItem = union(enum) {
@@ -5478,7 +5478,7 @@ pub const ComputerCallOutputItemParam = struct {
     acknowledged_safety_checks: ?[]const ComputerCallSafetyCheckParam = null,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     output: ComputerScreenshotImage,
 };
 
@@ -5511,7 +5511,7 @@ pub const ResponsesClientEvent = union(enum) {
 pub const RealtimeBetaServerEventConversationItemDeleted = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionRequestMessage = union(enum) {
@@ -5575,7 +5575,7 @@ pub const RunStepDetailsMessageCreationObjectMessageCreation = struct {
 };
 
 pub const RunStepDetailsMessageCreationObject = struct {
-    type: []const u8,
+    @"type": []const u8,
     message_creation: RunStepDetailsMessageCreationObjectMessageCreation,
 };
 
@@ -5640,19 +5640,19 @@ pub const ProjectApiKeyOwnerUser = struct {
 pub const MCPToolCallStatus = []const u8;
 
 pub const WaitParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CodeInterpreterTextOutput = struct {
     logs: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const InlineSkillParam = struct {
     source: InlineSkillSourceParam,
     description: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeMcptoolCallError = ?std.json.Value;
@@ -5663,7 +5663,7 @@ pub const RealtimeMCPToolCall = struct {
     server_label: []const u8,
     arguments: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     approval_request_id: ?[]const u8 = null,
 };
@@ -5671,13 +5671,13 @@ pub const RealtimeMCPToolCall = struct {
 pub const ComputerScreenshotContent = struct {
     file_id: ?[]const u8,
     image_url: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
     detail: []const u8,
 };
 
 pub const ResponseWebSearchCallCompletedEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -5689,7 +5689,7 @@ pub const RunToolCallObjectFunction = struct {
 
 pub const RunToolCallObject = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     function: RunToolCallObjectFunction,
 };
 
@@ -5701,7 +5701,7 @@ pub const DeleteFineTuningCheckpointPermissionResponse = struct {
 
 pub const ResponseReasoningSummaryPartDoneEventPart = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseReasoningSummaryPartDoneEvent = struct {
@@ -5710,7 +5710,7 @@ pub const ResponseReasoningSummaryPartDoneEvent = struct {
     output_index: i64,
     sequence_number: i64,
     part: ResponseReasoningSummaryPartDoneEventPart,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatkitConfigurationParam = struct {
@@ -5730,7 +5730,7 @@ pub const RunStepDetailsToolCallsCodeOutputImageObjectImage = struct {
 
 pub const RunStepDetailsToolCallsCodeOutputImageObject = struct {
     image: RunStepDetailsToolCallsCodeOutputImageObjectImage,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEvent = union(enum) {
@@ -6000,7 +6000,7 @@ pub const WebhookBatchCancelled = struct {
     data: WebhookBatchCancelledData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeTranslationSessionUpdateRequestAudioOutput = struct {
@@ -6027,7 +6027,7 @@ pub const RealtimeTranslationSessionUpdateRequest = struct {
 
 pub const ResponseMCPCallInProgressEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -6099,7 +6099,7 @@ pub const ContainerAutoParam = struct {
     memory_limit: ?[]const u8 = null,
     network_policy: ?ContainerAutoParamNetworkPolicy = null,
     file_ids: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatSessionHistory = struct {
@@ -6111,7 +6111,7 @@ pub const AdminApiKeyOwner = struct {
     object: ?[]const u8 = null,
     created_at: ?i64 = null,
     id: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     name: ?[]const u8 = null,
     role: ?[]const u8 = null,
 };
@@ -6176,7 +6176,7 @@ pub const AssistantStreamEvent = union(enum) {
 pub const ComputerScreenshotImage = struct {
     file_id: ?[]const u8 = null,
     image_url: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const MessageDeltaContentTextObjectTextAnnotationsItem = union(enum) {
@@ -6214,7 +6214,7 @@ pub const MessageDeltaContentTextObjectText = struct {
 pub const MessageDeltaContentTextObject = struct {
     text: ?MessageDeltaContentTextObjectText = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const VectorStoreFileObjectChunkingStrategy = union(enum) {
@@ -6262,7 +6262,7 @@ pub const EvalGraderLabelModel = struct {
     passing_labels: []const []const u8,
     model: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: []const EvalItem,
     labels: []const []const u8,
 };
@@ -6291,7 +6291,7 @@ pub const ChatCompletionMessageListDataItemAnnotationsItemUrlCitation = struct {
 
 pub const ChatCompletionMessageListDataItemAnnotationsItem = struct {
     url_citation: ChatCompletionMessageListDataItemAnnotationsItemUrlCitation,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionMessageListDataItemContentPartsItem = union(enum) {
@@ -6344,7 +6344,7 @@ pub const ChatCompletionMessageList = struct {
 pub const RealtimeBetaServerEventSessionCreated = struct {
     event_id: []const u8,
     session: RealtimeSession,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ContainerNetworkPolicyDomainSecretParam = struct {
@@ -6367,7 +6367,7 @@ pub const ChatCompletionRequestMessageContentPartAudioInputAudio = struct {
 
 pub const ChatCompletionRequestMessageContentPartAudio = struct {
     input_audio: ChatCompletionRequestMessageContentPartAudioInputAudio,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebhookResponseFailedData = struct {
@@ -6379,7 +6379,7 @@ pub const WebhookResponseFailed = struct {
     data: WebhookResponseFailedData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const VideoStatus = []const u8;
@@ -6414,7 +6414,7 @@ pub const RealtimeServerEventSessionCreatedSession = union(enum) {
 pub const RealtimeServerEventSessionCreated = struct {
     event_id: []const u8,
     session: RealtimeServerEventSessionCreatedSession,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeTranslationServerEventSessionOutputAudioDelta = struct {
@@ -6424,7 +6424,7 @@ pub const RealtimeTranslationServerEventSessionOutputAudioDelta = struct {
     event_id: []const u8,
     delta: []const u8,
     elapsed_ms: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEventResponseMCPCallArgumentsDone = struct {
@@ -6432,14 +6432,14 @@ pub const RealtimeServerEventResponseMCPCallArgumentsDone = struct {
     response_id: []const u8,
     item_id: []const u8,
     arguments: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const CompactionBody = struct {
     encrypted_content: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     created_by: ?[]const u8 = null,
 };
 
@@ -6482,13 +6482,13 @@ pub const RealtimeServerEventSessionUpdatedSession = union(enum) {
 pub const RealtimeServerEventSessionUpdated = struct {
     event_id: []const u8,
     session: RealtimeServerEventSessionUpdatedSession,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaClientEventTranscriptionSessionUpdate = struct {
     event_id: ?[]const u8 = null,
     session: RealtimeTranscriptionSessionCreateRequest,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FineTuneDPOMethod = struct {
@@ -6513,7 +6513,7 @@ pub const SpeechAudioDoneEventUsage = struct {
 
 pub const SpeechAudioDoneEvent = struct {
     usage: SpeechAudioDoneEventUsage,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UsageVectorStoresResult = struct {
@@ -6525,7 +6525,7 @@ pub const UsageVectorStoresResult = struct {
 pub const RealtimeServerEventOutputAudioBufferStarted = struct {
     event_id: []const u8,
     response_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const SearchContentType = []const u8;
@@ -6533,7 +6533,7 @@ pub const SearchContentType = []const u8;
 pub const Attachment = struct {
     mime_type: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     preview_url: ?[]const u8,
 };
@@ -6543,7 +6543,7 @@ pub const RealtimeBetaServerEventResponseAudioDone = struct {
     response_id: []const u8,
     item_id: []const u8,
     output_index: i64,
-    type: []const u8,
+    @"type": []const u8,
     content_index: i64,
 };
 
@@ -6551,7 +6551,7 @@ pub const FunctionToolParam = struct {
     description: ?[]const u8 = null,
     strict: ?bool = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     parameters: ?EmptyModelParam = null,
     defer_loading: ?bool = null,
 };
@@ -6562,7 +6562,7 @@ pub const RealtimeBetaServerEventResponseAudioTranscriptDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -6602,7 +6602,7 @@ pub const NamespaceToolParamToolsItem = union(enum) {
 pub const NamespaceToolParam = struct {
     description: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     tools: []const NamespaceToolParamToolsItem,
 };
 
@@ -6783,7 +6783,7 @@ pub const FileSearchTool = struct {
     max_num_results: ?i64 = null,
     ranking_options: ?RankingOptions = null,
     filters: ?Filters = null,
-    type: []const u8,
+    @"type": []const u8,
     vector_store_ids: []const []const u8,
 };
 
@@ -6806,7 +6806,7 @@ pub const ClientToolCallItem = struct {
     status: []const u8,
     arguments: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
 };
 
@@ -6831,13 +6831,13 @@ pub const InputFileContent = struct {
     filename: ?[]const u8 = null,
     file_data: ?[]const u8 = null,
     file_url: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     detail: ?[]const u8 = null,
 };
 
 pub const ChatCompletionRequestMessageContentPartText = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseContentPartAddedEvent = struct {
@@ -6845,7 +6845,7 @@ pub const ResponseContentPartAddedEvent = struct {
     item_id: []const u8,
     output_index: i64,
     sequence_number: i64,
-    type: []const u8,
+    @"type": []const u8,
     content_index: i64,
 };
 
@@ -6861,7 +6861,7 @@ pub const AdminApiKeyCreateResponseOwner = struct {
     object: ?[]const u8 = null,
     created_at: ?i64 = null,
     id: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     name: ?[]const u8 = null,
     role: ?[]const u8 = null,
 };
@@ -6922,11 +6922,11 @@ pub const ChatCompletionRequestUserMessageContentPart = union(enum) {
 
 pub const RealtimeBetaClientEventInputAudioBufferClear = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const StaticChunkingStrategyRequestParam = struct {
-    type: []const u8,
+    @"type": []const u8,
     static: StaticChunkingStrategy,
 };
 
@@ -6938,7 +6938,7 @@ pub const HybridSearchOptions = struct {
 pub const ResponseMCPCallArgumentsDeltaEvent = struct {
     delta: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -6953,14 +6953,14 @@ pub const VideoListResource = struct {
 
 pub const RealtimeServerEventInputAudioBufferCleared = struct {
     event_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TranscriptTextSegmentEvent = struct {
     text: []const u8,
     speaker: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     start: f64,
     end: f64,
 };
@@ -6974,12 +6974,12 @@ pub const WebhookFineTuningJobCancelled = struct {
     data: WebhookFineTuningJobCancelledData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ToolSearchToolParam = struct {
     description: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     execution: ?[]const u8 = null,
     parameters: ?EmptyModelParam = null,
 };
@@ -6990,12 +6990,12 @@ pub const ResponsePromptVariables = ?std.json.Value;
 
 pub const RealtimeBetaServerEventResponseCreated = struct {
     event_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     response: RealtimeBetaResponse,
 };
 
 pub const ResponseFormatJsonObject = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ThreadObjectToolResources = ?std.json.Value;
@@ -7048,13 +7048,13 @@ pub const ChatCompletionRequestToolMessage = struct {
 pub const MoveParam = struct {
     x: i64,
     keys: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     y: i64,
 };
 
 pub const ResponseFileSearchCallCompletedEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -7216,14 +7216,14 @@ pub const ItemResource = union(enum) {
 
 pub const ResponseImageGenCallInProgressEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
 
 pub const ToolChoiceAllowed = struct {
     tools: []const std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     mode: []const u8,
 };
 
@@ -7276,14 +7276,14 @@ pub const RunStepDetailsToolCallsFunctionObjectFunction = struct {
 
 pub const RunStepDetailsToolCallsFunctionObject = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     function: RunStepDetailsToolCallsFunctionObjectFunction,
 };
 
 pub const ResponseCodeInterpreterCallCodeDoneEvent = struct {
     output_index: i64,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     code: []const u8,
 };
@@ -7291,7 +7291,7 @@ pub const ResponseCodeInterpreterCallCodeDoneEvent = struct {
 pub const RealtimeClientEventTranscriptionSessionUpdate = struct {
     event_id: ?[]const u8 = null,
     session: RealtimeTranscriptionSessionCreateRequest,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ListFineTuningJobCheckpointsResponse = struct {
@@ -7334,7 +7334,7 @@ pub const WebhookRealtimeCallIncoming = struct {
     data: WebhookRealtimeCallIncomingData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateThreadAndRunRequestToolsItem = union(enum) {
@@ -7373,7 +7373,7 @@ pub const CreateThreadAndRunRequestModel = []const u8;
 
 pub const CreateThreadAndRunRequestTruncationStrategy = struct {
     last_messages: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateThreadAndRunRequestToolResourcesFileSearch = struct {
@@ -7420,12 +7420,12 @@ pub const CreateModerationRequestInputVariant2ItemVariant0ImageUrl = struct {
 
 pub const CreateModerationRequestInputVariant2ItemVariant0 = struct {
     image_url: CreateModerationRequestInputVariant2ItemVariant0ImageUrl,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateModerationRequestInputVariant2ItemVariant1 = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateModerationRequestInputVariant2Item = union(enum) {
@@ -7663,7 +7663,7 @@ pub const ResponseReasoningTextDoneEvent = struct {
     text: []const u8,
     item_id: []const u8,
     output_index: i64,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     content_index: i64,
 };
@@ -7674,7 +7674,7 @@ pub const ComputerToolCallOutputResource = struct {
     output: ComputerScreenshotImage,
     status: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     created_by: ?[]const u8 = null,
 };
 
@@ -7831,12 +7831,12 @@ pub const CreateEvalCompletionsRunDataSourceInputMessagesVariant0TemplateItem = 
 
 pub const CreateEvalCompletionsRunDataSourceInputMessagesVariant0 = struct {
     template: []const CreateEvalCompletionsRunDataSourceInputMessagesVariant0TemplateItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateEvalCompletionsRunDataSourceInputMessagesVariant1 = struct {
     item_reference: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateEvalCompletionsRunDataSourceInputMessages = union(enum) {
@@ -7945,7 +7945,7 @@ pub const CreateEvalCompletionsRunDataSource = struct {
     source: CreateEvalCompletionsRunDataSourceSource,
     model: ?[]const u8 = null,
     sampling_params: ?CreateEvalCompletionsRunDataSourceSamplingParams = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ListRunsResponse = struct {
@@ -7966,7 +7966,7 @@ pub const ComputerAction = union(enum) {
     move: MoveParam,
     screenshot: ScreenshotParam,
     scroll: ScrollParam,
-    type: TypeParam,
+    @"type": TypeParam,
     wait: WaitParam,
     raw: std.json.Value,
 
@@ -8026,7 +8026,7 @@ pub const ComputerAction = union(enum) {
 
 pub const ResponseFileSearchCallInProgressEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -8056,7 +8056,7 @@ pub const RealtimeTranslationSessionAudio = struct {
 pub const RealtimeTranslationSession = struct {
     expires_at: i64,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     model: []const u8,
     audio: RealtimeTranslationSessionAudio,
 };
@@ -8070,7 +8070,7 @@ pub const Image = struct {
 pub const CustomGrammarFormatParam = struct {
     syntax: []const u8,
     definition: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateContainerBodySkillsItem = union(enum) {
@@ -8151,7 +8151,7 @@ pub const CreateContainerBody = struct {
 
 pub const UrlAnnotation = struct {
     source: UrlAnnotationSource,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaServerEventConversationItemInputAudioTranscriptionSegment = struct {
@@ -8161,7 +8161,7 @@ pub const RealtimeBetaServerEventConversationItemInputAudioTranscriptionSegment 
     text: []const u8,
     speaker: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     start: f64,
     end: f64,
 };
@@ -8236,7 +8236,7 @@ pub const CreateChatCompletionRequestResponseFormat = union(enum) {
 
 pub const CreateChatCompletionRequestWebSearchOptionsUserLocation = struct {
     approximate: WebSearchLocation,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateChatCompletionRequestWebSearchOptions = struct {
@@ -8469,7 +8469,7 @@ pub const OutputMessage = struct {
     status: []const u8,
     phase: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     role: []const u8,
     content: []const OutputMessageContent,
 };
@@ -8521,13 +8521,13 @@ pub const GroupListResource = struct {
 pub const RealtimeFunctionTool = struct {
     description: ?[]const u8 = null,
     name: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     parameters: ?std.json.Value = null,
 };
 
 pub const RealtimeClientEventInputAudioBufferCommit = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionRequestAssistantMessageAudio = ?std.json.Value;
@@ -8563,7 +8563,7 @@ pub const ProjectRateLimitUpdateRequest = struct {
 
 pub const ResponseAudioDeltaEvent = struct {
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
 };
 
@@ -8624,14 +8624,14 @@ pub const ResponseFormatJsonSchemaJsonSchema = struct {
 
 pub const ResponseFormatJsonSchema = struct {
     json_schema: ResponseFormatJsonSchemaJsonSchema,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const @"MessagePhase-2" = []const u8;
 
 pub const ResponseMCPListToolsInProgressEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -8639,7 +8639,7 @@ pub const ResponseMCPListToolsInProgressEvent = struct {
 pub const RealtimeMCPApprovalRequest = struct {
     arguments: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     server_label: []const u8,
 };
@@ -8679,7 +8679,7 @@ pub const Upload = struct {
 pub const InputImageContent = struct {
     file_id: ?[]const u8 = null,
     image_url: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     detail: []const u8,
 };
 
@@ -8737,7 +8737,7 @@ pub const CreateEmbeddingResponse = struct {
 };
 
 pub const ResponseFailedEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     response: Response,
 };
@@ -8753,7 +8753,7 @@ pub const ResponseItemList = struct {
 pub const InlineSkillSourceParam = struct {
     media_type: []const u8,
     data: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RunStepDetailsToolCallsObjectToolCallsItem = union(enum) {
@@ -8790,11 +8790,11 @@ pub const RunStepDetailsToolCallsObjectToolCallsItem = union(enum) {
 
 pub const RunStepDetailsToolCallsObject = struct {
     tool_calls: []const RunStepDetailsToolCallsObjectToolCallsItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FunctionShellCallOutputTimeoutOutcome = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WorkflowTracingParam = struct {
@@ -8866,16 +8866,16 @@ pub const RealtimeTranslationServerEventSessionInputTranscriptDelta = struct {
     event_id: []const u8,
     delta: []const u8,
     elapsed_ms: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const LocalEnvironmentResource = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UrlAnnotationSource = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UpdateVectorStoreFileAttributesRequest = struct {
@@ -8883,7 +8883,7 @@ pub const UpdateVectorStoreFileAttributesRequest = struct {
 };
 
 pub const OtherChunkingStrategyResponseParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ImageDetail = []const u8;
@@ -8962,13 +8962,13 @@ pub const CodeInterpreterFileOutputFilesItem = struct {
 
 pub const CodeInterpreterFileOutput = struct {
     files: []const CodeInterpreterFileOutputFilesItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FunctionCallItemStatus = []const u8;
 
 pub const RefusalContent = struct {
-    type: []const u8,
+    @"type": []const u8,
     refusal: []const u8,
 };
 
@@ -8977,7 +8977,7 @@ pub const ApplyPatchToolCallItemParam = struct {
     operation: ApplyPatchOperationParam,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ImageGenStreamEvent = union(enum) {
@@ -9129,13 +9129,13 @@ pub const FineTuneDPOHyperparameters = struct {
 pub const RealtimeMCPApprovalResponse = struct {
     approve: bool,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     reason: ?[]const u8 = null,
     approval_request_id: []const u8,
 };
 
 pub const ContainerReferenceResource = struct {
-    type: []const u8,
+    @"type": []const u8,
     container_id: []const u8,
 };
 
@@ -9176,7 +9176,7 @@ pub const AutoCodeInterpreterToolParam = struct {
     memory_limit: ?[]const u8 = null,
     network_policy: ?AutoCodeInterpreterToolParamNetworkPolicy = null,
     file_ids: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const PredictionContentContentVariant0 = []const u8;
@@ -9211,7 +9211,7 @@ pub const PredictionContentContent = union(enum) {
 };
 
 pub const PredictionContent = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: PredictionContentContent,
 };
 
@@ -9256,7 +9256,7 @@ pub const GroupResourceWithSuccess = struct {
 pub const RealtimeConversationItemMessageAssistantContentItem = struct {
     text: ?[]const u8 = null,
     transcript: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     audio: ?[]const u8 = null,
 };
 
@@ -9264,14 +9264,14 @@ pub const RealtimeConversationItemMessageAssistant = struct {
     object: ?[]const u8 = null,
     status: ?[]const u8 = null,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     role: []const u8,
     content: []const RealtimeConversationItemMessageAssistantContentItem,
 };
 
 pub const RunStepDetailsToolCallsCodeOutputLogsObject = struct {
     logs: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TranscriptionWord = struct {
@@ -9287,7 +9287,7 @@ pub const CreateTranslationResponseJson = struct {
 pub const RealtimeClientEventConversationItemDelete = struct {
     event_id: ?[]const u8 = null,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionResponseMessageFunctionCall = struct {
@@ -9306,7 +9306,7 @@ pub const ChatCompletionResponseMessageAnnotationsItemUrlCitation = struct {
 
 pub const ChatCompletionResponseMessageAnnotationsItem = struct {
     url_citation: ChatCompletionResponseMessageAnnotationsItemUrlCitation,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionResponseMessage = struct {
@@ -9351,7 +9351,7 @@ pub const FunctionShellCallOutputOutcomeParam = union(enum) {
 };
 
 pub const CustomTextFormatParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ContainerFileListResource = struct {
@@ -9365,7 +9365,7 @@ pub const ContainerFileListResource = struct {
 pub const RealtimeServerEventInputAudioBufferSpeechStopped = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     audio_end_ms: i64,
 };
 
@@ -9383,14 +9383,14 @@ pub const MessageDeltaContentImageFileObjectImageFile = struct {
 pub const MessageDeltaContentImageFileObject = struct {
     image_file: ?MessageDeltaContentImageFileObjectImageFile = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ComputerUsePreviewTool = struct {
     environment: []const u8,
     display_width: i64,
     display_height: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ProjectGroup = struct {
@@ -9410,7 +9410,7 @@ pub const UsageCodeInterpreterSessionsResult = struct {
 
 pub const EvalJsonlFileIdSource = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const NoiseReductionType = []const u8;
@@ -9418,13 +9418,13 @@ pub const NoiseReductionType = []const u8;
 pub const WebSearchApproximateLocation = ?std.json.Value;
 
 pub const ContextManagementParam = struct {
-    type: []const u8,
+    @"type": []const u8,
     compact_threshold: ?i64 = null,
 };
 
 pub const CreateEvalLogsDataSourceConfig = struct {
     metadata: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateCompletionRequestPromptVariant0 = []const u8;
@@ -9504,7 +9504,7 @@ pub const VoiceConsentListResource = struct {
 };
 
 pub const ChatCompletionTool = struct {
-    type: []const u8,
+    @"type": []const u8,
     function: FunctionObject,
 };
 
@@ -9582,7 +9582,7 @@ pub const ServiceTier = ?[]const u8;
 pub const RealtimeTranslationServerEventSessionCreated = struct {
     event_id: []const u8,
     session: RealtimeTranslationSession,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateRunRequestToolsItem = union(enum) {
@@ -9621,7 +9621,7 @@ pub const CreateRunRequestModel = []const u8;
 
 pub const CreateRunRequestTruncationStrategy = struct {
     last_messages: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateRunRequest = struct {
@@ -9651,19 +9651,19 @@ pub const ChatSessionRateLimits = struct {
 pub const FineTuneMethod = struct {
     dpo: ?FineTuneDPOMethod = null,
     reinforcement: ?FineTuneReinforcementMethod = null,
-    type: []const u8,
+    @"type": []const u8,
     supervised: ?FineTuneSupervisedMethod = null,
 };
 
 pub const RealtimeClientEventResponseCreate = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     response: ?RealtimeResponseCreateParams = null,
 };
 
 pub const ClosedStatus = struct {
     reason: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionRequestAssistantMessageContentPart = union(enum) {
@@ -9726,7 +9726,7 @@ pub const RunGraderResponseMetadata = struct {
     token_usage: ?i64,
     execution_time: f64,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RunGraderResponse = struct {
@@ -9738,7 +9738,7 @@ pub const RunGraderResponse = struct {
 
 pub const ResponseReasoningSummaryPartAddedEventPart = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseReasoningSummaryPartAddedEvent = struct {
@@ -9747,7 +9747,7 @@ pub const ResponseReasoningSummaryPartAddedEvent = struct {
     output_index: i64,
     sequence_number: i64,
     part: ResponseReasoningSummaryPartAddedEventPart,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const Model = struct {
@@ -9825,7 +9825,7 @@ pub const ChatCompletionMessageToolCalls = []const ChatCompletionMessageToolCall
 
 pub const TextContent = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RunStepDetailsToolCallsFileSearchObjectFileSearch = struct {
@@ -9836,13 +9836,13 @@ pub const RunStepDetailsToolCallsFileSearchObjectFileSearch = struct {
 pub const RunStepDetailsToolCallsFileSearchObject = struct {
     file_search: RunStepDetailsToolCallsFileSearchObjectFileSearch,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaServerEventSessionUpdated = struct {
     event_id: []const u8,
     session: RealtimeSession,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ImageGenActionEnum = []const u8;
@@ -9850,7 +9850,7 @@ pub const ImageGenActionEnum = []const u8;
 pub const RunStepDeltaStepDetailsToolCallsCodeOutputLogsObject = struct {
     logs: ?[]const u8 = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateTranscriptionResponseVerboseJson = struct {
@@ -9867,7 +9867,7 @@ pub const FunctionToolCall = struct {
     status: ?[]const u8 = null,
     arguments: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     namespace: ?[]const u8 = null,
 };
@@ -9875,13 +9875,13 @@ pub const FunctionToolCall = struct {
 pub const ResponseMCPCallArgumentsDoneEvent = struct {
     item_id: []const u8,
     arguments: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
 
 pub const ContainerReferenceParam = struct {
-    type: []const u8,
+    @"type": []const u8,
     container_id: []const u8,
 };
 
@@ -9890,7 +9890,7 @@ pub const ResponseRefusalDoneEvent = struct {
     item_id: []const u8,
     output_index: i64,
     sequence_number: i64,
-    type: []const u8,
+    @"type": []const u8,
     content_index: i64,
 };
 
@@ -10012,7 +10012,7 @@ pub const DeletedVideoResource = struct {
 pub const RealtimeServerEventErrorError = struct {
     event_id: ?[]const u8 = null,
     code: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
     param: ?[]const u8 = null,
 };
@@ -10020,7 +10020,7 @@ pub const RealtimeServerEventErrorError = struct {
 pub const RealtimeServerEventError = struct {
     event_id: []const u8,
     @"error": RealtimeServerEventErrorError,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const @"ImageRefParam-2" = struct {
@@ -10030,7 +10030,7 @@ pub const @"ImageRefParam-2" = struct {
 
 pub const FileAnnotationSource = struct {
     filename: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateTranslationRequestModel = []const u8;
@@ -10046,7 +10046,7 @@ pub const CreateTranslationRequest = struct {
 pub const RealtimeClientEventConversationItemCreate = struct {
     event_id: ?[]const u8 = null,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     previous_item_id: ?[]const u8 = null,
 };
 
@@ -10060,12 +10060,12 @@ pub const EvalJsonlFileContentSourceContentItem = struct {
 };
 
 pub const EvalJsonlFileContentSource = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const EvalJsonlFileContentSourceContentItem,
 };
 
 pub const AssistantToolsCode = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RoleListResource = struct {
@@ -10081,7 +10081,7 @@ pub const AddUploadPartRequest = struct {
 
 pub const ResponseMCPListToolsFailedEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -10102,7 +10102,7 @@ pub const CreateVectorStoreFileBatchRequest = struct {
 
 pub const ToolChoiceMCP = struct {
     name: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     server_label: []const u8,
 };
 
@@ -10244,7 +10244,7 @@ pub const RealtimeSessionCreateRequestGaAudioOutput = struct {
 };
 
 pub const RealtimeSessionCreateRequestGaAudioInputNoiseReduction = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeSessionCreateRequestGaAudioInput = struct {
@@ -10273,7 +10273,7 @@ pub const RealtimeSessionCreateRequestGA = struct {
     include: ?[]const []const u8 = null,
     tool_choice: ?RealtimeSessionCreateRequestGaToolChoice = null,
     audio: ?RealtimeSessionCreateRequestGaAudio = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const GraderScoreModelSamplingParams = struct {
@@ -10288,7 +10288,7 @@ pub const GraderScoreModel = struct {
     input: []const EvalItem,
     model: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     range: ?[]const f64 = null,
     sampling_params: ?GraderScoreModelSamplingParams = null,
 };
@@ -10305,7 +10305,7 @@ pub const RealtimeServerEventResponseTextDone = struct {
     response_id: []const u8,
     item_id: []const u8,
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -10408,7 +10408,7 @@ pub const RealtimeSessionCreateResponseGaAudioOutput = struct {
 };
 
 pub const RealtimeSessionCreateResponseGaAudioInputNoiseReduction = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeSessionCreateResponseGaAudioInput = struct {
@@ -10439,7 +10439,7 @@ pub const RealtimeSessionCreateResponseGA = struct {
     expires_at: ?i64 = null,
     tool_choice: ?RealtimeSessionCreateResponseGaToolChoice = null,
     audio: ?RealtimeSessionCreateResponseGaAudio = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEventResponseAudioTranscriptDone = struct {
@@ -10448,12 +10448,12 @@ pub const RealtimeServerEventResponseAudioTranscriptDone = struct {
     event_id: []const u8,
     response_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const ApplyPatchToolParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ConversationResource = struct {
@@ -10475,7 +10475,7 @@ pub const ToolSearchCallItemParam = struct {
     arguments: EmptyModelParam,
     call_id: ?[]const u8 = null,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     execution: ?[]const u8 = null,
 };
 
@@ -10488,14 +10488,14 @@ pub const WebhookEvalRunFailed = struct {
     data: WebhookEvalRunFailedData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FunctionShellCallOutputStatusEnum = []const u8;
 
 pub const LockedStatus = struct {
     reason: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ImageEditCompletedEvent = struct {
@@ -10505,20 +10505,20 @@ pub const ImageEditCompletedEvent = struct {
     quality: []const u8,
     output_format: []const u8,
     usage: ImagesUsage,
-    type: []const u8,
+    @"type": []const u8,
     background: []const u8,
 };
 
 pub const RealtimeServerEventConversationItemCreated = struct {
     event_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     previous_item_id: ?[]const u8 = null,
 };
 
 pub const CodeInterpreterOutputImage = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeCallCreateRequestSessionToolsItem = union(enum) {
@@ -10651,7 +10651,7 @@ pub const RealtimeCallCreateRequestSessionAudioOutput = struct {
 };
 
 pub const RealtimeCallCreateRequestSessionAudioInputNoiseReduction = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeCallCreateRequestSessionAudioInput = struct {
@@ -10680,7 +10680,7 @@ pub const RealtimeCallCreateRequestSession = struct {
     include: ?[]const []const u8 = null,
     tool_choice: ?RealtimeCallCreateRequestSessionToolChoice = null,
     audio: ?RealtimeCallCreateRequestSessionAudio = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeCallCreateRequest = struct {
@@ -10711,7 +10711,7 @@ pub const FunctionShellCall = struct {
     status: []const u8,
     action: FunctionShellAction,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     created_by: ?[]const u8 = null,
 };
 
@@ -10763,7 +10763,7 @@ pub const ReasoningItem = struct {
     status: ?[]const u8 = null,
     encrypted_content: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     summary: []const SummaryTextContent,
     content: ?[]const ReasoningTextContent = null,
 };
@@ -10771,7 +10771,7 @@ pub const ReasoningItem = struct {
 pub const RealtimeServerEventOutputAudioBufferCleared = struct {
     event_id: []const u8,
     response_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const SubmitToolOutputsRunRequestToolOutputsItem = struct {
@@ -10831,7 +10831,7 @@ pub const ChatCompletionRequestUserMessage = struct {
 };
 
 pub const ToolChoiceTypes = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const SkillVersionResource = struct {
@@ -10969,7 +10969,7 @@ pub const RunStepDeltaStepDetailsToolCallsFunctionObjectFunction = struct {
 pub const RunStepDeltaStepDetailsToolCallsFunctionObject = struct {
     id: ?[]const u8 = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
     function: ?RunStepDeltaStepDetailsToolCallsFunctionObjectFunction = null,
 };
 
@@ -10986,7 +10986,7 @@ pub const ListRunStepsResponse = struct {
 };
 
 pub const RealtimeMCPProtocolError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
     code: i64,
 };
@@ -11115,7 +11115,7 @@ pub const ComputerToolCallOutput = struct {
     acknowledged_safety_checks: ?[]const ComputerCallSafetyCheckParam = null,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     output: ComputerScreenshotImage,
 };
 
@@ -11139,7 +11139,7 @@ pub const TaskItem = struct {
     object: []const u8,
     thread_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     task_type: []const u8,
 };
 
@@ -11147,7 +11147,7 @@ pub const RealtimeBetaServerEventResponseOutputItemDone = struct {
     event_id: []const u8,
     response_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -11319,7 +11319,7 @@ pub const CreateResponse = struct {
 pub const MCPListTools = struct {
     @"error": ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     tools: []const MCPListToolsTool,
     server_label: []const u8,
 };
@@ -11328,7 +11328,7 @@ pub const ImageGenToolCall = struct {
     status: []const u8,
     result: ?[]const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ModelIdsResponses = []const u8;
@@ -11338,7 +11338,7 @@ pub const ComputerActionList = []const ComputerAction;
 pub const RealtimeServerEventConversationItemRetrieved = struct {
     event_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const VectorStoreFileBatchObjectFileCounts = struct {
@@ -11372,7 +11372,7 @@ pub const CreateVideoEditJsonBody = struct {
 pub const ApproximateLocation = struct {
     city: ?[]const u8 = null,
     country: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     region: ?[]const u8 = null,
     timezone: ?[]const u8 = null,
 };
@@ -11386,7 +11386,7 @@ pub const RealtimeServerEventConversationCreatedConversation = struct {
 
 pub const RealtimeServerEventConversationCreated = struct {
     event_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     conversation: RealtimeServerEventConversationCreatedConversation,
 };
 
@@ -11397,7 +11397,7 @@ pub const DeleteVectorStoreFileResponse = struct {
 };
 
 pub const ChatCompletionRequestMessageContentPartRefusal = struct {
-    type: []const u8,
+    @"type": []const u8,
     refusal: []const u8,
 };
 
@@ -11413,12 +11413,12 @@ pub const RealtimeServerEventResponseFunctionCallArgumentsDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const ResponseCompletedEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     response: Response,
     sequence_number: i64,
 };
@@ -11558,11 +11558,11 @@ pub const MessageDeltaContentImageUrlObjectImageUrl = struct {
 pub const MessageDeltaContentImageUrlObject = struct {
     image_url: ?MessageDeltaContentImageUrlObjectImageUrl = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeTranscriptionSessionCreateResponseGaAudioInputNoiseReduction = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeTranscriptionSessionCreateResponseGaAudioInputTurnDetection = ?std.json.Value;
@@ -11583,7 +11583,7 @@ pub const RealtimeTranscriptionSessionCreateResponseGA = struct {
     include: ?[]const []const u8 = null,
     expires_at: ?i64 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     audio: ?RealtimeTranscriptionSessionCreateResponseGaAudio = null,
 };
 
@@ -11687,7 +11687,7 @@ pub const FunctionToolCallResource = struct {
     status: []const u8,
     arguments: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     namespace: ?[]const u8 = null,
 };
@@ -11710,7 +11710,7 @@ pub const WebhookBatchCompleted = struct {
     data: WebhookBatchCompletedData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateVideoRemixBody = struct {
@@ -11726,7 +11726,7 @@ pub const WebhookResponseCompleted = struct {
     data: WebhookResponseCompletedData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const InviteRequestProjectsItem = struct {
@@ -11751,7 +11751,7 @@ pub const ProjectApiKeyListResponse = struct {
 pub const RealtimeServerEventInputAudioBufferDtmfEventReceived = struct {
     received_at: i64,
     event: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseStreamEvent = union(enum) {
@@ -12082,7 +12082,7 @@ pub const ResponseOutputTextAnnotationsItem = union(enum) {
 pub const ResponseOutputText = struct {
     text: []const u8,
     annotations: []const ResponseOutputTextAnnotationsItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TokenCountsBodyInput = ?std.json.Value;
@@ -12104,7 +12104,7 @@ pub const TokenCountsBody = struct {
 pub const AuditLogActorApiKey = struct {
     service_account: ?AuditLogActorServiceAccount = null,
     id: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     user: ?AuditLogActorUser = null,
 };
 
@@ -12130,7 +12130,7 @@ pub const Certificate = struct {
 
 pub const RealtimeBetaClientEventOutputAudioBufferClear = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RunStepDeltaStepDetailsToolCallsObjectToolCallsItem = union(enum) {
@@ -12167,7 +12167,7 @@ pub const RunStepDeltaStepDetailsToolCallsObjectToolCallsItem = union(enum) {
 
 pub const RunStepDeltaStepDetailsToolCallsObject = struct {
     tool_calls: ?[]const RunStepDeltaStepDetailsToolCallsObjectToolCallsItem = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEventConversationItemInputAudioTranscriptionSegment = struct {
@@ -12177,7 +12177,7 @@ pub const RealtimeServerEventConversationItemInputAudioTranscriptionSegment = st
     text: []const u8,
     speaker: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     start: f64,
     end: f64,
 };
@@ -12329,7 +12329,7 @@ pub const ChatCompletionNamedToolChoiceCustomCustom = struct {
 
 pub const ChatCompletionNamedToolChoiceCustom = struct {
     custom: ChatCompletionNamedToolChoiceCustomCustom,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseErrorCode = []const u8;
@@ -12343,7 +12343,7 @@ pub const DeleteThreadResponse = struct {
 pub const RealtimeBetaClientEventResponseCancel = struct {
     event_id: ?[]const u8 = null,
     response_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const VideoReferenceInputParam = struct {
@@ -12354,32 +12354,32 @@ pub const RealtimeServerEventResponseOutputItemDone = struct {
     event_id: []const u8,
     response_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const RealtimeTranslationClientEventSessionUpdate = struct {
     event_id: ?[]const u8 = null,
     session: RealtimeTranslationSessionUpdateRequest,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaClientEventResponseCreate = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     response: ?RealtimeBetaResponseCreateParams = null,
 };
 
 pub const ChatSessionStatus = []const u8;
 
 pub const ActiveStatus = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ApplyPatchCallStatusParam = []const u8;
 
 pub const RealtimeTranscriptionSessionCreateRequestGaAudioInputNoiseReduction = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeTranscriptionSessionCreateRequestGaAudioInput = struct {
@@ -12395,7 +12395,7 @@ pub const RealtimeTranscriptionSessionCreateRequestGaAudio = struct {
 
 pub const RealtimeTranscriptionSessionCreateRequestGA = struct {
     include: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     audio: ?RealtimeTranscriptionSessionCreateRequestGaAudio = null,
 };
 
@@ -12465,7 +12465,7 @@ pub const ListFineTuningJobEventsResponse = struct {
 pub const EvalLogsDataSourceConfig = struct {
     metadata: ?Metadata = null,
     schema: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const GroupRoleAssignment = struct {
@@ -12477,7 +12477,7 @@ pub const GroupRoleAssignment = struct {
 pub const RealtimeBetaServerEventResponseContentPartDonePart = struct {
     text: ?[]const u8 = null,
     transcript: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     audio: ?[]const u8 = null,
 };
 
@@ -12487,7 +12487,7 @@ pub const RealtimeBetaServerEventResponseContentPartDone = struct {
     event_id: []const u8,
     response_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -12495,13 +12495,13 @@ pub const RealtimeBetaServerEventResponseOutputItemAdded = struct {
     event_id: []const u8,
     response_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const ResponseOutputItemDoneEvent = struct {
     item: OutputItem,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -12509,7 +12509,7 @@ pub const ResponseOutputItemDoneEvent = struct {
 pub const RealtimeServerEventConversationItemDeleted = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionRequestSystemMessageContentVariant0 = []const u8;
@@ -12594,7 +12594,7 @@ pub const GraderMultiGraders = union(enum) {
 pub const GraderMulti = struct {
     graders: GraderMultiGraders,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     calculate_output: []const u8,
 };
 
@@ -12609,7 +12609,7 @@ pub const Project = struct {
 };
 
 pub const CustomToolChatCompletionsCustomFormatVariant0 = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CustomToolChatCompletionsCustomFormatVariant1Grammar = struct {
@@ -12618,7 +12618,7 @@ pub const CustomToolChatCompletionsCustomFormatVariant1Grammar = struct {
 };
 
 pub const CustomToolChatCompletionsCustomFormatVariant1 = struct {
-    type: []const u8,
+    @"type": []const u8,
     grammar: CustomToolChatCompletionsCustomFormatVariant1Grammar,
 };
 
@@ -12657,12 +12657,12 @@ pub const CustomToolChatCompletionsCustom = struct {
 
 pub const CustomToolChatCompletions = struct {
     custom: CustomToolChatCompletionsCustom,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaClientEventInputAudioBufferAppend = struct {
     event_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     audio: []const u8,
 };
 
@@ -12671,7 +12671,7 @@ pub const CustomToolCall = struct {
     call_id: []const u8,
     id: ?[]const u8 = null,
     input: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
 };
 
@@ -12684,7 +12684,7 @@ pub const ListVectorStoresResponse = struct {
 };
 
 pub const FunctionShellCallOutputTimeoutOutcomeParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ProjectRateLimit = struct {
@@ -12721,7 +12721,7 @@ pub const MessageContentTextAnnotationsFilePathObject = struct {
     text: []const u8,
     end_index: i64,
     start_index: i64,
-    type: []const u8,
+    @"type": []const u8,
     file_path: MessageContentTextAnnotationsFilePathObjectFilePath,
 };
 
@@ -12735,7 +12735,7 @@ pub const OrganizationCertificateDeactivationResponse = struct {
 pub const RealtimeServerEventConversationItemTruncated = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     audio_end_ms: i64,
     content_index: i64,
 };
@@ -12771,7 +12771,7 @@ pub const CodeInterpreterToolContainer = union(enum) {
 
 pub const CodeInterpreterTool = struct {
     container: CodeInterpreterToolContainer,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ContainerFileCitationBody = struct {
@@ -12779,24 +12779,24 @@ pub const ContainerFileCitationBody = struct {
     start_index: i64,
     end_index: i64,
     filename: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     container_id: []const u8,
 };
 
 pub const ItemReferenceParam = struct {
     id: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeReasoningEffort = []const u8;
 
 pub const RealtimeTranscriptionSessionCreateRequestInputAudioNoiseReduction = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeTranscriptionSessionCreateRequestTurnDetection = struct {
     threshold: ?f64 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     prefix_padding_ms: ?i64 = null,
     silence_duration_ms: ?i64 = null,
 };
@@ -12817,7 +12817,7 @@ pub const RealtimeBetaServerEventResponseFunctionCallArgumentsDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -12852,17 +12852,17 @@ pub const RealtimeTranslationSessionCreateRequest = struct {
 pub const RealtimeBetaServerEventTranscriptionSessionCreated = struct {
     event_id: []const u8,
     session: RealtimeTranscriptionSessionCreateResponse,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ToolChoiceCustom = struct {
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FunctionParameters = union(enum) {
     null,
-    bool: bool,
+    @"bool": bool,
     integer: i64,
     float: f64,
     number_string: []const u8,
@@ -13068,7 +13068,7 @@ pub const ApplyPatchToolCallOutput = struct {
     status: []const u8,
     call_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output: ?[]const u8 = null,
     created_by: ?[]const u8 = null,
 };
@@ -13078,20 +13078,20 @@ pub const EvalStoredCompletionsSource = struct {
     created_after: ?i64 = null,
     metadata: ?Metadata = null,
     model: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     created_before: ?i64 = null,
 };
 
 pub const ResponseFileSearchCallSearchingEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
 
 pub const ResponseImageGenCallGeneratingEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -13114,7 +13114,7 @@ pub const DeletedSkillResource = struct {
 
 pub const ResponseMCPCallFailedEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -13129,14 +13129,14 @@ pub const RealtimeServerEventRateLimitsUpdatedRateLimitsItem = struct {
 pub const RealtimeServerEventRateLimitsUpdated = struct {
     event_id: []const u8,
     rate_limits: []const RealtimeServerEventRateLimitsUpdatedRateLimitsItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ScrollParam = struct {
     x: i64,
     keys: ?[]const []const u8 = null,
     scroll_x: i64,
-    type: []const u8,
+    @"type": []const u8,
     y: i64,
     scroll_y: i64,
 };
@@ -13149,11 +13149,11 @@ pub const CoordParam = struct {
 pub const EvalStoredCompletionsDataSourceConfig = struct {
     metadata: ?Metadata = null,
     schema: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseFormatTextPython = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebhookFineTuningJobSucceededData = struct {
@@ -13165,7 +13165,7 @@ pub const WebhookFineTuningJobSucceeded = struct {
     data: WebhookFineTuningJobSucceededData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UpdateVoiceConsentRequest = struct {
@@ -13175,7 +13175,7 @@ pub const UpdateVoiceConsentRequest = struct {
 pub const ResponseCustomToolCallInputDeltaEvent = struct {
     delta: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -13214,7 +13214,7 @@ pub const GroupUserAssignment = struct {
 
 pub const UserMessageInputText = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ContainerMemoryLimit = []const u8;
@@ -13265,14 +13265,14 @@ pub const VideoCharacterResource = struct {
 
 pub const MessageDeltaContentRefusalObject = struct {
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
     refusal: ?[]const u8 = null,
 };
 
 pub const RealtimeBetaClientEventConversationItemRetrieve = struct {
     event_id: ?[]const u8 = null,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RunStreamEventVariant0 = struct {
@@ -13405,14 +13405,14 @@ pub const ImageEditPartialImageEvent = struct {
     quality: []const u8,
     output_format: []const u8,
     background: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     partial_image_index: i64,
 };
 
 pub const ResponseCodeInterpreterCallCodeDeltaEvent = struct {
     delta: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -13430,7 +13430,7 @@ pub const MCPTool = struct {
     authorization: ?[]const u8 = null,
     server_url: ?[]const u8 = null,
     allowed_tools: ?McptoolAllowedTools = null,
-    type: []const u8,
+    @"type": []const u8,
     headers: ?MCPToolHeaders = null,
 };
 
@@ -13497,7 +13497,7 @@ pub const CreateTranscriptionResponseStreamEvent = union(enum) {
 pub const RealtimeBetaClientEventConversationItemDelete = struct {
     event_id: ?[]const u8 = null,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const DeletedRoleAssignmentResource = struct {
@@ -13515,14 +13515,14 @@ pub const LogProb = struct {
 pub const RealtimeBetaClientEventConversationItemCreate = struct {
     event_id: ?[]const u8 = null,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     previous_item_id: ?[]const u8 = null,
 };
 
 pub const DragParam = struct {
     keys: ?[]const []const u8 = null,
     path: []const CoordParam,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionRole = []const u8;
@@ -13561,14 +13561,14 @@ pub const CustomToolCallOutputOutput = union(enum) {
 pub const CustomToolCallOutput = struct {
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     output: CustomToolCallOutputOutput,
 };
 
 pub const RealtimeServerEventResponseMCPCallFailed = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -13611,7 +13611,7 @@ pub const RealtimeCreateClientSecretResponse = struct {
 
 pub const ResponseWebSearchCallInProgressEvent = struct {
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -13622,7 +13622,7 @@ pub const RealtimeBetaServerEventResponseAudioTranscriptDone = struct {
     event_id: []const u8,
     response_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -13634,7 +13634,7 @@ pub const TaskGroupItem = struct {
     thread_id: []const u8,
     tasks: []const TaskGroupTask,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FineTuningCheckpointPermission = struct {
@@ -13655,7 +13655,7 @@ pub const ChatCompletionAllowedTools = struct {
 
 pub const ProjectApiKeyOwner = struct {
     service_account: ?ProjectApiKeyOwnerServiceAccount = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     user: ?ProjectApiKeyOwnerUser = null,
 };
 
@@ -13673,21 +13673,21 @@ pub const EvalItemContentText = []const u8;
 
 pub const WebSearchActionOpenPage = struct {
     url: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaServerEventInputAudioBufferSpeechStarted = struct {
     event_id: []const u8,
     audio_start_ms: i64,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FunctionShellCallOutputItemParam = struct {
     status: ?[]const u8 = null,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     output: []const FunctionShellCallOutputContentParam,
     max_output_length: ?i64 = null,
 };
@@ -13712,12 +13712,12 @@ pub const RealtimeBetaServerEventResponseFunctionCallArgumentsDone = struct {
     item_id: []const u8,
     arguments: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const TaskGroupTask = struct {
-    type: []const u8,
+    @"type": []const u8,
     heading: ?[]const u8,
     summary: ?[]const u8,
 };
@@ -13730,7 +13730,7 @@ pub const ResponseRefusalDeltaEvent = struct {
     delta: []const u8,
     item_id: []const u8,
     output_index: i64,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     content_index: i64,
 };
@@ -13740,7 +13740,7 @@ pub const InputFileContentParam = struct {
     filename: ?[]const u8 = null,
     file_data: ?[]const u8 = null,
     file_url: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     detail: ?[]const u8 = null,
 };
 
@@ -13760,7 +13760,7 @@ pub const OrganizationCertificate = struct {
 
 pub const RealtimeMCPListTools = struct {
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     tools: []const MCPListToolsTool,
     server_label: []const u8,
 };
@@ -13805,14 +13805,14 @@ pub const RunStepDetailsToolCallsCodeObjectCodeInterpreter = struct {
 
 pub const RunStepDetailsToolCallsCodeObject = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     code_interpreter: RunStepDetailsToolCallsCodeObjectCodeInterpreter,
 };
 
 pub const DoubleClickAction = struct {
     x: i64,
     keys: ?[]const []const u8,
-    type: []const u8,
+    @"type": []const u8,
     y: i64,
 };
 
@@ -13855,7 +13855,7 @@ pub const PublicRoleListResource = struct {
 };
 
 pub const ResponseIncompleteEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     response: Response,
     sequence_number: i64,
 };
@@ -13875,7 +13875,7 @@ pub const ComputerToolCall = struct {
     status: []const u8,
     action: ?ComputerAction = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TranscriptTextDeltaEventLogprobsItem = struct {
@@ -13887,7 +13887,7 @@ pub const TranscriptTextDeltaEventLogprobsItem = struct {
 pub const TranscriptTextDeltaEvent = struct {
     delta: []const u8,
     logprobs: ?[]const TranscriptTextDeltaEventLogprobsItem = null,
-    type: []const u8,
+    @"type": []const u8,
     segment_id: ?[]const u8 = null,
 };
 
@@ -13905,7 +13905,7 @@ pub const AssistantMessageItem = struct {
     created_at: i64,
     thread_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const ResponseOutputText,
 };
 
@@ -13915,7 +13915,7 @@ pub const RealtimeServerEventResponseAudioTranscriptDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -14030,7 +14030,7 @@ pub const CreateMessageRequest = struct {
 
 pub const RealtimeTranslationServerEventSessionClosed = struct {
     event_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebhookFineTuningJobFailedData = struct {
@@ -14042,12 +14042,12 @@ pub const WebhookFineTuningJobFailed = struct {
     data: WebhookFineTuningJobFailedData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseFormatJsonSchemaSchema = union(enum) {
     null,
-    bool: bool,
+    @"bool": bool,
     integer: i64,
     float: f64,
     number_string: []const u8,
@@ -14102,7 +14102,7 @@ pub const ChatCompletionRequestMessageContentPartImageImageUrl = struct {
 
 pub const ChatCompletionRequestMessageContentPartImage = struct {
     image_url: ChatCompletionRequestMessageContentPartImageImageUrl,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ComparisonFilterValueVariant0 = []const u8;
@@ -14178,7 +14178,7 @@ pub const ComparisonFilterValue = union(enum) {
 pub const ComparisonFilter = struct {
     value: ComparisonFilterValue,
     key: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const FileUploadParam = struct {
@@ -14190,7 +14190,7 @@ pub const FileUploadParam = struct {
 pub const ApplyPatchCreateFileOperation = struct {
     path: []const u8,
     diff: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionDeleted = struct {
@@ -14202,7 +14202,7 @@ pub const ChatCompletionDeleted = struct {
 pub const LocalShellToolCallOutput = struct {
     status: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output: []const u8,
 };
 
@@ -14241,14 +14241,14 @@ pub const RunStepDeltaStepDetailsToolCallsCodeObjectCodeInterpreter = struct {
 pub const RunStepDeltaStepDetailsToolCallsCodeObject = struct {
     id: ?[]const u8 = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
     code_interpreter: ?RunStepDeltaStepDetailsToolCallsCodeObjectCodeInterpreter = null,
 };
 
 pub const MCPApprovalRequest = struct {
     arguments: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     server_label: []const u8,
 };
@@ -14257,7 +14257,7 @@ pub const CreateEvalLabelModelGrader = struct {
     passing_labels: []const []const u8,
     model: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: []const CreateEvalItem,
     labels: []const []const u8,
 };
@@ -14265,7 +14265,7 @@ pub const CreateEvalLabelModelGrader = struct {
 pub const RealtimeServerEventConversationItemDone = struct {
     event_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     previous_item_id: ?[]const u8 = null,
 };
 
@@ -14302,7 +14302,7 @@ pub const EvalGraderScoreModel = struct {
     sampling_params: ?EvalGraderScoreModelSamplingParams = null,
     name: []const u8,
     input: []const EvalItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const AssistantToolsFileSearchFileSearch = struct {
@@ -14312,7 +14312,7 @@ pub const AssistantToolsFileSearchFileSearch = struct {
 
 pub const AssistantToolsFileSearch = struct {
     file_search: ?AssistantToolsFileSearchFileSearch = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateThreadRequestToolResources = ?std.json.Value;
@@ -14329,7 +14329,7 @@ pub const RealtimeServerEventResponseMCPCallArgumentsDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     obfuscation: ?[]const u8 = null,
 };
 
@@ -14367,12 +14367,12 @@ pub const RealtimeServerEventConversationItemInputAudioTranscriptionCompleted = 
     event_id: []const u8,
     item_id: []const u8,
     usage: RealtimeServerEventConversationItemInputAudioTranscriptionCompletedUsage,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ContainerResourceNetworkPolicy = struct {
     allowed_domains: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ContainerResourceExpiresAfter = struct {
@@ -14393,7 +14393,7 @@ pub const ContainerResource = struct {
 };
 
 pub const AssistantToolsFunction = struct {
-    type: []const u8,
+    @"type": []const u8,
     function: FunctionObject,
 };
 
@@ -14404,7 +14404,7 @@ pub const ModifyRunRequest = struct {
 pub const RealtimeBetaServerEventResponseMCPCallInProgress = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -14465,13 +14465,13 @@ pub const UserRoleAssignment = struct {
 pub const RealtimeServerEventOutputAudioBufferStopped = struct {
     event_id: []const u8,
     response_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseFunctionCallArgumentsDeltaEvent = struct {
     delta: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
     output_index: i64,
 };
@@ -14481,14 +14481,14 @@ pub const RealtimeBetaServerEventResponseMCPCallArgumentsDone = struct {
     response_id: []const u8,
     item_id: []const u8,
     arguments: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
 pub const RealtimeServerEventResponseMCPCallInProgress = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -14505,13 +14505,13 @@ pub const UsageAudioSpeechesResult = struct {
 pub const RealtimeBetaServerEventTranscriptionSessionUpdated = struct {
     event_id: []const u8,
     session: RealtimeTranscriptionSessionCreateResponse,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ApplyPatchUpdateFileOperation = struct {
     path: []const u8,
     diff: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const VoiceIdsShared = []const u8;
@@ -14606,7 +14606,7 @@ pub const WebSearchToolCall = struct {
     status: []const u8,
     action: WebSearchToolCallAction,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ModifyMessageRequest = struct {
@@ -14618,7 +14618,7 @@ pub const RealtimeConversationItemFunctionCallOutput = struct {
     status: ?[]const u8 = null,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     output: []const u8,
 };
 
@@ -14633,19 +14633,19 @@ pub const MessageDeltaContentTextAnnotationsFileCitationObject = struct {
     start_index: ?i64 = null,
     end_index: ?i64 = null,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ToolChoiceFunction = struct {
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TranscriptionDiarizedSegment = struct {
     text: []const u8,
     speaker: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     start: f64,
     end: f64,
 };
@@ -14702,7 +14702,7 @@ pub const RealtimeBetaServerEventResponseAudioDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -14715,12 +14715,12 @@ pub const FineTuningIntegrationWandb = struct {
 
 pub const FineTuningIntegration = struct {
     wandb: FineTuningIntegrationWandb,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEventConversationItemInputAudioTranscriptionFailedError = struct {
     code: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     message: ?[]const u8 = null,
     param: ?[]const u8 = null,
 };
@@ -14729,7 +14729,7 @@ pub const RealtimeServerEventConversationItemInputAudioTranscriptionFailed = str
     event_id: []const u8,
     item_id: []const u8,
     @"error": RealtimeServerEventConversationItemInputAudioTranscriptionFailedError,
-    type: []const u8,
+    @"type": []const u8,
     content_index: i64,
 };
 
@@ -14809,14 +14809,14 @@ pub const RealtimeBetaResponseMaxOutputTokens = union(enum) {
 };
 
 pub const RealtimeBetaResponseStatusDetailsError = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     code: ?[]const u8 = null,
 };
 
 pub const RealtimeBetaResponseStatusDetails = struct {
     @"error": ?RealtimeBetaResponseStatusDetailsError = null,
     reason: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeBetaResponse = struct {
@@ -14852,7 +14852,7 @@ pub const WebhookBatchFailed = struct {
     data: WebhookBatchFailedData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeConversationItemFunctionCall = struct {
@@ -14861,7 +14861,7 @@ pub const RealtimeConversationItemFunctionCall = struct {
     status: ?[]const u8 = null,
     arguments: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
 };
 
@@ -14933,7 +14933,7 @@ pub const ResponseReasoningSummaryTextDoneEvent = struct {
     item_id: []const u8,
     output_index: i64,
     sequence_number: i64,
-    type: []const u8,
+    @"type": []const u8,
     summary_index: i64,
 };
 
@@ -14943,7 +14943,7 @@ pub const ResponseErrorEvent = struct {
     message: []const u8,
     code: ?[]const u8,
     sequence_number: i64,
-    type: []const u8,
+    @"type": []const u8,
     param: ?[]const u8,
 };
 
@@ -14956,7 +14956,7 @@ pub const UserRoleUpdateRequest = struct {
 
 pub const RealtimeBetaServerEventConversationItemInputAudioTranscriptionFailedError = struct {
     code: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     message: ?[]const u8 = null,
     param: ?[]const u8 = null,
 };
@@ -14965,7 +14965,7 @@ pub const RealtimeBetaServerEventConversationItemInputAudioTranscriptionFailed =
     event_id: []const u8,
     item_id: []const u8,
     @"error": RealtimeBetaServerEventConversationItemInputAudioTranscriptionFailedError,
-    type: []const u8,
+    @"type": []const u8,
     content_index: i64,
 };
 
@@ -14976,18 +14976,18 @@ pub const FineTuningJobEvent = struct {
     id: []const u8,
     level: []const u8,
     message: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const EvalItem = struct {
     role: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     content: EvalItemContent,
 };
 
 pub const RunStepDetailsToolCallsFileSearchResultObjectContentItem = struct {
     text: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RunStepDetailsToolCallsFileSearchResultObject = struct {
@@ -15001,7 +15001,7 @@ pub const FunctionTool = struct {
     description: ?[]const u8 = null,
     strict: ?bool,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     parameters: ?FunctionParameters,
     defer_loading: ?bool = null,
 };
@@ -15015,13 +15015,13 @@ pub const WebhookEvalRunCanceled = struct {
     data: WebhookEvalRunCanceledData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const EvalGraderStringCheck = struct {
     operation: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: []const u8,
     reference: []const u8,
 };
@@ -15029,7 +15029,7 @@ pub const EvalGraderStringCheck = struct {
 pub const RealtimeServerEventInputAudioBufferCommitted = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     previous_item_id: ?[]const u8 = null,
 };
 
@@ -15048,11 +15048,11 @@ pub const WebhookResponseIncomplete = struct {
     data: WebhookResponseIncompleteData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ComputerTool = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ToolChoiceOptions = []const u8;
@@ -15067,7 +15067,7 @@ pub const ToolSearchOutputItemParam = struct {
     status: ?[]const u8 = null,
     call_id: ?[]const u8 = null,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     execution: ?[]const u8 = null,
     tools: []const Tool,
 };
@@ -15076,7 +15076,7 @@ pub const EvalGraderTextSimilarity = struct {
     pass_threshold: f64,
     evaluation_metric: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: []const u8,
     reference: []const u8,
 };
@@ -15234,14 +15234,14 @@ pub const RealtimeBetaServerEventResponseMCPCallArgumentsDelta = struct {
     response_id: []const u8,
     item_id: []const u8,
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     obfuscation: ?[]const u8 = null,
 };
 
 pub const RealtimeBetaServerEventResponseMCPCallFailed = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output_index: i64,
 };
 
@@ -15280,14 +15280,14 @@ pub const FunctionToolCallOutput = struct {
     status: ?[]const u8 = null,
     call_id: []const u8,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     output: FunctionToolCallOutputOutput,
 };
 
 pub const GraderPython = struct {
     source: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     image_tag: ?[]const u8 = null,
 };
 
@@ -15349,24 +15349,24 @@ pub const UpdateVectorStoreRequest = struct {
 
 pub const UserMessageQuotedText = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeServerEventConversationItemAdded = struct {
     event_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
     previous_item_id: ?[]const u8 = null,
 };
 
 pub const RealtimeBetaServerEventMCPListToolsInProgress = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ContainerNetworkPolicyDisabledParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebhookBatchExpiredData = struct {
@@ -15378,7 +15378,7 @@ pub const WebhookBatchExpired = struct {
     data: WebhookBatchExpiredData,
     object: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const InputAudioInputAudio = struct {
@@ -15388,7 +15388,7 @@ pub const InputAudioInputAudio = struct {
 
 pub const InputAudio = struct {
     input_audio: InputAudioInputAudio,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseStreamOptions = ?std.json.Value;
@@ -15469,14 +15469,14 @@ pub const Message = struct {
     status: []const u8,
     phase: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     role: []const u8,
     content: []const MessageContentItem,
 };
 
 pub const ResponseAudioTranscriptDeltaEvent = struct {
     delta: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     sequence_number: i64,
 };
 
@@ -15599,7 +15599,7 @@ pub const DetailEnum = []const u8;
 
 pub const TruncationObject = struct {
     last_messages: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaServerEventRateLimitsUpdatedRateLimitsItem = struct {
@@ -15612,7 +15612,7 @@ pub const RealtimeBetaServerEventRateLimitsUpdatedRateLimitsItem = struct {
 pub const RealtimeBetaServerEventRateLimitsUpdated = struct {
     event_id: []const u8,
     rate_limits: []const RealtimeBetaServerEventRateLimitsUpdatedRateLimitsItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const SkillListResource = struct {
@@ -15640,14 +15640,14 @@ pub const EvalRunList = struct {
 };
 
 pub const SpeechAudioDeltaEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     audio: []const u8,
 };
 
 pub const ContainerNetworkPolicyAllowlistParam = struct {
     domain_secrets: ?[]const ContainerNetworkPolicyDomainSecretParam = null,
     allowed_domains: []const []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ImageGenOutputTokensDetails = struct {
@@ -15660,7 +15660,7 @@ pub const ToolSearchOutput = struct {
     tools: []const Tool,
     status: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     execution: []const u8,
     created_by: ?[]const u8 = null,
 };
@@ -15701,7 +15701,7 @@ pub const RealtimeSessionModel = []const u8;
 pub const RealtimeSessionTracing = ?std.json.Value;
 
 pub const RealtimeSessionInputAudioNoiseReduction = struct {
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RealtimeSession = struct {
@@ -15740,7 +15740,7 @@ pub const WebSearchContextSize = []const u8;
 pub const InputImageContentParamAutoParam = struct {
     file_id: ?[]const u8 = null,
     image_url: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     detail: ?[]const u8 = null,
 };
 
@@ -15750,7 +15750,7 @@ pub const WebSearchTool = struct {
     search_context_size: ?[]const u8 = null,
     user_location: ?WebSearchApproximateLocation = null,
     filters: ?WebSearchToolFilters = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ProjectRateLimitListResponse = struct {
@@ -15769,7 +15769,7 @@ pub const OrganizationProjectCertificateDeactivationResponse = struct {
 pub const RealtimeClientEventConversationItemTruncate = struct {
     event_id: ?[]const u8 = null,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     audio_end_ms: i64,
     content_index: i64,
 };
@@ -15892,7 +15892,7 @@ pub const PromptCacheRetentionEnum = []const u8;
 
 pub const CreateEvalStoredCompletionsDataSourceConfig = struct {
     metadata: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaServerEventConversationItemInputAudioTranscriptionCompletedUsage = union(enum) {
@@ -15929,7 +15929,7 @@ pub const RealtimeBetaServerEventConversationItemInputAudioTranscriptionComplete
     event_id: []const u8,
     item_id: []const u8,
     usage: RealtimeBetaServerEventConversationItemInputAudioTranscriptionCompletedUsage,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const Embedding = struct {
@@ -15941,13 +15941,13 @@ pub const Embedding = struct {
 pub const WebSearchActionFind = struct {
     pattern: []const u8,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaServerEventMCPListToolsCompleted = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatCompletionNamedToolChoiceFunction = struct {
@@ -15955,27 +15955,27 @@ pub const ChatCompletionNamedToolChoiceFunction = struct {
 };
 
 pub const ChatCompletionNamedToolChoice = struct {
-    type: []const u8,
+    @"type": []const u8,
     function: ChatCompletionNamedToolChoiceFunction,
 };
 
 pub const InputMessageResource = struct {
     status: ?[]const u8 = null,
     role: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     id: []const u8,
     content: InputMessageContentList,
 };
 
 pub const MessageRequestContentTextObject = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeBetaServerEventConversationItemRetrieved = struct {
     event_id: []const u8,
     item: RealtimeConversationItem,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeClientEvent = union(enum) {
@@ -16057,7 +16057,7 @@ pub const RealtimeClientEvent = union(enum) {
 pub const RealtimeClientEventResponseCancel = struct {
     event_id: ?[]const u8 = null,
     response_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ImageGenPartialImageEvent = struct {
@@ -16067,27 +16067,27 @@ pub const ImageGenPartialImageEvent = struct {
     quality: []const u8,
     output_format: []const u8,
     background: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     partial_image_index: i64,
 };
 
 pub const SummaryTextContent = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeTranslationServerEventSessionOutputTranscriptDelta = struct {
     event_id: []const u8,
     delta: []const u8,
     elapsed_ms: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RealtimeConversationItemMessageUserContentItem = struct {
     text: ?[]const u8 = null,
     image_url: ?[]const u8 = null,
     transcript: ?[]const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     audio: ?[]const u8 = null,
     detail: ?[]const u8 = null,
 };
@@ -16096,7 +16096,7 @@ pub const RealtimeConversationItemMessageUser = struct {
     object: ?[]const u8 = null,
     status: ?[]const u8 = null,
     id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     role: []const u8,
     content: []const RealtimeConversationItemMessageUserContentItem,
 };
@@ -16110,7 +16110,7 @@ pub const ProjectUserCreateRequest = struct {
 pub const GraderTextSimilarity = struct {
     evaluation_metric: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: []const u8,
     reference: []const u8,
 };
@@ -16118,7 +16118,7 @@ pub const GraderTextSimilarity = struct {
 pub const RealtimeBetaClientEventConversationItemTruncate = struct {
     event_id: ?[]const u8 = null,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     audio_end_ms: i64,
     content_index: i64,
 };
@@ -16208,7 +16208,7 @@ pub const VideoResource = struct {
 pub const RealtimeServerEventMCPListToolsFailed = struct {
     event_id: []const u8,
     item_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ProjectServiceAccountApiKey = struct {
@@ -16254,7 +16254,7 @@ pub const FunctionToolCallOutputResource = struct {
     status: []const u8,
     call_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     output: FunctionToolCallOutputResourceOutput,
     created_by: ?[]const u8 = null,
 };
@@ -16299,7 +16299,7 @@ pub const FunctionShellCallOutputContent = struct {
 
 pub const EvalItemContentOutputText = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const OpenApi2ZigDynamicObject = std.json.ArrayHashMap(std.json.Value);

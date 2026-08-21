@@ -19,7 +19,7 @@ pub const UnloadModelRequest = struct {
 };
 
 pub const ReasoningOutput = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -82,7 +82,7 @@ pub const LoadedInstance = struct {
 };
 
 pub const TextInput = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -127,7 +127,7 @@ pub const ModelInfo = struct {
     loaded_instances: []const LoadedInstance,
     quantization: ?ModelInfoQuantization = null,
     description: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const EmbeddingLoadConfig = struct {
@@ -148,7 +148,7 @@ pub const DownloadStatusResponse = struct {
 pub const PluginIntegration = struct {
     allowed_tools: ?[]const []const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ChatStats = struct {
@@ -256,7 +256,7 @@ pub const ChatRequest = struct {
 };
 
 pub const MessageOutput = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -271,7 +271,7 @@ pub const LoadedInstanceConfig = struct {
 
 pub const ImageInput = struct {
     data_url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UnloadModelResponse = struct {
@@ -281,14 +281,14 @@ pub const UnloadModelResponse = struct {
 pub const InvalidToolCallOutputMetadata = struct {
     arguments: ?std.json.Value = null,
     tool_name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     provider_info: ?ProviderInfo = null,
 };
 
 pub const InvalidToolCallOutput = struct {
     metadata: InvalidToolCallOutputMetadata,
     reason: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const LoadModelResponseLoadConfig = union(enum) {
@@ -323,11 +323,11 @@ pub const LoadModelResponse = struct {
     status: []const u8,
     instance_id: []const u8,
     load_config: ?LoadModelResponseLoadConfig = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ProviderInfo = struct {
-    type: []const u8,
+    @"type": []const u8,
     plugin_id: ?[]const u8 = null,
     server_label: ?[]const u8 = null,
 };
@@ -366,7 +366,7 @@ pub const ChatInputItem = union(enum) {
 pub const EphemeralMcpIntegration = struct {
     server_url: []const u8,
     allowed_tools: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     headers: ?std.json.Value = null,
     server_label: []const u8,
 };
@@ -375,7 +375,7 @@ pub const ToolCallOutput = struct {
     arguments: std.json.Value,
     tool: []const u8,
     output: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     provider_info: ProviderInfo,
 };
 

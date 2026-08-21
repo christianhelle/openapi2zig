@@ -42,15 +42,6 @@ pub const UnifiedModelGenerator = struct {
         try ident.appendIdentifier(&self.buffer, self.allocator, name);
     }
 
-    fn appendStructFieldName(self: *UnifiedModelGenerator, name: []const u8) !void {
-        if (ident.isReservedIdent(name)) {
-            try self.buffer.appendSlice(self.allocator, name);
-            try self.buffer.append(self.allocator, '_');
-            return;
-        }
-        try self.appendIdentifier(name);
-    }
-
     fn generateHeader(self: *UnifiedModelGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
             \\const std = @import("std");
@@ -913,7 +904,7 @@ pub const UnifiedModelGenerator = struct {
                 \\};
                 \\
                 \\pub const CompoundFilter = struct {
-                \\    type: []const u8,
+                \\    @"type": []const u8,
                 \\    filters: []const CompoundFilterItem,
                 \\};
                 \\
@@ -1064,10 +1055,7 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn uniqueSanitizedIdentifierAlloc(self: *UnifiedModelGenerator, value: []const u8, used_names: *std.StringHashMap(void)) ![]const u8 {
-        var candidate = if (ident.isReservedIdent(value))
-            try std.fmt.allocPrint(self.allocator, "{s}_", .{value})
-        else
-            try self.allocator.dupe(u8, value);
+        var candidate = try self.allocator.dupe(u8, value);
         errdefer self.allocator.free(candidate);
 
         while (std.mem.eql(u8, candidate, "raw") or used_names.contains(candidate)) {
@@ -1196,7 +1184,7 @@ pub const UnifiedModelGenerator = struct {
 
     fn generateStructField(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8, field_schema: Schema, is_required: bool, sanitized_field_name: []const u8) !void {
         try self.buffer.appendSlice(self.allocator, "    ");
-        try self.buffer.appendSlice(self.allocator, sanitized_field_name);
+        try self.appendIdentifier(sanitized_field_name);
         try self.buffer.appendSlice(self.allocator, ": ");
 
         if (try self.appendManualFieldType(owner_name, field_name)) {
@@ -1261,7 +1249,7 @@ pub const UnifiedModelGenerator = struct {
             try self.appendStringLiteral(binding.raw_name);
             try self.buffer.appendSlice(self.allocator, ")) |value| {\n");
             try self.buffer.appendSlice(self.allocator, "            result.");
-            try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
+            try self.appendIdentifier(binding.sanitized_name);
             try self.buffer.appendSlice(self.allocator, " = try std.json.parseFromValueLeaky(");
             try self.appendFieldTypeForSchema(owner_name, binding.raw_name, binding.field_schema, binding.is_required);
             try self.buffer.appendSlice(self.allocator, ", allocator, value, options);\n");
@@ -1282,11 +1270,11 @@ pub const UnifiedModelGenerator = struct {
                 try self.appendStringLiteral(binding.raw_name);
                 try self.buffer.appendSlice(self.allocator, ");\n");
                 try self.buffer.appendSlice(self.allocator, "        try jw.write(self.");
-                try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
+                try self.appendIdentifier(binding.sanitized_name);
                 try self.buffer.appendSlice(self.allocator, ");\n");
             } else {
                 try self.buffer.appendSlice(self.allocator, "        if (self.");
-                try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
+                try self.appendIdentifier(binding.sanitized_name);
                 try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                 try self.buffer.appendSlice(self.allocator, "            try jw.objectField(");
                 try self.appendStringLiteral(binding.raw_name);
@@ -1300,7 +1288,6 @@ pub const UnifiedModelGenerator = struct {
             \\
             \\        try jw.endObject();
             \\    }
-            \\}
             \\
         );
     }
@@ -1325,11 +1312,11 @@ pub const UnifiedModelGenerator = struct {
                 try self.appendStringLiteral(binding.raw_name);
                 try self.buffer.appendSlice(self.allocator, ");\n");
                 try self.buffer.appendSlice(self.allocator, "        try jw.write(self.");
-                try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
+                try self.appendIdentifier(binding.sanitized_name);
                 try self.buffer.appendSlice(self.allocator, ");\n");
             } else {
                 try self.buffer.appendSlice(self.allocator, "        if (self.");
-                try self.buffer.appendSlice(self.allocator, binding.sanitized_name);
+                try self.appendIdentifier(binding.sanitized_name);
                 try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                 try self.buffer.appendSlice(self.allocator, "            try jw.objectField(");
                 try self.appendStringLiteral(binding.raw_name);
@@ -1338,10 +1325,6 @@ pub const UnifiedModelGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "        }\n");
             }
         }
-
-        try self.buffer.appendSlice(self.allocator,
-            \\
-            \\        if (self.extra_body) |extra| {
             \\            if (extra == .object) {
             \\                var iterator = extra.object.iterator();
             \\                while (iterator.next()) |entry| {

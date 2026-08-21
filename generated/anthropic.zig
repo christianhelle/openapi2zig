@@ -34,13 +34,13 @@ pub const BetaManagedAgentsGetMemoryStoreResponse = union(enum) {
 
 pub const BetaManagedAgentsAgentReference = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     version: i64,
 };
 
 pub const BetaManagedAgentsModelOverloadedError = struct {
     retry_status: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -48,7 +48,7 @@ pub const BetaManagedAgentsSpanOutcomeEvaluationStartEvent = struct {
     processed_at: std.json.Value,
     iteration: i64,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     outcome_id: []const u8,
 };
 
@@ -58,13 +58,13 @@ pub const BetaResponsePageLocationCitation = struct {
     start_page_number: i64,
     document_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
 pub const BetaManagedAgentsErrorResponse = struct {
     @"error": BetaManagedAgentsError,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMCPToolsetDefaultConfig = struct {
@@ -78,7 +78,7 @@ pub const ResponsePageLocationCitation = struct {
     start_page_number: i64,
     document_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
@@ -90,7 +90,7 @@ pub const ThinkingTypes = struct {
 pub const BetaUserLocation = struct {
     city: ?[]const u8 = null,
     country: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     region: ?[]const u8 = null,
     timezone: ?[]const u8 = null,
 };
@@ -98,7 +98,7 @@ pub const BetaUserLocation = struct {
 pub const BetaWebhookSessionStatusRescheduledEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -106,13 +106,13 @@ pub const AnthropicBeta = []const u8;
 
 pub const BetaFileImageSource = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseBashCodeExecutionResultBlock = struct {
     content: []const ResponseBashCodeExecutionOutputBlock,
     return_code: i64,
-    type: []const u8,
+    @"type": []const u8,
     stderr: []const u8,
     stdout: []const u8,
 };
@@ -154,11 +154,11 @@ pub const BetaManagedAgentsAgentTool = union(enum) {
 };
 
 pub const BetaManagedAgentsUnrestrictedCredentialNetworkingParams = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsTextRubricParams = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -174,7 +174,7 @@ pub const BetaManagedAgentsUpdateVaultRequestBody = struct {
 
 pub const URLPDFSource = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSearchResultCitations = struct {
@@ -184,7 +184,7 @@ pub const BetaManagedAgentsSearchResultCitations = struct {
 pub const BetaManagedAgentsUserToolConfirmationResult = []const u8;
 
 pub const BetaManagedAgentsAlwaysAllowPolicy = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsInputEvent = union(enum) {
@@ -246,18 +246,18 @@ pub const BetaManagedAgentsInputEvent = union(enum) {
 pub const BetaWebhookSessionRunningEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaManagedAgentsBase64ImageSource = struct {
     media_type: []const u8,
     data: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsOrganizationDisabledDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const MessageBatchIndividualRequestParams = struct {
@@ -267,7 +267,7 @@ pub const MessageBatchIndividualRequestParams = struct {
 
 pub const RequestToolReferenceBlock = struct {
     tool_name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     cache_control: ?std.json.Value = null,
 };
 
@@ -419,12 +419,12 @@ pub const BetaRequestWebSearchResultBlock = struct {
     page_age: ?[]const u8 = null,
     encrypted_content: []const u8,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
 };
 
 pub const BetaManagedAgentsDeploymentUserMessageEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaManagedAgentsUserContentBlock,
 };
 
@@ -432,7 +432,7 @@ pub const BetaManagedAgentsAgentThreadMessageSentEvent = struct {
     processed_at: std.json.Value,
     to_session_thread_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     to_agent_name: ?[]const u8 = null,
     content: []const BetaManagedAgentsUserContentBlock,
 };
@@ -471,7 +471,7 @@ pub const BetaResponseCodeExecutionToolResultBlockContent = union(enum) {
 
 pub const BetaResponseCodeExecutionToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseCodeExecutionToolResultBlockContent,
 };
 
@@ -492,7 +492,7 @@ pub const BetaUsage = struct {
 pub const BetaWebhookSessionCreatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -501,7 +501,7 @@ pub const ResponseToolUseBlock = struct {
     id: []const u8,
     input: std.json.Value,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsDeploymentStatus = []const u8;
@@ -509,7 +509,7 @@ pub const BetaManagedAgentsDeploymentStatus = []const u8;
 pub const BetaWebhookVaultArchivedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -520,13 +520,13 @@ pub const MemoryTool_20250818 = struct {
     allowed_callers: ?[]const AllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestCodeExecutionResultBlock = struct {
     content: []const RequestCodeExecutionOutputBlock,
     return_code: i64,
-    type: []const u8,
+    @"type": []const u8,
     stderr: []const u8,
     stdout: []const u8,
 };
@@ -630,24 +630,24 @@ pub const BetaManagedAgentsMcpOauthCreateParams = struct {
     access_token: []const u8,
     expires_at: ?[]const u8 = null,
     refresh: ?BetaManagedAgentsMcpOauthCreateParamsRefresh = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCustomTool = struct {
     description: []const u8,
     input_schema: BetaManagedAgentsCustomToolInputSchema,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaEnrollmentUrl = struct {
     url: []const u8,
     expires_at: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsVaultArchivedDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseCodeExecutionToolResultBlockContent = union(enum) {
@@ -684,7 +684,7 @@ pub const ResponseCodeExecutionToolResultBlockContent = union(enum) {
 
 pub const ResponseCodeExecutionToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ResponseCodeExecutionToolResultBlockContent,
 };
 
@@ -701,12 +701,12 @@ pub const WebFetchTool_20260318 = struct {
     blocked_domains: ?[]const []const u8 = null,
     citations: ?RequestCitationsConfig = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaFileScope = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsScheduleParams = union(enum) {
@@ -773,23 +773,23 @@ pub const BetaManagedAgentsCredentialAuth = union(enum) {
 
 pub const BetaDeleteSkillResponse = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ToolChoiceNone = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaOverloadedError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ToolSearchToolResultErrorCode = []const u8;
 
 pub const InputJsonContentBlockDelta = struct {
     partial_json: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateMessageParamsWithoutStreamToolsItem = union(enum) {
@@ -960,7 +960,7 @@ pub const BetaManagedAgentsCredentialRefreshStatus = []const u8;
 pub const RequestToolSearchToolResultError = struct {
     error_code: []const u8,
     error_message: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsListSessionThreads = struct {
@@ -971,13 +971,13 @@ pub const BetaManagedAgentsListSessionThreads = struct {
 pub const Base64ImageSource = struct {
     data: []const u8,
     media_type: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionThreadStatusRunningEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     agent_name: []const u8,
     session_thread_id: []const u8,
 };
@@ -985,7 +985,7 @@ pub const BetaManagedAgentsSessionThreadStatusRunningEvent = struct {
 pub const BetaManagedAgentsDeploymentUserDefineOutcomeEvent = struct {
     description: []const u8,
     rubric: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     max_iterations: ?i64 = null,
 };
 
@@ -1004,24 +1004,24 @@ pub const BetaCreateSkillResponse = struct {
     display_title: ?[]const u8,
     id: []const u8,
     latest_version: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
     updated_at: []const u8,
 };
 
 pub const BetaManagedAgentsVaultNotFoundRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const BetaDreamMemoryStoreOutput = struct {
-    type: []const u8,
+    @"type": []const u8,
     memory_store_id: []const u8,
 };
 
 pub const BetaWebhookSessionThreadIdledEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
     session_thread_id: []const u8,
 };
@@ -1064,7 +1064,7 @@ pub const BetaManagedAgentsActor = union(enum) {
 
 pub const BetaManagedAgentsFileRubricParams = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaSpeed = []const u8;
@@ -1102,7 +1102,7 @@ pub const RequestWebSearchToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
     caller: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     content: RequestWebSearchToolResultBlockContent,
 };
 
@@ -1130,26 +1130,26 @@ pub const MessageBatch = struct {
     archived_at: ?[]const u8,
     ended_at: ?[]const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     results_url: ?[]const u8,
     processing_status: []const u8,
 };
 
 pub const BetaManagedAgentsAgentArchivedDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestToolSearchToolResultError = struct {
     error_code: []const u8,
     error_message: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCodeExecutionTool_20250825 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const BetaAllowedCaller = null,
     name: []const u8,
 };
@@ -1157,21 +1157,21 @@ pub const BetaCodeExecutionTool_20250825 = struct {
 pub const BetaManagedAgentsURLMCPServerParams = struct {
     url: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaInputTokensTrigger = struct {
     value: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsRetryStatusRetrying = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseToolSearchToolSearchResultBlock = struct {
     tool_references: []const BetaResponseToolReferenceBlock,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebSearchTool_20260209 = struct {
@@ -1184,7 +1184,7 @@ pub const BetaWebSearchTool_20260209 = struct {
     user_location: ?BetaUserLocation = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CacheCreation = struct {
@@ -1194,7 +1194,7 @@ pub const CacheCreation = struct {
 
 pub const JsonOutputFormat = struct {
     schema: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsRefreshHttpResponse = struct {
@@ -1209,7 +1209,7 @@ pub const RequestPageLocationCitation = struct {
     document_index: i64,
     start_page_number: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
@@ -1294,7 +1294,7 @@ pub const BetaMessageDeltaEvent = struct {
     delta: BetaMessageDelta,
     context_management: ?BetaResponseContextManagement,
     usage: BetaMessageDeltaUsage,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSkill = union(enum) {
@@ -1329,13 +1329,13 @@ pub const BetaManagedAgentsSkill = union(enum) {
 };
 
 pub const BetaManagedAgentsManualDeploymentPausedReason = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestBashCodeExecutionResultBlock = struct {
     content: []const BetaRequestBashCodeExecutionOutputBlock,
     return_code: i64,
-    type: []const u8,
+    @"type": []const u8,
     stderr: []const u8,
     stdout: []const u8,
 };
@@ -1343,7 +1343,7 @@ pub const BetaRequestBashCodeExecutionResultBlock = struct {
 pub const BetaManagedAgentsEventDeltaEvent = struct {
     event_id: []const u8,
     delta: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSendSessionEvents = struct {
@@ -1352,24 +1352,24 @@ pub const BetaManagedAgentsSendSessionEvents = struct {
 
 pub const ThinkingConfigAdaptive = struct {
     display: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookDeploymentRunStartedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaFileDocumentSource = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCustomSkill = struct {
     version: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     skill_id: []const u8,
 };
 
@@ -1382,7 +1382,7 @@ pub const BetaManagedAgentsSessionUpdatedEventAgent = struct {
     system: []const u8,
     model: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     mcp_servers: []const BetaManagedAgentsMCPServer,
 };
@@ -1391,13 +1391,13 @@ pub const BetaManagedAgentsSessionUpdatedEvent = struct {
     processed_at: std.json.Value,
     metadata: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     title: ?[]const u8 = null,
     agent: ?BetaManagedAgentsSessionUpdatedEventAgent = null,
 };
 
 pub const BetaManagedAgentsSessionEndTurn = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseContentBlockLocationCitation = struct {
@@ -1406,7 +1406,7 @@ pub const BetaResponseContentBlockLocationCitation = struct {
     document_index: i64,
     start_block_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
@@ -1415,7 +1415,7 @@ pub const BetaToolSearchToolResultErrorCode = []const u8;
 pub const BetaResponseToolSearchToolResultError = struct {
     error_code: []const u8,
     error_message: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsRefreshObjectHttpResponse = struct {
@@ -1465,7 +1465,7 @@ pub const BetaResponseBashCodeExecutionToolResultBlockContent = union(enum) {
 
 pub const BetaResponseBashCodeExecutionToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseBashCodeExecutionToolResultBlockContent,
 };
 
@@ -1477,7 +1477,7 @@ pub const BetaManagedAgentsSessionThreadAgent = struct {
     system: []const u8,
     model: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     mcp_servers: []const BetaManagedAgentsMCPServer,
 };
@@ -1489,11 +1489,11 @@ pub const BetaTextEditor_20250124 = struct {
     allowed_callers: ?[]const BetaAllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaUnrestrictedNetwork = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaContainer = struct {
@@ -1507,7 +1507,7 @@ pub const BetaManagedAgentsAgentToolResultEvent = struct {
     processed_at: std.json.Value,
     is_error: ?bool = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ?[]const BetaManagedAgentsToolResultContentBlock = null,
 };
 
@@ -1552,7 +1552,7 @@ pub const BetaRequestTextEditorCodeExecutionViewResultBlock = struct {
     file_type: []const u8,
     num_lines: ?i64 = null,
     start_line: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -1591,7 +1591,7 @@ pub const BetaManagedAgentsListSessionThreadEvents = struct {
 
 pub const BetaDeleteSkillVersionResponse = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaMessage = struct {
@@ -1604,7 +1604,7 @@ pub const BetaMessage = struct {
     usage: BetaUsage,
     model: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     stop_sequence: ?[]const u8,
     content: []const BetaContentBlock,
 };
@@ -1613,7 +1613,7 @@ pub const BetaToolSearchToolBM25_20251119 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const BetaAllowedCaller = null,
     name: []const u8,
 };
@@ -1634,7 +1634,7 @@ pub const MessageBatchIndividualResponse = struct {
 
 pub const ErroredResult = struct {
     @"error": ErrorResponse,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebFetchTool_20260209 = struct {
@@ -1648,7 +1648,7 @@ pub const WebFetchTool_20260209 = struct {
     citations: ?RequestCitationsConfig = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateMessageBatchParams = struct {
@@ -1660,17 +1660,17 @@ pub const BetaSelfHostedWorkHeartbeatResponse = struct {
     last_heartbeat: []const u8,
     ttl_seconds: i64,
     state: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMemoryPrefix = struct {
     path: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestBashCodeExecutionToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaDiagnosticsParam = struct {
@@ -1714,32 +1714,32 @@ pub const EffortCapability = struct {
 
 pub const BetaManagedAgentsTokenEndpointAuthBasicParam = struct {
     client_secret: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const SucceededResult = struct {
     message: Message,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestSearchResultBlock = struct {
     source: []const u8,
     cache_control: ?std.json.Value = null,
     citations: ?BetaRequestCitationsConfig = null,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
     content: []const BetaRequestTextBlock,
 };
 
 pub const BetaResponseContainerUploadBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionThreadStatus = []const u8;
 
 pub const BetaManagedAgentsAlwaysAskPolicy = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaTunnel = struct {
@@ -1747,14 +1747,14 @@ pub const BetaTunnel = struct {
     display_name: []const u8,
     archived_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     domain: []const u8,
 };
 
 pub const ToolChoiceTool = struct {
     disable_parallel_tool_use: ?bool = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaMCPToolDefaultConfig = struct {
@@ -1764,7 +1764,7 @@ pub const BetaMCPToolDefaultConfig = struct {
 
 pub const BetaTunnelToken = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     tunnel_token: []const u8,
 };
 
@@ -1772,7 +1772,7 @@ pub const BetaWebhookVaultCredentialDeletedEventData = struct {
     organization_id: []const u8,
     vault_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -1806,7 +1806,7 @@ pub const BetaRequestToolSearchToolResultBlockContent = union(enum) {
 pub const BetaRequestToolSearchToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaRequestToolSearchToolResultBlockContent,
 };
 
@@ -1823,16 +1823,16 @@ pub const BetaWebFetchTool_20260318 = struct {
     blocked_domains: ?[]const []const u8 = null,
     citations: ?BetaRequestCitationsConfig = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaThinkingTurns = struct {
     value: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsVaultNotFoundDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseSearchResultLocationCitation = struct {
@@ -1842,14 +1842,14 @@ pub const ResponseSearchResultLocationCitation = struct {
     start_block_index: i64,
     cited_text: []const u8,
     title: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestMCPToolUseBlock = struct {
     cache_control: ?std.json.Value = null,
     server_name: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: std.json.Value,
     name: []const u8,
 };
@@ -1857,7 +1857,7 @@ pub const BetaRequestMCPToolUseBlock = struct {
 pub const BetaWebhookAgentDeletedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -2006,12 +2006,12 @@ pub const BetaManagedAgentsTriggerContext = union(enum) {
 
 pub const BetaRequestBashCodeExecutionOutputBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsFileResourceConfig = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     mount_path: ?[]const u8 = null,
 };
 
@@ -2047,12 +2047,12 @@ pub const BetaManagedAgentsMCPServer = union(enum) {
 };
 
 pub const BetaManagedAgentsUnknownDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseAdvisorToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CompletionRequest = struct {
@@ -2070,7 +2070,7 @@ pub const CompletionRequest = struct {
 pub const MessageDeltaEvent = struct {
     delta: MessageDelta,
     usage: MessageDeltaUsage,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsEnvironmentVariableUpdateParamsInjectionLocation = struct {
@@ -2080,7 +2080,7 @@ pub const BetaManagedAgentsEnvironmentVariableUpdateParamsInjectionLocation = st
 
 pub const BetaManagedAgentsEnvironmentVariableUpdateParams = struct {
     injection_location: ?BetaManagedAgentsEnvironmentVariableUpdateParamsInjectionLocation = null,
-    type: []const u8,
+    @"type": []const u8,
     networking: ?std.json.Value = null,
     secret_value: ?[]const u8 = null,
 };
@@ -2088,14 +2088,14 @@ pub const BetaManagedAgentsEnvironmentVariableUpdateParams = struct {
 pub const BetaWebhookAgentArchivedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaWebhookAgentCreatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -2104,26 +2104,26 @@ pub const BetaAllowedCaller = []const u8;
 pub const BetaRequestCodeExecutionResultBlock = struct {
     content: []const BetaRequestCodeExecutionOutputBlock,
     return_code: i64,
-    type: []const u8,
+    @"type": []const u8,
     stderr: []const u8,
     stdout: []const u8,
 };
 
 pub const BetaManagedAgentsMultiagentCoordinatorParams = struct {
     agents: []const BetaManagedAgentsMultiagentRosterEntryParams,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionStatusTerminatedEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaAdvisorToolResultErrorCode = []const u8;
 
 pub const BetaManagedAgentsFileNotFoundDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseAdvisorToolResultBlockContent = union(enum) {
@@ -2160,7 +2160,7 @@ pub const BetaResponseAdvisorToolResultBlockContent = union(enum) {
 
 pub const BetaResponseAdvisorToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseAdvisorToolResultBlockContent,
 };
 
@@ -2360,7 +2360,7 @@ pub const BetaCountMessageTokensParams = struct {
 pub const RequestTextBlock = struct {
     text: []const u8,
     citations: ?[]const std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     cache_control: ?std.json.Value = null,
 };
 
@@ -2413,13 +2413,13 @@ pub const RequestTextEditorCodeExecutionToolResultBlockContent = union(enum) {
 pub const RequestTextEditorCodeExecutionToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: RequestTextEditorCodeExecutionToolResultBlockContent,
 };
 
 pub const RequestImageBlock = struct {
     source: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     cache_control: ?std.json.Value = null,
 };
 
@@ -2430,17 +2430,17 @@ pub const BetaBashTool_20250124 = struct {
     allowed_callers: ?[]const BetaAllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCacheMissMessagesChanged = struct {
     cache_missed_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaInputTokensClearAtLeast = struct {
     value: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCapabilitySupport = struct {
@@ -2449,7 +2449,7 @@ pub const BetaCapabilitySupport = struct {
 
 pub const BetaToolChoiceAny = struct {
     disable_parallel_tool_use: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebFetchTool_20260209 = struct {
@@ -2463,12 +2463,12 @@ pub const BetaWebFetchTool_20260209 = struct {
     citations: ?BetaRequestCitationsConfig = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestAdvisorRedactedResultBlock = struct {
     encrypted_content: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     stop_reason: ?[]const u8 = null,
 };
 
@@ -2489,7 +2489,7 @@ pub const ThinkingCapability = struct {
 pub const BetaRequestTextEditorCodeExecutionToolResultError = struct {
     error_code: []const u8,
     error_message: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebFetchTool_20260309 = struct {
@@ -2503,33 +2503,33 @@ pub const WebFetchTool_20260309 = struct {
     citations: ?RequestCitationsConfig = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     use_cache: ?bool = null,
 };
 
 pub const CacheControlEphemeral = struct {
     ttl: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsUserMessageEventParams = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaManagedAgentsUserContentBlock,
 };
 
 pub const BillingError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaErroredResult = struct {
     @"error": BetaErrorResponse,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsBillingError = struct {
     retry_status: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -2541,7 +2541,7 @@ pub const BetaThinkingCapability = struct {
 pub const ResponseWebFetchResultBlock = struct {
     retrieved_at: ?[]const u8,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ResponseDocumentBlock,
 };
 
@@ -2553,13 +2553,13 @@ pub const BetaOutputConfig = struct {
 
 pub const BetaContentBlockStopEvent = struct {
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaTokenTaskBudget = struct {
     remaining: ?i64 = null,
     total: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const EffortLevel = []const u8;
@@ -2572,12 +2572,12 @@ pub const BetaManagedAgentsMcptoolsetParamsDefaultConfig = struct {
 pub const BetaManagedAgentsMCPToolsetParams = struct {
     default_config: ?BetaManagedAgentsMcptoolsetParamsDefaultConfig = null,
     mcp_server_name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     configs: ?[]const BetaManagedAgentsMCPToolConfigParams = null,
 };
 
 pub const BetaManagedAgentsTokenEndpointAuthPostResponse = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsPrecondition = union(enum) {
@@ -2610,7 +2610,7 @@ pub const CodeExecutionTool_20250522 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const AllowedCaller = null,
     name: []const u8,
 };
@@ -2622,12 +2622,12 @@ pub const RequestSearchResultLocationCitation = struct {
     start_block_index: i64,
     cited_text: []const u8,
     title: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsDeletedCredential = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsGetSessionResource = union(enum) {
@@ -2667,24 +2667,24 @@ pub const BetaManagedAgentsGetSessionResource = union(enum) {
 };
 
 pub const ServerToolCaller = struct {
-    type: []const u8,
+    @"type": []const u8,
     tool_id: []const u8,
 };
 
 pub const BetaManagedAgentsDeleteSessionResource = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestThinkingBlock = struct {
     thinking: []const u8,
     signature: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseToolReferenceBlock = struct {
     tool_name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaDream = struct {
@@ -2700,16 +2700,16 @@ pub const BetaDream = struct {
     session_id: []const u8,
     archived_at: []const u8,
     ended_at: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSelfHostedResourcesUnsupportedDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaSkillParams = struct {
     version: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     skill_id: []const u8,
 };
 
@@ -2726,29 +2726,29 @@ pub const BetaMessageDeltaUsage = struct {
 pub const InputSchema = struct {
     properties: ?std.json.Value = null,
     required: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseClearToolUses20250919Edit = struct {
     cleared_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
     cleared_tool_uses: i64,
 };
 
 pub const BetaManagedAgentsEventDeltaEventContentDeltaContent = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsEventDeltaEvent_ContentDelta = struct {
-    type: []const u8,
+    @"type": []const u8,
     index: ?i64 = null,
     content: BetaManagedAgentsEventDeltaEventContentDeltaContent,
 };
 
 pub const BetaURLImageSource = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebFetchToolResultErrorCode = []const u8;
@@ -2759,20 +2759,20 @@ pub const BetaRequestFallbackHopInfo = struct {
 
 pub const BetaRequestMidConvSystemBlock = struct {
     cache_control: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     content: []const std.json.Value,
 };
 
 pub const BetaManagedAgentsMemoryStoreResourceConfig = struct {
     instructions: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     memory_store_id: []const u8,
     access: ?std.json.Value = null,
 };
 
 pub const BetaManagedAgentsModelRequestFailedError = struct {
     retry_status: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -2814,7 +2814,7 @@ pub const BetaManagedAgentsCredentialUpdateAuth = union(enum) {
 
 pub const BetaManagedAgentsAgentParams = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     version: ?i64 = null,
 };
 
@@ -2830,14 +2830,14 @@ pub const BetaManagedAgentsListSessionResources = struct {
 
 pub const BetaInputJsonContentBlockDelta = struct {
     partial_json: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseWebSearchResultBlock = struct {
     page_age: ?[]const u8,
     encrypted_content: []const u8,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
 };
 
@@ -2851,18 +2851,18 @@ pub const BetaManagedAgentsSessionThread = struct {
     agent: BetaManagedAgentsSessionThreadAgent,
     usage: BetaManagedAgentsSessionThreadUsage,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     updated_at: std.json.Value,
 };
 
 pub const BetaResponseToolReferenceBlock = struct {
     tool_name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsTokenEndpointAuthPostParam = struct {
     client_secret: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseToolSearchToolResultBlockContent = union(enum) {
@@ -2894,7 +2894,7 @@ pub const ResponseToolSearchToolResultBlockContent = union(enum) {
 
 pub const ResponseToolSearchToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ResponseToolSearchToolResultBlockContent,
 };
 
@@ -2908,19 +2908,19 @@ pub const BetaManagedAgentsAgentMcpToolResultEvent = struct {
     processed_at: std.json.Value,
     is_error: ?bool = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ?[]const BetaManagedAgentsToolResultContentBlock = null,
 };
 
 pub const BetaManagedAgentsEnvironmentNotFoundDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestTextEditorCodeExecutionStrReplaceResultBlock = struct {
     old_lines: ?i64 = null,
     new_lines: ?i64 = null,
     old_start: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
     lines: ?[]const []const u8 = null,
     new_start: ?i64 = null,
 };
@@ -2931,20 +2931,20 @@ pub const BetaRefusalStopDetails = struct {
     fallback_credit_token: ?[]const u8,
     fallback_has_prefill_claim: ?bool,
     recommended_model: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestBashCodeExecutionResultBlock = struct {
     content: []const RequestBashCodeExecutionOutputBlock,
     return_code: i64,
-    type: []const u8,
+    @"type": []const u8,
     stderr: []const u8,
     stdout: []const u8,
 };
 
 pub const BetaCloudConfigParams = struct {
     packages: ?BetaPackagesParams = null,
-    type: []const u8,
+    @"type": []const u8,
     networking: ?std.json.Value = null,
 };
 
@@ -2964,7 +2964,7 @@ pub const BetaFallbackMessageIterationUsage = struct {
     model: []const u8,
     output_tokens: i64,
     cache_creation_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
     cache_creation: ?BetaCacheCreation,
 };
 
@@ -2979,7 +2979,7 @@ pub const BetaResponseServerToolUseBlock = struct {
     id: []const u8,
     input: std.json.Value,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BashCodeExecutionToolResultErrorCode = []const u8;
@@ -2991,12 +2991,12 @@ pub const BetaBody_create_skill_v1_skills_post = struct {
 
 pub const InvalidRequestError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseCodeExecutionToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaEffortLevel = []const u8;
@@ -3031,7 +3031,7 @@ pub const BetaResponseWebFetchToolResultBlockContent = union(enum) {
 pub const BetaResponseWebFetchToolResultBlock = struct {
     tool_use_id: []const u8,
     caller: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseWebFetchToolResultBlockContent,
 };
 
@@ -3067,7 +3067,7 @@ pub const BetaResponseWebSearchToolResultBlockContent = union(enum) {
 pub const BetaResponseWebSearchToolResultBlock = struct {
     tool_use_id: []const u8,
     caller: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseWebSearchToolResultBlockContent,
 };
 
@@ -3077,7 +3077,7 @@ pub const BetaAdvisorMessageIterationUsage = struct {
     model: []const u8,
     output_tokens: i64,
     cache_creation_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
     cache_creation: ?BetaCacheCreation,
 };
 
@@ -3087,18 +3087,18 @@ pub const OutputConfig = struct {
 };
 
 pub const BetaManagedAgentsMemoryPreconditionFailedError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: ?[]const u8 = null,
 };
 
 pub const ResponseTextBlock = struct {
     text: []const u8,
     citations: ?[]const std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMemoryStoreArchivedDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CountMessageTokensParamsToolsItem = union(enum) {
@@ -3258,13 +3258,13 @@ pub const CountMessageTokensParams = struct {
 pub const BetaThinkingDisplayMode = []const u8;
 
 pub const BetaManagedAgentsSkillNotFoundRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const BetaManagedAgentsTokenEndpointAuthPostUpdateParam = struct {
     client_secret: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaServerToolUsage = struct {
@@ -3284,7 +3284,7 @@ pub const BetaLimitedNetwork = struct {
     allowed_hosts: []const []const u8,
     allow_mcp_servers: bool,
     allow_package_managers: bool,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CreateMessageParamsToolsItem = union(enum) {
@@ -3464,7 +3464,7 @@ pub const BetaManagedAgentsListMemoryStoresResponse = struct {
 };
 
 pub const BetaManagedAgentsMultiagentSelfParams = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestTextEditorCodeExecutionToolResultBlockContent = union(enum) {
@@ -3507,7 +3507,7 @@ pub const BetaRequestTextEditorCodeExecutionToolResultBlockContent = union(enum)
 pub const BetaRequestTextEditorCodeExecutionToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaRequestTextEditorCodeExecutionToolResultBlockContent,
 };
 
@@ -3570,7 +3570,7 @@ pub const BetaManagedAgentsEventParams = union(enum) {
 pub const BetaManagedAgentsStaticBearerCreateParams = struct {
     mcp_server_url: []const u8,
     token: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const Tool = struct {
@@ -3582,14 +3582,14 @@ pub const Tool = struct {
     description: ?[]const u8 = null,
     input_schema: InputSchema,
     name: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     eager_input_streaming: ?bool = null,
 };
 
 pub const BetaContentBlockDeltaEvent = struct {
     delta: std.json.Value,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaModelInfo = struct {
@@ -3600,7 +3600,7 @@ pub const BetaModelInfo = struct {
     display_name: []const u8,
     allowed_fallback_models: ?[]const []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BashTool_20250124 = struct {
@@ -3610,13 +3610,13 @@ pub const BashTool_20250124 = struct {
     allowed_callers: ?[]const AllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ThinkingDisplayMode = []const u8;
 
 pub const BetaExpiredResult = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaListUserProfilesResponse = struct {
@@ -3659,7 +3659,7 @@ pub const BetaManagedAgentsMemoryListItem = union(enum) {
 
 pub const BetaRequestToolSearchToolSearchResultBlock = struct {
     tool_references: []const BetaRequestToolReferenceBlock,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebFetchTool_20250910 = struct {
@@ -3673,13 +3673,13 @@ pub const WebFetchTool_20250910 = struct {
     citations: ?RequestCitationsConfig = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseFallbackBlock = struct {
     from: BetaResponseFallbackHopInfo,
     to: BetaResponseFallbackHopInfo,
-    type: []const u8,
+    @"type": []const u8,
     trigger: BetaFallbackRefusalTrigger,
 };
 
@@ -3716,32 +3716,32 @@ pub const BetaManagedAgentsCreateMemoryParams = struct {
 
 pub const BetaManagedAgentsDeletedMemory = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMultiagentCoordinator = struct {
     agents: []const BetaManagedAgentsAgentReference,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookSessionRequiresActionEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaWebhookSessionThreadCreatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
     session_thread_id: []const u8,
 };
 
 pub const BetaTextContentBlockDelta = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaMemoryTool_20250818_ViewCommand = struct {
@@ -3756,19 +3756,19 @@ pub const BetaDreamModelConfig = struct {
 };
 
 pub const BetaManagedAgentsMemoryStoreArchivedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const BetaDreamError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const BetaBase64PDFSource = struct {
     data: []const u8,
     media_type: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaToolChoice = union(enum) {
@@ -3857,14 +3857,14 @@ pub const BetaManagedAgentsAgentWithOverridesParams = struct {
     system: ?[]const u8 = null,
     model: ?[]const u8 = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     mcp_servers: ?[]const BetaManagedAgentsMCPServerParams = null,
 };
 
 pub const BetaRequestCompactionBlock = struct {
     cache_control: ?std.json.Value = null,
     encrypted_content: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     content: ?[]const u8 = null,
 };
 
@@ -3907,13 +3907,13 @@ pub const BetaManagedAgentsSessionStatusIdleEventStopReason = union(enum) {
 pub const BetaManagedAgentsSessionStatusIdleEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     stop_reason: BetaManagedAgentsSessionStatusIdleEventStopReason,
 };
 
 pub const ResponseBashCodeExecutionToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseWebSearchResultLocationCitation = struct {
@@ -3921,7 +3921,7 @@ pub const BetaResponseWebSearchResultLocationCitation = struct {
     encrypted_index: []const u8,
     cited_text: []const u8,
     title: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const Metadata = struct {
@@ -3929,12 +3929,12 @@ pub const Metadata = struct {
 };
 
 pub const BetaSelfHostedConfigParams = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaPermissionError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSpeed = []const u8;
@@ -3946,14 +3946,14 @@ pub const BetaContextManagementResponse = struct {
 pub const BetaManagedAgentsSessionThreadStatusRescheduledEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     agent_name: []const u8,
     session_thread_id: []const u8,
 };
 
 pub const BetaManagedAgentsEventStartEvent_AgentMessagePreview = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSpanModelUsage = struct {
@@ -3968,7 +3968,7 @@ pub const BetaToolSearchToolRegex_20251119 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const BetaAllowedCaller = null,
     name: []const u8,
 };
@@ -3976,7 +3976,7 @@ pub const BetaToolSearchToolRegex_20251119 = struct {
 pub const BetaManagedAgentsUserInterruptEvent = struct {
     processed_at: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     session_thread_id: ?[]const u8 = null,
 };
 
@@ -4015,7 +4015,7 @@ pub const BetaRequestToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
     is_error: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     content: ?BetaRequestToolResultBlockContent = null,
 };
 
@@ -4025,13 +4025,13 @@ pub const BetaManagedAgentsVault = struct {
     archived_at: std.json.Value,
     metadata: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     updated_at: []const u8,
 };
 
 pub const BetaCacheMissSystemChanged = struct {
     cache_missed_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaInputContentBlock = union(enum) {
@@ -4162,7 +4162,7 @@ pub const BetaInputContentBlock = union(enum) {
 };
 
 pub const BetaManagedAgentsDeploymentSystemMessageEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaManagedAgentsSystemContentBlock,
 };
 
@@ -4176,7 +4176,7 @@ pub const BetaManagedAgentsGitHubRepositoryResource = struct {
     checkout: ?BetaManagedAgentsRepositoryCheckout = null,
     url: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     mount_path: []const u8,
     updated_at: []const u8,
 };
@@ -4186,31 +4186,31 @@ pub const BetaManagedAgentsMemoryVersionOperation = []const u8;
 pub const BetaWebhookSessionThreadTerminatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
     session_thread_id: []const u8,
 };
 
 pub const ThinkingContentBlockDelta = struct {
     thinking: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestTextBlock = struct {
     text: []const u8,
     citations: ?[]const std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     cache_control: ?std.json.Value = null,
 };
 
 pub const BetaManagedAgentsTextBlock = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionMultiagentCoordinator = struct {
     agents: []const BetaManagedAgentsSessionThreadAgent,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsRubric = union(enum) {
@@ -4245,7 +4245,7 @@ pub const BetaManagedAgentsRubric = union(enum) {
 };
 
 pub const BetaManagedAgentsAgentArchivedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -4262,7 +4262,7 @@ pub const BetaBashTool_20241022 = struct {
     allowed_callers: ?[]const BetaAllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaDiagnostics = struct {
@@ -4283,14 +4283,14 @@ pub const BetaManagedAgentsAgent = struct {
     archived_at: std.json.Value,
     metadata: std.json.Value,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     mcp_servers: []const BetaManagedAgentsMCPServer,
 };
 
 pub const BetaManagedAgentsAgentThinkingEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaClearThinking20251015KeepVariant0 = std.json.Value;
@@ -4325,7 +4325,7 @@ pub const BetaClearThinking20251015Keep = union(enum) {
 };
 
 pub const BetaClearThinking20251015 = struct {
-    type: []const u8,
+    @"type": []const u8,
     keep: ?BetaClearThinking20251015Keep = null,
 };
 
@@ -4336,7 +4336,7 @@ pub const BetaPackages = struct {
     cargo: []const []const u8,
     pip: []const []const u8,
     gem: []const []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const BetaWebSearchTool_20250305 = struct {
@@ -4349,28 +4349,28 @@ pub const BetaWebSearchTool_20250305 = struct {
     user_location: ?BetaUserLocation = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ExpiredResult = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseTextEditorCodeExecutionToolResultError = struct {
     error_code: []const u8,
     error_message: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ThinkingConfigEnabled = struct {
     display: ?[]const u8 = null,
     budget_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseTextEditorCodeExecutionCreateResultBlock = struct {
     is_file_update: bool,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsRetryStatus = union(enum) {
@@ -4417,7 +4417,7 @@ pub const BetaManagedAgentsListAgentVersions = struct {
 pub const BetaWebhookSessionDeletedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -4493,7 +4493,7 @@ pub const ResponseCharLocationCitation = struct {
     document_index: i64,
     end_char_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     start_char_index: i64,
 };
 
@@ -4501,19 +4501,19 @@ pub const ResponseWebSearchResultBlock = struct {
     page_age: ?[]const u8,
     encrypted_content: []const u8,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
 };
 
 pub const BetaContentBlockStartEvent = struct {
     content_block: std.json.Value,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaAPIError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaContextManagementCapability = struct {
@@ -4529,7 +4529,7 @@ pub const BetaCreateTunnelCertificateRequestBody = struct {
 
 pub const BetaManagedAgentsFileDocumentSource = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCodeExecutionToolResultErrorCode = []const u8;
@@ -4541,7 +4541,7 @@ pub const BetaTunnelCertificate = struct {
     fingerprint: []const u8,
     archived_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestSearchResultLocationCitation = struct {
@@ -4551,12 +4551,12 @@ pub const BetaRequestSearchResultLocationCitation = struct {
     start_block_index: i64,
     cited_text: []const u8,
     title: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsLimitedCredentialNetworkingParams = struct {
     allowed_hosts: []const []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCreateAgentParams = struct {
@@ -4573,13 +4573,13 @@ pub const BetaManagedAgentsCreateAgentParams = struct {
 
 pub const BetaManagedAgentsImageBlock = struct {
     source: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsGitHubRepositoryResourceConfig = struct {
     url: []const u8,
     checkout: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     mount_path: ?[]const u8 = null,
 };
 
@@ -4587,7 +4587,7 @@ pub const BetaManagedAgentsAgentCustomToolUseEvent = struct {
     input: std.json.Value,
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     session_thread_id: ?[]const u8 = null,
 };
@@ -4639,18 +4639,18 @@ pub const BetaRequestCodeExecutionToolResultBlockContent = union(enum) {
 pub const BetaRequestCodeExecutionToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaRequestCodeExecutionToolResultBlockContent,
 };
 
 pub const BetaManagedAgentsSessionResourceNotFoundRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const BetaResponseAdvisorResultBlock = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     stop_reason: ?[]const u8,
 };
 
@@ -4664,11 +4664,11 @@ pub const WebSearchTool_20250305 = struct {
     user_location: ?UserLocation = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionRateLimitedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -4678,7 +4678,7 @@ pub const BetaManagedAgentsFileResource = struct {
     created_at: []const u8,
     file_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     mount_path: []const u8,
     updated_at: []const u8,
 };
@@ -4686,7 +4686,7 @@ pub const BetaManagedAgentsFileResource = struct {
 pub const BetaManagedAgentsSystemMessageEvent = struct {
     processed_at: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaManagedAgentsSystemContentBlock,
 };
 
@@ -4697,13 +4697,13 @@ pub const BetaMemoryTool_20250818 = struct {
     allowed_callers: ?[]const BetaAllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseTextEditorCodeExecutionToolResultError = struct {
     error_code: []const u8,
     error_message: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaJsonValue = std.json.Value;
@@ -4711,13 +4711,13 @@ pub const BetaJsonValue = std.json.Value;
 pub const BetaManagedAgentsPlainTextDocumentSource = struct {
     media_type: []const u8,
     data: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseCodeExecutionResultBlock = struct {
     content: []const BetaResponseCodeExecutionOutputBlock,
     return_code: i64,
-    type: []const u8,
+    @"type": []const u8,
     stderr: []const u8,
     stdout: []const u8,
 };
@@ -4736,13 +4736,13 @@ pub const BetaManagedAgentsSessionThreadUsage = struct {
 
 pub const RequestMidConvSystemBlock = struct {
     cache_control: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     content: []const std.json.Value,
 };
 
 pub const BetaSkill = struct {
     version: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     skill_id: []const u8,
 };
 
@@ -4752,7 +4752,7 @@ pub const BetaMetadata = struct {
 
 pub const BetaResponseCodeExecutionToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebSearchTool_20260209 = struct {
@@ -4765,14 +4765,14 @@ pub const WebSearchTool_20260209 = struct {
     user_location: ?UserLocation = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCodeExecutionTool_20260120 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const BetaAllowedCaller = null,
     name: []const u8,
 };
@@ -4806,7 +4806,7 @@ pub const BetaResponseToolSearchToolResultBlockContent = union(enum) {
 
 pub const BetaResponseToolSearchToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseToolSearchToolResultBlockContent,
 };
 
@@ -4875,7 +4875,7 @@ pub const BetaDreamInput = union(enum) {
 pub const Base64PDFSource = struct {
     data: []const u8,
     media_type: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TextEditor_20250124 = struct {
@@ -4885,7 +4885,7 @@ pub const TextEditor_20250124 = struct {
     allowed_callers: ?[]const AllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionResource = union(enum) {
@@ -4927,12 +4927,12 @@ pub const BetaManagedAgentsSessionResource = union(enum) {
 pub const BetaManagedAgentsCustomToolInputSchema = struct {
     properties: ?std.json.Value = null,
     required: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsEventStartEvent_AgentThinkingPreview = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsUserContentBlock = union(enum) {
@@ -4977,29 +4977,29 @@ pub const BetaMessageIterationUsage = struct {
     model: []const u8,
     output_tokens: i64,
     cache_creation_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
     cache_creation: ?BetaCacheCreation,
 };
 
 pub const BetaResponseClearThinking20251015Edit = struct {
     cleared_input_tokens: i64,
     cleared_thinking_turns: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMCPServerURLDefinition = struct {
     url: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsURLDocumentSource = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsTokenEndpointAuthBasicResponse = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestCounts = struct {
@@ -5013,7 +5013,7 @@ pub const BetaRequestCounts = struct {
 pub const BetaTextEditorCodeExecutionToolResultErrorCode = []const u8;
 
 pub const BetaManagedAgentsManualTriggerContext = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaMCPToolConfig = struct {
@@ -5023,23 +5023,23 @@ pub const BetaMCPToolConfig = struct {
 
 pub const BetaManagedAgentsStaticBearerAuthResponse = struct {
     mcp_server_url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAnthropicSkillParams = struct {
     version: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     skill_id: []const u8,
 };
 
 pub const BetaManagedAgentsSessionCreationRejectedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const BetaToolUsesTrigger = struct {
     value: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsInjectionLocationParams = struct {
@@ -5052,11 +5052,11 @@ pub const ResponseServerToolUseBlock = struct {
     id: []const u8,
     input: std.json.Value,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsWorkspaceArchivedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -5076,14 +5076,14 @@ pub const BetaManagedAgentsSpanOutcomeEvaluationEndEvent = struct {
     usage: BetaManagedAgentsSpanOutcomeEvaluationEndEventUsage,
     explanation: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     outcome_id: []const u8,
 };
 
 pub const BetaWebhookSessionPendingEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -5091,7 +5091,7 @@ pub const BetaWebhookVaultCredentialRefreshFailedEventData = struct {
     organization_id: []const u8,
     vault_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -5102,7 +5102,7 @@ pub const BetaPackagesParams = struct {
     cargo: ?[]const []const u8 = null,
     pip: ?[]const []const u8 = null,
     gem: ?[]const []const u8 = null,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const StopReason = []const u8;
@@ -5148,20 +5148,20 @@ pub const ResponseTextEditorCodeExecutionToolResultBlockContent = union(enum) {
 
 pub const ResponseTextEditorCodeExecutionToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ResponseTextEditorCodeExecutionToolResultBlockContent,
 };
 
 pub const BetaManagedAgentsMcpConnectionFailedError = struct {
     retry_status: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
     mcp_server_name: []const u8,
 };
 
 pub const RequestBashCodeExecutionOutputBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestContentBlockLocationCitation = struct {
@@ -5169,17 +5169,17 @@ pub const BetaRequestContentBlockLocationCitation = struct {
     start_block_index: i64,
     document_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
 pub const BetaAllThinkingTurns = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaJsonOutputFormat = struct {
     schema: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebSearchTool_20260318 = struct {
@@ -5193,13 +5193,13 @@ pub const WebSearchTool_20260318 = struct {
     user_location: ?UserLocation = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsUserMessageEvent = struct {
     processed_at: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaManagedAgentsUserContentBlock,
 };
 
@@ -5209,54 +5209,54 @@ pub const Betaapi__schemas__skills__Skill = struct {
     display_title: ?[]const u8,
     id: []const u8,
     latest_version: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
     updated_at: []const u8,
 };
 
 pub const PlainTextSource = struct {
     data: []const u8,
     media_type: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestToolReferenceBlock = struct {
     tool_name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     cache_control: ?std.json.Value = null,
 };
 
 pub const RequestCodeExecutionOutputBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const NotFoundError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookSessionOutcomeEvaluationEndedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaThinkingConfigAdaptive = struct {
     display: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookAgentUpdatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaManagedAgentsErrorDeploymentPausedReason = struct {
     @"error": std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaThinkingTypes = struct {
@@ -5272,7 +5272,7 @@ pub const BetaGetSkillVersionResponse = struct {
     description: []const u8,
     id: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaContentBlock = union(enum) {
@@ -5386,19 +5386,19 @@ pub const BetaClearToolUses20250919 = struct {
     trigger: ?std.json.Value = null,
     exclude_tools: ?[]const []const u8 = null,
     clear_at_least: ?BetaInputTokensClearAtLeast = null,
-    type: []const u8,
+    @"type": []const u8,
     clear_tool_inputs: std.json.Value = null,
     keep: ?std.json.Value = null,
 };
 
 pub const BetaDreamSessionsInput = struct {
     session_ids: []const []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsDeploymentRunAgent = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     version: i64,
 };
 
@@ -5410,7 +5410,7 @@ pub const BetaManagedAgentsDeploymentRun = struct {
     trigger_context: std.json.Value,
     agent: BetaManagedAgentsDeploymentRunAgent,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaOutputTokensDetails = struct {
@@ -5420,7 +5420,7 @@ pub const BetaOutputTokensDetails = struct {
 pub const BetaResponseWebFetchResultBlock = struct {
     retrieved_at: ?[]const u8,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseDocumentBlock,
 };
 
@@ -5432,7 +5432,7 @@ pub const BetaMessageBatch = struct {
     archived_at: ?[]const u8,
     ended_at: ?[]const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     results_url: ?[]const u8,
     processing_status: []const u8,
 };
@@ -5440,18 +5440,18 @@ pub const BetaMessageBatch = struct {
 pub const RefusalStopDetails = struct {
     category: ?[]const u8,
     explanation: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMemoryPathConflictError = struct {
     conflicting_path: ?[]const u8 = null,
     conflicting_memory_id: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     message: ?[]const u8 = null,
 };
 
 pub const BetaCacheMissUnavailable = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsDeploymentInitialEvent = union(enum) {
@@ -5498,7 +5498,7 @@ pub const TextEditor_20250728 = struct {
     cache_control: ?std.json.Value = null,
     max_characters: ?i64 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaEnvironmentListResponse = struct {
@@ -5513,19 +5513,19 @@ pub const BetaManagedAgentsOutcomeEvaluationResource = struct {
     description: []const u8,
     outcome_id: []const u8,
     explanation: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookDeploymentUnpausedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const ResponseTextEditorCodeExecutionCreateResultBlock = struct {
     is_file_update: bool,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ErrorType = []const u8;
@@ -5533,31 +5533,31 @@ pub const ErrorType = []const u8;
 pub const BetaManagedAgentsAgentMessageEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaManagedAgentsTextBlock,
 };
 
 pub const WebFetchToolResultErrorCode = []const u8;
 
 pub const MessageStopEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookDeploymentPausedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const OverloadedError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsFileResourceParams = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     mount_path: ?[]const u8 = null,
 };
 
@@ -5624,7 +5624,7 @@ pub const BetaManagedAgentsEnvironmentVariableAuthResponseInjectionLocation = st
 
 pub const BetaManagedAgentsEnvironmentVariableAuthResponse = struct {
     injection_location: BetaManagedAgentsEnvironmentVariableAuthResponseInjectionLocation,
-    type: []const u8,
+    @"type": []const u8,
     secret_name: []const u8,
     networking: std.json.Value,
 };
@@ -5635,7 +5635,7 @@ pub const BetaManagedAgentsListAgents = struct {
 };
 
 pub const ServerToolCaller_20260120 = struct {
-    type: []const u8,
+    @"type": []const u8,
     tool_id: []const u8,
 };
 
@@ -5650,12 +5650,12 @@ pub const BetaResponseMCPToolUseBlock = struct {
     id: []const u8,
     input: std.json.Value,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaToolChoiceAuto = struct {
     disable_parallel_tool_use: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCreateMemoryStoreRequest = struct {
@@ -5667,7 +5667,7 @@ pub const BetaManagedAgentsCreateMemoryStoreRequest = struct {
 pub const BetaWebhookDeploymentDeletedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -5678,14 +5678,14 @@ pub const BetaListDreamsResponse = struct {
 
 pub const BetaManagedAgentsUserCustomToolResultEventParams = struct {
     is_error: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     custom_tool_use_id: []const u8,
     content: ?[]const BetaManagedAgentsToolResultContentBlock = null,
 };
 
 pub const BetaManagedAgentsBranchCheckout = struct {
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMcpOauthAuthResponseRefreshTokenEndpointAuth = union(enum) {
@@ -5736,18 +5736,18 @@ pub const BetaManagedAgentsMcpOauthAuthResponse = struct {
     mcp_server_url: []const u8,
     expires_at: ?[]const u8 = null,
     refresh: ?BetaManagedAgentsMcpOauthAuthResponseRefresh = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaBase64ImageSource = struct {
     data: []const u8,
     media_type: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaDeleteMessageBatchResponse = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentToolUseEvent = struct {
@@ -5755,7 +5755,7 @@ pub const BetaManagedAgentsAgentToolUseEvent = struct {
     session_thread_id: ?[]const u8 = null,
     evaluated_permission: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     input: std.json.Value,
 };
@@ -5765,7 +5765,7 @@ pub const BetaManagedAgentsUserCustomToolResultEvent = struct {
     session_thread_id: ?[]const u8 = null,
     is_error: ?bool = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     custom_tool_use_id: []const u8,
     content: ?[]const BetaManagedAgentsToolResultContentBlock = null,
 };
@@ -5781,7 +5781,7 @@ pub const BetaPublicEnvironmentCreateRequest = struct {
 pub const BetaRequestThinkingBlock = struct {
     thinking: []const u8,
     signature: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentToolset20260401_EditInput = struct {
@@ -5793,7 +5793,7 @@ pub const BetaManagedAgentsAgentToolset20260401_EditInput = struct {
 
 pub const BetaEnvironmentDeleteResponse = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseTextEditorCodeExecutionToolResultBlockContent = union(enum) {
@@ -5835,18 +5835,18 @@ pub const BetaResponseTextEditorCodeExecutionToolResultBlockContent = union(enum
 
 pub const BetaResponseTextEditorCodeExecutionToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseTextEditorCodeExecutionToolResultBlockContent,
 };
 
 pub const RequestToolSearchToolSearchResultBlock = struct {
     tool_references: []const RequestToolReferenceBlock,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsDeletedVault = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsTriggerType = []const u8;
@@ -5859,13 +5859,13 @@ pub const BetaMessageBatchIndividualRequestParams = struct {
 pub const BetaWebhookSessionIdledEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaManagedAgentsCommitCheckout = struct {
     sha: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseCitationsConfig = struct {
@@ -5875,13 +5875,13 @@ pub const ResponseCitationsConfig = struct {
 pub const BetaManagedAgentsUserToolResultEventParams = struct {
     tool_use_id: []const u8,
     is_error: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     content: ?[]const BetaManagedAgentsToolResultContentBlock = null,
 };
 
 pub const BetaManagedAgentsModel = union(enum) {
     null,
-    bool: bool,
+    @"bool": bool,
     integer: i64,
     float: f64,
     number_string: []const u8,
@@ -5932,7 +5932,7 @@ pub const BetaManagedAgentsModel = union(enum) {
 pub const BetaWebhookDeploymentCreatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -5986,19 +5986,19 @@ pub const BetaListResponse_ModelInfo_ = struct {
 
 pub const BetaResponseCompactionBlock = struct {
     encrypted_content: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ?[]const u8,
 };
 
 pub const ResponseThinkingBlock = struct {
     thinking: []const u8,
     signature: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ToolChoiceAny = struct {
     disable_parallel_tool_use: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionErrorEventError = union(enum) {
@@ -6066,12 +6066,12 @@ pub const BetaManagedAgentsSessionErrorEvent = struct {
     @"error": BetaManagedAgentsSessionErrorEventError,
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const APIError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const MessageStreamEvent = union(enum) {
@@ -6123,7 +6123,7 @@ pub const MessageStreamEvent = union(enum) {
 
 pub const BetaManagedAgentsMemoryStoreResourceParam = struct {
     instructions: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     memory_store_id: []const u8,
     access: ?std.json.Value = null,
 };
@@ -6132,12 +6132,12 @@ pub const BetaWebhookVaultCredentialArchivedEventData = struct {
     organization_id: []const u8,
     vault_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaManagedAgentsOrganizationDisabledRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -6183,13 +6183,13 @@ pub const ResponseWebFetchToolResultBlockContent = union(enum) {
 pub const ResponseWebFetchToolResultBlock = struct {
     tool_use_id: []const u8,
     caller: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     content: ResponseWebFetchToolResultBlockContent,
 };
 
 pub const BetaManagedAgentsMcpAuthenticationFailedError = struct {
     retry_status: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
     mcp_server_name: []const u8,
 };
@@ -6277,7 +6277,7 @@ pub const BetaManagedAgentsCredentialHostUnreachableError = struct {
     credential_id: []const u8,
     vault_id: []const u8,
     retry_status: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -6286,7 +6286,7 @@ pub const BetaRequestWebSearchResultLocationCitation = struct {
     encrypted_index: []const u8,
     cited_text: []const u8,
     title: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsEventDeltaEvent_Delta = union(enum) {
@@ -6320,18 +6320,18 @@ pub const RequestCharLocationCitation = struct {
     start_char_index: i64,
     document_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
 pub const BetaManagedAgentsDeletedSession = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsURLImageSource = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestCharLocationCitation = struct {
@@ -6339,7 +6339,7 @@ pub const BetaRequestCharLocationCitation = struct {
     start_char_index: i64,
     document_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
@@ -6348,19 +6348,19 @@ pub const RequestWebSearchResultLocationCitation = struct {
     encrypted_index: []const u8,
     cited_text: []const u8,
     title: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseContainerUploadBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaStopReason = []const u8;
 
 pub const RateLimitError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentThreadMessageReceivedEvent = struct {
@@ -6368,22 +6368,22 @@ pub const BetaManagedAgentsAgentThreadMessageReceivedEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
     from_session_thread_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     from_agent_name: ?[]const u8 = null,
 };
 
 pub const BetaManagedAgentsMcpEgressBlockedDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestImageBlock = struct {
     source: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     cache_control: ?std.json.Value = null,
 };
 
 pub const DirectCaller = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaMemoryTool_20250818_CreateCommand = struct {
@@ -6396,14 +6396,14 @@ pub const BetaResponseTextEditorCodeExecutionStrReplaceResultBlock = struct {
     old_lines: ?i64,
     new_lines: ?i64,
     old_start: ?i64,
-    type: []const u8,
+    @"type": []const u8,
     lines: ?[]const []const u8,
     new_start: ?i64,
 };
 
 pub const RequestWebFetchToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSearchResultBlockCitations = struct {
@@ -6413,14 +6413,14 @@ pub const BetaManagedAgentsSearchResultBlockCitations = struct {
 pub const BetaManagedAgentsSearchResultBlock = struct {
     source: []const u8,
     citations: BetaManagedAgentsSearchResultBlockCitations,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
     content: []const BetaManagedAgentsSearchResultContent,
 };
 
 pub const BetaRequestTextEditorCodeExecutionCreateResultBlock = struct {
     is_file_update: bool,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseContextManagement = struct {
@@ -6429,11 +6429,11 @@ pub const BetaResponseContextManagement = struct {
 
 pub const BetaInvalidRequestError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ThinkingConfigDisabled = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaComputerUseTool_20241022 = struct {
@@ -6446,21 +6446,21 @@ pub const BetaComputerUseTool_20241022 = struct {
     display_number: ?i64 = null,
     strict: ?bool = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const DeleteMessageBatchResponse = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaSignatureContentBlockDelta = struct {
     signature: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaSelfHostedConfig = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebFetchTool_20250910 = struct {
@@ -6474,7 +6474,7 @@ pub const BetaWebFetchTool_20250910 = struct {
     citations: ?BetaRequestCitationsConfig = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseToolUseBlock = struct {
@@ -6482,7 +6482,7 @@ pub const BetaResponseToolUseBlock = struct {
     id: []const u8,
     input: std.json.Value,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMemoryStoreResource = struct {
@@ -6491,7 +6491,7 @@ pub const BetaManagedAgentsMemoryStoreResource = struct {
     access: ?std.json.Value = null,
     description: ?[]const u8 = null,
     name: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     mount_path: ?[]const u8 = null,
 };
 
@@ -6501,19 +6501,19 @@ pub const BetaSelfHostedWorkStopRequest = struct {
 
 pub const BetaRequestWebFetchToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookVaultDeletedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const Model = union(enum) {
     null,
-    bool: bool,
+    @"bool": bool,
     integer: i64,
     float: f64,
     number_string: []const u8,
@@ -6600,14 +6600,14 @@ pub const BetaManagedAgentsEnvironmentVariableCreateParamsInjectionLocation = st
 pub const BetaManagedAgentsEnvironmentVariableCreateParams = struct {
     secret_value: []const u8,
     injection_location: ?BetaManagedAgentsEnvironmentVariableCreateParamsInjectionLocation = null,
-    type: []const u8,
+    @"type": []const u8,
     networking: std.json.Value,
     secret_name: []const u8,
 };
 
 pub const BetaResponseWebFetchToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsModelConfig = struct {
@@ -6617,7 +6617,7 @@ pub const BetaManagedAgentsModelConfig = struct {
 
 pub const BetaRequestCodeExecutionOutputBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ContentBlockSourceContentVariant0 = []const u8;
@@ -6652,7 +6652,7 @@ pub const ContentBlockSourceContent = union(enum) {
 };
 
 pub const ContentBlockSource = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: ContentBlockSourceContent,
 };
 
@@ -6660,7 +6660,7 @@ pub const ToolSearchToolRegex_20251119 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const AllowedCaller = null,
     name: []const u8,
 };
@@ -6699,14 +6699,14 @@ pub const BetaManagedAgentsMultiagentRosterEntryParams = union(enum) {
 pub const BetaManagedAgentsGitHubRepositoryResourceParams = struct {
     url: []const u8,
     checkout: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     mount_path: ?[]const u8 = null,
     authorization_token: []const u8,
 };
 
 pub const BetaRequestContainerUploadBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     cache_control: ?std.json.Value = null,
 };
 
@@ -6763,27 +6763,27 @@ pub const BetaMemoryTool_20250818_Command = union(enum) {
 
 pub const BetaManagedAgentsSearchResultContent = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionThreadStatusTerminatedEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     agent_name: []const u8,
     session_thread_id: []const u8,
 };
 
 pub const BetaSessionWorkData = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaLimitedNetworkParams = struct {
     allowed_hosts: ?[]const []const u8 = null,
     allow_mcp_servers: ?bool = null,
     allow_package_managers: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestPageLocationCitation = struct {
@@ -6791,7 +6791,7 @@ pub const BetaRequestPageLocationCitation = struct {
     document_index: i64,
     start_page_number: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
@@ -6799,7 +6799,7 @@ pub const BetaCodeExecutionTool_20260521 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const BetaAllowedCaller = null,
     name: []const u8,
 };
@@ -6811,18 +6811,18 @@ pub const BetaTextEditor_20241022 = struct {
     allowed_callers: ?[]const BetaAllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ErrorResponse = struct {
     @"error": std.json.Value,
     request_id: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAnthropicSkill = struct {
     version: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     skill_id: []const u8,
 };
 
@@ -6860,14 +6860,14 @@ pub const BetaManagedAgentsPermissionPolicy = union(enum) {
 pub const BetaManagedAgentsMCPToolset = struct {
     default_config: BetaManagedAgentsMCPToolsetDefaultConfig,
     mcp_server_name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     configs: []const BetaManagedAgentsMCPToolConfig,
 };
 
 pub const BetaManagedAgentsSessionDeletedEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsUpdateDeploymentParams = struct {
@@ -6909,7 +6909,7 @@ pub const BetaManagedAgentsUpdateMemoryStoreResponse = union(enum) {
 };
 
 pub const BetaServerToolCaller_20260120 = struct {
-    type: []const u8,
+    @"type": []const u8,
     tool_id: []const u8,
 };
 
@@ -6926,28 +6926,28 @@ pub const RequestToolUseBlock = struct {
     cache_control: ?std.json.Value = null,
     caller: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: std.json.Value,
     name: []const u8,
 };
 
 pub const BetaManagedAgentsUserActor = struct {
     user_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestWebSearchResultBlock = struct {
     page_age: ?[]const u8 = null,
     encrypted_content: []const u8,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
 };
 
 pub const ContentBlockDeltaEvent = struct {
     delta: std.json.Value,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSession = struct {
@@ -6965,7 +6965,7 @@ pub const BetaManagedAgentsSession = struct {
     agent: BetaManagedAgentsSessionAgent,
     metadata: std.json.Value,
     vault_ids: []const []const u8,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
 };
 
@@ -7000,12 +7000,12 @@ pub const BetaRequestWebFetchToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
     caller: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaRequestWebFetchToolResultBlockContent,
 };
 
 pub const CanceledResult = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaUserProfile = struct {
@@ -7015,7 +7015,7 @@ pub const BetaUserProfile = struct {
     trust_grants: std.json.Value,
     metadata: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: ?[]const u8 = null,
     updated_at: std.json.Value,
 };
@@ -7047,7 +7047,7 @@ pub const BetaManagedAgentsMultiagent = union(enum) {
 };
 
 pub const BetaCacheMissPreviousMessageNotFound = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TextEditor_20250429 = struct {
@@ -7057,14 +7057,14 @@ pub const TextEditor_20250429 = struct {
     allowed_callers: ?[]const AllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ToolSearchToolBM25_20251119 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const AllowedCaller = null,
     name: []const u8,
 };
@@ -7083,7 +7083,7 @@ pub const BetaTool = struct {
     description: ?[]const u8 = null,
     input_schema: BetaInputSchema,
     name: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
     eager_input_streaming: ?bool = null,
 };
 
@@ -7095,7 +7095,7 @@ pub const BetaManagedAgentsAgentToolset20260401_GlobInput = struct {
 pub const BetaManagedAgentsBase64DocumentSource = struct {
     media_type: []const u8,
     data: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseMcptoolResultBlockContentVariant0 = []const u8;
@@ -7132,24 +7132,24 @@ pub const BetaResponseMcptoolResultBlockContent = union(enum) {
 pub const BetaResponseMCPToolResultBlock = struct {
     tool_use_id: []const u8,
     is_error: bool,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaResponseMcptoolResultBlockContent,
 };
 
 pub const BetaManagedAgentsDeletedMemoryStore = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionActor = struct {
-    type: []const u8,
+    @"type": []const u8,
     session_id: []const u8,
 };
 
 pub const BetaResponseBashCodeExecutionResultBlock = struct {
     content: []const BetaResponseBashCodeExecutionOutputBlock,
     return_code: i64,
-    type: []const u8,
+    @"type": []const u8,
     stderr: []const u8,
     stdout: []const u8,
 };
@@ -7203,13 +7203,13 @@ pub const BetaListSkillVersionsResponse = struct {
 
 pub const BetaResponseWebSearchToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookDeploymentUpdatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -7253,7 +7253,7 @@ pub const BetaRequestMCPServerURLDefinition = struct {
     url: []const u8,
     tool_configuration: ?BetaRequestMCPServerToolConfiguration = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     authorization_token: ?[]const u8 = null,
 };
 
@@ -7457,13 +7457,13 @@ pub const BetaManagedAgentsMCPToolConfig = struct {
 pub const BetaWebhookSessionStatusRunStartedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const ResponseWebSearchToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const Usage = struct {
@@ -7481,7 +7481,7 @@ pub const Usage = struct {
 pub const BetaManagedAgentsSpanModelRequestStartEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCreateCredentialRequestBody = struct {
@@ -7527,13 +7527,13 @@ pub const BetaManagedAgentsSessionResourceConfig = union(enum) {
 };
 
 pub const BetaMessageStopEvent = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsDocumentBlock = struct {
     source: std.json.Value,
     context: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     title: ?[]const u8 = null,
 };
 
@@ -7542,16 +7542,16 @@ pub const CompletionResponse = struct {
     id: []const u8,
     model: []const u8,
     stop_reason: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseWebFetchToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsEnvironmentNotFoundRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -7562,14 +7562,14 @@ pub const BetaResponseSearchResultLocationCitation = struct {
     start_block_index: i64,
     cited_text: []const u8,
     title: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseEncryptedCodeExecutionResultBlock = struct {
     encrypted_stdout: []const u8,
     return_code: i64,
     stderr: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaResponseCodeExecutionOutputBlock,
 };
 
@@ -7583,7 +7583,7 @@ pub const BetaAdvisorTool_20260301 = struct {
     cache_control: ?std.json.Value = null,
     model: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestTextEditorCodeExecutionViewResultBlock = struct {
@@ -7591,7 +7591,7 @@ pub const RequestTextEditorCodeExecutionViewResultBlock = struct {
     file_type: []const u8,
     num_lines: ?i64 = null,
     start_line: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -7599,21 +7599,21 @@ pub const BetaRequestDocumentBlock = struct {
     source: std.json.Value,
     context: ?[]const u8 = null,
     citations: ?BetaRequestCitationsConfig = null,
-    type: []const u8,
+    @"type": []const u8,
     title: ?[]const u8 = null,
     cache_control: ?std.json.Value = null,
 };
 
 pub const BetaURLPDFSource = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestServerToolUseBlock = struct {
     cache_control: ?std.json.Value = null,
     caller: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: std.json.Value,
     name: []const u8,
 };
@@ -7621,7 +7621,7 @@ pub const BetaRequestServerToolUseBlock = struct {
 pub const BetaManagedAgentsUserToolConfirmationEventParams = struct {
     tool_use_id: []const u8,
     result: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     deny_message: ?[]const u8 = null,
 };
 
@@ -7634,25 +7634,25 @@ pub const BetaManagedAgentsAgentEvaluatedPermission = []const u8;
 
 pub const ToolChoiceAuto = struct {
     disable_parallel_tool_use: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsFileNotFoundRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const BetaRequestFallbackBlock = struct {
     from: BetaRequestFallbackHopInfo,
     to: BetaRequestFallbackHopInfo,
-    type: []const u8,
+    @"type": []const u8,
     trigger: ?std.json.Value = null,
 };
 
 pub const BetaInputSchema = struct {
     properties: ?std.json.Value = null,
     required: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebSearchToolResultErrorCode = []const u8;
@@ -7666,14 +7666,14 @@ pub const BetaMCPToolset = struct {
     cache_control: ?std.json.Value = null,
     default_config: ?BetaMCPToolDefaultConfig = null,
     mcp_server_name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     configs: ?std.json.Value = null,
 };
 
 pub const RequestTextEditorCodeExecutionToolResultError = struct {
     error_code: []const u8,
     error_message: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsListDeploymentsData = struct {
@@ -7691,13 +7691,13 @@ pub const BetaFileListResponse = struct {
 pub const BetaWebhookSessionArchivedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaBillingError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestToolSearchToolResultBlockContent = union(enum) {
@@ -7730,7 +7730,7 @@ pub const RequestToolSearchToolResultBlockContent = union(enum) {
 pub const RequestToolSearchToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: RequestToolSearchToolResultBlockContent,
 };
 
@@ -7800,7 +7800,7 @@ pub const BetaRequestEncryptedCodeExecutionResultBlock = struct {
     encrypted_stdout: []const u8,
     return_code: i64,
     stderr: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaRequestCodeExecutionOutputBlock,
 };
 
@@ -7839,7 +7839,7 @@ pub const BetaRequestMCPToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
     is_error: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     content: ?BetaRequestMcptoolResultBlockContent = null,
 };
 
@@ -7847,7 +7847,7 @@ pub const RequestDocumentBlock = struct {
     source: std.json.Value,
     context: ?[]const u8 = null,
     citations: ?RequestCitationsConfig = null,
-    type: []const u8,
+    @"type": []const u8,
     title: ?[]const u8 = null,
     cache_control: ?std.json.Value = null,
 };
@@ -7855,13 +7855,13 @@ pub const RequestDocumentBlock = struct {
 pub const BetaWebhookVaultCreatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
 pub const BetaCloudConfig = struct {
     packages: BetaPackages,
-    type: []const u8,
+    @"type": []const u8,
     networking: std.json.Value,
 };
 
@@ -7900,7 +7900,7 @@ pub const BetaRequestAdvisorToolResultBlockContent = union(enum) {
 pub const BetaRequestAdvisorToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaRequestAdvisorToolResultBlockContent,
 };
 
@@ -7916,19 +7916,19 @@ pub const Container = struct {
 
 pub const BetaManagedAgentsFileImageSource = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCompactionContentBlockDelta = struct {
     encrypted_content: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ?[]const u8,
 };
 
 pub const BetaManagedAgentsSessionStatusRescheduledEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaModelCapabilities = struct {
@@ -7945,7 +7945,7 @@ pub const BetaModelCapabilities = struct {
 
 pub const BetaManagedAgentsScheduleTriggerContext = struct {
     scheduled_at: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentToolset20260401_BashInput = struct {
@@ -7956,7 +7956,7 @@ pub const BetaManagedAgentsAgentToolset20260401_BashInput = struct {
 
 pub const BetaRateLimitError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMcpOauthUpdateParamsRefreshTokenEndpointAuth = union(enum) {
@@ -8000,7 +8000,7 @@ pub const BetaManagedAgentsMcpOauthUpdateParams = struct {
     access_token: ?[]const u8 = null,
     expires_at: ?[]const u8 = null,
     refresh: ?BetaManagedAgentsMcpOauthUpdateParamsRefresh = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ModelInfo = struct {
@@ -8010,42 +8010,42 @@ pub const ModelInfo = struct {
     max_input_tokens: ?i64,
     display_name: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionStatusRunningEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestWebFetchResultBlock = struct {
     retrieved_at: ?[]const u8 = null,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: RequestDocumentBlock,
 };
 
 pub const ResponseRedactedThinkingBlock = struct {
     data: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsLimitedCredentialNetworkingResponse = struct {
     allowed_hosts: []const []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestContainerUploadBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     cache_control: ?std.json.Value = null,
 };
 
 pub const ResponseCodeExecutionResultBlock = struct {
     content: []const ResponseCodeExecutionOutputBlock,
     return_code: i64,
-    type: []const u8,
+    @"type": []const u8,
     stderr: []const u8,
     stdout: []const u8,
 };
@@ -8082,7 +8082,7 @@ pub const BetaManagedAgentsDeploymentPausedReason = union(enum) {
 };
 
 pub const BetaManagedAgentsTextRubric = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -8090,14 +8090,14 @@ pub const BetaSelfHostedWorkQueueStats = struct {
     oldest_queued_at: ?[]const u8,
     depth: i64,
     workers_polling: ?i64,
-    type: []const u8,
+    @"type": []const u8,
     pending: i64,
 };
 
 pub const BetaResponseThinkingBlock = struct {
     thinking: []const u8,
     signature: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCreateSessionAgentUnionParamsVariant0 = []const u8;
@@ -8133,7 +8133,7 @@ pub const BetaManagedAgentsCreateSessionAgentUnionParams = union(enum) {
 
 pub const BetaManagedAgentsContentSha256Precondition = struct {
     content_sha256: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaTimestamp = []const u8;
@@ -8190,7 +8190,7 @@ pub const BetaManagedAgentsMcpOauthRefreshParams = struct {
 pub const BetaCompact20260112 = struct {
     pause_after_compaction: ?bool = null,
     instructions: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     trigger: ?BetaInputTokensTrigger = null,
 };
 
@@ -8203,7 +8203,7 @@ pub const BetaManagedAgentsMemory = struct {
     content_sha256: []const u8,
     path: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     updated_at: std.json.Value,
 };
 
@@ -8211,7 +8211,7 @@ pub const ResponseEncryptedCodeExecutionResultBlock = struct {
     encrypted_stdout: []const u8,
     return_code: i64,
     stderr: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const ResponseCodeExecutionOutputBlock,
 };
 
@@ -8244,7 +8244,7 @@ pub const ResponseBashCodeExecutionToolResultBlockContent = union(enum) {
 
 pub const ResponseBashCodeExecutionToolResultBlock = struct {
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ResponseBashCodeExecutionToolResultBlockContent,
 };
 
@@ -8257,7 +8257,7 @@ pub const BetaManagedAgentsSessionAgent = struct {
     system: []const u8,
     model: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     mcp_servers: []const BetaManagedAgentsMCPServer,
 };
@@ -8271,31 +8271,31 @@ pub const MessageDelta = struct {
 
 pub const SignatureContentBlockDelta = struct {
     signature: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestWebSearchToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestServerToolUseBlock = struct {
     cache_control: ?std.json.Value = null,
     caller: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: std.json.Value,
     name: []const u8,
 };
 
 pub const BetaFallbackRefusalTrigger = struct {
     category: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestRedactedThinkingBlock = struct {
     data: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentToolset20260401ParamsDefaultConfig = struct {
@@ -8305,7 +8305,7 @@ pub const BetaManagedAgentsAgentToolset20260401ParamsDefaultConfig = struct {
 
 pub const BetaManagedAgentsAgentToolset20260401Params = struct {
     default_config: ?BetaManagedAgentsAgentToolset20260401ParamsDefaultConfig = null,
-    type: []const u8,
+    @"type": []const u8,
     configs: ?[]const BetaManagedAgentsAgentToolConfigParams = null,
 };
 
@@ -8320,7 +8320,7 @@ pub const BetaComputerUseTool_20251124 = struct {
     enable_zoom: ?bool = null,
     strict: ?bool = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsUpdateAgentParams = struct {
@@ -8412,7 +8412,7 @@ pub const BetaDreamModelParams = union(enum) {
 };
 
 pub const BetaCanceledResult = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionThreadStatusIdleEventStopReason = union(enum) {
@@ -8455,7 +8455,7 @@ pub const BetaManagedAgentsSessionThreadStatusIdleEvent = struct {
     session_thread_id: []const u8,
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     stop_reason: BetaManagedAgentsSessionThreadStatusIdleEventStopReason,
     agent_name: []const u8,
 };
@@ -8467,7 +8467,7 @@ pub const CountMessageTokensResponse = struct {
 pub const BetaWebhookDeploymentArchivedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -8481,7 +8481,7 @@ pub const BetaComputerUseTool_20250124 = struct {
     display_number: ?i64 = null,
     strict: ?bool = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCountMessageTokensResponse = struct {
@@ -8584,14 +8584,14 @@ pub const RequestEncryptedCodeExecutionResultBlock = struct {
     encrypted_stdout: []const u8,
     return_code: i64,
     stderr: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: []const RequestCodeExecutionOutputBlock,
 };
 
 pub const ContentBlockStartEvent = struct {
     content_block: std.json.Value,
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaInputMessageContentVariant0 = []const u8;
@@ -8632,12 +8632,12 @@ pub const BetaInputMessage = struct {
 
 pub const BetaCacheMissToolsChanged = struct {
     cache_missed_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCacheControlEphemeral = struct {
     ttl: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsInjectionLocationResponse = struct {
@@ -8646,11 +8646,11 @@ pub const BetaManagedAgentsInjectionLocationResponse = struct {
 };
 
 pub const BetaManagedAgentsTokenEndpointAuthNoneParam = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsTokenEndpointAuthNoneResponse = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseFallbackHopInfo = struct {
@@ -8665,17 +8665,17 @@ pub const BetaSkillVersion = struct {
     description: []const u8,
     id: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestBashCodeExecutionToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestAdvisorResultBlock = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     stop_reason: ?[]const u8 = null,
 };
 
@@ -8685,7 +8685,7 @@ pub const BetaGetSkillResponse = struct {
     display_title: ?[]const u8,
     id: []const u8,
     latest_version: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
     updated_at: []const u8,
 };
 
@@ -8717,7 +8717,7 @@ pub const BetaManagedAgentsSystemContentBlock = union(enum) {
 
 pub const BetaManagedAgentsEventStartEvent = struct {
     event: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsEventStartEvent_Event = union(enum) {
@@ -8753,20 +8753,20 @@ pub const BetaManagedAgentsEventStartEvent_Event = union(enum) {
 
 pub const BetaResponseBashCodeExecutionToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSessionThreadCreatedEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     agent_name: []const u8,
     session_thread_id: []const u8,
 };
 
 pub const BetaFileDeleteResponse = struct {
     id: []const u8,
-    type: ?[]const u8 = null,
+    @"type": ?[]const u8 = null,
 };
 
 pub const RequestBashCodeExecutionToolResultBlockContent = union(enum) {
@@ -8799,7 +8799,7 @@ pub const RequestBashCodeExecutionToolResultBlockContent = union(enum) {
 pub const RequestBashCodeExecutionToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: RequestBashCodeExecutionToolResultBlockContent,
 };
 
@@ -9004,12 +9004,12 @@ pub const BetaManagedAgentsSpanOutcomeEvaluationOngoingEvent = struct {
     processed_at: std.json.Value,
     iteration: i64,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     outcome_id: []const u8,
 };
 
 pub const BetaManagedAgentsSessionResourceNotFoundDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ModelCapabilities = struct {
@@ -9032,14 +9032,14 @@ pub const BetaCreateSkillVersionResponse = struct {
     description: []const u8,
     id: []const u8,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestSearchResultBlock = struct {
     source: []const u8,
     cache_control: ?std.json.Value = null,
     citations: ?RequestCitationsConfig = null,
-    type: []const u8,
+    @"type": []const u8,
     title: []const u8,
     content: []const RequestTextBlock,
 };
@@ -9052,7 +9052,7 @@ pub const BetaFileMetadataSchema = struct {
     filename: []const u8,
     size_bytes: i64,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaIterationsUsage = ?[]const std.json.Value;
@@ -9067,25 +9067,25 @@ pub const BetaSelfHostedWork = struct {
     data: BetaSessionWorkData,
     metadata: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     acknowledged_at: ?[]const u8,
     stop_requested_at: ?[]const u8,
 };
 
 pub const AuthenticationError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaDreamMemoryStoreInput = struct {
-    type: []const u8,
+    @"type": []const u8,
     memory_store_id: []const u8,
 };
 
 pub const BetaToolChoiceTool = struct {
     disable_parallel_tool_use: ?bool = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestWebFetchToolResultBlockContent = union(enum) {
@@ -9119,7 +9119,7 @@ pub const RequestWebFetchToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
     caller: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     content: RequestWebFetchToolResultBlockContent,
 };
 
@@ -9163,18 +9163,18 @@ pub const BetaManagedAgentsRubricParams = union(enum) {
 
 pub const PermissionError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsUnknownError = struct {
     retry_status: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const ResponseBashCodeExecutionOutputBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsListOrder = []const u8;
@@ -9190,18 +9190,18 @@ pub const BetaUpdateUserProfileRequestBody = struct {
 
 pub const BetaResponseRedactedThinkingBlock = struct {
     data: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaThinkingConfigEnabled = struct {
     display: ?[]const u8 = null,
     budget_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCitationsDelta = struct {
     citation: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestCitationsConfig = struct {
@@ -9210,19 +9210,19 @@ pub const BetaRequestCitationsConfig = struct {
 
 pub const BetaResponseAdvisorRedactedResultBlock = struct {
     encrypted_content: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     stop_reason: ?[]const u8,
 };
 
 pub const BetaResponseCodeExecutionOutputBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookDeploymentRunFailedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -9234,7 +9234,7 @@ pub const BetaTextEditor_20250728 = struct {
     cache_control: ?std.json.Value = null,
     max_characters: ?i64 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsEventDeltaType = []const u8;
@@ -9246,14 +9246,14 @@ pub const BetaManagedAgentsModelConfigParams = struct {
 
 pub const RequestTextEditorCodeExecutionCreateResultBlock = struct {
     is_file_update: bool,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCodeExecutionTool_20250522 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const BetaAllowedCaller = null,
     name: []const u8,
 };
@@ -9264,7 +9264,7 @@ pub const BetaManagedAgentsCronSchedule = struct {
     timezone: []const u8,
     last_run_at: ?std.json.Value = null,
     upcoming_runs_at: ?[]const BetaTimestamp = null,
-    type: []const u8,
+    @"type": []const u8,
     expression: []const u8,
 };
 
@@ -9273,20 +9273,20 @@ pub const BetaCompactionIterationUsage = struct {
     input_tokens: i64,
     output_tokens: i64,
     cache_creation_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
     cache_creation: ?BetaCacheCreation,
 };
 
 pub const BetaResponseTextBlock = struct {
     text: []const u8,
     citations: ?[]const std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsUserDefineOutcomeEventParams = struct {
     description: []const u8,
     rubric: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     max_iterations: ?i64 = null,
 };
 
@@ -9294,20 +9294,20 @@ pub const ResponseTextEditorCodeExecutionStrReplaceResultBlock = struct {
     old_lines: ?i64,
     new_lines: ?i64,
     old_start: ?i64,
-    type: []const u8,
+    @"type": []const u8,
     lines: ?[]const []const u8,
     new_start: ?i64,
 };
 
 pub const BetaManagedAgentsEnvironmentArchivedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const ResponseToolSearchToolResultError = struct {
     error_code: []const u8,
     error_message: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const WebSearchToolResultErrorCode = []const u8;
@@ -9318,19 +9318,19 @@ pub const ResponseContentBlockLocationCitation = struct {
     document_index: i64,
     start_block_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
 pub const BetaManagedAgentsVaultArchivedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
 pub const BetaResponseDocumentBlock = struct {
     source: std.json.Value,
     citations: ?BetaResponseCitationsConfig,
-    type: []const u8,
+    @"type": []const u8,
     title: ?[]const u8,
 };
 
@@ -9369,17 +9369,17 @@ pub const BetaThinkingConfigParam = union(enum) {
 };
 
 pub const BetaManagedAgentsUserInterruptEventParams = struct {
-    type: []const u8,
+    @"type": []const u8,
     session_thread_id: ?[]const u8 = null,
 };
 
 pub const BetaCacheMissModelChanged = struct {
     cache_missed_input_tokens: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsRetryStatusExhausted = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsToolResultContentBlock = union(enum) {
@@ -9435,7 +9435,7 @@ pub const BetaManagedAgentsMemoryVersion = struct {
     operation: std.json.Value,
     path: ?[]const u8 = null,
     redacted_by: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     created_by: ?std.json.Value = null,
 };
 
@@ -9474,12 +9474,12 @@ pub const RequestToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
     is_error: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     content: ?RequestToolResultBlockContent = null,
 };
 
 pub const BetaManagedAgentsWorkspaceArchivedDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsStreamSessionEvents = union(enum) {
@@ -9711,12 +9711,12 @@ pub const BetaManagedAgentsAddSessionResourceParams = union(enum) {
 
 pub const ResponseToolSearchToolSearchResultBlock = struct {
     tool_references: []const ResponseToolReferenceBlock,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaThinkingContentBlockDelta = struct {
     thinking: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     estimated_tokens: ?i64,
 };
 
@@ -9765,11 +9765,11 @@ pub const ListResponse_MessageBatch_ = struct {
 
 pub const MessageStartEvent = struct {
     message: Message,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSystemMessageEventParams = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: []const BetaManagedAgentsSystemContentBlock,
 };
 
@@ -9778,7 +9778,7 @@ pub const ResponseTextEditorCodeExecutionViewResultBlock = struct {
     file_type: []const u8,
     num_lines: ?i64,
     start_line: ?i64,
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -9826,12 +9826,12 @@ pub const BetaDreamUsage = struct {
 };
 
 pub const BetaManagedAgentsSkillNotFoundDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsDeploymentAgent = struct {
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     version: i64,
 };
 
@@ -9851,7 +9851,7 @@ pub const BetaManagedAgentsDeployment = struct {
     metadata: std.json.Value,
     name: []const u8,
     vault_ids: []const []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsListSessionEvents = struct {
@@ -9866,11 +9866,11 @@ pub const BetaManagedAgentsMCPToolsetDefaultConfigParams = struct {
 
 pub const BetaResponseBashCodeExecutionOutputBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsConflictError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: ?[]const u8 = null,
 };
 
@@ -9879,7 +9879,7 @@ pub const BetaUserProfileRelationship = []const u8;
 pub const BetaManagedAgentsAgentThreadContextCompactedEvent = struct {
     processed_at: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCredentialValidationMcpProbeHttpResponse = struct {
@@ -9912,13 +9912,13 @@ pub const BetaManagedAgentsCredentialValidation = struct {
     credential_id: []const u8,
     status: std.json.Value,
     refresh: BetaManagedAgentsCredentialValidationRefresh,
-    type: []const u8,
+    @"type": []const u8,
     validated_at: std.json.Value,
     has_refresh_token: bool,
 };
 
 pub const BetaManagedAgentsEnvironmentArchivedDeploymentPausedReasonError = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsRunError = union(enum) {
@@ -10023,41 +10023,41 @@ pub const BetaManagedAgentsRunError = union(enum) {
 };
 
 pub const BetaManagedAgentsUnrestrictedCredentialNetworkingResponse = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const URLImageSource = struct {
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const UserLocation = struct {
     city: ?[]const u8 = null,
     country: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     region: ?[]const u8 = null,
     timezone: ?[]const u8 = null,
 };
 
 pub const BetaRequestCodeExecutionToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaToolUsesKeep = struct {
     value: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaSucceededResult = struct {
     message: BetaMessage,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaPlainTextSource = struct {
     data: []const u8,
     media_type: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ThinkingConfigParam = union(enum) {
@@ -10099,7 +10099,7 @@ pub const BetaManagedAgentsUserToolConfirmationEvent = struct {
     session_thread_id: ?[]const u8 = null,
     tool_use_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ListResponse_ModelInfo_ = struct {
@@ -10115,13 +10115,13 @@ pub const OutputTokensDetails = struct {
 
 pub const BetaManagedAgentsSessionRequiresAction = struct {
     event_ids: []const []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookSessionStatusTerminatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -10140,13 +10140,13 @@ pub const BetaRequestToolUseBlock = struct {
     cache_control: ?std.json.Value = null,
     caller: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     input: std.json.Value,
     name: []const u8,
 };
 
 pub const BetaManagedAgentsSelfHostedResourcesUnsupportedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -10154,7 +10154,7 @@ pub const CodeExecutionTool_20250825 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const AllowedCaller = null,
     name: []const u8,
 };
@@ -10187,7 +10187,7 @@ pub const BetaManagedAgentsSessionMultiagent = union(enum) {
 
 pub const BetaRequestRedactedThinkingBlock = struct {
     data: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestContentBlockLocationCitation = struct {
@@ -10195,7 +10195,7 @@ pub const RequestContentBlockLocationCitation = struct {
     start_block_index: i64,
     document_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     document_title: ?[]const u8,
 };
 
@@ -10407,12 +10407,12 @@ pub const BetaManagedAgentsStreamSessionThreadEvents = union(enum) {
 
 pub const BetaManagedAgentsApiActor = struct {
     api_key_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const RequestWebSearchToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsMemoryStore = struct {
@@ -10421,19 +10421,19 @@ pub const BetaManagedAgentsMemoryStore = struct {
     archived_at: ?std.json.Value = null,
     metadata: ?std.json.Value = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     name: []const u8,
     updated_at: std.json.Value,
 };
 
 pub const BetaThinkingConfigDisabled = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestWebFetchResultBlock = struct {
     retrieved_at: ?[]const u8 = null,
     url: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaRequestDocumentBlock,
 };
 
@@ -10443,19 +10443,19 @@ pub const BetaResponseCitationsConfig = struct {
 
 pub const BetaGatewayTimeoutError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaErrorResponse = struct {
     @"error": std.json.Value,
     request_id: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookSessionStatusIdledEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -10494,7 +10494,7 @@ pub const RequestCodeExecutionToolResultBlockContent = union(enum) {
 pub const RequestCodeExecutionToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: RequestCodeExecutionToolResultBlockContent,
 };
 
@@ -10506,13 +10506,13 @@ pub const BetaManagedAgentsMCPToolConfigParams = struct {
 
 pub const BetaNotFoundError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaWebhookDeploymentRunSucceededEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -10523,21 +10523,21 @@ pub const BetaTextEditor_20250429 = struct {
     allowed_callers: ?[]const BetaAllowedCaller = null,
     cache_control: ?std.json.Value = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const CodeExecutionTool_20260120 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const AllowedCaller = null,
     name: []const u8,
 };
 
 pub const BetaAuthenticationError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCredential = struct {
@@ -10548,13 +10548,13 @@ pub const BetaManagedAgentsCredential = struct {
     archived_at: std.json.Value,
     metadata: std.json.Value,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     updated_at: []const u8,
 };
 
 pub const BetaManagedAgentsCustomSkillParams = struct {
     version: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     skill_id: []const u8,
 };
 
@@ -10565,7 +10565,7 @@ pub const BetaSelfHostedWorkListResponse = struct {
 
 pub const ContentBlockStopEvent = struct {
     index: i64,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const ResponseWebSearchResultLocationCitation = struct {
@@ -10573,12 +10573,12 @@ pub const ResponseWebSearchResultLocationCitation = struct {
     encrypted_index: []const u8,
     cited_text: []const u8,
     title: ?[]const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsFileRubric = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsListCredentialsResponse = struct {
@@ -10588,7 +10588,7 @@ pub const BetaManagedAgentsListCredentialsResponse = struct {
 
 pub const CitationsDelta = struct {
     citation: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentToolsetDefaultConfigParams = struct {
@@ -10600,7 +10600,7 @@ pub const BetaWebhookVaultCredentialCreatedEventData = struct {
     organization_id: []const u8,
     vault_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -10608,7 +10608,7 @@ pub const CodeExecutionTool_20260521 = struct {
     cache_control: ?std.json.Value = null,
     strict: ?bool = null,
     defer_loading: ?bool = null,
-    type: []const u8,
+    @"type": []const u8,
     allowed_callers: ?[]const AllowedCaller = null,
     name: []const u8,
 };
@@ -10618,7 +10618,7 @@ pub const BetaManagedAgentsUserDefineOutcomeEvent = struct {
     description: []const u8,
     outcome_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     max_iterations: i64,
     rubric: std.json.Value,
 };
@@ -10639,7 +10639,7 @@ pub const BetaFallbackConfigV2 = struct {
 };
 
 pub const BetaManagedAgentsRetryStatusTerminal = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentMcpToolUseEvent = struct {
@@ -10650,12 +10650,12 @@ pub const BetaManagedAgentsAgentMcpToolUseEvent = struct {
     mcp_server_name: []const u8,
     id: []const u8,
     input: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsModelRateLimitedError = struct {
     retry_status: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -10670,7 +10670,7 @@ pub const BetaWebFetchTool_20260309 = struct {
     citations: ?BetaRequestCitationsConfig = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     use_cache: ?bool = null,
 };
 
@@ -10686,7 +10686,7 @@ pub const BetaManagedAgentsSpanModelRequestEndEvent = struct {
     processed_at: std.json.Value,
     is_error: bool,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     model_usage: BetaManagedAgentsSpanModelRequestEndEventModelUsage,
     model_request_start_id: []const u8,
 };
@@ -10724,12 +10724,12 @@ pub const BetaRequestWebSearchToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
     caller: ?std.json.Value = null,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaRequestWebSearchToolResultBlockContent,
 };
 
 pub const BetaToolChoiceNone = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentToolConfigParams = struct {
@@ -10740,7 +10740,7 @@ pub const BetaManagedAgentsAgentToolConfigParams = struct {
 
 pub const BetaManagedAgentsAgentToolset20260401 = struct {
     default_config: BetaManagedAgentsAgentToolsetDefaultConfig,
-    type: []const u8,
+    @"type": []const u8,
     configs: []const BetaManagedAgentsAgentToolConfig,
 };
 
@@ -10773,14 +10773,14 @@ pub const BetaManagedAgentsArchiveMemoryStoreResponse = union(enum) {
 pub const BetaManagedAgentsCustomToolParamsInputSchema = struct {
     properties: ?std.json.Value = null,
     required: ?[]const []const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCustomToolParams = struct {
     description: []const u8,
     input_schema: BetaManagedAgentsCustomToolParamsInputSchema,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const Message = struct {
@@ -10791,7 +10791,7 @@ pub const Message = struct {
     usage: Usage,
     model: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     stop_sequence: ?[]const u8,
     content: []const ContentBlock,
 };
@@ -10800,7 +10800,7 @@ pub const RefusalCategory = []const u8;
 
 pub const BetaManagedAgentsTokenEndpointAuthBasicUpdateParam = struct {
     client_secret: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaResponseTextEditorCodeExecutionViewResultBlock = struct {
@@ -10808,7 +10808,7 @@ pub const BetaResponseTextEditorCodeExecutionViewResultBlock = struct {
     file_type: []const u8,
     num_lines: ?i64,
     start_line: ?i64,
-    type: []const u8,
+    @"type": []const u8,
     content: []const u8,
 };
 
@@ -10819,11 +10819,11 @@ pub const BetaMemoryTool_20250818_DeleteCommand = struct {
 
 pub const RequestCodeExecutionToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaServerToolCaller = struct {
-    type: []const u8,
+    @"type": []const u8,
     tool_id: []const u8,
 };
 
@@ -10831,11 +10831,11 @@ pub const BetaWebhookEvent = struct {
     created_at: []const u8,
     data: BetaWebhookEventData,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaDirectCaller = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsSendSessionEventsParams = struct {
@@ -10853,17 +10853,17 @@ pub const BetaWebSearchTool_20260318 = struct {
     user_location: ?BetaUserLocation = null,
     allowed_domains: ?[]const []const u8 = null,
     name: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const TextContentBlockDelta = struct {
     text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRequestAdvisorToolResultError = struct {
     error_code: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaCreateMessageParamsSystemVariant0 = []const u8;
@@ -11073,7 +11073,7 @@ pub const BetaCreateMessageParams = struct {
 };
 
 pub const BetaManagedAgentsUnknownRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -11117,7 +11117,7 @@ pub const BetaManagedAgentsAgentUnionParams = union(enum) {
 pub const BetaWebhookSessionUpdatedEventData = struct {
     organization_id: []const u8,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     workspace_id: []const u8,
 };
 
@@ -11153,22 +11153,22 @@ pub const ResponseWebSearchToolResultBlockContent = union(enum) {
 pub const ResponseWebSearchToolResultBlock = struct {
     tool_use_id: []const u8,
     caller: std.json.Value,
-    type: []const u8,
+    @"type": []const u8,
     content: ResponseWebSearchToolResultBlockContent,
 };
 
 pub const BetaManagedAgentsStaticBearerUpdateParams = struct {
     token: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaMessageStartEvent = struct {
     message: BetaMessage,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsCronScheduleParams = struct {
-    type: []const u8,
+    @"type": []const u8,
     expression: []const u8,
     timezone: []const u8,
 };
@@ -11181,7 +11181,7 @@ pub const BetaMessageBatchIndividualResponse = struct {
 pub const BetaEnvironment = struct {
     created_at: []const u8,
     scope: ?[]const u8 = null,
-    type: []const u8,
+    @"type": []const u8,
     archived_at: ?[]const u8,
     description: []const u8,
     metadata: std.json.Value,
@@ -11197,7 +11197,7 @@ pub const BetaResponseCharLocationCitation = struct {
     document_index: i64,
     end_char_index: i64,
     cited_text: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     start_char_index: i64,
 };
 
@@ -11205,7 +11205,7 @@ pub const BetaManagedAgentsSessionStatus = []const u8;
 
 pub const GatewayTimeoutError = struct {
     message: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaManagedAgentsAgentToolsetDefaultConfig = struct {
@@ -11214,7 +11214,7 @@ pub const BetaManagedAgentsAgentToolsetDefaultConfig = struct {
 };
 
 pub const BetaManagedAgentsSessionRetriesExhausted = struct {
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const BetaRotateTunnelTokenRequestBody = struct {
@@ -11222,7 +11222,7 @@ pub const BetaRotateTunnelTokenRequestBody = struct {
 };
 
 pub const BetaManagedAgentsMcpEgressBlockedRunError = struct {
-    type: []const u8,
+    @"type": []const u8,
     message: []const u8,
 };
 
@@ -11275,14 +11275,14 @@ pub const BetaMessageStreamEvent = union(enum) {
 
 pub const ResponseCodeExecutionOutputBlock = struct {
     file_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
 };
 
 pub const JsonValue = std.json.Value;
 
 pub const BetaManagedAgentsStruct = union(enum) {
     null,
-    bool: bool,
+    @"bool": bool,
     integer: i64,
     float: f64,
     number_string: []const u8,
@@ -11360,7 +11360,7 @@ pub const BetaRequestBashCodeExecutionToolResultBlockContent = union(enum) {
 pub const BetaRequestBashCodeExecutionToolResultBlock = struct {
     cache_control: ?std.json.Value = null,
     tool_use_id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: BetaRequestBashCodeExecutionToolResultBlockContent,
 };
 
@@ -11396,7 +11396,7 @@ pub const BetaContentBlockSourceContent = union(enum) {
 };
 
 pub const BetaContentBlockSource = struct {
-    type: []const u8,
+    @"type": []const u8,
     content: BetaContentBlockSourceContent,
 };
 
@@ -11411,7 +11411,7 @@ pub const BetaManagedAgentsUserToolResultEvent = struct {
     tool_use_id: []const u8,
     is_error: ?bool = null,
     id: []const u8,
-    type: []const u8,
+    @"type": []const u8,
     content: ?[]const BetaManagedAgentsToolResultContentBlock = null,
 };
 
@@ -11419,7 +11419,7 @@ pub const RequestTextEditorCodeExecutionStrReplaceResultBlock = struct {
     old_lines: ?i64 = null,
     new_lines: ?i64 = null,
     old_start: ?i64 = null,
-    type: []const u8,
+    @"type": []const u8,
     lines: ?[]const []const u8 = null,
     new_start: ?i64 = null,
 };
@@ -11429,7 +11429,7 @@ pub const BetaUserProfileListOrder = []const u8;
 pub const ResponseDocumentBlock = struct {
     source: std.json.Value,
     citations: ?ResponseCitationsConfig,
-    type: []const u8,
+    @"type": []const u8,
     title: ?[]const u8,
 };
 
