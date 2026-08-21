@@ -74,6 +74,7 @@ test "isReservedIdent" {
     try std.testing.expect(isReservedIdent("if"));
     try std.testing.expect(isReservedIdent("return"));
     try std.testing.expect(isReservedIdent("struct"));
+    try std.testing.expect(isReservedIdent("type"));
     try std.testing.expect(!isReservedIdent("foo"));
     try std.testing.expect(!isReservedIdent(""));
 }
