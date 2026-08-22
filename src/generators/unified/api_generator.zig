@@ -226,8 +226,17 @@ pub const UnifiedApiGenerator = struct {
     fn appendLineComment(self: *UnifiedApiGenerator, text: []const u8) !void {
         var lines = std.mem.splitScalar(u8, text, '\n');
         while (lines.next()) |line| {
-            try self.buffer.appendSlice(self.allocator, "// ");
-            try self.buffer.appendSlice(self.allocator, std.mem.trim(u8, line, "\r"));
+            const trimmed_cr = std.mem.trim(u8, line, "\r");
+            var trimmed = trimmed_cr;
+            while (trimmed.len > 0 and trimmed[trimmed.len - 1] == ' ') {
+                trimmed = trimmed[0 .. trimmed.len - 1];
+            }
+            if (trimmed.len > 0) {
+                try self.buffer.appendSlice(self.allocator, "// ");
+                try self.buffer.appendSlice(self.allocator, trimmed);
+            } else {
+                try self.buffer.appendSlice(self.allocator, "//");
+            }
             try self.buffer.appendSlice(self.allocator, "\n");
         }
     }
@@ -260,7 +269,6 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateRuntimePreamble(self: *UnifiedApiGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
-            \\
             \\pub fn Owned(comptime T: type) type {
             \\    return struct {
             \\        allocator: std.mem.Allocator,
@@ -336,7 +344,6 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
-            \\
             \\pub const Client = struct {
             \\    allocator: std.mem.Allocator,
             \\    io: std.Io,
@@ -1012,7 +1019,20 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    defer uri_buf.deinit();\n");
         try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.print(\"{s}");
         try self.buffer.appendSlice(self.allocator, new_path);
-        try self.buffer.appendSlice(self.allocator, "\", .{client.base_url");
+        var has_path_params = false;
+        if (operation.parameters) |parameters| {
+            for (parameters) |parameter| {
+                if (parameter.location == .path) {
+                    has_path_params = true;
+                    break;
+                }
+            }
+        }
+        if (has_path_params) {
+            try self.buffer.appendSlice(self.allocator, "\", .{ client.base_url");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "\", .{client.base_url");
+        }
         if (operation.parameters) |parameters| {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
@@ -1020,7 +1040,11 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendIdentifier(parameter.name);
             }
         }
-        try self.buffer.appendSlice(self.allocator, "});\n");
+        if (has_path_params) {
+            try self.buffer.appendSlice(self.allocator, " });\n");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "});\n");
+        }
 
         var has_query_param = false;
         if (operation.parameters) |parameters| {
@@ -1168,11 +1192,14 @@ pub const UnifiedApiGenerator = struct {
                 }
             }
         }
-        if (wrappers.items.len > 0) try self.buffer.appendSlice(self.allocator, "\n");
 
-        try self.buffer.appendSlice(self.allocator, "pub const resources = struct {\n");
-        try self.generateResourceLevel(wrappers.items, 0, 1, &.{});
-        try self.buffer.appendSlice(self.allocator, "};\n\n");
+        if (wrappers.items.len == 0) {
+            try self.buffer.appendSlice(self.allocator, "pub const resources = struct {};\n\n");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "pub const resources = struct {\n");
+            try self.generateResourceLevel(wrappers.items, 0, 1, &.{});
+            try self.buffer.appendSlice(self.allocator, "};\n\n");
+        }
 
         var top_segments = std.ArrayList([]const u8).empty;
         defer top_segments.deinit(self.allocator);
@@ -1316,6 +1343,10 @@ pub const UnifiedApiGenerator = struct {
                 try self.generateTagClientMethod(struct_name, method_name, op_ref);
             }
 
+            // Strip the trailing blank line after the last method before closing the struct
+            if (self.buffer.items.len > 0 and self.buffer.items[self.buffer.items.len - 1] == '\n') {
+                self.buffer.items.len -= 1;
+            }
             try self.buffer.appendSlice(self.allocator, "};\n\n");
         }
     }
@@ -1470,7 +1501,11 @@ pub const UnifiedApiGenerator = struct {
             }
         }
 
-        try self.buffer.appendSlice(self.allocator, "};\n\n");
+        // Strip the trailing blank line after the last method before closing the struct
+        if (self.buffer.items.len > 0 and self.buffer.items[self.buffer.items.len - 1] == '\n') {
+            self.buffer.items.len -= 1;
+        }
+        try self.buffer.appendSlice(self.allocator, "};\n");
     }
 
     fn topLevelNameConflicts(self: *UnifiedApiGenerator, name: []const u8, document: UnifiedDocument) bool {
@@ -2317,7 +2352,20 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    defer uri_buf.deinit();\n");
         try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.print(\"{s}");
         try self.buffer.appendSlice(self.allocator, new_path);
-        try self.buffer.appendSlice(self.allocator, "\", .{client.base_url");
+        var has_path_params = false;
+        if (operation.parameters) |parameters| {
+            for (parameters) |parameter| {
+                if (parameter.location == .path) {
+                    has_path_params = true;
+                    break;
+                }
+            }
+        }
+        if (has_path_params) {
+            try self.buffer.appendSlice(self.allocator, "\", .{ client.base_url");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "\", .{client.base_url");
+        }
         if (operation.parameters) |parameters| {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
@@ -2325,7 +2373,11 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendIdentifier(parameter.name);
             }
         }
-        try self.buffer.appendSlice(self.allocator, "});\n");
+        if (has_path_params) {
+            try self.buffer.appendSlice(self.allocator, " });\n");
+        } else {
+            try self.buffer.appendSlice(self.allocator, "});\n");
+        }
 
         var has_query_param = false;
         if (operation.parameters) |parameters| {

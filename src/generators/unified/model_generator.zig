@@ -401,7 +401,7 @@ pub const UnifiedModelGenerator = struct {
             \\    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !@This() {
             \\        if (source != .object) return error.UnexpectedToken;
         );
-        try self.buffer.appendSlice(self.allocator, "        const discriminator = source.object.get(");
+        try self.buffer.appendSlice(self.allocator, "\n        const discriminator = source.object.get(");
         try self.appendStringLiteral(discriminator_property);
         try self.buffer.appendSlice(self.allocator,
             \\) orelse return .{ .raw = source };
@@ -439,7 +439,7 @@ pub const UnifiedModelGenerator = struct {
             const tag = self.schemaVariantTag(variant, discriminator_property).?;
             const field_name = try self.sanitizeIdentifierAlloc(tag);
             defer self.allocator.free(field_name);
-            try self.buffer.appendSlice(self.allocator, "            .");
+            try self.buffer.appendSlice(self.allocator, "\n            .");
             try self.buffer.appendSlice(self.allocator, field_name);
             try self.buffer.appendSlice(self.allocator, " => |value| try jw.write(value),\n");
         }
@@ -631,7 +631,7 @@ pub const UnifiedModelGenerator = struct {
                 for (values) |value| {
                     const field_name = try self.sanitizeIdentifierAlloc(value.string);
                     defer self.allocator.free(field_name);
-                    try self.buffer.appendSlice(self.allocator, "        if (source == .string and std.mem.eql(u8, source.string, ");
+                    try self.buffer.appendSlice(self.allocator, "\n        if (source == .string and std.mem.eql(u8, source.string, ");
                     try self.appendStringLiteral(value.string);
                     try self.buffer.appendSlice(self.allocator, ")) return .");
                     try self.buffer.appendSlice(self.allocator, field_name);
@@ -643,7 +643,7 @@ pub const UnifiedModelGenerator = struct {
             if (self.stringEnumValues(variant) != null) continue;
             const field_name = try self.structuralVariantFieldNameAlloc(variant, i);
             defer self.allocator.free(field_name);
-            try self.buffer.appendSlice(self.allocator, "        if (std.json.parseFromValueLeaky(");
+            try self.buffer.appendSlice(self.allocator, "\n        if (std.json.parseFromValueLeaky(");
             try self.appendStructuralVariantType(name, variant, i);
             try self.buffer.appendSlice(self.allocator, ", allocator, source, options)) |value| {\n");
             try self.buffer.appendSlice(self.allocator, "            return .{ .");
@@ -663,7 +663,7 @@ pub const UnifiedModelGenerator = struct {
                 for (values) |value| {
                     const field_name = try self.sanitizeIdentifierAlloc(value.string);
                     defer self.allocator.free(field_name);
-                    try self.buffer.appendSlice(self.allocator, "            .");
+                    try self.buffer.appendSlice(self.allocator, "\n            .");
                     try self.buffer.appendSlice(self.allocator, field_name);
                     try self.buffer.appendSlice(self.allocator, " => try jw.write(");
                     try self.appendStringLiteral(value.string);
@@ -673,7 +673,7 @@ pub const UnifiedModelGenerator = struct {
             }
             const field_name = try self.structuralVariantFieldNameAlloc(variant, i);
             defer self.allocator.free(field_name);
-            try self.buffer.appendSlice(self.allocator, "            .");
+            try self.buffer.appendSlice(self.allocator, "\n            .");
             try self.buffer.appendSlice(self.allocator, field_name);
             try self.buffer.appendSlice(self.allocator, " => |value| try jw.write(value),\n");
         }
@@ -767,19 +767,19 @@ pub const UnifiedModelGenerator = struct {
             switch (variant.type.?) {
                 .string => if (!emitted_string) {
                     emitted_string = true;
-                    try self.buffer.appendSlice(self.allocator, "            .string => |value| .{ .string = value },\n");
+                    try self.buffer.appendSlice(self.allocator, "\n            .string => |value| .{ .string = value },\n");
                 },
                 .integer => if (!emitted_integer) {
                     emitted_integer = true;
-                    try self.buffer.appendSlice(self.allocator, "            .integer => |value| .{ .integer = value },\n");
+                    try self.buffer.appendSlice(self.allocator, "\n            .integer => |value| .{ .integer = value },\n");
                 },
                 .number => if (!emitted_number) {
                     emitted_number = true;
-                    try self.buffer.appendSlice(self.allocator, "            .float => |value| .{ .number = value },\n");
+                    try self.buffer.appendSlice(self.allocator, "\n            .float => |value| .{ .number = value },\n");
                 },
                 .boolean => if (!emitted_boolean) {
                     emitted_boolean = true;
-                    try self.buffer.appendSlice(self.allocator, "            .bool => |value| .{ .boolean = value },\n");
+                    try self.buffer.appendSlice(self.allocator, "\n            .bool => |value| .{ .boolean = value },\n");
                 },
                 else => {},
             }
@@ -792,10 +792,10 @@ pub const UnifiedModelGenerator = struct {
             \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
             \\        switch (self) {
         );
-        if (has_string) try self.buffer.appendSlice(self.allocator, "            .string => |value| try jw.write(value),\n");
-        if (has_integer) try self.buffer.appendSlice(self.allocator, "            .integer => |value| try jw.write(value),\n");
-        if (has_number) try self.buffer.appendSlice(self.allocator, "            .number => |value| try jw.write(value),\n");
-        if (has_boolean) try self.buffer.appendSlice(self.allocator, "            .boolean => |value| try jw.write(value),\n");
+        if (has_string) try self.buffer.appendSlice(self.allocator, "\n            .string => |value| try jw.write(value),\n");
+        if (has_integer) try self.buffer.appendSlice(self.allocator, "\n            .integer => |value| try jw.write(value),\n");
+        if (has_number) try self.buffer.appendSlice(self.allocator, "\n            .number => |value| try jw.write(value),\n");
+        if (has_boolean) try self.buffer.appendSlice(self.allocator, "\n            .boolean => |value| try jw.write(value),\n");
         try self.buffer.appendSlice(self.allocator,
             \\            .raw => |value| try jw.write(value),
             \\        }

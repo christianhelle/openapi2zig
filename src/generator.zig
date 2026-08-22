@@ -132,7 +132,15 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
         const generated_api = try api_generator.generate(filtered_doc);
         defer allocator.free(generated_api);
 
-        const joined_code = try std.mem.join(allocator, "\n", &.{ generated_models, generated_api });
+        var models_slice = generated_models;
+        while (models_slice.len > 0 and models_slice[models_slice.len - 1] == '\n') {
+            models_slice = models_slice[0 .. models_slice.len - 1];
+        }
+        var api_slice = generated_api;
+        while (api_slice.len > 0 and api_slice[api_slice.len - 1] == '\n') {
+            api_slice = api_slice[0 .. api_slice.len - 1];
+        }
+        const joined_code = try std.mem.join(allocator, "\n\n", &.{ models_slice, api_slice });
         break :blk joined_code;
     };
     defer if (!args.models_only) allocator.free(generated_code);
@@ -140,7 +148,7 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
     const checksum = generated_header.computeChecksum(generated_code);
     const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
     defer allocator.free(header);
-    const output_code = try std.mem.concat(allocator, u8, &.{ header, generated_code });
+    const output_code = try std.mem.concat(allocator, u8, &.{ header, generated_code, "\n" });
     defer allocator.free(output_code);
 
     const output_path = args.output_path orelse default_output_file;
@@ -205,7 +213,11 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const generated_models = try model_generator.generate(unified_doc);
     defer allocator.free(generated_models);
 
-    try writeFile(allocator, io, cwd, dir_path, models_file, generated_models);
+    var models_to_write = generated_models;
+    while (models_to_write.len > 0 and models_to_write[models_to_write.len - 1] == '\n') {
+        models_to_write = models_to_write[0 .. models_to_write.len - 1];
+    }
+    try writeFile(allocator, io, cwd, dir_path, models_file, try std.mem.concat(allocator, u8, &.{ models_to_write, "\n" }));
 
     if (args.models_only) return;
 
@@ -247,7 +259,11 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const generated_api = try api_generator.generateClientOnly(unified_doc);
     defer allocator.free(generated_api);
 
-    try writeFile(allocator, io, cwd, dir_path, client_file, generated_api);
+    var api_to_write = generated_api;
+    while (api_to_write.len > 0 and api_to_write[api_to_write.len - 1] == '\n') {
+        api_to_write = api_to_write[0 .. api_to_write.len - 1];
+    }
+    try writeFile(allocator, io, cwd, dir_path, client_file, try std.mem.concat(allocator, u8, &.{ api_to_write, "\n" }));
 }
 
 fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anytype, args: cli.CliArgs, comptime Converter: type) !void {

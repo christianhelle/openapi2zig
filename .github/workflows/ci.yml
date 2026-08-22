@@ -73,6 +73,9 @@ jobs:
       - name: Run tests (${{ matrix.optimize }})
         run: zig build test -Doptimize=${{ matrix.optimize }}
 
+      - name: Generate samples
+        run: zig build run-generate
+
       - name: Install test artifacts
         run: zig build install_test -Doptimize=${{ matrix.optimize }}
         if: matrix.optimize == 'Debug'
