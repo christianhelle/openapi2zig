@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  ZIG_VERSION: "0.16.0"
-
 permissions:
   contents: read
 
@@ -26,10 +23,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Zig
+      - name: Set up Zig 0.16.0
         uses: goto-bus-stop/setup-zig@v2
         with:
-          version: ${{ env.ZIG_VERSION }}
+          version: 0.16.0
 
       - name: Check code formatting
         run: zig fmt --check src/
@@ -93,10 +90,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Zig
+      - name: Set up Zig 0.16.0
         uses: goto-bus-stop/setup-zig@v2
         with:
-          version: ${{ env.ZIG_VERSION }}
+          version: 0.16.0
 
       - name: Cache Zig dependencies
         uses: actions/cache@v4
@@ -104,10 +101,10 @@ jobs:
           path: |
             ~/.cache/zig
             .zig-cache
-          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig.zon') }}-${{ matrix.target }}
+          key: ${{ runner.os }}-zig-0.16.0-${{ hashFiles('build.zig.zon') }}-${{ matrix.target }}
           restore-keys: |
-            ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig.zon') }}-
-            ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-
+            ${{ runner.os }}-zig-0.16.0-${{ hashFiles('build.zig.zon') }}-
+            ${{ runner.os }}-zig-0.16.0-
             ${{ runner.os }}-zig-
 
       - name: Cross-compile for ${{ matrix.target }}
@@ -130,10 +127,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Zig
+      - name: Set up Zig 0.16.0
         uses: goto-bus-stop/setup-zig@v2
         with:
-          version: ${{ env.ZIG_VERSION }}
+          version: 0.16.0
 
       - name: Cache Zig dependencies
         uses: actions/cache@v4
@@ -141,9 +138,9 @@ jobs:
           path: |
             ~/.cache/zig
             .zig-cache
-          key: ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-${{ hashFiles('build.zig.zon') }}
+          key: ${{ runner.os }}-zig-0.16.0-${{ hashFiles('build.zig.zon') }}
           restore-keys: |
-            ${{ runner.os }}-zig-${{ env.ZIG_VERSION }}-
+            ${{ runner.os }}-zig-0.16.0-
             ${{ runner.os }}-zig-
 
       - name: Verify Zig installation
