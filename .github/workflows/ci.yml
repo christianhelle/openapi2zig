@@ -35,16 +35,6 @@ jobs:
       - name: Run tests
         run: zig build test --summary all
 
-      - name: Install test artifacts
-        run: zig build install_test
-
-      - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-binaries
-          path: zig-out/tests/
-          retention-days: 7
-
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
