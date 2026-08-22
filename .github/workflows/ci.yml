@@ -115,17 +115,6 @@ jobs:
         with:
           version: 0.16.0
 
-      - name: Cache Zig dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/zig
-            .zig-cache
-          key: ${{ runner.os }}-zig-0.16.0-${{ hashFiles('build.zig.zon') }}
-          restore-keys: |
-            ${{ runner.os }}-zig-0.16.0-
-            ${{ runner.os }}-zig-
-
       - name: Verify Zig installation
         run: zig version
 
