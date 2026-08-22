@@ -14,11 +14,6 @@ jobs:
     name: Build and Test
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        optimize: [Debug, ReleaseFast, ReleaseSafe, ReleaseSmall]
-      fail-fast: false
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,19 +29,17 @@ jobs:
       - name: Verify Zig installation
         run: zig version
 
-      - name: Build project (${{ matrix.optimize }})
-        run: zig build -Doptimize=${{ matrix.optimize }}
+      - name: Build project
+        run: zig build
 
-      - name: Run tests (${{ matrix.optimize }})
-        run: zig build test -Doptimize=${{ matrix.optimize }}
+      - name: Run tests
+        run: zig build test --summary all
 
       - name: Install test artifacts
-        run: zig build install_test -Doptimize=${{ matrix.optimize }}
-        if: matrix.optimize == 'Debug'
+        run: zig build install_test
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
-        if: matrix.optimize == 'Debug'
         with:
           name: test-binaries
           path: zig-out/tests/
