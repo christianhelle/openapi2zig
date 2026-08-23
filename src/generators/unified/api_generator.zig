@@ -990,8 +990,8 @@ pub const UnifiedApiGenerator = struct {
     }
 
     /// Emit the `options` struct parameter wrapping all non-body parameters of
-    /// an operation. Optional query parameters become nullable fields with a
-    /// `null` default; required path and query parameters stay non-optional.
+    /// an operation. Optional parameters become nullable fields with a `null`
+    /// default; required parameters stay non-optional.
     fn appendOptionsParam(self: *UnifiedApiGenerator, operation: Operation, path: []const u8) !void {
         var count: usize = 0;
         if (operation.parameters) |params| {
@@ -1078,7 +1078,7 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "    ");
                 try self.appendFieldIdentifier(param.name);
                 try self.buffer.appendSlice(self.allocator, ": ");
-                const optional = param.location == .query and !param.required;
+                const optional = param.location != .path and !param.required;
                 if (optional) try self.buffer.appendSlice(self.allocator, "?");
                 try self.appendParamBaseType(param);
                 if (optional) try self.buffer.appendSlice(self.allocator, " = null");
