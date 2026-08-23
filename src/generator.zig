@@ -168,17 +168,21 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
     std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
 }
 
-fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path: []const u8, file_name: []const u8, raw_code: []const u8) !void {
+fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path: []const u8, file_name: []const u8, raw_code: []const u8, force: bool) !void {
     const full_path = try std.fs.path.join(allocator, &.{ dir_path, file_name });
     defer allocator.free(full_path);
 
-    if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
-        defer allocator.free(existing);
-        if (!generated_header.hasChanged(existing, raw_code)) {
-            std.log.info("Skipping '{s}' (unchanged)", .{full_path});
-            return;
-        }
-    } else |_| {}
+    if (!force) {
+        if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
+            defer allocator.free(existing);
+            if (!generated_header.hasChanged(existing, raw_code)) {
+                std.log.info("Skipping '{s}' (unchanged)", .{full_path});
+                return;
+            }
+        } else |_| {}
+    } else {
+        std.log.info("Force flag is set; overwriting '{s}'", .{full_path});
+    }
 
     const checksum = generated_header.computeChecksum(raw_code);
     const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
@@ -209,7 +213,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const generated_models = try model_generator.generate(unified_doc);
     defer allocator.free(generated_models);
 
-    try writeFile(allocator, io, cwd, dir_path, models_file, generated_models);
+    try writeFile(allocator, io, cwd, dir_path, models_file, generated_models, args.force);
 
     if (args.models_only) return;
 
@@ -218,7 +222,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const generated_runtime = try runtime_gen.generate();
     defer allocator.free(generated_runtime);
 
-    try writeFile(allocator, io, cwd, dir_path, runtime_file, generated_runtime);
+    try writeFile(allocator, io, cwd, dir_path, runtime_file, generated_runtime, args.force);
 
     const models_alias = try cli.deriveAlias(allocator, models_file, "models");
     defer allocator.free(models_alias);
@@ -251,7 +255,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     const generated_api = try api_generator.generateClientOnly(unified_doc);
     defer allocator.free(generated_api);
 
-    try writeFile(allocator, io, cwd, dir_path, client_file, generated_api);
+    try writeFile(allocator, io, cwd, dir_path, client_file, generated_api, args.force);
 }
 
 fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anytype, args: cli.CliArgs, comptime Converter: type) !void {
