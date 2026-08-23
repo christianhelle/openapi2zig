@@ -1,4 +1,5 @@
 const std = @import("std");
+const test_utils = @import("test_utils.zig");
 const common = @import("../models/common/document.zig");
 const models = @import("../models.zig");
 const OpenApi31Converter = @import("../generators/converters/openapi31_converter.zig").OpenApi31Converter;
@@ -45,32 +46,25 @@ test "model generator treats properties without type as struct" {
 }
 
 test "model generator emits type keyword as bare struct field name" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var properties = std.StringHashMap(common.Schema).init(allocator);
-    defer {
-        var iterator = properties.iterator();
-        while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
-        properties.deinit();
-    }
     try properties.put(try allocator.dupe(u8, "type"), stringSchema());
     try properties.put(try allocator.dupe(u8, "foo"), stringSchema());
 
     var schemas = std.StringHashMap(common.Schema).init(allocator);
-    defer {
-        var iterator = schemas.iterator();
-        while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
-        schemas.deinit();
-    }
     try schemas.put(try allocator.dupe(u8, "Thing"), .{ .properties = properties });
 
-    var paths = std.StringHashMap(common.PathItem).init(allocator);
-    defer paths.deinit();
-    const document: common.UnifiedDocument = .{
+    const paths = std.StringHashMap(common.PathItem).init(allocator);
+    var document: common.UnifiedDocument = .{
         .version = "3.1.0",
         .info = .{ .title = "fixture", .version = "1.0.0" },
         .paths = paths,
         .schemas = schemas,
     };
+    defer document.deinit(allocator);
 
     var generator = UnifiedModelGenerator.init(allocator);
     defer generator.deinit();
