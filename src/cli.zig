@@ -1246,3 +1246,30 @@ test "parse accepts --tag with --models-only" {
     try std.testing.expect(parsed.args.models_only);
     try std.testing.expectEqual(@as(usize, 1), parsed.args.tags.len);
 }
+
+test "parse generate supports --force flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--force",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+
+    try std.testing.expect(parsed.args.force);
+}
+
+test "parse generate defaults force to false" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+
+    try std.testing.expect(!parsed.args.force);
+}

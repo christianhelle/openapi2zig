@@ -814,3 +814,91 @@ test "generateMultipleFiles preserves timestamps when code unchanged" {
 
     try std.testing.expectEqualStrings(first_models, second_models);
 }
+
+test "generateCodeFromUnifiedDocument overwrites unchanged file when force is set" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "out/api.zig",
+    });
+
+    const first = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(first);
+
+    // Sleep to ensure timestamp in header will differ (header uses second precision)
+    try std.Io.sleep(std.testing.io, .fromMilliseconds(1100), .real);
+
+    // Force overwrites even when unchanged, so second file should have a new timestamp header
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "out/api.zig",
+        .force = true,
+    });
+
+    const second = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(second);
+
+    try std.testing.expect(!std.mem.eql(u8, first, second));
+}
+
+test "generateMultipleFiles overwrites unchanged files when force is set" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+    });
+
+    const first_models = try tmp.dir.readFileAlloc(std.testing.io, "out/models.zig", allocator, .unlimited);
+    defer allocator.free(first_models);
+
+    try std.Io.sleep(std.testing.io, .fromMilliseconds(1100), .real);
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .force = true,
+    });
+
+    const second_models = try tmp.dir.readFileAlloc(std.testing.io, "out/models.zig", allocator, .unlimited);
+    defer allocator.free(second_models);
+
+    try std.testing.expect(!std.mem.eql(u8, first_models, second_models));
+}
