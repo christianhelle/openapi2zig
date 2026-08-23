@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Fix failing zig fmt --check on generated code [\#89](https://github.com/christianhelle/openapi2zig/pull/89) ([christianhelle](https://github.com/christianhelle))
 - Simplify CI workflow [\#88](https://github.com/christianhelle/openapi2zig/pull/88) ([christianhelle](https://github.com/christianhelle))
 - Reserve Zig type keyword in generated identifiers [\#86](https://github.com/christianhelle/openapi2zig/pull/86) ([christianhelle](https://github.com/christianhelle))
 
