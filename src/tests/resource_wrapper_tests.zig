@@ -110,7 +110,7 @@ test "resource wrappers derive from paths" {
         .input_path = "fixture.json",
         .resource_wrappers = .paths,
     });
-    defer generator.deinit();
+    defer generator.deinit(allocator);
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -154,7 +154,7 @@ test "resource wrapper aliases skip top-level operation name collisions" {
             .input_path = "fixture.json",
             .resource_wrappers = mode,
         });
-        defer generator.deinit();
+        defer generator.deinit(allocator);
 
         const code = try generator.generate(document);
         defer allocator.free(code);
