@@ -408,6 +408,47 @@ test "generated v3.0 :: uploadFile takes []const u8 requestBody and emits octet-
     try testing.expect(std.mem.indexOf(u8, upload_block, "\"application/octet-stream\", \"application/json\"") != null);
 }
 
+test "generated v3.0 :: query parameter named type stays escaped as a function argument" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const spec =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "T", "version": "1" },
+        \\  "paths": {
+        \\    "/search": {
+        \\      "get": {
+        \\        "operationId": "search",
+        \\        "parameters": [
+        \\          { "name": "type", "in": "query", "required": true, "schema": { "type": "string" } }
+        \\        ],
+        \\        "responses": { "200": { "description": "ok" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+    // The parsed document must outlive both the conversion and the generation
+    // because the unified document borrows its string slices.
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    // Struct fields may use the bare keyword, but function arguments must keep
+    // the escaped form so the generated code does not shadow the type primitive.
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn search(client: *Client, @\"type\": []const u8)") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn searchRaw(client: *Client, @\"type\": []const u8)") != null);
+}
+
 test "generated v3.0 :: addPet still uses JSON encoding for application/json body" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
