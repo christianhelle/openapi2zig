@@ -88,7 +88,8 @@ test "flat signature wraps non-body parameters in an options struct" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(client: *Client, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const listPetsOptions = struct {\n    limit: ?i64 = null,\n    status: ?[]const u8 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(client: *Client, options: listPetsOptions) !Owned(std.json.Value) {") != null);
 }
 
 test "Raw and Result functions share the options struct signature" {
@@ -106,8 +107,8 @@ test "Raw and Result functions share the options struct signature" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPetsRaw(client: *Client, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !RawResponse {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPetsResult(client: *Client, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !ApiResult(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPetsRaw(client: *Client, options: listPetsOptions) !RawResponse {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPetsResult(client: *Client, options: listPetsOptions) !ApiResult(std.json.Value) {") != null);
 }
 
 test "path parameters are required fields in the options struct" {
@@ -125,7 +126,8 @@ test "path parameters are required fields in the options struct" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(client: *Client, options: struct { petId: i64, verbose: ?bool = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const getPetOptions = struct {\n    petId: i64,\n    verbose: ?bool = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(client: *Client, options: getPetOptions) !Owned(std.json.Value) {") != null);
 }
 
 test "body parameter stays an individual argument" {
@@ -161,7 +163,7 @@ test "options struct composes with a body parameter" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn createChatCompletion(client: *Client, options: struct { stream: ?bool = null }, requestBody: std.json.Value) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn createChatCompletion(client: *Client, options: createChatCompletionOptions, requestBody: std.json.Value) !Owned(std.json.Value) {") != null);
 }
 
 test "optional query parameters are read from the options struct" {
@@ -234,7 +236,8 @@ test "operations without an operation id read query parameters from the options 
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn @\"operationpets2\"(client: *Client, options: struct { limit: ?i64 = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const @\"operationpets2Options\" = struct {\n    limit: ?i64 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn @\"operationpets2\"(client: *Client, options: @\"operationpets2Options\") !Owned(std.json.Value) {") != null);
     // listPetsRaw and the direct fallback function both encode the limit query parameter
     try std.testing.expect(countOccurrences(code, "try appendQueryParam(&uri_buf.writer, &first_query, \"limit\", value);") == 2);
 }
@@ -265,7 +268,7 @@ test "tag client methods wrap parameters in the options struct" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(self: *DefaultClient, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(self: *DefaultClient, options: listPetsOptions) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return _listPets(self.client, options);") != null);
 }
 
@@ -285,9 +288,9 @@ test "endpoint client execute wraps parameters in the options struct" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *ListPets, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *ListPets, options: listPetsOptions) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return listPets(self.client, options);") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeRaw(self: *ListPets, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !RawResponse {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeRaw(self: *ListPets, options: listPetsOptions) !RawResponse {") != null);
 }
 
 test "resource wrapper methods wrap parameters in the options struct" {
@@ -305,8 +308,8 @@ test "resource wrapper methods wrap parameters in the options struct" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn list(client: *Client, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn list(client: *Client, options: listPetsOptions) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return listPets(client, options);") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listResult(client: *Client, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !ApiResult(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listResult(client: *Client, options: listPetsOptions) !ApiResult(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return listPetsResult(client, options);") != null);
 }

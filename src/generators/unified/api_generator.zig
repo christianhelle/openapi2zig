@@ -168,6 +168,9 @@ pub const UnifiedApiGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
     args: cli.CliArgs,
+    /// Path of the operation currently being generated, used to derive the
+    /// options struct type name for operations without an operation id.
+    current_path: []const u8 = "",
     model_prefix: []const u8 = "",
     emit_imports: bool = true,
     models_import: []const u8 = "models.zig",
@@ -776,7 +779,9 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
+        self.current_path = path;
         try self.generateComments(operation);
+        try self.generateOptionsType(operation);
         try self.generateFunctionSignature(method, path, operation);
         try self.generateFunctionBody(method, path, operation);
         if (operation.operationId != null) {
@@ -974,27 +979,65 @@ pub const UnifiedApiGenerator = struct {
     /// Emit the `options` struct parameter wrapping all non-body parameters of
     /// an operation. Optional query parameters become nullable fields with a
     /// `null` default; required path and query parameters stay non-optional.
-    fn appendOptionsStruct(self: *UnifiedApiGenerator, params: []Parameter) !void {
+    fn appendOptionsParam(self: *UnifiedApiGenerator, operation: Operation) !void {
         var count: usize = 0;
-        for (params) |param| {
-            if (param.location != .body) count += 1;
+        if (operation.parameters) |params| {
+            for (params) |param| {
+                if (param.location != .body) count += 1;
+            }
         }
         if (count == 0) return;
 
-        try self.buffer.appendSlice(self.allocator, ", options: struct { ");
-        var first = true;
-        for (params) |param| {
-            if (param.location == .body) continue;
-            if (!first) try self.buffer.appendSlice(self.allocator, ", ");
-            first = false;
-            try self.appendFieldIdentifier(param.name);
-            try self.buffer.appendSlice(self.allocator, ": ");
-            const optional = param.location == .query and !param.required;
-            if (optional) try self.buffer.appendSlice(self.allocator, "?");
-            try self.appendParamBaseType(param);
-            if (optional) try self.buffer.appendSlice(self.allocator, " = null");
+        try self.buffer.appendSlice(self.allocator, ", options: ");
+        try self.appendOptionsTypeName(operation);
+    }
+
+    /// Emit the name of the options struct type for an operation. The name
+    /// derives from the operation id so all functions of an operation share
+    /// the same type; operations without an operation id use the same fallback
+    /// as the flat function name.
+    fn appendOptionsTypeName(self: *UnifiedApiGenerator, operation: Operation) !void {
+        if (operation.operationId) |op_id| {
+            const name = try std.fmt.allocPrint(self.allocator, "{s}Options", .{op_id});
+            defer self.allocator.free(name);
+            try self.appendIdentifier(name);
+        } else {
+            try self.buffer.appendSlice(self.allocator, "@\"operation");
+            try self.buffer.appendSlice(self.allocator, self.current_path[1..]);
+            try self.buffer.appendSlice(self.allocator, "Options\"");
         }
-        try self.buffer.appendSlice(self.allocator, " }");
+    }
+
+    /// Emit a top-level declaration of the options struct type for an
+    /// operation when parameters-as-struct is enabled and the operation has
+    /// non-body parameters.
+    fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation) !void {
+        if (!self.args.parameters_as_struct) return;
+        var count: usize = 0;
+        if (operation.parameters) |params| {
+            for (params) |param| {
+                if (param.location != .body) count += 1;
+            }
+        }
+        if (count == 0) return;
+
+        try self.buffer.appendSlice(self.allocator, "pub const ");
+        try self.appendOptionsTypeName(operation);
+        try self.buffer.appendSlice(self.allocator, " = struct {\n");
+        if (operation.parameters) |params| {
+            for (params) |param| {
+                if (param.location == .body) continue;
+                try self.buffer.appendSlice(self.allocator, "    ");
+                try self.appendFieldIdentifier(param.name);
+                try self.buffer.appendSlice(self.allocator, ": ");
+                const optional = param.location == .query and !param.required;
+                if (optional) try self.buffer.appendSlice(self.allocator, "?");
+                try self.appendParamBaseType(param);
+                if (optional) try self.buffer.appendSlice(self.allocator, " = null");
+                try self.buffer.appendSlice(self.allocator, ",\n");
+            }
+        }
+        try self.buffer.appendSlice(self.allocator, "};\n\n");
     }
 
     /// Emit individual `requestBody` arguments for body parameters, used after
@@ -1021,7 +1064,7 @@ pub const UnifiedApiGenerator = struct {
     fn appendFlatOperationParameters(self: *UnifiedApiGenerator, operation: Operation) !void {
         if (operation.parameters) |params| {
             if (self.args.parameters_as_struct) {
-                try self.appendOptionsStruct(params);
+                try self.appendOptionsParam(operation);
                 try self.appendBodyParams(params);
                 return;
             }
@@ -2016,7 +2059,7 @@ pub const UnifiedApiGenerator = struct {
     fn appendOperationParameters(self: *UnifiedApiGenerator, operation: Operation, forbidden_names: []const []const u8) !void {
         if (operation.parameters) |params| {
             if (self.args.parameters_as_struct) {
-                try self.appendOptionsStruct(params);
+                try self.appendOptionsParam(operation);
                 try self.appendBodyParams(params);
                 return;
             }
