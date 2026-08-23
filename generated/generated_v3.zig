@@ -64,8 +64,6 @@ pub const ApiResponse = struct {
     code: ?i64 = null,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -546,7 +544,7 @@ pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
 // uploads an image
 //
 // Description:
-// 
+//
 //
 pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(ApiResponse) {
     var result = try uploadFileResult(client, petId, additionalMetadata, requestBody);
@@ -567,7 +565,7 @@ pub fn uploadFileRaw(client: *Client, petId: i64, additionalMetadata: ?[]const u
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}/uploadImage", .{client.base_url, petId});
+    try uri_buf.writer.print("{s}/pet/{d}/uploadImage", .{ client.base_url, petId });
     var first_query = true;
     if (additionalMetadata) |value| {
         try appendQueryParam(&uri_buf.writer, &first_query, "additionalMetadata", value);
@@ -644,7 +642,7 @@ pub fn getPetByIdRaw(client: *Client, petId: i64) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
+    try uri_buf.writer.print("{s}/pet/{d}", .{ client.base_url, petId });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
@@ -659,7 +657,7 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
 // Updates a pet in the store with form data
 //
 // Description:
-// 
+//
 //
 pub fn updatePetWithForm(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
     var raw = try updatePetWithFormRaw(client, petId, name, status);
@@ -671,7 +669,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, stat
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
+    try uri_buf.writer.print("{s}/pet/{d}", .{ client.base_url, petId });
     var first_query = true;
     if (name) |value| {
         try appendQueryParam(&uri_buf.writer, &first_query, "name", value);
@@ -689,7 +687,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, stat
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub fn deletePet(client: *Client, api_key: []const u8, petId: i64) !void {
     var raw = try deletePetRaw(client, api_key, petId);
@@ -702,7 +700,7 @@ pub fn deletePetRaw(client: *Client, api_key: []const u8, petId: i64) !RawRespon
     _ = api_key;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
+    try uri_buf.writer.print("{s}/pet/{d}", .{ client.base_url, petId });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
@@ -753,7 +751,7 @@ pub fn findPetsByTagsResult(client: *Client, tags: ?[]const u8) !ApiResult([]con
 // Logs user into the system
 //
 // Description:
-// 
+//
 //
 pub fn loginUser(client: *Client, username: ?[]const u8, password: ?[]const u8) !Owned([]const u8) {
     var result = try loginUserResult(client, username, password);
@@ -872,7 +870,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Get user by user name
 //
 // Description:
-// 
+//
 //
 pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
     var result = try getUserByNameResult(client, username);
@@ -893,7 +891,7 @@ pub fn getUserByNameRaw(client: *Client, username: []const u8) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
+    try uri_buf.writer.print("{s}/user/{s}", .{ client.base_url, username });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
@@ -920,7 +918,7 @@ pub fn updateUserRaw(client: *Client, username: []const u8, requestBody: User) !
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
+    try uri_buf.writer.print("{s}/user/{s}", .{ client.base_url, username });
 
     var str: std.Io.Writer.Allocating = .init(allocator);
     defer str.deinit();
@@ -947,7 +945,7 @@ pub fn deleteUserRaw(client: *Client, username: []const u8) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
+    try uri_buf.writer.print("{s}/user/{s}", .{ client.base_url, username });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
@@ -1126,7 +1124,7 @@ pub fn getOrderByIdRaw(client: *Client, orderId: i64) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/store/order/{d}", .{client.base_url, orderId});
+    try uri_buf.writer.print("{s}/store/order/{d}", .{ client.base_url, orderId });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
@@ -1153,7 +1151,7 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/store/order/{d}", .{client.base_url, orderId});
+    try uri_buf.writer.print("{s}/store/order/{d}", .{ client.base_url, orderId });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
@@ -1164,7 +1162,7 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
 // Logs out current logged in user session
 //
 // Description:
-// 
+//
 //
 pub fn logoutUser(client: *Client) !void {
     var raw = try logoutUserRaw(client);
@@ -1181,7 +1179,6 @@ pub fn logoutUserRaw(client: *Client) !RawResponse {
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
-
 
 pub const resources = struct {
     pub const pet = struct {
@@ -1304,4 +1301,3 @@ pub const resources = struct {
 pub const pet = resources.pet;
 pub const store = resources.store;
 pub const user = resources.user;
-

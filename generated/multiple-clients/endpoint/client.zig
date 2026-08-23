@@ -327,7 +327,7 @@ pub fn placeOrderResult(client: *Client, requestBody: models.Order) !ApiResult(m
 // uploads an image
 //
 // Description:
-// 
+//
 //
 pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(models.ApiResponse) {
     var result = try uploadFileResult(client, petId, additionalMetadata, requestBody);
@@ -348,7 +348,7 @@ pub fn uploadFileRaw(client: *Client, petId: i64, additionalMetadata: ?[]const u
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}/uploadImage", .{client.base_url, petId});
+    try uri_buf.writer.print("{s}/pet/{d}/uploadImage", .{ client.base_url, petId });
     var first_query = true;
     if (additionalMetadata) |value| {
         try appendQueryParam(&uri_buf.writer, &first_query, "additionalMetadata", value);
@@ -425,7 +425,7 @@ pub fn getPetByIdRaw(client: *Client, petId: i64) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
+    try uri_buf.writer.print("{s}/pet/{d}", .{ client.base_url, petId });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
@@ -440,7 +440,7 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(models.Pet) {
 // Updates a pet in the store with form data
 //
 // Description:
-// 
+//
 //
 pub fn updatePetWithForm(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
     var raw = try updatePetWithFormRaw(client, petId, name, status);
@@ -452,7 +452,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, stat
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
+    try uri_buf.writer.print("{s}/pet/{d}", .{ client.base_url, petId });
     var first_query = true;
     if (name) |value| {
         try appendQueryParam(&uri_buf.writer, &first_query, "name", value);
@@ -470,7 +470,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, stat
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub fn deletePet(client: *Client, api_key: []const u8, petId: i64) !void {
     var raw = try deletePetRaw(client, api_key, petId);
@@ -483,7 +483,7 @@ pub fn deletePetRaw(client: *Client, api_key: []const u8, petId: i64) !RawRespon
     _ = api_key;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/pet/{d}", .{client.base_url, petId});
+    try uri_buf.writer.print("{s}/pet/{d}", .{ client.base_url, petId });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
@@ -534,7 +534,7 @@ pub fn findPetsByTagsResult(client: *Client, tags: ?[]const u8) !ApiResult([]con
 // Logs user into the system
 //
 // Description:
-// 
+//
 //
 pub fn loginUser(client: *Client, username: ?[]const u8, password: ?[]const u8) !Owned([]const u8) {
     var result = try loginUserResult(client, username, password);
@@ -653,7 +653,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Get user by user name
 //
 // Description:
-// 
+//
 //
 pub fn getUserByName(client: *Client, username: []const u8) !Owned(models.User) {
     var result = try getUserByNameResult(client, username);
@@ -674,7 +674,7 @@ pub fn getUserByNameRaw(client: *Client, username: []const u8) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
+    try uri_buf.writer.print("{s}/user/{s}", .{ client.base_url, username });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
@@ -701,7 +701,7 @@ pub fn updateUserRaw(client: *Client, username: []const u8, requestBody: models.
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
+    try uri_buf.writer.print("{s}/user/{s}", .{ client.base_url, username });
 
     var str: std.Io.Writer.Allocating = .init(allocator);
     defer str.deinit();
@@ -728,7 +728,7 @@ pub fn deleteUserRaw(client: *Client, username: []const u8) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/user/{s}", .{client.base_url, username});
+    try uri_buf.writer.print("{s}/user/{s}", .{ client.base_url, username });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
@@ -907,7 +907,7 @@ pub fn getOrderByIdRaw(client: *Client, orderId: i64) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/store/order/{d}", .{client.base_url, orderId});
+    try uri_buf.writer.print("{s}/store/order/{d}", .{ client.base_url, orderId });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
@@ -934,7 +934,7 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/store/order/{d}", .{client.base_url, orderId});
+    try uri_buf.writer.print("{s}/store/order/{d}", .{ client.base_url, orderId });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.DELETE, uri_buf.written(), payload);
@@ -945,7 +945,7 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
 // Logs out current logged in user session
 //
 // Description:
-// 
+//
 //
 pub fn logoutUser(client: *Client) !void {
     var raw = try logoutUserRaw(client);
@@ -981,7 +981,6 @@ pub const AddPet = struct {
     pub fn executeResult(self: *AddPet, requestBody: models.Pet) !ApiResult(models.Pet) {
         return addPetResult(self.client, requestBody);
     }
-
 };
 
 pub const UpdatePet = struct {
@@ -1002,7 +1001,6 @@ pub const UpdatePet = struct {
     pub fn executeResult(self: *UpdatePet, requestBody: models.Pet) !ApiResult(models.Pet) {
         return updatePetResult(self.client, requestBody);
     }
-
 };
 
 pub const FindPetsByStatus = struct {
@@ -1023,7 +1021,6 @@ pub const FindPetsByStatus = struct {
     pub fn executeResult(self: *FindPetsByStatus, status: ?[]const u8) !ApiResult([]const std.json.Value) {
         return findPetsByStatusResult(self.client, status);
     }
-
 };
 
 pub const FindPetsByTags = struct {
@@ -1044,7 +1041,6 @@ pub const FindPetsByTags = struct {
     pub fn executeResult(self: *FindPetsByTags, tags: ?[]const u8) !ApiResult([]const std.json.Value) {
         return findPetsByTagsResult(self.client, tags);
     }
-
 };
 
 pub const DeletePet = struct {
@@ -1061,7 +1057,6 @@ pub const DeletePet = struct {
     pub fn executeRaw(self: *DeletePet, api_key: []const u8, petId: i64) !RawResponse {
         return deletePetRaw(self.client, api_key, petId);
     }
-
 };
 
 pub const GetPetById = struct {
@@ -1082,7 +1077,6 @@ pub const GetPetById = struct {
     pub fn executeResult(self: *GetPetById, petId: i64) !ApiResult(models.Pet) {
         return getPetByIdResult(self.client, petId);
     }
-
 };
 
 pub const UpdatePetWithForm = struct {
@@ -1099,7 +1093,6 @@ pub const UpdatePetWithForm = struct {
     pub fn executeRaw(self: *UpdatePetWithForm, petId: i64, name: ?[]const u8, status: ?[]const u8) !RawResponse {
         return updatePetWithFormRaw(self.client, petId, name, status);
     }
-
 };
 
 pub const UploadFile = struct {
@@ -1120,7 +1113,6 @@ pub const UploadFile = struct {
     pub fn executeResult(self: *UploadFile, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(models.ApiResponse) {
         return uploadFileResult(self.client, petId, additionalMetadata, requestBody);
     }
-
 };
 
 pub const GetInventory = struct {
@@ -1141,7 +1133,6 @@ pub const GetInventory = struct {
     pub fn executeResult(self: *GetInventory) !ApiResult(std.json.Value) {
         return getInventoryResult(self.client);
     }
-
 };
 
 pub const PlaceOrder = struct {
@@ -1162,7 +1153,6 @@ pub const PlaceOrder = struct {
     pub fn executeResult(self: *PlaceOrder, requestBody: models.Order) !ApiResult(models.Order) {
         return placeOrderResult(self.client, requestBody);
     }
-
 };
 
 pub const DeleteOrder = struct {
@@ -1179,7 +1169,6 @@ pub const DeleteOrder = struct {
     pub fn executeRaw(self: *DeleteOrder, orderId: i64) !RawResponse {
         return deleteOrderRaw(self.client, orderId);
     }
-
 };
 
 pub const GetOrderById = struct {
@@ -1200,7 +1189,6 @@ pub const GetOrderById = struct {
     pub fn executeResult(self: *GetOrderById, orderId: i64) !ApiResult(models.Order) {
         return getOrderByIdResult(self.client, orderId);
     }
-
 };
 
 pub const CreateUser = struct {
@@ -1217,7 +1205,6 @@ pub const CreateUser = struct {
     pub fn executeRaw(self: *CreateUser, requestBody: models.User) !RawResponse {
         return createUserRaw(self.client, requestBody);
     }
-
 };
 
 pub const CreateUsersWithListInput = struct {
@@ -1238,7 +1225,6 @@ pub const CreateUsersWithListInput = struct {
     pub fn executeResult(self: *CreateUsersWithListInput, requestBody: []const std.json.Value) !ApiResult(models.User) {
         return createUsersWithListInputResult(self.client, requestBody);
     }
-
 };
 
 pub const LoginUser = struct {
@@ -1259,7 +1245,6 @@ pub const LoginUser = struct {
     pub fn executeResult(self: *LoginUser, username: ?[]const u8, password: ?[]const u8) !ApiResult([]const u8) {
         return loginUserResult(self.client, username, password);
     }
-
 };
 
 pub const LogoutUser = struct {
@@ -1276,7 +1261,6 @@ pub const LogoutUser = struct {
     pub fn executeRaw(self: *LogoutUser) !RawResponse {
         return logoutUserRaw(self.client);
     }
-
 };
 
 pub const DeleteUser = struct {
@@ -1293,7 +1277,6 @@ pub const DeleteUser = struct {
     pub fn executeRaw(self: *DeleteUser, username: []const u8) !RawResponse {
         return deleteUserRaw(self.client, username);
     }
-
 };
 
 pub const GetUserByName = struct {
@@ -1314,7 +1297,6 @@ pub const GetUserByName = struct {
     pub fn executeResult(self: *GetUserByName, username: []const u8) !ApiResult(models.User) {
         return getUserByNameResult(self.client, username);
     }
-
 };
 
 pub const UpdateUser = struct {
@@ -1331,6 +1313,4 @@ pub const UpdateUser = struct {
     pub fn executeRaw(self: *UpdateUser, username: []const u8, requestBody: models.User) !RawResponse {
         return updateUserRaw(self.client, username, requestBody);
     }
-
 };
-
