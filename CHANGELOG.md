@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Simplify CI workflow [\#88](https://github.com/christianhelle/openapi2zig/pull/88) ([christianhelle](https://github.com/christianhelle))
 - Reserve Zig type keyword in generated identifiers [\#86](https://github.com/christianhelle/openapi2zig/pull/86) ([christianhelle](https://github.com/christianhelle))
 
 **Fixed bugs:**
