@@ -225,6 +225,27 @@ test "path parameters are read from the options struct" {
     try std.testing.expect(std.mem.indexOf(u8, code, "try uri_buf.writer.print(\"{s}/pets/{d}\", .{ client.base_url, options.petId });") != null);
 }
 
+test "optional header parameters are nullable fields in the options struct" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const searchOptions = struct {\n    @\"X-Request-Id\": ?[]const u8 = null,\n};") != null);
+}
+
 test "header parameters are read from the options struct" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
