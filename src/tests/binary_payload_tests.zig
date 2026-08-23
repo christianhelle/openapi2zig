@@ -380,7 +380,7 @@ test "generated v3.0 :: vendor +json body propagates Content-Type to requestRaw"
     defer unified.deinit(allocator);
 
     var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
     const code = try generator.generate(unified);
     defer allocator.free(code);
 
@@ -439,7 +439,7 @@ test "generated v3.0 :: query parameter named type stays escaped as a function a
     defer unified.deinit(allocator);
 
     var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
     const code = try generator.generate(unified);
     defer allocator.free(code);
 

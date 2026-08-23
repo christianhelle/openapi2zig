@@ -197,9 +197,9 @@ pub const UnifiedApiGenerator = struct {
         self.options_type_names.clearRetainingCapacity();
     }
 
-    pub fn deinit(self: *UnifiedApiGenerator, allocator: std.mem.Allocator) void {
-        self.buffer.deinit(allocator);
-        self.clearOptionsTypeNames(allocator);
+    pub fn deinit(self: *UnifiedApiGenerator) void {
+        self.buffer.deinit(self.allocator);
+        self.clearOptionsTypeNames(self.allocator);
         self.options_type_names.deinit();
     }
 

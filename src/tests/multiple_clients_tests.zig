@@ -246,7 +246,7 @@ test "multiple-clients PerEndpoint generates one struct per operation with init 
         .input_path = "fixture.json",
         .multiple_clients = .per_endpoint,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -304,7 +304,7 @@ test "multiple-clients PerTag groups operations into client structs" {
         .input_path = "fixture.json",
         .multiple_clients = .per_tag,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -362,7 +362,7 @@ test "multiple-clients PerTag derives methods for operations without an operatio
         .input_path = "fixture.json",
         .multiple_clients = .per_tag,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -396,7 +396,7 @@ test "multiple-clients PerTag dedupes struct names, reserved methods, and method
         .input_path = "fixture.json",
         .multiple_clients = .per_tag,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -460,7 +460,7 @@ test "multiple-clients PerTag dedupes derived Raw/Result/Streaming method names"
         .input_path = "fixture.json",
         .multiple_clients = .per_tag,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);

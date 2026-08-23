@@ -87,7 +87,7 @@ test "flat signature wraps non-body parameters in an options struct" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -109,7 +109,7 @@ test "Raw and Result functions share the options struct signature" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -131,7 +131,7 @@ test "path parameters are required fields in the options struct" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -153,7 +153,7 @@ test "body parameter stays an individual argument" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -174,7 +174,7 @@ test "options struct composes with a body parameter" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -195,7 +195,7 @@ test "optional query parameters are read from the options struct" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -217,7 +217,7 @@ test "path parameters are read from the options struct" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -238,7 +238,7 @@ test "optional header parameters are nullable fields in the options struct" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -259,7 +259,7 @@ test "header parameters are read from the options struct" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -280,7 +280,7 @@ test "operations without an operation id read query parameters from the options 
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -315,7 +315,7 @@ test "tag client methods wrap parameters in the options struct" {
         .multiple_clients = .per_tag,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -338,7 +338,7 @@ test "endpoint client execute wraps parameters in the options struct" {
         .multiple_clients = .per_endpoint,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -361,7 +361,7 @@ test "resource wrapper methods wrap parameters in the options struct" {
         .parameters_as_struct = true,
         .resource_wrappers = .paths,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -410,7 +410,7 @@ test "options type name is disambiguated when an operation shares it" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -434,7 +434,7 @@ test "disambiguated options type name is shared by tag client methods" {
         .multiple_clients = .per_tag,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -479,7 +479,7 @@ test "fallback options type name avoids schema declarations" {
         .parameters_as_struct = true,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);
@@ -527,7 +527,7 @@ test "endpoint client struct names avoid reserved options types" {
         .multiple_clients = .per_endpoint,
         .resource_wrappers = .none,
     });
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     const code = try generator.generate(document);
     defer allocator.free(code);

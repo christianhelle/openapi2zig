@@ -222,7 +222,7 @@ pub fn generateModels(allocator: std.mem.Allocator, unified_doc: UnifiedDocument
 /// - String containing generated Zig API client code
 pub fn generateApi(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
     var generator = UnifiedApiGenerator.init(allocator, args);
-    defer generator.deinit(allocator);
+    defer generator.deinit();
 
     return try generator.generate(unified_doc);
 }
@@ -307,7 +307,7 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     var api_gen = UnifiedApiGenerator.init(allocator, args);
     api_gen.model_prefix = "models.";
     api_gen.emit_imports = true;
-    defer api_gen.deinit(allocator);
+    defer api_gen.deinit();
     const api_code = try api_gen.generateClientOnly(unified_doc);
     defer allocator.free(api_code);
 
