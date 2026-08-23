@@ -41,6 +41,8 @@ fn printUsage() void {
         \\                              (default: models.zig, runtime.zig, client.zig)
         \\                              Can be specified multiple times.
         \\   --force                   Force overwriting output even when unchanged
+        \\   --parameters-as-struct    Wrap method parameters in a single options struct
+        \\                            instead of individual function arguments
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
