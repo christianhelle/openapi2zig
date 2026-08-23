@@ -1012,7 +1012,15 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    defer uri_buf.deinit();\n");
         try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.print(\"{s}");
         try self.buffer.appendSlice(self.allocator, new_path);
-        try self.buffer.appendSlice(self.allocator, "\", .{client.base_url");
+        try self.buffer.appendSlice(self.allocator, "\", .{");
+        const has_path_param = blk: {
+            if (operation.parameters) |params| {
+                for (params) |p| if (p.location == .path) break :blk true;
+            }
+            break :blk false;
+        };
+        if (has_path_param) try self.buffer.appendSlice(self.allocator, " ");
+        try self.buffer.appendSlice(self.allocator, "client.base_url");
         if (operation.parameters) |parameters| {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
@@ -1020,6 +1028,7 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendIdentifier(parameter.name);
             }
         }
+        if (has_path_param) try self.buffer.appendSlice(self.allocator, " ");
         try self.buffer.appendSlice(self.allocator, "});\n");
 
         var has_query_param = false;
@@ -2317,7 +2326,15 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    defer uri_buf.deinit();\n");
         try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.print(\"{s}");
         try self.buffer.appendSlice(self.allocator, new_path);
-        try self.buffer.appendSlice(self.allocator, "\", .{client.base_url");
+        try self.buffer.appendSlice(self.allocator, "\", .{");
+        const has_path_param_direct = blk: {
+            if (operation.parameters) |params| {
+                for (params) |p| if (p.location == .path) break :blk true;
+            }
+            break :blk false;
+        };
+        if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");
+        try self.buffer.appendSlice(self.allocator, "client.base_url");
         if (operation.parameters) |parameters| {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
@@ -2325,6 +2342,7 @@ pub const UnifiedApiGenerator = struct {
                 try self.appendIdentifier(parameter.name);
             }
         }
+        if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");
         try self.buffer.appendSlice(self.allocator, "});\n");
 
         var has_query_param = false;

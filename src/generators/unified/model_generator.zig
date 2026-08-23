@@ -400,6 +400,7 @@ pub const UnifiedModelGenerator = struct {
             \\
             \\    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !@This() {
             \\        if (source != .object) return error.UnexpectedToken;
+            \\
         );
         try self.buffer.appendSlice(self.allocator, "        const discriminator = source.object.get(");
         try self.appendStringLiteral(discriminator_property);
@@ -433,6 +434,7 @@ pub const UnifiedModelGenerator = struct {
             \\
             \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
             \\        switch (self) {
+            \\
         );
 
         for (variants) |variant| {
@@ -625,6 +627,7 @@ pub const UnifiedModelGenerator = struct {
             \\    }
             \\
             \\    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !@This() {
+            \\
         );
         for (variants) |variant| {
             if (self.stringEnumValues(variant)) |values| {
@@ -657,6 +660,7 @@ pub const UnifiedModelGenerator = struct {
             \\
             \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
             \\        switch (self) {
+            \\
         );
         for (variants, 0..) |variant, i| {
             if (self.stringEnumValues(variant)) |values| {
@@ -791,6 +795,7 @@ pub const UnifiedModelGenerator = struct {
             \\
             \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
             \\        switch (self) {
+            \\
         );
         if (has_string) try self.buffer.appendSlice(self.allocator, "            .string => |value| try jw.write(value),\n");
         if (has_integer) try self.buffer.appendSlice(self.allocator, "            .integer => |value| try jw.write(value),\n");

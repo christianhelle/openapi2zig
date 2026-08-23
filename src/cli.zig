@@ -40,6 +40,7 @@ fn printUsage() void {
         \\                              <kind> is models, runtime, or client.
         \\                              (default: models.zig, runtime.zig, client.zig)
         \\                              Can be specified multiple times.
+        \\   --force                   Force overwriting output even when unchanged
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
@@ -259,6 +260,7 @@ pub const CliArgs = struct {
     tags: []const []const u8 = &.{},
     /// Whether `tags` was allocated by the parser and must be freed.
     owns_tags: bool = false,
+    force: bool = false,
 
     pub fn deinit(self: *CliArgs, allocator: std.mem.Allocator) void {
         if (self.owns_tags) allocator.free(self.tags);
@@ -306,6 +308,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     defer tags_list.deinit(allocator);
     var tags: []const []const u8 = &.{};
     var tags_owned = false;
+    var force = false;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -414,6 +417,8 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
                     return error.InvalidArguments;
                 },
             };
+        } else if (std.mem.eql(u8, arg, "--force")) {
+            force = true;
         }
     }
 
@@ -495,6 +500,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .file_names = file_names,
             .tags = tags,
             .owns_tags = tags_owned,
+            .force = force,
         },
     };
 }
@@ -1239,4 +1245,31 @@ test "parse accepts --tag with --models-only" {
 
     try std.testing.expect(parsed.args.models_only);
     try std.testing.expectEqual(@as(usize, 1), parsed.args.tags.len);
+}
+
+test "parse generate supports --force flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--force",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+
+    try std.testing.expect(parsed.args.force);
+}
+
+test "parse generate defaults force to false" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+
+    try std.testing.expect(!parsed.args.force);
 }
