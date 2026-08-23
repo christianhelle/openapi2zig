@@ -56,14 +56,19 @@ pub fn build(b: *std.Build) void {
         "x86_64-linux",
         "aarch64-linux",
         "x86_64-windows",
-        "aarch64-windows",
         "x86_64-macos",
         "aarch64-macos",
     };
     const build_all_step = b.step("build-all", "Build for all supported platforms");
     for (supported_targets) |target_triple| {
         const cross_target = b.resolveTargetQuery(
-            std.Target.Query.parse(.{ .arch_os_abi = target_triple }) catch unreachable,
+            std.Target.Query.parse(.{ .arch_os_abi = target_triple }) catch |err| {
+                std.log.err("invalid build-all target '{s}': {s}", .{
+                    target_triple,
+                    @errorName(err),
+                });
+                @panic("invalid build-all target");
+            },
         );
         const target_yaml_dep = b.dependency("yaml", .{
             .target = cross_target,
