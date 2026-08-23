@@ -1063,7 +1063,10 @@ pub const UnifiedApiGenerator = struct {
             candidate = suffixed;
         }
         const key = if (operation.operationId) |op_id| op_id else path;
-        if (self.options_type_names.get(key)) |old| self.allocator.free(old);
+        if (self.options_type_names.fetchRemove(key)) |kv| {
+            self.allocator.free(kv.key);
+            self.allocator.free(kv.value);
+        }
         try self.options_type_names.put(try self.allocator.dupe(u8, key), try self.allocator.dupe(u8, candidate));
 
         try self.buffer.appendSlice(self.allocator, "pub const ");
