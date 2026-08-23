@@ -261,6 +261,9 @@ pub const CliArgs = struct {
     /// Whether `tags` was allocated by the parser and must be freed.
     owns_tags: bool = false,
     force: bool = false,
+    /// Wrap non-body method parameters in a single `options` struct instead of
+    /// emitting them as individual function arguments.
+    parameters_as_struct: bool = false,
 
     pub fn deinit(self: *CliArgs, allocator: std.mem.Allocator) void {
         if (self.owns_tags) allocator.free(self.tags);
@@ -309,6 +312,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var tags: []const []const u8 = &.{};
     var tags_owned = false;
     var force = false;
+    var parameters_as_struct = false;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -419,6 +423,8 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             };
         } else if (std.mem.eql(u8, arg, "--force")) {
             force = true;
+        } else if (std.mem.eql(u8, arg, "--parameters-as-struct")) {
+            parameters_as_struct = true;
         }
     }
 
@@ -501,6 +507,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .tags = tags,
             .owns_tags = tags_owned,
             .force = force,
+            .parameters_as_struct = parameters_as_struct,
         },
     };
 }
@@ -1272,4 +1279,31 @@ test "parse generate defaults force to false" {
     const parsed = try parse(std.testing.allocator, &argv);
 
     try std.testing.expect(!parsed.args.force);
+}
+
+test "parse generate supports parameters-as-struct flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--parameters-as-struct",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+
+    try std.testing.expect(parsed.args.parameters_as_struct);
+}
+
+test "parse generate defaults parameters-as-struct to false" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+
+    try std.testing.expect(!parsed.args.parameters_as_struct);
 }
