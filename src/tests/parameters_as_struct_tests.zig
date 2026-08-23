@@ -1,6 +1,7 @@
 const std = @import("std");
 const UnifiedApiGenerator = @import("../generators/unified/api_generator.zig").UnifiedApiGenerator;
 const common = @import("../models/common/document.zig");
+const test_utils = @import("test_utils.zig");
 
 fn responseMap(allocator: std.mem.Allocator, with_schema: bool) !std.StringHashMap(common.Response) {
     var responses = std.StringHashMap(common.Response).init(allocator);
@@ -74,7 +75,10 @@ fn buildFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
 }
 
 test "flat signature wraps non-body parameters in an options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -93,7 +97,10 @@ test "flat signature wraps non-body parameters in an options struct" {
 }
 
 test "Raw and Result functions share the options struct signature" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -112,7 +119,10 @@ test "Raw and Result functions share the options struct signature" {
 }
 
 test "path parameters are required fields in the options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -131,7 +141,10 @@ test "path parameters are required fields in the options struct" {
 }
 
 test "body parameter stays an individual argument" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -149,7 +162,10 @@ test "body parameter stays an individual argument" {
 }
 
 test "options struct composes with a body parameter" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -167,7 +183,10 @@ test "options struct composes with a body parameter" {
 }
 
 test "optional query parameters are read from the options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -186,7 +205,10 @@ test "optional query parameters are read from the options struct" {
 }
 
 test "path parameters are read from the options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -204,7 +226,10 @@ test "path parameters are read from the options struct" {
 }
 
 test "header parameters are read from the options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -222,7 +247,10 @@ test "header parameters are read from the options struct" {
 }
 
 test "operations without an operation id read query parameters from the options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -253,7 +281,10 @@ fn countOccurrences(haystack: []const u8, needle: []const u8) usize {
 }
 
 test "tag client methods wrap parameters in the options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -273,7 +304,10 @@ test "tag client methods wrap parameters in the options struct" {
 }
 
 test "endpoint client execute wraps parameters in the options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
@@ -294,7 +328,10 @@ test "endpoint client execute wraps parameters in the options struct" {
 }
 
 test "resource wrapper methods wrap parameters in the options struct" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
     var document = try buildFixture(allocator);
     defer document.deinit(allocator);
 
