@@ -1041,7 +1041,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path and parameter.location != .body and parameter.location != .query) {
                     try self.buffer.appendSlice(self.allocator, "    _ = ");
-                    try self.appendIdentifier(parameter.name);
+                    try self.appendParamReference(parameter.name);
                     try self.buffer.appendSlice(self.allocator, ";\n");
                 }
             }
@@ -1095,7 +1095,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 try self.buffer.appendSlice(self.allocator, ", ");
-                try self.appendIdentifier(parameter.name);
+                try self.appendParamReference(parameter.name);
             }
         }
         if (has_path_param) try self.buffer.appendSlice(self.allocator, " ");
@@ -1119,11 +1119,11 @@ pub const UnifiedApiGenerator = struct {
                         try self.buffer.appendSlice(self.allocator, "    try appendQueryParam(&uri_buf.writer, &first_query, \"");
                         try self.buffer.appendSlice(self.allocator, parameter.name);
                         try self.buffer.appendSlice(self.allocator, "\", ");
-                        try self.appendIdentifier(parameter.name);
+                        try self.appendParamReference(parameter.name);
                         try self.buffer.appendSlice(self.allocator, ");\n");
                     } else {
                         try self.buffer.appendSlice(self.allocator, "    if (");
-                        try self.appendIdentifier(parameter.name);
+                        try self.appendParamReference(parameter.name);
                         try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                         try self.buffer.appendSlice(self.allocator, "        try appendQueryParam(&uri_buf.writer, &first_query, \"");
                         try self.buffer.appendSlice(self.allocator, parameter.name);
@@ -2304,7 +2304,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path and parameter.location != .body and parameter.location != .query) {
                     try self.buffer.appendSlice(self.allocator, "    _ = ");
-                    try self.appendIdentifier(parameter.name);
+                    try self.appendParamReference(parameter.name);
                     try self.buffer.appendSlice(self.allocator, ";\n");
                 }
             }
@@ -2369,7 +2369,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 try self.buffer.appendSlice(self.allocator, ", ");
-                try self.appendIdentifier(parameter.name);
+                try self.appendParamReference(parameter.name);
             }
         }
         if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");
@@ -2393,11 +2393,11 @@ pub const UnifiedApiGenerator = struct {
                         try self.buffer.appendSlice(self.allocator, "    try appendQueryParam(&uri_buf.writer, &first_query, \"");
                         try self.buffer.appendSlice(self.allocator, parameter.name);
                         try self.buffer.appendSlice(self.allocator, "\", ");
-                        try self.appendIdentifier(parameter.name);
+                        try self.appendParamReference(parameter.name);
                         try self.buffer.appendSlice(self.allocator, ");\n");
                     } else {
                         try self.buffer.appendSlice(self.allocator, "    if (");
-                        try self.appendIdentifier(parameter.name);
+                        try self.appendParamReference(parameter.name);
                         try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                         try self.buffer.appendSlice(self.allocator, "        try appendQueryParam(&uri_buf.writer, &first_query, \"");
                         try self.buffer.appendSlice(self.allocator, parameter.name);

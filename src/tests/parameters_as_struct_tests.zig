@@ -12,7 +12,7 @@ fn responseMap(allocator: std.mem.Allocator, with_schema: bool) !std.StringHashM
     return responses;
 }
 
-fn op(allocator: std.mem.Allocator, operation_id: []const u8, params: []common.Parameter, has_response: bool) !common.Operation {
+fn op(allocator: std.mem.Allocator, operation_id: ?[]const u8, params: []common.Parameter, has_response: bool) !common.Operation {
     return .{
         .operationId = operation_id,
         .parameters = if (params.len == 0) null else params,
@@ -50,6 +50,20 @@ fn buildFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     });
     try paths.put(try allocator.dupe(u8, "/chat/completions"), .{
         .post = try op(allocator, "createChatCompletion", chat_params, true),
+    });
+
+    const pets2_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "limit", .location = .query, .schema = .{ .type = .integer } },
+    });
+    try paths.put(try allocator.dupe(u8, "/pets2"), .{
+        .get = try op(allocator, null, pets2_params, true),
+    });
+
+    const search_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "X-Request-Id", .location = .header, .schema = .{ .type = .string } },
+    });
+    try paths.put(try allocator.dupe(u8, "/search"), .{
+        .get = try op(allocator, "search", search_params, true),
     });
 
     return .{
@@ -148,4 +162,89 @@ test "options struct composes with a body parameter" {
     defer allocator.free(code);
 
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn createChatCompletion(client: *Client, options: struct { stream: ?bool = null }, requestBody: std.json.Value) !Owned(std.json.Value) {") != null);
+}
+
+test "optional query parameters are read from the options struct" {
+    const allocator = std.testing.allocator;
+    var document = try buildFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (options.limit) |value| {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try appendQueryParam(&uri_buf.writer, &first_query, \"limit\", value);") != null);
+}
+
+test "path parameters are read from the options struct" {
+    const allocator = std.testing.allocator;
+    var document = try buildFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "try uri_buf.writer.print(\"{s}/pets/{d}\", .{ client.base_url, options.petId });") != null);
+}
+
+test "header parameters are read from the options struct" {
+    const allocator = std.testing.allocator;
+    var document = try buildFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "_ = options.@\"X-Request-Id\";") != null);
+}
+
+test "operations without an operation id read query parameters from the options struct" {
+    const allocator = std.testing.allocator;
+    var document = try buildFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn @\"operationpets2\"(client: *Client, options: struct { limit: ?i64 = null }) !Owned(std.json.Value) {") != null);
+    // listPetsRaw and the direct fallback function both encode the limit query parameter
+    try std.testing.expect(countOccurrences(code, "try appendQueryParam(&uri_buf.writer, &first_query, \"limit\", value);") == 2);
+}
+
+fn countOccurrences(haystack: []const u8, needle: []const u8) usize {
+    var count: usize = 0;
+    var rest = haystack;
+    while (std.mem.indexOf(u8, rest, needle)) |idx| {
+        count += 1;
+        rest = rest[idx + needle.len ..];
+    }
+    return count;
 }
