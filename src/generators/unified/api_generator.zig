@@ -1134,7 +1134,7 @@ pub const UnifiedApiGenerator = struct {
                 var counter: usize = 0;
                 while (used.contains(name)) {
                     counter += 1;
-                    const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_{d}", .{ p.name, counter });
+                    const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_{d}", .{ p.name, counter + 1 });
                     try allocated.append(self.allocator, suffixed);
                     name = suffixed;
                 }

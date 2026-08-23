@@ -397,6 +397,95 @@ fn buildOperationCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedD
     };
 }
 
+fn buildKeyCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    const get_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "limit", .location = .query, .schema = .{ .type = .integer } },
+    });
+    const post_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "limit", .location = .query, .schema = .{ .type = .integer } },
+    });
+    try paths.put(try allocator.dupe(u8, "/pets"), .{
+        .get = try op(allocator, "/pets", get_params, true),
+        .post = try op(allocator, null, post_params, true),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+fn buildDuplicateFieldsFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    const params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "filter", .location = .query, .schema = .{ .type = .string } },
+        .{ .name = "filter", .location = .header, .schema = .{ .type = .string } },
+    });
+    try paths.put(try allocator.dupe(u8, "/dup"), .{
+        .get = try op(allocator, "dup", params, true),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+test "operation id and path options type names never collide" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildKeyCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .multiple_clients = .per_endpoint,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn @\"/pets\"(client: *Client, options: @\"/petsOptions\") !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn @\"operationpets\"(client: *Client, options: @\"operationpetsOptions\") !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *Pets, options: @\"/petsOptions\") !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *PostPets, options: @\"operationpetsOptions\") !Owned(std.json.Value) {") != null);
+}
+
+test "duplicate parameter names are disambiguated in the options struct" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildDuplicateFieldsFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const dupOptions = struct {\n    filter: ?[]const u8 = null,\n    filter_2: ?[]const u8 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (options.filter) |value| {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "_ = options.filter_2;") != null);
+}
+
 test "options type name is disambiguated when an operation shares it" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
