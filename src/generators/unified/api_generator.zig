@@ -795,7 +795,7 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation, document: UnifiedDocument) !void {
         try self.generateComments(operation);
-        try self.generateOptionsType(operation, path, document);
+        try self.generateOptionsType(operation, method, path, document);
         try self.generateFunctionSignature(method, path, operation);
         try self.generateFunctionBody(method, path, operation);
         if (operation.operationId != null) {
@@ -824,7 +824,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.appendIdentifier(result_name);
         try self.buffer.appendSlice(self.allocator, "(client: *Client");
-        try self.appendFlatOperationParameters(operation, path);
+        try self.appendFlatOperationParameters(operation, method, path);
         try self.buffer.appendSlice(self.allocator, ") !ApiResult(");
         try self.appendReturnType(method, operation);
         try self.buffer.appendSlice(self.allocator, ") {\n");
@@ -847,7 +847,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.appendIdentifier(raw_name);
         try self.buffer.appendSlice(self.allocator, "(client: *Client");
-        try self.appendFlatOperationParameters(operation, path);
+        try self.appendFlatOperationParameters(operation, method, path);
         try self.buffer.appendSlice(self.allocator, ") !RawResponse {\n");
         try self.buffer.appendSlice(self.allocator, "    const allocator = client.allocator;\n");
         try self.appendUnusedParameters(operation);
@@ -992,7 +992,7 @@ pub const UnifiedApiGenerator = struct {
     /// Emit the `options` struct parameter wrapping all non-body parameters of
     /// an operation. Optional parameters become nullable fields with a `null`
     /// default; required parameters stay non-optional.
-    fn appendOptionsParam(self: *UnifiedApiGenerator, operation: Operation, path: []const u8) !void {
+    fn appendOptionsParam(self: *UnifiedApiGenerator, operation: Operation, method: []const u8, path: []const u8) !void {
         var count: usize = 0;
         if (operation.parameters) |params| {
             for (params) |param| {
@@ -1002,7 +1002,18 @@ pub const UnifiedApiGenerator = struct {
         if (count == 0) return;
 
         try self.buffer.appendSlice(self.allocator, ", options: ");
-        try self.appendOptionsTypeName(operation, path);
+        try self.appendOptionsTypeName(operation, method, path);
+    }
+
+    /// Build the map key identifying an operation in options_type_names.
+    /// Operation ids are namespaced separately from path-based fallback keys,
+    /// and the HTTP method disambiguates fallback operations sharing a path,
+    /// so distinct operations can never overwrite one another's entry.
+    fn optionsTypeKeyAlloc(self: *UnifiedApiGenerator, operation: Operation, method: []const u8, path: []const u8) ![]const u8 {
+        if (operation.operationId) |op_id| {
+            return try std.fmt.allocPrint(self.allocator, "op:{s}", .{op_id});
+        }
+        return try std.fmt.allocPrint(self.allocator, "path:{s}:{s}", .{ method, path });
     }
 
     /// Emit the name of the options struct type for an operation. The name
@@ -1011,8 +1022,9 @@ pub const UnifiedApiGenerator = struct {
     /// as the flat function name, derived from the operation path. The name is
     /// reserved by generateOptionsType so every variant references the same
     /// disambiguated type.
-    fn appendOptionsTypeName(self: *UnifiedApiGenerator, operation: Operation, path: []const u8) !void {
-        const key = if (operation.operationId) |op_id| op_id else path;
+    fn appendOptionsTypeName(self: *UnifiedApiGenerator, operation: Operation, method: []const u8, path: []const u8) !void {
+        const key = try self.optionsTypeKeyAlloc(operation, method, path);
+        defer self.allocator.free(key);
         if (self.options_type_names.get(key)) |name| {
             if (operation.operationId == null) {
                 try self.buffer.appendSlice(self.allocator, "@\"");
@@ -1042,7 +1054,7 @@ pub const UnifiedApiGenerator = struct {
     /// operation when parameters-as-struct is enabled and the operation has
     /// non-body parameters. The type name is reserved so it never collides
     /// with operation names, schemas, or runtime declarations.
-    fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation, path: []const u8, document: UnifiedDocument) !void {
+    fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation, method: []const u8, path: []const u8, document: UnifiedDocument) !void {
         if (!self.args.parameters_as_struct) return;
         var count: usize = 0;
         if (operation.parameters) |params| {
@@ -1062,7 +1074,8 @@ pub const UnifiedApiGenerator = struct {
             self.allocator.free(candidate);
             candidate = suffixed;
         }
-        const key = if (operation.operationId) |op_id| op_id else path;
+        const key = try self.optionsTypeKeyAlloc(operation, method, path);
+        defer self.allocator.free(key);
         if (self.options_type_names.fetchRemove(key)) |kv| {
             self.allocator.free(kv.key);
             self.allocator.free(kv.value);
@@ -1070,7 +1083,7 @@ pub const UnifiedApiGenerator = struct {
         try self.options_type_names.put(try self.allocator.dupe(u8, key), try self.allocator.dupe(u8, candidate));
 
         try self.buffer.appendSlice(self.allocator, "pub const ");
-        try self.appendOptionsTypeName(operation, path);
+        try self.appendOptionsTypeName(operation, method, path);
         try self.buffer.appendSlice(self.allocator, " = struct {\n");
         if (operation.parameters) |params| {
             for (params) |param| {
@@ -1109,10 +1122,10 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
-    fn appendFlatOperationParameters(self: *UnifiedApiGenerator, operation: Operation, path: []const u8) !void {
+    fn appendFlatOperationParameters(self: *UnifiedApiGenerator, operation: Operation, method: []const u8, path: []const u8) !void {
         if (operation.parameters) |params| {
             if (self.args.parameters_as_struct) {
-                try self.appendOptionsParam(operation, path);
+                try self.appendOptionsParam(operation, method, path);
                 try self.appendBodyParams(params);
                 return;
             }
@@ -1564,7 +1577,7 @@ pub const UnifiedApiGenerator = struct {
 
         try self.buffer.appendSlice(self.allocator, "    pub fn execute(self: *");
         try self.buffer.appendSlice(self.allocator, struct_name);
-        try self.appendFlatOperationParameters(operation, op_ref.path);
+        try self.appendFlatOperationParameters(operation, op_ref.method, op_ref.path);
         if (has_return) {
             try self.buffer.appendSlice(self.allocator, ") !Owned(");
             try self.appendReturnType(method, operation);
@@ -1590,7 +1603,7 @@ pub const UnifiedApiGenerator = struct {
 
             try self.buffer.appendSlice(self.allocator, "    pub fn executeRaw(self: *");
             try self.buffer.appendSlice(self.allocator, struct_name);
-            try self.appendFlatOperationParameters(operation, op_ref.path);
+            try self.appendFlatOperationParameters(operation, op_ref.method, op_ref.path);
             try self.buffer.appendSlice(self.allocator, ") !RawResponse {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
             try self.appendIdentifier(raw_operation_name);
@@ -1604,7 +1617,7 @@ pub const UnifiedApiGenerator = struct {
 
                 try self.buffer.appendSlice(self.allocator, "    pub fn executeResult(self: *");
                 try self.buffer.appendSlice(self.allocator, struct_name);
-                try self.appendFlatOperationParameters(operation, op_ref.path);
+                try self.appendFlatOperationParameters(operation, op_ref.method, op_ref.path);
                 try self.buffer.appendSlice(self.allocator, ") !ApiResult(");
                 try self.appendReturnType(method, operation);
                 try self.buffer.appendSlice(self.allocator, ") {\n");
@@ -1806,7 +1819,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, method_name);
         try self.buffer.appendSlice(self.allocator, "(self: *");
         try self.buffer.appendSlice(self.allocator, struct_name);
-        try self.appendFlatOperationParameters(operation, op_ref.path);
+        try self.appendFlatOperationParameters(operation, op_ref.method, op_ref.path);
         if (has_return) {
             try self.buffer.appendSlice(self.allocator, ") !Owned(");
             try self.appendReturnType(op_ref.method, operation);
@@ -1843,7 +1856,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, raw_method_name);
             try self.buffer.appendSlice(self.allocator, "(self: *");
             try self.buffer.appendSlice(self.allocator, struct_name);
-            try self.appendFlatOperationParameters(operation, op_ref.path);
+            try self.appendFlatOperationParameters(operation, op_ref.method, op_ref.path);
             try self.buffer.appendSlice(self.allocator, ") !RawResponse {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
             if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
@@ -1862,7 +1875,7 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, result_method_name);
                 try self.buffer.appendSlice(self.allocator, "(self: *");
                 try self.buffer.appendSlice(self.allocator, struct_name);
-                try self.appendFlatOperationParameters(operation, op_ref.path);
+                try self.appendFlatOperationParameters(operation, op_ref.method, op_ref.path);
                 try self.buffer.appendSlice(self.allocator, ") !ApiResult(");
                 try self.appendReturnType(op_ref.method, operation);
                 try self.buffer.appendSlice(self.allocator, ") {\n");
@@ -2055,7 +2068,7 @@ pub const UnifiedApiGenerator = struct {
 
     fn appendWrapperResultSignature(self: *UnifiedApiGenerator, method: []const u8, operation: Operation, forbidden_names: []const []const u8, path: []const u8) !void {
         try self.buffer.appendSlice(self.allocator, "(client: *Client");
-        try self.appendOperationParameters(operation, forbidden_names, path);
+        try self.appendOperationParameters(operation, forbidden_names, method, path);
         try self.buffer.appendSlice(self.allocator, ") !ApiResult(");
         try self.appendReturnType(method, operation);
         try self.buffer.appendSlice(self.allocator, ")");
@@ -2099,7 +2112,7 @@ pub const UnifiedApiGenerator = struct {
 
     fn appendWrapperSignatureAndReturn(self: *UnifiedApiGenerator, method: []const u8, operation: Operation, forbidden_names: []const []const u8, path: []const u8) !void {
         try self.buffer.appendSlice(self.allocator, "(client: *Client");
-        try self.appendOperationParameters(operation, forbidden_names, path);
+        try self.appendOperationParameters(operation, forbidden_names, method, path);
         if (self.hasReturnValue(method, operation)) {
             try self.buffer.appendSlice(self.allocator, ") !Owned(");
             try self.appendReturnType(method, operation);
@@ -2109,10 +2122,10 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
-    fn appendOperationParameters(self: *UnifiedApiGenerator, operation: Operation, forbidden_names: []const []const u8, path: []const u8) !void {
+    fn appendOperationParameters(self: *UnifiedApiGenerator, operation: Operation, forbidden_names: []const []const u8, method: []const u8, path: []const u8) !void {
         if (operation.parameters) |params| {
             if (self.args.parameters_as_struct) {
-                try self.appendOptionsParam(operation, path);
+                try self.appendOptionsParam(operation, method, path);
                 try self.appendBodyParams(params);
                 return;
             }
@@ -2346,7 +2359,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "\"");
         }
         try self.buffer.appendSlice(self.allocator, "(client: *Client");
-        try self.appendFlatOperationParameters(operation, path);
+        try self.appendFlatOperationParameters(operation, method, path);
 
         if (self.hasReturnValue(method, operation)) {
             try self.buffer.appendSlice(self.allocator, ") !Owned(");
