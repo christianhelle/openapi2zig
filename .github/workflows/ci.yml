@@ -27,7 +27,7 @@ jobs:
         run: zig version
 
       - name: Build project
-        run: zig build
+        run: zig build-all
 
       - name: Run tests
         run: zig build test --summary all
