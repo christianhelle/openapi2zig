@@ -44,6 +44,43 @@ test "model generator treats properties without type as struct" {
     try std.testing.expect(std.mem.indexOf(u8, code, "foo: ?[]const u8 = null") != null);
 }
 
+test "model generator emits type keyword as bare struct field name" {
+    const allocator = std.testing.allocator;
+    var properties = std.StringHashMap(common.Schema).init(allocator);
+    defer {
+        var iterator = properties.iterator();
+        while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
+        properties.deinit();
+    }
+    try properties.put(try allocator.dupe(u8, "type"), stringSchema());
+    try properties.put(try allocator.dupe(u8, "foo"), stringSchema());
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    defer {
+        var iterator = schemas.iterator();
+        while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
+        schemas.deinit();
+    }
+    try schemas.put(try allocator.dupe(u8, "Thing"), .{ .properties = properties });
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    defer paths.deinit();
+    const document: common.UnifiedDocument = .{
+        .version = "3.1.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "type: ?[]const u8 = null") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "@\"type\"") == null);
+}
+
 test "model generator emits empty struct for empty-property object" {
     const allocator = std.testing.allocator;
 

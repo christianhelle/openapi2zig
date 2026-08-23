@@ -42,6 +42,10 @@ pub const UnifiedModelGenerator = struct {
         try ident.appendIdentifier(&self.buffer, self.allocator, name);
     }
 
+    fn appendFieldIdentifier(self: *UnifiedModelGenerator, name: []const u8) !void {
+        try ident.appendFieldIdentifier(&self.buffer, self.allocator, name);
+    }
+
     fn generateHeader(self: *UnifiedModelGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
             \\const std = @import("std");
@@ -1113,7 +1117,7 @@ pub const UnifiedModelGenerator = struct {
 
     fn generateStructField(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8, field_schema: Schema, is_required: bool) !void {
         try self.buffer.appendSlice(self.allocator, "    ");
-        try self.appendIdentifier(field_name);
+        try self.appendFieldIdentifier(field_name);
         try self.buffer.appendSlice(self.allocator, ": ");
 
         if (try self.appendManualFieldType(owner_name, field_name)) {
@@ -1159,11 +1163,11 @@ pub const UnifiedModelGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, field_name);
                 try self.buffer.appendSlice(self.allocator, "\");\n");
                 try self.buffer.appendSlice(self.allocator, "        try jw.write(self.");
-                try self.appendIdentifier(field_name);
+                try self.appendFieldIdentifier(field_name);
                 try self.buffer.appendSlice(self.allocator, ");\n");
             } else {
                 try self.buffer.appendSlice(self.allocator, "        if (self.");
-                try self.appendIdentifier(field_name);
+                try self.appendFieldIdentifier(field_name);
                 try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                 try self.buffer.appendSlice(self.allocator, "            try jw.objectField(\"");
                 try self.buffer.appendSlice(self.allocator, field_name);
