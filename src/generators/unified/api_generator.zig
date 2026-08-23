@@ -1088,8 +1088,10 @@ pub const UnifiedApiGenerator = struct {
         if (operation.parameters) |params| {
             for (params) |param| {
                 if (param.location == .body) continue;
+                const field_name = try self.optionsFieldNameAlloc(operation, param);
+                defer self.allocator.free(field_name);
                 try self.buffer.appendSlice(self.allocator, "    ");
-                try self.appendFieldIdentifier(param.name);
+                try self.appendFieldIdentifier(field_name);
                 try self.buffer.appendSlice(self.allocator, ": ");
                 const optional = param.location != .path and !param.required;
                 if (optional) try self.buffer.appendSlice(self.allocator, "?");
@@ -1111,14 +1113,49 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
+    /// Compute the field name of a parameter in the options struct. When the
+    /// escaped name collides with an earlier non-body parameter, a numeric
+    /// suffix is appended so generated structs never declare duplicate fields.
+    /// Field-identifier escaping is injective, so comparing raw names is
+    /// equivalent to comparing escaped names.
+    fn optionsFieldNameAlloc(self: *UnifiedApiGenerator, operation: Operation, parameter: Parameter) ![]const u8 {
+        var used = std.StringHashMap(void).init(self.allocator);
+        var allocated = std.ArrayList([]const u8).empty;
+        defer {
+            for (allocated.items) |item| self.allocator.free(item);
+            allocated.deinit(self.allocator);
+            used.deinit();
+        }
+        if (operation.parameters) |params| {
+            for (params) |p| {
+                if (p.location == .body) continue;
+                const is_target = std.mem.eql(u8, p.name, parameter.name) and p.location == parameter.location;
+                var name = p.name;
+                var counter: usize = 0;
+                while (used.contains(name)) {
+                    counter += 1;
+                    const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_{d}", .{ p.name, counter });
+                    try allocated.append(self.allocator, suffixed);
+                    name = suffixed;
+                }
+                if (is_target) return try self.allocator.dupe(u8, name);
+                try used.put(name, {});
+            }
+        }
+        return try self.allocator.dupe(u8, parameter.name);
+    }
+
     /// Emit a reference to a parameter argument. In parameters-as-struct mode
-    /// the value lives in the `options` struct and must use field escaping.
-    fn appendParamReference(self: *UnifiedApiGenerator, param_name: []const u8) !void {
+    /// the value lives in the `options` struct and must use field escaping and
+    /// duplicate-name disambiguation.
+    fn appendParamReference(self: *UnifiedApiGenerator, operation: Operation, parameter: Parameter) !void {
         if (self.args.parameters_as_struct) {
+            const field_name = try self.optionsFieldNameAlloc(operation, parameter);
+            defer self.allocator.free(field_name);
             try self.buffer.appendSlice(self.allocator, "options.");
-            try self.appendFieldIdentifier(param_name);
+            try self.appendFieldIdentifier(field_name);
         } else {
-            try self.appendIdentifier(param_name);
+            try self.appendIdentifier(parameter.name);
         }
     }
 
@@ -1145,7 +1182,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path and parameter.location != .body and parameter.location != .query) {
                     try self.buffer.appendSlice(self.allocator, "    _ = ");
-                    try self.appendParamReference(parameter.name);
+                    try self.appendParamReference(operation, parameter);
                     try self.buffer.appendSlice(self.allocator, ";\n");
                 }
             }
@@ -1199,7 +1236,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 try self.buffer.appendSlice(self.allocator, ", ");
-                try self.appendParamReference(parameter.name);
+                try self.appendParamReference(operation, parameter);
             }
         }
         if (has_path_param) try self.buffer.appendSlice(self.allocator, " ");
@@ -1223,11 +1260,11 @@ pub const UnifiedApiGenerator = struct {
                         try self.buffer.appendSlice(self.allocator, "    try appendQueryParam(&uri_buf.writer, &first_query, \"");
                         try self.buffer.appendSlice(self.allocator, parameter.name);
                         try self.buffer.appendSlice(self.allocator, "\", ");
-                        try self.appendParamReference(parameter.name);
+                        try self.appendParamReference(operation, parameter);
                         try self.buffer.appendSlice(self.allocator, ");\n");
                     } else {
                         try self.buffer.appendSlice(self.allocator, "    if (");
-                        try self.appendParamReference(parameter.name);
+                        try self.appendParamReference(operation, parameter);
                         try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                         try self.buffer.appendSlice(self.allocator, "        try appendQueryParam(&uri_buf.writer, &first_query, \"");
                         try self.buffer.appendSlice(self.allocator, parameter.name);
@@ -2429,7 +2466,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path and parameter.location != .body and parameter.location != .query) {
                     try self.buffer.appendSlice(self.allocator, "    _ = ");
-                    try self.appendParamReference(parameter.name);
+                    try self.appendParamReference(operation, parameter);
                     try self.buffer.appendSlice(self.allocator, ";\n");
                 }
             }
@@ -2494,7 +2531,7 @@ pub const UnifiedApiGenerator = struct {
             for (parameters) |parameter| {
                 if (parameter.location != .path) continue;
                 try self.buffer.appendSlice(self.allocator, ", ");
-                try self.appendParamReference(parameter.name);
+                try self.appendParamReference(operation, parameter);
             }
         }
         if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");
@@ -2518,11 +2555,11 @@ pub const UnifiedApiGenerator = struct {
                         try self.buffer.appendSlice(self.allocator, "    try appendQueryParam(&uri_buf.writer, &first_query, \"");
                         try self.buffer.appendSlice(self.allocator, parameter.name);
                         try self.buffer.appendSlice(self.allocator, "\", ");
-                        try self.appendParamReference(parameter.name);
+                        try self.appendParamReference(operation, parameter);
                         try self.buffer.appendSlice(self.allocator, ");\n");
                     } else {
                         try self.buffer.appendSlice(self.allocator, "    if (");
-                        try self.appendParamReference(parameter.name);
+                        try self.appendParamReference(operation, parameter);
                         try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                         try self.buffer.appendSlice(self.allocator, "        try appendQueryParam(&uri_buf.writer, &first_query, \"");
                         try self.buffer.appendSlice(self.allocator, parameter.name);
