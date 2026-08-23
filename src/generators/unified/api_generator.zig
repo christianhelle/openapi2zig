@@ -168,6 +168,11 @@ pub const UnifiedApiGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
     args: cli.CliArgs,
+    /// Reserved names of generated options struct types, keyed by operation id
+    /// (or by path for operations without one). Options type names are
+    /// disambiguated against every top-level declaration so generated clients
+    /// always compile.
+    options_type_names: std.StringHashMap([]const u8),
     model_prefix: []const u8 = "",
     emit_imports: bool = true,
     models_import: []const u8 = "models.zig",
@@ -180,15 +185,27 @@ pub const UnifiedApiGenerator = struct {
             .allocator = allocator,
             .buffer = std.ArrayList(u8).empty,
             .args = args,
+            .options_type_names = std.StringHashMap([]const u8).init(allocator),
         };
+    }
+
+    fn clearOptionsTypeNames(self: *UnifiedApiGenerator) void {
+        var key_iterator = self.options_type_names.keyIterator();
+        while (key_iterator.next()) |key| self.allocator.free(key.*);
+        var value_iterator = self.options_type_names.valueIterator();
+        while (value_iterator.next()) |value| self.allocator.free(value.*);
+        self.options_type_names.clearRetainingCapacity();
     }
 
     pub fn deinit(self: *UnifiedApiGenerator) void {
         self.buffer.deinit(self.allocator);
+        self.clearOptionsTypeNames();
+        self.options_type_names.deinit();
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
         self.buffer.clearRetainingCapacity();
+        self.clearOptionsTypeNames();
         try self.generateHeader();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -205,6 +222,7 @@ pub const UnifiedApiGenerator = struct {
 
     pub fn generateClientOnly(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
         self.buffer.clearRetainingCapacity();
+        self.clearOptionsTypeNames();
         try self.generateHeaderMulti();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -761,23 +779,23 @@ pub const UnifiedApiGenerator = struct {
         while (path_iterator.next()) |entry| {
             const path = entry.key_ptr.*;
             const path_item = entry.value_ptr.*;
-            try self.generateOperations(path, path_item);
+            try self.generateOperations(path, path_item, document);
         }
     }
 
-    fn generateOperations(self: *UnifiedApiGenerator, path: []const u8, path_item: @import("../../models/common/document.zig").PathItem) !void {
-        if (path_item.get) |op| try self.generateOperation("GET", path, op);
-        if (path_item.post) |op| try self.generateOperation("POST", path, op);
-        if (path_item.put) |op| try self.generateOperation("PUT", path, op);
-        if (path_item.delete) |op| try self.generateOperation("DELETE", path, op);
-        if (path_item.patch) |op| try self.generateOperation("PATCH", path, op);
-        if (path_item.head) |op| try self.generateOperation("HEAD", path, op);
-        if (path_item.options) |op| try self.generateOperation("OPTIONS", path, op);
+    fn generateOperations(self: *UnifiedApiGenerator, path: []const u8, path_item: @import("../../models/common/document.zig").PathItem, document: UnifiedDocument) !void {
+        if (path_item.get) |op| try self.generateOperation("GET", path, op, document);
+        if (path_item.post) |op| try self.generateOperation("POST", path, op, document);
+        if (path_item.put) |op| try self.generateOperation("PUT", path, op, document);
+        if (path_item.delete) |op| try self.generateOperation("DELETE", path, op, document);
+        if (path_item.patch) |op| try self.generateOperation("PATCH", path, op, document);
+        if (path_item.head) |op| try self.generateOperation("HEAD", path, op, document);
+        if (path_item.options) |op| try self.generateOperation("OPTIONS", path, op, document);
     }
 
-    fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
+    fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation, document: UnifiedDocument) !void {
         try self.generateComments(operation);
-        try self.generateOptionsType(operation, path);
+        try self.generateOptionsType(operation, path, document);
         try self.generateFunctionSignature(method, path, operation);
         try self.generateFunctionBody(method, path, operation);
         if (operation.operationId != null) {
@@ -990,8 +1008,25 @@ pub const UnifiedApiGenerator = struct {
     /// Emit the name of the options struct type for an operation. The name
     /// derives from the operation id so all functions of an operation share
     /// the same type; operations without an operation id use the same fallback
-    /// as the flat function name, derived from the operation path.
+    /// as the flat function name, derived from the operation path. The name is
+    /// reserved by generateOptionsType so every variant references the same
+    /// disambiguated type.
     fn appendOptionsTypeName(self: *UnifiedApiGenerator, operation: Operation, path: []const u8) !void {
+        const key = if (operation.operationId) |op_id| op_id else path;
+        if (self.options_type_names.get(key)) |name| {
+            if (operation.operationId == null) {
+                try self.buffer.appendSlice(self.allocator, "@\"");
+                try self.buffer.appendSlice(self.allocator, name);
+                try self.buffer.appendSlice(self.allocator, "\"");
+            } else {
+                try self.appendIdentifier(name);
+            }
+            return;
+        }
+        try self.appendRawOptionsTypeName(operation, path);
+    }
+
+    fn appendRawOptionsTypeName(self: *UnifiedApiGenerator, operation: Operation, path: []const u8) !void {
         if (operation.operationId) |op_id| {
             const name = try std.fmt.allocPrint(self.allocator, "{s}Options", .{op_id});
             defer self.allocator.free(name);
@@ -1005,8 +1040,9 @@ pub const UnifiedApiGenerator = struct {
 
     /// Emit a top-level declaration of the options struct type for an
     /// operation when parameters-as-struct is enabled and the operation has
-    /// non-body parameters.
-    fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation, path: []const u8) !void {
+    /// non-body parameters. The type name is reserved so it never collides
+    /// with operation names, schemas, or runtime declarations.
+    fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation, path: []const u8, document: UnifiedDocument) !void {
         if (!self.args.parameters_as_struct) return;
         var count: usize = 0;
         if (operation.parameters) |params| {
@@ -1015,6 +1051,20 @@ pub const UnifiedApiGenerator = struct {
             }
         }
         if (count == 0) return;
+
+        var candidate = if (operation.operationId) |op_id|
+            try std.fmt.allocPrint(self.allocator, "{s}Options", .{op_id})
+        else
+            try std.fmt.allocPrint(self.allocator, "operation{s}Options", .{path[1..]});
+        defer self.allocator.free(candidate);
+        while (self.topLevelNameConflicts(candidate, document)) {
+            const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
+            self.allocator.free(candidate);
+            candidate = suffixed;
+        }
+        const key = if (operation.operationId) |op_id| op_id else path;
+        if (self.options_type_names.get(key)) |old| self.allocator.free(old);
+        try self.options_type_names.put(try self.allocator.dupe(u8, key), try self.allocator.dupe(u8, candidate));
 
         try self.buffer.appendSlice(self.allocator, "pub const ");
         try self.appendOptionsTypeName(operation, path);
@@ -1598,6 +1648,11 @@ pub const UnifiedApiGenerator = struct {
         };
         for (runtime_names) |runtime_name| {
             if (std.mem.eql(u8, name, runtime_name)) return true;
+        }
+
+        var options_iterator = self.options_type_names.valueIterator();
+        while (options_iterator.next()) |options_name| {
+            if (std.mem.eql(u8, options_name.*, name)) return true;
         }
 
         if (document.schemas) |schemas| {
