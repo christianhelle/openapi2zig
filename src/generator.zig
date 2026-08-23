@@ -148,15 +148,19 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
         try cwd.createDirPath(io, dir_path);
     }
 
-    const full_path = try std.fs.path.join(allocator, &.{ ".", output_path });
-    defer allocator.free(full_path);
-    if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
-        defer allocator.free(existing);
-        if (!generated_header.hasChanged(existing, generated_code)) {
-            std.log.info("Skipping '{s}' (unchanged)", .{output_path});
-            return;
-        }
-    } else |_| {}
+    if (!args.force) {
+        const full_path = try std.fs.path.join(allocator, &.{ ".", output_path });
+        defer allocator.free(full_path);
+        if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
+            defer allocator.free(existing);
+            if (!generated_header.hasChanged(existing, generated_code)) {
+                std.log.info("Skipping '{s}' (unchanged)", .{output_path});
+                return;
+            }
+        } else |_| {}
+    } else {
+        std.log.info("Force flag is set; overwriting '{s}'", .{output_path});
+    }
 
     const output_file = try cwd.createFile(io, output_path, .{});
     defer output_file.close(io);
