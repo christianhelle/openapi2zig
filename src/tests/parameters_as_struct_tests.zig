@@ -248,3 +248,65 @@ fn countOccurrences(haystack: []const u8, needle: []const u8) usize {
     }
     return count;
 }
+
+test "tag client methods wrap parameters in the options struct" {
+    const allocator = std.testing.allocator;
+    var document = try buildFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .multiple_clients = .per_tag,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listPets(self: *DefaultClient, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _listPets(self.client, options);") != null);
+}
+
+test "endpoint client execute wraps parameters in the options struct" {
+    const allocator = std.testing.allocator;
+    var document = try buildFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .multiple_clients = .per_endpoint,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *ListPets, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return listPets(self.client, options);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn executeRaw(self: *ListPets, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !RawResponse {") != null);
+}
+
+test "resource wrapper methods wrap parameters in the options struct" {
+    const allocator = std.testing.allocator;
+    var document = try buildFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .paths,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn list(client: *Client, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return listPets(client, options);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listResult(client: *Client, options: struct { limit: ?i64 = null, status: ?[]const u8 = null }) !ApiResult(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return listPetsResult(client, options);") != null);
+}

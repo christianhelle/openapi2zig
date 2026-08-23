@@ -1816,7 +1816,15 @@ pub const UnifiedApiGenerator = struct {
     fn appendTagClientCallArguments(self: *UnifiedApiGenerator, operation: Operation) !void {
         try self.buffer.appendSlice(self.allocator, "(self.client");
         if (operation.parameters) |params| {
+            if (self.args.parameters_as_struct) {
+                for (params) |param| {
+                    if (param.location == .body) continue;
+                    try self.buffer.appendSlice(self.allocator, ", options");
+                    break;
+                }
+            }
             for (params) |param| {
+                if (self.args.parameters_as_struct and param.location != .body) continue;
                 try self.buffer.appendSlice(self.allocator, ", ");
                 const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
                 try self.appendIdentifier(name);
@@ -2028,7 +2036,15 @@ pub const UnifiedApiGenerator = struct {
     fn appendWrapperCallArguments(self: *UnifiedApiGenerator, operation: Operation, forbidden_names: []const []const u8) !void {
         try self.buffer.appendSlice(self.allocator, "(client");
         if (operation.parameters) |params| {
+            if (self.args.parameters_as_struct) {
+                for (params) |param| {
+                    if (param.location == .body) continue;
+                    try self.buffer.appendSlice(self.allocator, ", options");
+                    break;
+                }
+            }
             for (params) |param| {
+                if (self.args.parameters_as_struct and param.location != .body) continue;
                 try self.buffer.appendSlice(self.allocator, ", ");
                 const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
                 try self.appendParameterName(name, forbidden_names);
