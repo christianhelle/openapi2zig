@@ -384,7 +384,7 @@ pub fn getDownloadStatusRaw(client: *Client, job_id: []const u8) !RawResponse {
     const allocator = client.allocator;
     var uri_buf: std.Io.Writer.Allocating = .init(allocator);
     defer uri_buf.deinit();
-    try uri_buf.writer.print("{s}/api/v1/models/download/status/{s}", .{client.base_url, job_id});
+    try uri_buf.writer.print("{s}/api/v1/models/download/status/{s}", .{ client.base_url, job_id });
     const payload: ?[]const u8 = null;
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
@@ -585,4 +585,3 @@ pub const resources = struct {
 };
 
 pub const api = resources.api;
-

@@ -51,6 +51,58 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(lib);
 
+    // Cross-compile builds for every supported platform
+    const supported_targets = [_][]const u8{
+        "x86_64-linux",
+        "aarch64-linux",
+        "x86_64-windows",
+        "x86_64-macos",
+        "aarch64-macos",
+    };
+    const build_all_step = b.step("build-all", "Build for all supported platforms");
+    for (supported_targets) |target_triple| {
+        const cross_target = b.resolveTargetQuery(
+            std.Target.Query.parse(.{ .arch_os_abi = target_triple }) catch |err| {
+                std.log.err("invalid build-all target '{s}': {s}", .{
+                    target_triple,
+                    @errorName(err),
+                });
+                @panic("invalid build-all target");
+            },
+        );
+        const target_yaml_dep = b.dependency("yaml", .{
+            .target = cross_target,
+            .optimize = optimize,
+        });
+
+        const cross_lib_module = b.createModule(.{
+            .root_source_file = b.path("src/lib.zig"),
+            .target = cross_target,
+            .optimize = optimize,
+        });
+        cross_lib_module.addIncludePath(b.path("src"));
+        cross_lib_module.addOptions("build_info", createBuildInfoOptions(b, run_integration_tests));
+        cross_lib_module.addImport("yaml", target_yaml_dep.module("yaml"));
+
+        const cross_exe_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = cross_target,
+            .optimize = optimize,
+        });
+        cross_exe_module.addOptions("build_info", createBuildInfoOptions(b, run_integration_tests));
+        cross_exe_module.addImport("yaml", target_yaml_dep.module("yaml"));
+        cross_exe_module.addImport("openapi2zig", cross_lib_module);
+
+        const cross_exe = b.addExecutable(.{
+            .name = "openapi2zig",
+            .root_module = cross_exe_module,
+        });
+        const install_cross_exe = b.addInstallArtifact(cross_exe, .{
+            .dest_dir = .{ .override = .{ .custom = target_triple } },
+        });
+        build_all_step.dependOn(&install_cross_exe.step);
+    }
+
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
