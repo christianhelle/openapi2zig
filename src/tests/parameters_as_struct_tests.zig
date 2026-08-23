@@ -350,3 +350,167 @@ test "resource wrapper methods wrap parameters in the options struct" {
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listResult(client: *Client, options: listPetsOptions) !ApiResult(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return listPetsResult(client, options);") != null);
 }
+
+fn buildOperationCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    const list_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "limit", .location = .query, .schema = .{ .type = .integer } },
+    });
+    try paths.put(try allocator.dupe(u8, "/foo"), .{
+        .get = try op(allocator, "foo", list_params, true),
+    });
+
+    const body_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "body", .location = .body, .required = true, .schema = .{ .type = .object } },
+    });
+    try paths.put(try allocator.dupe(u8, "/fooOptions"), .{
+        .get = try op(allocator, "fooOptions", body_params, true),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+test "options type name is disambiguated when an operation shares it" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildOperationCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const fooOptions_ = struct {\n    limit: ?i64 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn foo(client: *Client, options: fooOptions_) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn fooOptions(client: *Client, requestBody: std.json.Value) !Owned(std.json.Value) {") != null);
+}
+
+test "disambiguated options type name is shared by tag client methods" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildOperationCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .multiple_clients = .per_tag,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn foo(self: *DefaultClient, options: fooOptions_) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _foo(self.client, options);") != null);
+}
+
+fn buildSchemaCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    const params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "limit", .location = .query, .schema = .{ .type = .integer } },
+    });
+    try paths.put(try allocator.dupe(u8, "/pets2"), .{
+        .get = try op(allocator, null, params, true),
+    });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "operationpets2Options"), .{ .type = .object });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+test "fallback options type name avoids schema declarations" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildSchemaCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const @\"operationpets2Options_\" = struct {\n    limit: ?i64 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn @\"operationpets2\"(client: *Client, options: @\"operationpets2Options_\") !Owned(std.json.Value) {") != null);
+}
+
+fn buildEndpointCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    const list_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "limit", .location = .query, .schema = .{ .type = .integer } },
+    });
+    try paths.put(try allocator.dupe(u8, "/Foo"), .{
+        .get = try op(allocator, "Foo", list_params, true),
+    });
+
+    const body_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "body", .location = .body, .required = true, .schema = .{ .type = .object } },
+    });
+    try paths.put(try allocator.dupe(u8, "/fooOptions"), .{
+        .get = try op(allocator, "fooOptions", body_params, true),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+test "endpoint client struct names avoid reserved options types" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildEndpointCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .multiple_clients = .per_endpoint,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const FooOptions = struct {\n    limit: ?i64 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const FooOptions_ = struct {") != null);
+}
