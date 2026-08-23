@@ -128,7 +128,7 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
         generated_models
     else blk: {
         var api_generator = UnifiedApiGenerator.init(allocator, args);
-        defer api_generator.deinit();
+        defer api_generator.deinit(allocator);
         const generated_api = try api_generator.generate(filtered_doc);
         defer allocator.free(generated_api);
 
@@ -251,7 +251,7 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     api_generator.models_import_alias = models_alias;
     api_generator.runtime_import = runtime_import_path;
     api_generator.runtime_import_alias = runtime_alias;
-    defer api_generator.deinit();
+    defer api_generator.deinit(allocator);
     const generated_api = try api_generator.generateClientOnly(unified_doc);
     defer allocator.free(generated_api);
 

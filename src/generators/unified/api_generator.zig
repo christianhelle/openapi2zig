@@ -189,23 +189,23 @@ pub const UnifiedApiGenerator = struct {
         };
     }
 
-    fn clearOptionsTypeNames(self: *UnifiedApiGenerator) void {
+    fn clearOptionsTypeNames(self: *UnifiedApiGenerator, allocator: std.mem.Allocator) void {
         var key_iterator = self.options_type_names.keyIterator();
-        while (key_iterator.next()) |key| self.allocator.free(key.*);
+        while (key_iterator.next()) |key| allocator.free(key.*);
         var value_iterator = self.options_type_names.valueIterator();
-        while (value_iterator.next()) |value| self.allocator.free(value.*);
+        while (value_iterator.next()) |value| allocator.free(value.*);
         self.options_type_names.clearRetainingCapacity();
     }
 
-    pub fn deinit(self: *UnifiedApiGenerator) void {
-        self.buffer.deinit(self.allocator);
-        self.clearOptionsTypeNames();
+    pub fn deinit(self: *UnifiedApiGenerator, allocator: std.mem.Allocator) void {
+        self.buffer.deinit(allocator);
+        self.clearOptionsTypeNames(allocator);
         self.options_type_names.deinit();
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
         self.buffer.clearRetainingCapacity();
-        self.clearOptionsTypeNames();
+        self.clearOptionsTypeNames(self.allocator);
         try self.generateHeader();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -222,7 +222,7 @@ pub const UnifiedApiGenerator = struct {
 
     pub fn generateClientOnly(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
         self.buffer.clearRetainingCapacity();
-        self.clearOptionsTypeNames();
+        self.clearOptionsTypeNames(self.allocator);
         try self.generateHeaderMulti();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
