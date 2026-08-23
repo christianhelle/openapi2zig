@@ -223,6 +223,10 @@ pub const UnifiedApiGenerator = struct {
         try ident.appendIdentifier(&self.buffer, self.allocator, name);
     }
 
+    fn appendFieldIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
+        try ident.appendFieldIdentifier(&self.buffer, self.allocator, name);
+    }
+
     fn appendLineComment(self: *UnifiedApiGenerator, text: []const u8) !void {
         var lines = std.mem.splitScalar(u8, text, '\n');
         while (lines.next()) |line| {
@@ -927,7 +931,15 @@ pub const UnifiedApiGenerator = struct {
     fn appendFlatCallArguments(self: *UnifiedApiGenerator, operation: Operation) !void {
         try self.buffer.appendSlice(self.allocator, "(client");
         if (operation.parameters) |params| {
+            if (self.args.parameters_as_struct) {
+                for (params) |param| {
+                    if (param.location == .body) continue;
+                    try self.buffer.appendSlice(self.allocator, ", options");
+                    break;
+                }
+            }
             for (params) |param| {
+                if (self.args.parameters_as_struct and param.location != .body) continue;
                 try self.buffer.appendSlice(self.allocator, ", ");
                 const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
                 try self.appendIdentifier(name);
@@ -936,32 +948,90 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, ")");
     }
 
+    /// Emit the base Zig type for a parameter, without the optional prefix or
+    /// null default that callers may add.
+    fn appendParamBaseType(self: *UnifiedApiGenerator, param: Parameter) !void {
+        if (param.location == .body) {
+            const kind = classifyBody(param.content_type);
+            if (kind == .binary or kind == .text) {
+                try self.buffer.appendSlice(self.allocator, "[]const u8");
+            } else if (param.schema) |schema| {
+                try self.appendZigTypeFromSchema(schema);
+            } else {
+                try self.buffer.appendSlice(self.allocator, "std.json.Value");
+            }
+        } else {
+            if (param.schema) |schema| {
+                try self.appendZigQueryTypeFromSchema(schema);
+            } else if (param.type) |param_type| {
+                try self.appendZigTypeFromSchemaType(param_type);
+            } else {
+                try self.buffer.appendSlice(self.allocator, "[]const u8");
+            }
+        }
+    }
+
+    /// Emit the `options` struct parameter wrapping all non-body parameters of
+    /// an operation. Optional query parameters become nullable fields with a
+    /// `null` default; required path and query parameters stay non-optional.
+    fn appendOptionsStruct(self: *UnifiedApiGenerator, params: []Parameter) !void {
+        var count: usize = 0;
+        for (params) |param| {
+            if (param.location != .body) count += 1;
+        }
+        if (count == 0) return;
+
+        try self.buffer.appendSlice(self.allocator, ", options: struct { ");
+        var first = true;
+        for (params) |param| {
+            if (param.location == .body) continue;
+            if (!first) try self.buffer.appendSlice(self.allocator, ", ");
+            first = false;
+            try self.appendFieldIdentifier(param.name);
+            try self.buffer.appendSlice(self.allocator, ": ");
+            const optional = param.location == .query and !param.required;
+            if (optional) try self.buffer.appendSlice(self.allocator, "?");
+            try self.appendParamBaseType(param);
+            if (optional) try self.buffer.appendSlice(self.allocator, " = null");
+        }
+        try self.buffer.appendSlice(self.allocator, " }");
+    }
+
+    /// Emit individual `requestBody` arguments for body parameters, used after
+    /// the `options` struct when parameters-as-struct is enabled.
+    fn appendBodyParams(self: *UnifiedApiGenerator, params: []Parameter) !void {
+        for (params) |param| {
+            if (param.location != .body) continue;
+            try self.buffer.appendSlice(self.allocator, ", requestBody: ");
+            try self.appendParamBaseType(param);
+        }
+    }
+
+    /// Emit a reference to a parameter argument. In parameters-as-struct mode
+    /// the value lives in the `options` struct and must use field escaping.
+    fn appendParamReference(self: *UnifiedApiGenerator, param_name: []const u8) !void {
+        if (self.args.parameters_as_struct) {
+            try self.buffer.appendSlice(self.allocator, "options.");
+            try self.appendFieldIdentifier(param_name);
+        } else {
+            try self.appendIdentifier(param_name);
+        }
+    }
+
     fn appendFlatOperationParameters(self: *UnifiedApiGenerator, operation: Operation) !void {
         if (operation.parameters) |params| {
+            if (self.args.parameters_as_struct) {
+                try self.appendOptionsStruct(params);
+                try self.appendBodyParams(params);
+                return;
+            }
             for (params) |param| {
                 try self.buffer.appendSlice(self.allocator, ", ");
                 const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
                 try self.appendIdentifier(name);
                 try self.buffer.appendSlice(self.allocator, ": ");
-                if (param.location == .body) {
-                    const kind = classifyBody(param.content_type);
-                    if (kind == .binary or kind == .text) {
-                        try self.buffer.appendSlice(self.allocator, "[]const u8");
-                    } else if (param.schema) |schema| {
-                        try self.appendZigTypeFromSchema(schema);
-                    } else {
-                        try self.buffer.appendSlice(self.allocator, "std.json.Value");
-                    }
-                } else {
-                    if (param.location == .query and !param.required) try self.buffer.appendSlice(self.allocator, "?");
-                    if (param.schema) |schema| {
-                        try self.appendZigQueryTypeFromSchema(schema);
-                    } else if (param.type) |param_type| {
-                        try self.appendZigTypeFromSchemaType(param_type);
-                    } else {
-                        try self.buffer.appendSlice(self.allocator, "[]const u8");
-                    }
-                }
+                if (param.location == .query and !param.required) try self.buffer.appendSlice(self.allocator, "?");
+                try self.appendParamBaseType(param);
             }
         }
     }
@@ -1937,32 +2007,20 @@ pub const UnifiedApiGenerator = struct {
 
     fn appendOperationParameters(self: *UnifiedApiGenerator, operation: Operation, forbidden_names: []const []const u8) !void {
         if (operation.parameters) |params| {
+            if (self.args.parameters_as_struct) {
+                try self.appendOptionsStruct(params);
+                try self.appendBodyParams(params);
+                return;
+            }
             for (params) |param| {
                 try self.buffer.appendSlice(self.allocator, ", ");
                 const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
                 try self.appendParameterName(name, forbidden_names);
                 try self.buffer.appendSlice(self.allocator, ": ");
-                if (param.location == .body) {
-                    const kind = classifyBody(param.content_type);
-                    if (kind == .binary or kind == .text) {
-                        try self.buffer.appendSlice(self.allocator, "[]const u8");
-                    } else if (param.schema) |schema| {
-                        try self.appendZigTypeFromSchema(schema);
-                    } else {
-                        try self.buffer.appendSlice(self.allocator, "std.json.Value");
-                    }
-                } else {
-                    if (param.location == .query and !param.required) {
-                        try self.buffer.appendSlice(self.allocator, "?");
-                    }
-                    if (param.schema) |schema| {
-                        try self.appendZigQueryTypeFromSchema(schema);
-                    } else if (param.type) |param_type| {
-                        try self.appendZigTypeFromSchemaType(param_type);
-                    } else {
-                        try self.buffer.appendSlice(self.allocator, "[]const u8");
-                    }
+                if (param.location == .query and !param.required) {
+                    try self.buffer.appendSlice(self.allocator, "?");
                 }
+                try self.appendParamBaseType(param);
             }
         }
     }
@@ -2176,35 +2234,7 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "\"");
         }
         try self.buffer.appendSlice(self.allocator, "(client: *Client");
-        if (operation.parameters) |params| {
-            for (params) |param| {
-                try self.buffer.appendSlice(self.allocator, ", ");
-                const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
-                try self.appendIdentifier(name);
-                try self.buffer.appendSlice(self.allocator, ": ");
-                if (param.location == .body) {
-                    const kind = classifyBody(param.content_type);
-                    if (kind == .binary or kind == .text) {
-                        try self.buffer.appendSlice(self.allocator, "[]const u8");
-                    } else if (param.schema) |schema| {
-                        try self.appendZigTypeFromSchema(schema);
-                    } else {
-                        try self.buffer.appendSlice(self.allocator, "std.json.Value");
-                    }
-                } else {
-                    if (param.location == .query and !param.required) {
-                        try self.buffer.appendSlice(self.allocator, "?");
-                    }
-                    if (param.schema) |schema| {
-                        try self.appendZigQueryTypeFromSchema(schema);
-                    } else if (param.type) |param_type| {
-                        try self.appendZigTypeFromSchemaType(param_type);
-                    } else {
-                        try self.buffer.appendSlice(self.allocator, "[]const u8");
-                    }
-                }
-            }
-        }
+        try self.appendFlatOperationParameters(operation);
 
         if (self.hasReturnValue(method, operation)) {
             try self.buffer.appendSlice(self.allocator, ") !Owned(");
