@@ -1292,7 +1292,8 @@ test "parse generate supports parameters-as-struct flag" {
         "--parameters-as-struct",
     };
 
-    const parsed = try parse(std.testing.allocator, &argv);
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
 
     try std.testing.expect(parsed.args.parameters_as_struct);
 }
@@ -1305,7 +1306,8 @@ test "parse generate defaults parameters-as-struct to false" {
         "openapi.json",
     };
 
-    const parsed = try parse(std.testing.allocator, &argv);
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
 
     try std.testing.expect(!parsed.args.parameters_as_struct);
 }
