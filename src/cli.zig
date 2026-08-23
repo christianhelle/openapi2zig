@@ -40,6 +40,7 @@ fn printUsage() void {
         \\                              <kind> is models, runtime, or client.
         \\                              (default: models.zig, runtime.zig, client.zig)
         \\                              Can be specified multiple times.
+        \\   --force                   Force overwriting output even when unchanged
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
