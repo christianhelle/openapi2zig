@@ -51,8 +51,6 @@ pub const ApiResponse = struct {
     code: ?i64 = null,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -529,7 +527,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Get user by user name
 //
 // Description:
-// 
+//
 //
 pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
     var result = try getUserByNameResult(client, username);
@@ -681,7 +679,7 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub fn deletePet(client: *Client, api_key: []const u8, petId: i64) !void {
     var raw = try deletePetRaw(client, api_key, petId);
@@ -820,7 +818,6 @@ pub fn findPetsByStatusResult(client: *Client, status: ?[]const u8) !ApiResult([
     return parseRawResponse([]const std.json.Value, try findPetsByStatusRaw(client, status));
 }
 
-
 pub const resources = struct {
     pub const pet = struct {
         pub fn addpet(client: *Client, requestBody: Pet) !Owned(Pet) {
@@ -890,4 +887,3 @@ pub const resources = struct {
 pub const pet = resources.pet;
 pub const store = resources.store;
 pub const user = resources.user;
-
