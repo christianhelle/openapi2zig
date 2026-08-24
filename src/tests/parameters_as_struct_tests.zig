@@ -738,3 +738,25 @@ test "endpoint client struct names avoid reserved options types" {
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const FooOptions = struct {\n    limit: ?i64 = null,\n};") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const FooOptions_ = struct {") != null);
 }
+
+fn checkOptionsCacheGeneration(allocator: std.mem.Allocator, document: common.UnifiedDocument) !void {
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+}
+
+test "options type and field name caches release memory when allocation fails" {
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildFixture(gpa.allocator());
+    defer document.deinit(gpa.allocator());
+
+    try std.testing.checkAllAllocationFailures(std.testing.allocator, checkOptionsCacheGeneration, .{document});
+}

@@ -1101,7 +1101,13 @@ pub const UnifiedApiGenerator = struct {
             self.allocator.free(kv.key);
             self.allocator.free(kv.value);
         }
-        try self.options_type_names.put(try self.allocator.dupe(u8, key), try self.allocator.dupe(u8, candidate));
+        {
+            const key_copy_ = try self.allocator.dupe(u8, key);
+            errdefer self.allocator.free(key_copy_);
+            const candidate_copy_ = try self.allocator.dupe(u8, candidate);
+            errdefer self.allocator.free(candidate_copy_);
+            try self.options_type_names.put(key_copy_, candidate_copy_);
+        }
 
         try self.buffer.appendSlice(self.allocator, "pub const ");
         try self.appendOptionsTypeName(operation, method, path);
