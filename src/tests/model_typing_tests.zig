@@ -3,6 +3,7 @@ const test_utils = @import("test_utils.zig");
 const common = @import("../models/common/document.zig");
 const models = @import("../models.zig");
 const OpenApi31Converter = @import("../generators/converters/openapi31_converter.zig").OpenApi31Converter;
+const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
 const UnifiedModelGenerator = @import("../generators/unified/model_generator.zig").UnifiedModelGenerator;
 
 fn stringSchema() common.Schema {
@@ -436,4 +437,89 @@ test "model generator makes nullable std.json.Value fields optional" {
 
     try std.testing.expect(std.mem.indexOf(u8, code, "container: ?std.json.Value = null,") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "container: std.json.Value = null,") == null);
+}
+
+test "model generator emits optional type for required nullable type_array property" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const source =
+        \\{
+        \\  "openapi": "3.1.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Thing": {
+        \\        "type": "object",
+        \\        "properties": {
+        \\          "container": {
+        \\            "type": ["object", "null"]
+        \\          }
+        \\        },
+        \\        "required": ["container"]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApi31Document.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApi31Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "container: ?std.json.Value,") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "container: std.json.Value,") == null);
+}
+
+test "model generator emits optional type for required nullable property" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Thing": {
+        \\        "type": "object",
+        \\        "properties": {
+        \\          "container": {
+        \\            "type": "object",
+        \\            "nullable": true
+        \\          }
+        \\        },
+        \\        "required": ["container"]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "container: ?std.json.Value,") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "container: std.json.Value,") == null);
 }
