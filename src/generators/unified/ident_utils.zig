@@ -203,9 +203,9 @@ test "appendEscapedIdentifier" {
 test "appendEscapedIdentifier escapes ASCII control characters" {
     var buf = std.ArrayList(u8).empty;
     defer buf.deinit(std.testing.allocator);
-    try appendEscapedIdentifier(&buf, std.testing.allocator, &.{ 0x01 });
+    try appendEscapedIdentifier(&buf, std.testing.allocator, &.{0x01});
     try std.testing.expectEqualStrings("@\"\\x01\"", buf.items);
     buf.clearRetainingCapacity();
-    try appendEscapedIdentifier(&buf, std.testing.allocator, &.{ 0x7f });
+    try appendEscapedIdentifier(&buf, std.testing.allocator, &.{0x7f});
     try std.testing.expectEqualStrings("@\"\\x7f\"", buf.items);
 }
