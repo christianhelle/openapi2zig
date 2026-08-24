@@ -391,3 +391,47 @@ test "model generator emits named types for field-level composite schemas" {
     try std.testing.expect(std.mem.indexOf(u8, code, "content: ThingContent") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "[]const std.json.Value") == null);
 }
+
+test "model generator makes nullable std.json.Value fields optional" {
+    const allocator = std.testing.allocator;
+
+    const source =
+        \\{
+        \\  "openapi": "3.1.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Thing": {
+        \\        "type": "object",
+        \\        "properties": {
+        \\          "container": {
+        \\            "anyOf": [
+        \\              { "$ref": "#/components/schemas/BetaContainerParams" },
+        \\              { "type": "string" },
+        \\              { "type": "null" }
+        \\            ]
+        \\          }
+        \\        }
+        \\      },
+        \\      "BetaContainerParams": { "type": "object" }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApi31Document.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApi31Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "container: ?std.json.Value = null,") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "container: std.json.Value = null,") == null);
+}

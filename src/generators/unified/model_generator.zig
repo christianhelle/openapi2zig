@@ -1246,12 +1246,16 @@ pub const UnifiedModelGenerator = struct {
                         try self.buffer.appendSlice(self.allocator, "[]const std.json.Value");
                     }
                 },
-                .object, .reference => try self.buffer.appendSlice(self.allocator, "std.json.Value"),
+                .object, .reference => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "std.json.Value");
+                },
                 .null => try self.buffer.appendSlice(self.allocator, "void"),
             }
             return;
         }
 
+        if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
         try self.buffer.appendSlice(self.allocator, "std.json.Value");
     }
 
