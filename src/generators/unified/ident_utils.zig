@@ -67,6 +67,17 @@ pub fn appendFieldIdentifier(buffer: *std.ArrayList(u8), allocator: std.mem.Allo
     try appendIdentifierAs(buffer, allocator, name, isBareFieldIdentifier);
 }
 
+fn neverBare(_: []const u8) bool {
+    return false;
+}
+
+/// Append `name` as an escaped identifier in the form `@"..."`, quoting even
+/// when the name is a valid bare identifier. Embedded backslashes, quotes, and
+/// control characters are escaped so the output is always valid Zig.
+pub fn appendEscapedIdentifier(buffer: *std.ArrayList(u8), allocator: std.mem.Allocator, name: []const u8) !void {
+    try appendIdentifierAs(buffer, allocator, name, neverBare);
+}
+
 fn appendIdentifierAs(buffer: *std.ArrayList(u8), allocator: std.mem.Allocator, name: []const u8, comptime is_bare: fn ([]const u8) bool) !void {
     if (is_bare(name)) {
         try buffer.appendSlice(allocator, name);
@@ -165,4 +176,17 @@ test "appendFieldIdentifier" {
     buf.clearRetainingCapacity();
     try appendFieldIdentifier(&buf, std.testing.allocator, "has space");
     try std.testing.expectEqualStrings("@\"has space\"", buf.items);
+}
+
+test "appendEscapedIdentifier" {
+    var buf = std.ArrayList(u8).empty;
+    defer buf.deinit(std.testing.allocator);
+    try appendEscapedIdentifier(&buf, std.testing.allocator, "simple");
+    try std.testing.expectEqualStrings("@\"simple\"", buf.items);
+    buf.clearRetainingCapacity();
+    try appendEscapedIdentifier(&buf, std.testing.allocator, "quote\"here");
+    try std.testing.expectEqualStrings("@\"quote\\\"here\"", buf.items);
+    buf.clearRetainingCapacity();
+    try appendEscapedIdentifier(&buf, std.testing.allocator, "back\\slash");
+    try std.testing.expectEqualStrings("@\"back\\\\slash\"", buf.items);
 }

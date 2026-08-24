@@ -291,6 +291,46 @@ test "operations without an operation id read query parameters from the options 
     try std.testing.expect(countOccurrences(code, "try appendQueryParam(&uri_buf.writer, &first_query, \"limit\", value);") == 2);
 }
 
+fn buildEscapedPathFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    const params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "q", .location = .query, .schema = .{ .type = .string } },
+    });
+    try paths.put(try allocator.dupe(u8, "/a\"b"), .{
+        .get = try op(allocator, null, params, true),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+test "path-derived options type names escape special characters" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildEscapedPathFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const @\"operationa\\\"bOptions\" = struct {\n    q: ?[]const u8 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "options: @\"operationa\\\"bOptions\"") != null);
+}
+
 fn countOccurrences(haystack: []const u8, needle: []const u8) usize {
     var count: usize = 0;
     var rest = haystack;

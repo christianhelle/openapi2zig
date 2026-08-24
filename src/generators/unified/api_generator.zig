@@ -245,6 +245,10 @@ pub const UnifiedApiGenerator = struct {
         try ident.appendFieldIdentifier(&self.buffer, self.allocator, name);
     }
 
+    fn appendEscapedIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
+        try ident.appendEscapedIdentifier(&self.buffer, self.allocator, name);
+    }
+
     fn appendLineComment(self: *UnifiedApiGenerator, text: []const u8) !void {
         var lines = std.mem.splitScalar(u8, text, '\n');
         while (lines.next()) |line| {
@@ -1027,9 +1031,7 @@ pub const UnifiedApiGenerator = struct {
         defer self.allocator.free(key);
         if (self.options_type_names.get(key)) |name| {
             if (operation.operationId == null) {
-                try self.buffer.appendSlice(self.allocator, "@\"");
-                try self.buffer.appendSlice(self.allocator, name);
-                try self.buffer.appendSlice(self.allocator, "\"");
+                try self.appendEscapedIdentifier(name);
             } else {
                 try self.appendIdentifier(name);
             }
@@ -1044,9 +1046,9 @@ pub const UnifiedApiGenerator = struct {
             defer self.allocator.free(name);
             try self.appendIdentifier(name);
         } else {
-            try self.buffer.appendSlice(self.allocator, "@\"operation");
-            try self.buffer.appendSlice(self.allocator, path[1..]);
-            try self.buffer.appendSlice(self.allocator, "Options\"");
+            const name = try std.fmt.allocPrint(self.allocator, "operation{s}Options", .{path[1..]});
+            defer self.allocator.free(name);
+            try self.appendEscapedIdentifier(name);
         }
     }
 
