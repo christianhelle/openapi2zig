@@ -73,3 +73,20 @@ test "generated single-file client emits CancelableReader" {
 
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const CancelableReader = struct {") != null);
 }
+
+test "generated streamJson wraps streaming reads with cancel_check" {
+    const allocator = std.testing.allocator;
+    var document = try buildStreamingDocument(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (client.cancel_check) |pred| {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "CancelableReader.init(response_reader, &cancelable_buffer, pred)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (pred()) return error.Cancelled;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "error.ReadFailed => return response.bodyErr() orelse err,") != null);
+}

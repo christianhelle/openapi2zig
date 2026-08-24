@@ -795,11 +795,23 @@ pub const UnifiedApiGenerator = struct {
             \\    }
             \\
             \\    var transfer_buffer: [8 * 1024]u8 = undefined;
-            \\    const reader = response.reader(&transfer_buffer);
-            \\    parseSseReader(allocator, reader, callback, cancellation_token) catch |err| switch (err) {
-            \\        error.ReadFailed => return response.bodyErr() orelse err,
-            \\        else => return err,
-            \\    };
+            \\    const response_reader = response.reader(&transfer_buffer);
+            \\    if (client.cancel_check) |pred| {
+            \\        var cancelable_buffer: [1]u8 = undefined;
+            \\        var cancelable_reader = CancelableReader.init(response_reader, &cancelable_buffer, pred);
+            \\        parseSseReader(allocator, &cancelable_reader.reader, callback, cancellation_token) catch |err| switch (err) {
+            \\            error.ReadFailed => {
+            \\                if (pred()) return error.Cancelled;
+            \\                return response.bodyErr() orelse err;
+            \\            },
+            \\            else => return err,
+            \\        };
+            \\    } else {
+            \\        parseSseReader(allocator, response_reader, callback, cancellation_token) catch |err| switch (err) {
+            \\            error.ReadFailed => return response.bodyErr() orelse err,
+            \\            else => return err,
+            \\        };
+            \\    }
             \\}
             \\
             \\fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, content_type: ?[]const u8, accept: []const u8) !?[]u8 {
