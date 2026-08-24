@@ -1280,8 +1280,12 @@ pub const UnifiedApiGenerator = struct {
                     else => "any",
                 };
                 const size = std.mem.replacementSize(u8, new_path, param, param_type);
-                const output = try self.allocator.alloc(u8, size);
-                try allocated_paths.append(self.allocator, output);
+                const output = blk: {
+                    const out = try self.allocator.alloc(u8, size);
+                    errdefer self.allocator.free(out);
+                    try allocated_paths.append(self.allocator, out);
+                    break :blk out;
+                };
                 _ = std.mem.replace(u8, new_path, param, param_type, output);
                 new_path = output;
             }
@@ -2575,8 +2579,12 @@ pub const UnifiedApiGenerator = struct {
                     else => "any",
                 };
                 const size = std.mem.replacementSize(u8, new_path, param, param_type);
-                const output = try self.allocator.alloc(u8, size);
-                try allocated_paths.append(self.allocator, output);
+                const output = blk: {
+                    const out = try self.allocator.alloc(u8, size);
+                    errdefer self.allocator.free(out);
+                    try allocated_paths.append(self.allocator, out);
+                    break :blk out;
+                };
                 _ = std.mem.replace(u8, new_path, param, param_type, output);
                 new_path = output;
             }
