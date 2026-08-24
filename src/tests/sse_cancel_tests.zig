@@ -6,28 +6,52 @@ const common = @import("../models/common/document.zig");
 
 fn buildStreamingDocument(allocator: std.mem.Allocator) !common.UnifiedDocument {
     var paths = std.StringHashMap(common.PathItem).init(allocator);
-    errdefer paths.deinit();
+    errdefer {
+        var iterator = paths.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            entry.value_ptr.deinit(allocator);
+        }
+        paths.deinit();
+    }
 
-    var responses = std.StringHashMap(common.Response).init(allocator);
-    try responses.put(try allocator.dupe(u8, "200"), .{ .description = "ok" });
+    var stream_op = blk: {
+        var responses = std.StringHashMap(common.Response).init(allocator);
+        errdefer {
+            var iterator = responses.iterator();
+            while (iterator.next()) |entry| allocator.free(entry.key_ptr.*);
+            responses.deinit();
+        }
 
-    var params = std.ArrayList(common.Parameter).empty;
-    try params.append(allocator, .{
-        .name = "body",
-        .location = .body,
-        .required = true,
-        .type = .object,
-    });
+        const response_key = try allocator.dupe(u8, "200");
+        if (responses.put(response_key, .{ .description = "ok" })) |_| {} else |err| {
+            allocator.free(response_key);
+            return err;
+        }
 
-    var stream_op = common.Operation{
-        .operationId = "chatCompletion",
-        .parameters = try params.toOwnedSlice(allocator),
-        .responses = responses,
-        .streaming = true,
+        var params = std.ArrayList(common.Parameter).empty;
+        errdefer params.deinit(allocator);
+        try params.append(allocator, .{
+            .name = "body",
+            .location = .body,
+            .required = true,
+            .type = .object,
+        });
+
+        break :blk common.Operation{
+            .operationId = "chatCompletion",
+            .parameters = try params.toOwnedSlice(allocator),
+            .responses = responses,
+            .streaming = true,
+        };
     };
     errdefer stream_op.deinit(allocator);
 
-    try paths.put(try allocator.dupe(u8, "/chat"), .{ .post = stream_op });
+    const path_key = try allocator.dupe(u8, "/chat");
+    if (paths.put(path_key, .{ .post = stream_op })) |_| {} else |err| {
+        allocator.free(path_key);
+        return err;
+    }
 
     return .{
         .version = "3.0.0",
