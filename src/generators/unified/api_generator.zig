@@ -368,13 +368,14 @@ pub const UnifiedApiGenerator = struct {
             \\const ApiResult = {s}.ApiResult;
             \\const CancellationToken = {s}.CancellationToken;
             \\const checkCancellation = {s}.checkCancellation;
+            \\const CancelableReader = {s}.CancelableReader;
             \\const parseSseReader = {s}.parseSseReader;
             \\const parseSseBytes = {s}.parseSseBytes;
             \\const parseSseBytesTyped = {s}.parseSseBytesTyped;
             \\const parseSseReaderTyped = {s}.parseSseReaderTyped;
             \\const TypedSseCallback = {s}.TypedSseCallback;
             \\
-        , .{ alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias });
+        , .{ alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias });
         defer self.allocator.free(exports);
         try self.buffer.appendSlice(self.allocator, exports);
     }
@@ -572,6 +573,45 @@ pub const UnifiedApiGenerator = struct {
             \\        if (t.isCancelled()) return error.Cancelled;
             \\    }
             \\}
+            \\
+            \\/// Wraps an underlying reader and checks an optional cancel predicate at the
+            \\/// top of every read. When the predicate returns true, the read fails with
+            \\/// error.ReadFailed; callers translate that into error.Cancelled. This is the
+            \\/// only way to interrupt a streaming read that is blocked between SSE events
+            \\/// (the CancellationToken only takes effect between events).
+            \\pub const CancelableReader = struct {
+            \\    inner: *std.Io.Reader,
+            \\    reader: std.Io.Reader,
+            \\    should_cancel: ?*const fn () bool,
+            \\
+            \\    pub fn init(inner: *std.Io.Reader, buffer: []u8, should_cancel: ?*const fn () bool) CancelableReader {
+            \\        return .{
+            \\            .inner = inner,
+            \\            .reader = .{
+            \\                .buffer = buffer,
+            \\                .seek = 0,
+            \\                .end = 0,
+            \\                .vtable = &vtable,
+            \\            },
+            \\            .should_cancel = should_cancel,
+            \\        };
+            \\    }
+            \\
+            \\    const vtable: std.Io.Reader.VTable = .{
+            \\        .stream = stream,
+            \\        .discard = std.Io.Reader.defaultDiscard,
+            \\        .readVec = std.Io.Reader.defaultReadVec,
+            \\        .rebase = std.Io.Reader.defaultRebase,
+            \\    };
+            \\
+            \\    fn stream(ctx: *std.Io.Reader, w: *std.Io.Writer, limit: std.Io.Limit) std.Io.Reader.StreamError!usize {
+            \\        const self: *CancelableReader = @fieldParentPtr("reader", ctx);
+            \\        if (self.should_cancel) |pred| {
+            \\            if (pred()) return error.ReadFailed;
+            \\        }
+            \\        return self.inner.stream(w, limit);
+            \\    }
+            \\};
             \\
             \\pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    var reader: std.Io.Reader = .fixed(bytes);
