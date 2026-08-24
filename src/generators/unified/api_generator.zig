@@ -1156,7 +1156,13 @@ pub const UnifiedApiGenerator = struct {
         }
         const field_name = try self.computeOptionsFieldName(operation, index);
         errdefer self.allocator.free(field_name);
-        try self.options_field_names.put(try self.allocator.dupe(u8, memo_key), try self.allocator.dupe(u8, field_name));
+        {
+            const memo_key_copy_ = try self.allocator.dupe(u8, memo_key);
+            errdefer self.allocator.free(memo_key_copy_);
+            const field_name_copy_ = try self.allocator.dupe(u8, field_name);
+            errdefer self.allocator.free(field_name_copy_);
+            try self.options_field_names.put(memo_key_copy_, field_name_copy_);
+        }
         return field_name;
     }
 
