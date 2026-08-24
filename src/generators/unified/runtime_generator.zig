@@ -122,11 +122,12 @@ pub const RuntimeGenerator = struct {
             \\    }
             \\}
             \\
-            \\/// Wraps an underlying reader and checks an optional cancel predicate at the
-            \\/// top of every read. When the predicate returns true, the read fails with
-            \\/// error.ReadFailed; callers translate that into error.Cancelled. This is the
-            \\/// only way to interrupt a streaming read that is blocked between SSE events
-            \\/// (the CancellationToken only takes effect between events).
+            \\/// Wraps an underlying reader and checks an optional cancel predicate before
+            \\/// every read of the underlying reader. When the predicate returns true, the
+            \\/// read fails with error.ReadFailed; callers translate that into
+            \\/// error.Cancelled. Cancellation is only observed at read boundaries: a read
+            \\/// already blocked inside the underlying reader (e.g. waiting for the next SSE
+            \\/// chunk on the socket) is not aborted until that read returns.
             \\pub const CancelableReader = struct {
             \\    inner: *std.Io.Reader,
             \\    reader: std.Io.Reader,
@@ -198,6 +199,66 @@ pub const RuntimeGenerator = struct {
             \\    var reader = CancelableReader.init(&fixed, &buffer, &never_cancel);
             \\    _ = try reader.reader.streamRemaining(&out.writer);
             \\    try std.testing.expectEqualStrings("hello", out.written());
+            \\}
+            \\
+            \\const ChunkedReader = struct {
+            \\    data: []const u8,
+            \\    pos: usize,
+            \\    reader: std.Io.Reader,
+            \\
+            \\    fn init(data: []const u8, buffer: []u8) ChunkedReader {
+            \\        return .{
+            \\            .data = data,
+            \\            .pos = 0,
+            \\            .reader = .{
+            \\                .buffer = buffer,
+            \\                .seek = 0,
+            \\                .end = 0,
+            \\                .vtable = &vtable,
+            \\            },
+            \\        };
+            \\    }
+            \\
+            \\    const vtable: std.Io.Reader.VTable = .{
+            \\        .stream = stream,
+            \\        .discard = std.Io.Reader.defaultDiscard,
+            \\        .readVec = std.Io.Reader.defaultReadVec,
+            \\        .rebase = std.Io.Reader.defaultRebase,
+            \\    };
+            \\
+            \\    fn stream(ctx: *std.Io.Reader, w: *std.Io.Writer, limit: std.Io.Limit) std.Io.Reader.StreamError!usize {
+            \\        const self: *ChunkedReader = @fieldParentPtr("reader", ctx);
+            \\        const remaining = self.data.len - self.pos;
+            \\        if (remaining == 0) return 0;
+            \\        const dest = limit.slice(try w.writableSliceGreedy(1));
+            \\        const n = @min(remaining, dest.len);
+            \\        @memcpy(dest[0..n], self.data[self.pos .. self.pos + n]);
+            \\        self.pos += n;
+            \\        w.advance(n);
+            \\        return n;
+            \\    }
+            \\};
+            \\
+            \\test "CancelableReader aborts at the next read when cancel flag is set mid-stream" {
+            \\    var out: std.Io.Writer.Allocating = .init(std.testing.allocator);
+            \\    defer out.deinit();
+            \\
+            \\    const TestContext = struct {
+            \\        var cancelled = false;
+            \\        fn check() bool {
+            \\            return cancelled;
+            \\        }
+            \\    };
+            \\
+            \\    var chunks_buffer: [1]u8 = undefined;
+            \\    var chunks = ChunkedReader.init("hello", &chunks_buffer);
+            \\    var wrapper_buffer: [1]u8 = undefined;
+            \\    var reader = CancelableReader.init(&chunks.reader, &wrapper_buffer, &TestContext.check);
+            \\
+            \\    _ = try reader.reader.streamExact(&out.writer, 2);
+            \\    TestContext.cancelled = true;
+            \\    try std.testing.expectError(error.ReadFailed, reader.reader.streamRemaining(&out.writer));
+            \\    try std.testing.expectEqualStrings("he", out.written());
             \\}
             \\
             \\pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
