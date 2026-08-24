@@ -1236,11 +1236,24 @@ pub const UnifiedModelGenerator = struct {
 
         if (schema.type) |schema_type| {
             switch (schema_type) {
-                .string => try self.buffer.appendSlice(self.allocator, "[]const u8"),
-                .integer => try self.buffer.appendSlice(self.allocator, "i64"),
-                .number => try self.buffer.appendSlice(self.allocator, "f64"),
-                .boolean => try self.buffer.appendSlice(self.allocator, "bool"),
+                .string => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "[]const u8");
+                },
+                .integer => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "i64");
+                },
+                .number => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "f64");
+                },
+                .boolean => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "bool");
+                },
                 .array => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
                     if (schema.items) |items| {
                         try self.buffer.appendSlice(self.allocator, "[]const ");
                         try self.appendArrayItemType(items.*);
