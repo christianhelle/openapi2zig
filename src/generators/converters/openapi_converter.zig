@@ -214,6 +214,7 @@ pub const OpenApiConverter = struct {
             .default = schema.default,
             .example = schema.example,
             .additional_properties = additional_properties,
+            .nullable = schema.nullable orelse false,
         };
     }
 

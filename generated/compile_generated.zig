@@ -10,6 +10,14 @@ const v32 = @import("generated_v32.zig");
 const v3_multiclient_tag = @import("generated_v3_multiclient_tag.zig");
 const v3_multiclient_endpoint = @import("generated_v3_multiclient_endpoint.zig");
 const v3_params_struct = @import("generated_v3_params_struct.zig");
+const openai = @import("openai.zig");
+const anthropic = @import("anthropic.zig");
+const lmstudio = @import("lmstudio.zig");
+
+fn refAllDeclsMany(comptime T: type) void {
+    @setEvalBranchQuota(10_000_000);
+    std.testing.refAllDecls(T);
+}
 
 test "generated clients compile" {
     std.testing.refAllDecls(v2);
@@ -22,6 +30,9 @@ test "generated clients compile" {
     std.testing.refAllDecls(v3_multiclient_tag);
     std.testing.refAllDecls(v3_multiclient_endpoint);
     std.testing.refAllDecls(v3_params_struct);
+    refAllDeclsMany(openai);
+    refAllDeclsMany(anthropic);
+    refAllDeclsMany(lmstudio);
 }
 
 const SseCallback = struct {
@@ -182,6 +193,45 @@ test "generated CancellationToken cancels typed SSE parsing" {
         error.Cancelled,
         v3.parseSseBytesTyped(TypedEvent, std.testing.allocator, "data: {\"x\":1}\n\n", &callback, &token),
     );
+}
+
+test "generated CancelableReader passes through when cancel check is null" {
+    var out: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer out.deinit();
+    var fixed = std.Io.Reader.fixed("hello");
+    var buffer: [1]u8 = undefined;
+    var reader = v3.CancelableReader.init(&fixed, &buffer, null);
+    _ = try reader.reader.streamRemaining(&out.writer);
+    try std.testing.expectEqualStrings("hello", out.written());
+}
+
+test "generated CancelableReader fails with ReadFailed when cancel check returns true" {
+    var out: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer out.deinit();
+    const always_cancel = struct {
+        fn check() bool {
+            return true;
+        }
+    }.check;
+    var fixed = std.Io.Reader.fixed("hello");
+    var buffer: [1]u8 = undefined;
+    var reader = v3.CancelableReader.init(&fixed, &buffer, &always_cancel);
+    try std.testing.expectError(error.ReadFailed, reader.reader.streamRemaining(&out.writer));
+}
+
+test "generated CancelableReader passes through when cancel check returns false" {
+    var out: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer out.deinit();
+    const never_cancel = struct {
+        fn check() bool {
+            return false;
+        }
+    }.check;
+    var fixed = std.Io.Reader.fixed("hello");
+    var buffer: [1]u8 = undefined;
+    var reader = v3.CancelableReader.init(&fixed, &buffer, &never_cancel);
+    _ = try reader.reader.streamRemaining(&out.writer);
+    try std.testing.expectEqualStrings("hello", out.written());
 }
 
 test "generated endpoint parsing is loose" {

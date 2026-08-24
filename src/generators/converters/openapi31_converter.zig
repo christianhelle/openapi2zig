@@ -248,6 +248,7 @@ pub const OpenApi31Converter = struct {
             .discriminator_property = discriminator_property,
             .one_of = one_of,
             .any_of = any_of,
+            .nullable = schema.nullable,
         };
     }
 
@@ -428,6 +429,14 @@ pub const OpenApi31Converter = struct {
             }
             break :blk null;
         };
+        const nullable = schema.nullable orelse blk: {
+            if (schema.type_array) |type_arr| {
+                for (type_arr) |t| {
+                    if (std.mem.eql(u8, t, "null")) break :blk true;
+                }
+            }
+            break :blk false;
+        };
         const title = schema.title;
         const description = schema.description;
         const format = schema.format;
@@ -472,6 +481,7 @@ pub const OpenApi31Converter = struct {
             .default = schema.default,
             .example = schema.example,
             .additional_properties = additional_properties,
+            .nullable = nullable,
         };
     }
 

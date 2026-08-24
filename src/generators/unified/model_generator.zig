@@ -241,6 +241,7 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn isNullableSchema(schema: Schema) bool {
+        if (schema.nullable) return true;
         const variants = unionVariants(schema) orelse return false;
         for (variants) |variant| if (isNullSchema(variant)) return true;
         return false;
@@ -1224,6 +1225,7 @@ pub const UnifiedModelGenerator = struct {
         }
 
         if (schema.ref) |ref| {
+            if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
                 try self.appendIdentifier(ref[last_slash + 1 ..]);
                 return;
@@ -1234,11 +1236,24 @@ pub const UnifiedModelGenerator = struct {
 
         if (schema.type) |schema_type| {
             switch (schema_type) {
-                .string => try self.buffer.appendSlice(self.allocator, "[]const u8"),
-                .integer => try self.buffer.appendSlice(self.allocator, "i64"),
-                .number => try self.buffer.appendSlice(self.allocator, "f64"),
-                .boolean => try self.buffer.appendSlice(self.allocator, "bool"),
+                .string => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "[]const u8");
+                },
+                .integer => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "i64");
+                },
+                .number => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "f64");
+                },
+                .boolean => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "bool");
+                },
                 .array => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
                     if (schema.items) |items| {
                         try self.buffer.appendSlice(self.allocator, "[]const ");
                         try self.appendArrayItemType(items.*);
@@ -1246,12 +1261,16 @@ pub const UnifiedModelGenerator = struct {
                         try self.buffer.appendSlice(self.allocator, "[]const std.json.Value");
                     }
                 },
-                .object, .reference => try self.buffer.appendSlice(self.allocator, "std.json.Value"),
+                .object, .reference => {
+                    if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+                    try self.buffer.appendSlice(self.allocator, "std.json.Value");
+                },
                 .null => try self.buffer.appendSlice(self.allocator, "void"),
             }
             return;
         }
 
+        if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
         try self.buffer.appendSlice(self.allocator, "std.json.Value");
     }
 

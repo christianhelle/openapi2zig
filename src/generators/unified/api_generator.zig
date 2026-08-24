@@ -368,13 +368,14 @@ pub const UnifiedApiGenerator = struct {
             \\const ApiResult = {s}.ApiResult;
             \\const CancellationToken = {s}.CancellationToken;
             \\const checkCancellation = {s}.checkCancellation;
+            \\const CancelableReader = {s}.CancelableReader;
             \\const parseSseReader = {s}.parseSseReader;
             \\const parseSseBytes = {s}.parseSseBytes;
             \\const parseSseBytesTyped = {s}.parseSseBytesTyped;
             \\const parseSseReaderTyped = {s}.parseSseReaderTyped;
             \\const TypedSseCallback = {s}.TypedSseCallback;
             \\
-        , .{ alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias });
+        , .{ alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias, alias });
         defer self.allocator.free(exports);
         try self.buffer.appendSlice(self.allocator, exports);
     }
@@ -396,6 +397,16 @@ pub const UnifiedApiGenerator = struct {
             \\    project: ?[]const u8 = null,
             \\    default_headers: []const std.http.Header = &.{},
             \\    http_observer: ?HttpObserver = null,
+            \\
+            \\    /// Optional predicate called before every read of a streaming response
+            \\    /// body. When it returns true, the in-flight SSE stream aborts with
+            \\    /// error.Cancelled at the next read boundary. Cancellation is observed
+            \\    /// between reads: a read already blocked waiting for the next chunk is
+            \\    /// not interrupted until that read returns. Point it at an app-level
+            \\    /// cancel flag and pass null for the CancellationToken to streaming
+            \\    /// calls. When null (default) streaming reads cannot be interrupted
+            \\    /// until the next chunk arrives.
+            \\    cancel_check: ?*const fn () bool = null,
             \\
             \\    pub fn init(allocator: std.mem.Allocator, io: std.Io, api_key: []const u8) Client {
             \\        return .{
@@ -563,6 +574,46 @@ pub const UnifiedApiGenerator = struct {
             \\        if (t.isCancelled()) return error.Cancelled;
             \\    }
             \\}
+            \\
+            \\/// Wraps an underlying reader and checks an optional cancel predicate before
+            \\/// every read of the underlying reader. When the predicate returns true, the
+            \\/// read fails with error.ReadFailed; callers translate that into
+            \\/// error.Cancelled. Cancellation is only observed at read boundaries: a read
+            \\/// already blocked inside the underlying reader (e.g. waiting for the next SSE
+            \\/// chunk on the socket) is not aborted until that read returns.
+            \\pub const CancelableReader = struct {
+            \\    inner: *std.Io.Reader,
+            \\    reader: std.Io.Reader,
+            \\    should_cancel: ?*const fn () bool,
+            \\
+            \\    pub fn init(inner: *std.Io.Reader, buffer: []u8, should_cancel: ?*const fn () bool) CancelableReader {
+            \\        return .{
+            \\            .inner = inner,
+            \\            .reader = .{
+            \\                .buffer = buffer,
+            \\                .seek = 0,
+            \\                .end = 0,
+            \\                .vtable = &vtable,
+            \\            },
+            \\            .should_cancel = should_cancel,
+            \\        };
+            \\    }
+            \\
+            \\    const vtable: std.Io.Reader.VTable = .{
+            \\        .stream = stream,
+            \\        .discard = std.Io.Reader.defaultDiscard,
+            \\        .readVec = std.Io.Reader.defaultReadVec,
+            \\        .rebase = std.Io.Reader.defaultRebase,
+            \\    };
+            \\
+            \\    fn stream(ctx: *std.Io.Reader, w: *std.Io.Writer, limit: std.Io.Limit) std.Io.Reader.StreamError!usize {
+            \\        const self: *CancelableReader = @fieldParentPtr("reader", ctx);
+            \\        if (self.should_cancel) |pred| {
+            \\            if (pred()) return error.ReadFailed;
+            \\        }
+            \\        return self.inner.stream(w, limit);
+            \\    }
+            \\};
             \\
             \\pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    var reader: std.Io.Reader = .fixed(bytes);
@@ -746,11 +797,23 @@ pub const UnifiedApiGenerator = struct {
             \\    }
             \\
             \\    var transfer_buffer: [8 * 1024]u8 = undefined;
-            \\    const reader = response.reader(&transfer_buffer);
-            \\    parseSseReader(allocator, reader, callback, cancellation_token) catch |err| switch (err) {
-            \\        error.ReadFailed => return response.bodyErr() orelse err,
-            \\        else => return err,
-            \\    };
+            \\    const response_reader = response.reader(&transfer_buffer);
+            \\    if (client.cancel_check) |pred| {
+            \\        var cancelable_buffer: [1]u8 = undefined;
+            \\        var cancelable_reader = CancelableReader.init(response_reader, &cancelable_buffer, pred);
+            \\        parseSseReader(allocator, &cancelable_reader.reader, callback, cancellation_token) catch |err| switch (err) {
+            \\            error.ReadFailed => {
+            \\                if (pred()) return error.Cancelled;
+            \\                return response.bodyErr() orelse err;
+            \\            },
+            \\            else => return err,
+            \\        };
+            \\    } else {
+            \\        parseSseReader(allocator, response_reader, callback, cancellation_token) catch |err| switch (err) {
+            \\            error.ReadFailed => return response.bodyErr() orelse err,
+            \\            else => return err,
+            \\        };
+            \\    }
             \\}
             \\
             \\fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, content_type: ?[]const u8, accept: []const u8) !?[]u8 {
