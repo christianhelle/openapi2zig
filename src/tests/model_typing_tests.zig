@@ -393,7 +393,9 @@ test "model generator emits named types for field-level composite schemas" {
 }
 
 test "model generator makes nullable std.json.Value fields optional" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     const source =
         \\{

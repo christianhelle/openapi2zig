@@ -1,4 +1,5 @@
 const std = @import("std");
+const test_utils = @import("test_utils.zig");
 const UnifiedApiGenerator = @import("../generators/unified/api_generator.zig").UnifiedApiGenerator;
 const RuntimeGenerator = @import("../generators/unified/runtime_generator.zig").RuntimeGenerator;
 const common = @import("../models/common/document.zig");
@@ -36,7 +37,9 @@ fn buildStreamingDocument(allocator: std.mem.Allocator) !common.UnifiedDocument 
 }
 
 test "generated single-file client exposes a cancel_check field" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     var document = try buildStreamingDocument(allocator);
     defer document.deinit(allocator);
 
@@ -50,7 +53,9 @@ test "generated single-file client exposes a cancel_check field" {
 }
 
 test "generated runtime emits CancelableReader" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     var runtime_gen = RuntimeGenerator.init(allocator);
     defer runtime_gen.deinit();
 
@@ -61,7 +66,9 @@ test "generated runtime emits CancelableReader" {
 }
 
 test "generated single-file client emits CancelableReader" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     var document = try buildStreamingDocument(allocator);
     defer document.deinit(allocator);
 
@@ -75,7 +82,9 @@ test "generated single-file client emits CancelableReader" {
 }
 
 test "generated streamJson wraps streaming reads with cancel_check" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     var document = try buildStreamingDocument(allocator);
     defer document.deinit(allocator);
 
