@@ -190,10 +190,11 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn clearOptionsTypeNames(self: *UnifiedApiGenerator, allocator: std.mem.Allocator) void {
-        var key_iterator = self.options_type_names.keyIterator();
-        while (key_iterator.next()) |key| allocator.free(key.*);
-        var value_iterator = self.options_type_names.valueIterator();
-        while (value_iterator.next()) |value| allocator.free(value.*);
+        var iterator = self.options_type_names.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
         self.options_type_names.clearRetainingCapacity();
     }
 
