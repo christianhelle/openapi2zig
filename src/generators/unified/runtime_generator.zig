@@ -161,6 +161,45 @@ pub const RuntimeGenerator = struct {
             \\    }
             \\};
             \\
+            \\test "CancelableReader passes through when cancel check is null" {
+            \\    var out: std.Io.Writer.Allocating = .init(std.testing.allocator);
+            \\    defer out.deinit();
+            \\    var fixed = std.Io.Reader.fixed("hello");
+            \\    var buffer: [1]u8 = undefined;
+            \\    var reader = CancelableReader.init(&fixed, &buffer, null);
+            \\    _ = try reader.reader.streamRemaining(&out.writer);
+            \\    try std.testing.expectEqualStrings("hello", out.written());
+            \\}
+            \\
+            \\test "CancelableReader fails with ReadFailed when cancel check returns true" {
+            \\    var out: std.Io.Writer.Allocating = .init(std.testing.allocator);
+            \\    defer out.deinit();
+            \\    const always_cancel = struct {
+            \\        fn check() bool {
+            \\            return true;
+            \\        }
+            \\    }.check;
+            \\    var fixed = std.Io.Reader.fixed("hello");
+            \\    var buffer: [1]u8 = undefined;
+            \\    var reader = CancelableReader.init(&fixed, &buffer, &always_cancel);
+            \\    try std.testing.expectError(error.ReadFailed, reader.reader.streamRemaining(&out.writer));
+            \\}
+            \\
+            \\test "CancelableReader passes through when cancel check returns false" {
+            \\    var out: std.Io.Writer.Allocating = .init(std.testing.allocator);
+            \\    defer out.deinit();
+            \\    const never_cancel = struct {
+            \\        fn check() bool {
+            \\            return false;
+            \\        }
+            \\    }.check;
+            \\    var fixed = std.Io.Reader.fixed("hello");
+            \\    var buffer: [1]u8 = undefined;
+            \\    var reader = CancelableReader.init(&fixed, &buffer, &never_cancel);
+            \\    _ = try reader.reader.streamRemaining(&out.writer);
+            \\    try std.testing.expectEqualStrings("hello", out.written());
+            \\}
+            \\
             \\pub fn parseSseBytes(allocator: std.mem.Allocator, bytes: []const u8, callback: anytype, cancellation_token: ?*CancellationToken) !void {
             \\    var reader: std.Io.Reader = .fixed(bytes);
             \\    try parseSseReader(allocator, &reader, callback, cancellation_token);
