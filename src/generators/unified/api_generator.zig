@@ -397,6 +397,15 @@ pub const UnifiedApiGenerator = struct {
             \\    default_headers: []const std.http.Header = &.{},
             \\    http_observer: ?HttpObserver = null,
             \\
+            \\    /// Optional predicate called before every read of a streaming response
+            \\    /// body. When it returns true, the in-flight SSE stream aborts with
+            \\    /// error.Cancelled. This is the only way to interrupt a streaming read
+            \\    /// that is blocked between SSE events; the CancellationToken only takes
+            \\    /// effect between events. Point it at an app-level cancel flag and pass
+            \\    /// null for the CancellationToken to streaming calls. When null (default)
+            \\    /// streaming reads cannot be interrupted until the next chunk arrives.
+            \\    cancel_check: ?*const fn () bool = null,
+            \\
             \\    pub fn init(allocator: std.mem.Allocator, io: std.Io, api_key: []const u8) Client {
             \\        return .{
             \\            .allocator = allocator,
