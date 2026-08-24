@@ -412,6 +412,80 @@ test "resource wrapper methods wrap parameters in the options struct" {
     try std.testing.expect(std.mem.indexOf(u8, code, "return listPetsResult(client, options);") != null);
 }
 
+fn buildDuplicateLocationFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    const params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "filter", .location = .query, .schema = .{ .type = .string } },
+        .{ .name = "filter", .location = .query, .schema = .{ .type = .string } },
+    });
+    try paths.put(try allocator.dupe(u8, "/dupquery"), .{
+        .get = try op(allocator, "dupQuery", params, true),
+    });
+
+    const suffix_params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "filter", .location = .query, .schema = .{ .type = .string } },
+        .{ .name = "filter", .location = .query, .schema = .{ .type = .string } },
+        .{ .name = "filter_1", .location = .query, .schema = .{ .type = .string } },
+    });
+    try paths.put(try allocator.dupe(u8, "/dupsuffix"), .{
+        .get = try op(allocator, "dupSuffix", suffix_params, true),
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+test "duplicate name and location parameters get distinct options fields" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildDuplicateLocationFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const dupQueryOptions = struct {\n    filter: ?[]const u8 = null,\n    filter_1: ?[]const u8 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (options.filter) |value| {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (options.filter_1) |value| {") != null);
+}
+
+test "options field suffixes avoid colliding with later parameter names" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildDuplicateLocationFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .parameters_as_struct = true,
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const dupSuffixOptions = struct {\n    filter: ?[]const u8 = null,\n    filter_2: ?[]const u8 = null,\n    filter_1: ?[]const u8 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (options.filter_2) |value| {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (options.filter_1) |value| {") != null);
+}
+
 fn buildOperationCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     var paths = std.StringHashMap(common.PathItem).init(allocator);
     errdefer paths.deinit();
@@ -521,9 +595,9 @@ test "duplicate parameter names are disambiguated in the options struct" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub const dupOptions = struct {\n    filter: ?[]const u8 = null,\n    filter_2: ?[]const u8 = null,\n};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const dupOptions = struct {\n    filter: ?[]const u8 = null,\n    filter_1: ?[]const u8 = null,\n};") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "if (options.filter) |value| {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "_ = options.filter_2;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "_ = options.filter_1;") != null);
 }
 
 test "options type name is disambiguated when an operation shares it" {
