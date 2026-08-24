@@ -388,4 +388,3 @@ pub const ToolCallOutput = struct {
     type: []const u8,
     provider_info: ProviderInfo,
 };
-

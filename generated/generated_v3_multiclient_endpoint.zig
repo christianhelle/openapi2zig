@@ -64,8 +64,6 @@ pub const ApiResponse = struct {
     code: ?i64 = null,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -608,7 +606,7 @@ pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
 // uploads an image
 //
 // Description:
-// 
+//
 //
 pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(ApiResponse) {
     var result = try uploadFileResult(client, petId, additionalMetadata, requestBody);
@@ -721,7 +719,7 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
 // Updates a pet in the store with form data
 //
 // Description:
-// 
+//
 //
 pub fn updatePetWithForm(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
     var raw = try updatePetWithFormRaw(client, petId, name, status);
@@ -751,7 +749,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, stat
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub fn deletePet(client: *Client, api_key: []const u8, petId: i64) !void {
     var raw = try deletePetRaw(client, api_key, petId);
@@ -815,7 +813,7 @@ pub fn findPetsByTagsResult(client: *Client, tags: ?[]const u8) !ApiResult([]con
 // Logs user into the system
 //
 // Description:
-// 
+//
 //
 pub fn loginUser(client: *Client, username: ?[]const u8, password: ?[]const u8) !Owned([]const u8) {
     var result = try loginUserResult(client, username, password);
@@ -934,7 +932,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Get user by user name
 //
 // Description:
-// 
+//
 //
 pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
     var result = try getUserByNameResult(client, username);
@@ -1226,7 +1224,7 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
 // Logs out current logged in user session
 //
 // Description:
-// 
+//
 //
 pub fn logoutUser(client: *Client) !void {
     var raw = try logoutUserRaw(client);
@@ -1262,7 +1260,6 @@ pub const AddPet = struct {
     pub fn executeResult(self: *AddPet, requestBody: Pet) !ApiResult(Pet) {
         return addPetResult(self.client, requestBody);
     }
-
 };
 
 pub const UpdatePet = struct {
@@ -1283,7 +1280,6 @@ pub const UpdatePet = struct {
     pub fn executeResult(self: *UpdatePet, requestBody: Pet) !ApiResult(Pet) {
         return updatePetResult(self.client, requestBody);
     }
-
 };
 
 pub const FindPetsByStatus = struct {
@@ -1304,7 +1300,6 @@ pub const FindPetsByStatus = struct {
     pub fn executeResult(self: *FindPetsByStatus, status: ?[]const u8) !ApiResult([]const std.json.Value) {
         return findPetsByStatusResult(self.client, status);
     }
-
 };
 
 pub const FindPetsByTags = struct {
@@ -1325,7 +1320,6 @@ pub const FindPetsByTags = struct {
     pub fn executeResult(self: *FindPetsByTags, tags: ?[]const u8) !ApiResult([]const std.json.Value) {
         return findPetsByTagsResult(self.client, tags);
     }
-
 };
 
 pub const DeletePet = struct {
@@ -1342,7 +1336,6 @@ pub const DeletePet = struct {
     pub fn executeRaw(self: *DeletePet, api_key: []const u8, petId: i64) !RawResponse {
         return deletePetRaw(self.client, api_key, petId);
     }
-
 };
 
 pub const GetPetById = struct {
@@ -1363,7 +1356,6 @@ pub const GetPetById = struct {
     pub fn executeResult(self: *GetPetById, petId: i64) !ApiResult(Pet) {
         return getPetByIdResult(self.client, petId);
     }
-
 };
 
 pub const UpdatePetWithForm = struct {
@@ -1380,7 +1372,6 @@ pub const UpdatePetWithForm = struct {
     pub fn executeRaw(self: *UpdatePetWithForm, petId: i64, name: ?[]const u8, status: ?[]const u8) !RawResponse {
         return updatePetWithFormRaw(self.client, petId, name, status);
     }
-
 };
 
 pub const UploadFile = struct {
@@ -1401,7 +1392,6 @@ pub const UploadFile = struct {
     pub fn executeResult(self: *UploadFile, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(ApiResponse) {
         return uploadFileResult(self.client, petId, additionalMetadata, requestBody);
     }
-
 };
 
 pub const GetInventory = struct {
@@ -1422,7 +1412,6 @@ pub const GetInventory = struct {
     pub fn executeResult(self: *GetInventory) !ApiResult(std.json.Value) {
         return getInventoryResult(self.client);
     }
-
 };
 
 pub const PlaceOrder = struct {
@@ -1443,7 +1432,6 @@ pub const PlaceOrder = struct {
     pub fn executeResult(self: *PlaceOrder, requestBody: Order) !ApiResult(Order) {
         return placeOrderResult(self.client, requestBody);
     }
-
 };
 
 pub const DeleteOrder = struct {
@@ -1460,7 +1448,6 @@ pub const DeleteOrder = struct {
     pub fn executeRaw(self: *DeleteOrder, orderId: i64) !RawResponse {
         return deleteOrderRaw(self.client, orderId);
     }
-
 };
 
 pub const GetOrderById = struct {
@@ -1481,7 +1468,6 @@ pub const GetOrderById = struct {
     pub fn executeResult(self: *GetOrderById, orderId: i64) !ApiResult(Order) {
         return getOrderByIdResult(self.client, orderId);
     }
-
 };
 
 pub const CreateUser = struct {
@@ -1498,7 +1484,6 @@ pub const CreateUser = struct {
     pub fn executeRaw(self: *CreateUser, requestBody: User) !RawResponse {
         return createUserRaw(self.client, requestBody);
     }
-
 };
 
 pub const CreateUsersWithListInput = struct {
@@ -1519,7 +1504,6 @@ pub const CreateUsersWithListInput = struct {
     pub fn executeResult(self: *CreateUsersWithListInput, requestBody: []const std.json.Value) !ApiResult(User) {
         return createUsersWithListInputResult(self.client, requestBody);
     }
-
 };
 
 pub const LoginUser = struct {
@@ -1540,7 +1524,6 @@ pub const LoginUser = struct {
     pub fn executeResult(self: *LoginUser, username: ?[]const u8, password: ?[]const u8) !ApiResult([]const u8) {
         return loginUserResult(self.client, username, password);
     }
-
 };
 
 pub const LogoutUser = struct {
@@ -1557,7 +1540,6 @@ pub const LogoutUser = struct {
     pub fn executeRaw(self: *LogoutUser) !RawResponse {
         return logoutUserRaw(self.client);
     }
-
 };
 
 pub const DeleteUser = struct {
@@ -1574,7 +1556,6 @@ pub const DeleteUser = struct {
     pub fn executeRaw(self: *DeleteUser, username: []const u8) !RawResponse {
         return deleteUserRaw(self.client, username);
     }
-
 };
 
 pub const GetUserByName = struct {
@@ -1595,7 +1576,6 @@ pub const GetUserByName = struct {
     pub fn executeResult(self: *GetUserByName, username: []const u8) !ApiResult(User) {
         return getUserByNameResult(self.client, username);
     }
-
 };
 
 pub const UpdateUser = struct {
@@ -1612,6 +1592,4 @@ pub const UpdateUser = struct {
     pub fn executeRaw(self: *UpdateUser, username: []const u8, requestBody: User) !RawResponse {
         return updateUserRaw(self.client, username, requestBody);
     }
-
 };
-

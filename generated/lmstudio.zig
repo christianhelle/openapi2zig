@@ -389,8 +389,6 @@ pub const ToolCallOutput = struct {
     provider_info: ProviderInfo,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -1191,4 +1189,3 @@ pub const resources = struct {
 };
 
 pub const api = resources.api;
-

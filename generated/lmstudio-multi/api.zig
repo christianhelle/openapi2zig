@@ -608,4 +608,3 @@ pub const resources = struct {
 };
 
 pub const api = resources.api;
-

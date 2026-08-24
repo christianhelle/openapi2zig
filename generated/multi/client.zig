@@ -350,7 +350,7 @@ pub fn placeOrderResult(client: *Client, requestBody: models.Order) !ApiResult(m
 // uploads an image
 //
 // Description:
-// 
+//
 //
 pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(models.ApiResponse) {
     var result = try uploadFileResult(client, petId, additionalMetadata, requestBody);
@@ -463,7 +463,7 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(models.Pet) {
 // Updates a pet in the store with form data
 //
 // Description:
-// 
+//
 //
 pub fn updatePetWithForm(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
     var raw = try updatePetWithFormRaw(client, petId, name, status);
@@ -493,7 +493,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, stat
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub fn deletePet(client: *Client, api_key: []const u8, petId: i64) !void {
     var raw = try deletePetRaw(client, api_key, petId);
@@ -557,7 +557,7 @@ pub fn findPetsByTagsResult(client: *Client, tags: ?[]const u8) !ApiResult([]con
 // Logs user into the system
 //
 // Description:
-// 
+//
 //
 pub fn loginUser(client: *Client, username: ?[]const u8, password: ?[]const u8) !Owned([]const u8) {
     var result = try loginUserResult(client, username, password);
@@ -676,7 +676,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Get user by user name
 //
 // Description:
-// 
+//
 //
 pub fn getUserByName(client: *Client, username: []const u8) !Owned(models.User) {
     var result = try getUserByNameResult(client, username);
@@ -968,7 +968,7 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
 // Logs out current logged in user session
 //
 // Description:
-// 
+//
 //
 pub fn logoutUser(client: *Client) !void {
     var raw = try logoutUserRaw(client);
@@ -985,7 +985,6 @@ pub fn logoutUserRaw(client: *Client) !RawResponse {
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
-
 
 pub const resources = struct {
     pub const pet = struct {
@@ -1108,4 +1107,3 @@ pub const resources = struct {
 pub const pet = resources.pet;
 pub const store = resources.store;
 pub const user = resources.user;
-
