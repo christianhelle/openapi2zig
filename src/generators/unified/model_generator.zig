@@ -241,6 +241,7 @@ pub const UnifiedModelGenerator = struct {
     }
 
     fn isNullableSchema(schema: Schema) bool {
+        if (schema.nullable) return true;
         const variants = unionVariants(schema) orelse return false;
         for (variants) |variant| if (isNullSchema(variant)) return true;
         return false;
@@ -1224,6 +1225,7 @@ pub const UnifiedModelGenerator = struct {
         }
 
         if (schema.ref) |ref| {
+            if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
             if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
                 try self.appendIdentifier(ref[last_slash + 1 ..]);
                 return;

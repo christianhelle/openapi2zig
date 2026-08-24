@@ -90,6 +90,7 @@ pub const Schema = struct {
     one_of: ?[]Schema = null,
     any_of: ?[]Schema = null,
     additional_properties: ?bool = null,
+    nullable: bool = false,
     pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {
         if (self.required) |required| {
             allocator.free(required);
