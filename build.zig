@@ -218,6 +218,22 @@ pub fn build(b: *std.Build) void {
     const run_generate_v3_tagfilter_step = b.step("run-generate-v3-tagfilter", "Generate petstore client filtered by the pet and store tags");
     run_generate_v3_tagfilter_step.dependOn(&run_generate_v3_tagfilter_cmd.step);
 
+    const run_generate_v3_params_struct_cmd = b.addRunArtifact(exe);
+    run_generate_v3_params_struct_cmd.addArgs(&.{
+        "generate",
+        "-i",
+        "openapi/v3.0/petstore.json",
+        "-o",
+        "generated/generated_v3_params_struct.zig",
+        "--parameters-as-struct",
+        "--resource-wrappers",
+        "none",
+        "--base-url",
+        "https://petstore3.swagger.io/api/v3",
+    });
+    const run_generate_v3_params_struct_step = b.step("run-generate-v3-params-struct", "Generate petstore client with parameters wrapped in an options struct");
+    run_generate_v3_params_struct_step.dependOn(&run_generate_v3_params_struct_cmd.step);
+
     const run_generate_v2_cmd = b.addRunArtifact(exe);
     run_generate_v2_cmd.addArgs(&.{
         "generate",
@@ -359,6 +375,7 @@ pub fn build(b: *std.Build) void {
     run_generate.dependOn(&run_generate_v3_multiclient_tag_multi_cmd.step);
     run_generate.dependOn(&run_generate_v3_multiclient_endpoint_multi_cmd.step);
     run_generate.dependOn(&run_generate_v3_tagfilter_cmd.step);
+    run_generate.dependOn(&run_generate_v3_params_struct_cmd.step);
     run_generate.dependOn(&run_generate_v3_yaml_cmd.step);
     run_generate.dependOn(&run_generate_v2_cmd.step);
     run_generate.dependOn(&run_generate_v2_yaml_cmd.step);

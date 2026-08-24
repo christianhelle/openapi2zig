@@ -9,6 +9,7 @@ const v31_yaml = @import("generated_v31_yaml.zig");
 const v32 = @import("generated_v32.zig");
 const v3_multiclient_tag = @import("generated_v3_multiclient_tag.zig");
 const v3_multiclient_endpoint = @import("generated_v3_multiclient_endpoint.zig");
+const v3_params_struct = @import("generated_v3_params_struct.zig");
 
 test "generated clients compile" {
     std.testing.refAllDecls(v2);
@@ -20,6 +21,7 @@ test "generated clients compile" {
     std.testing.refAllDecls(v32);
     std.testing.refAllDecls(v3_multiclient_tag);
     std.testing.refAllDecls(v3_multiclient_endpoint);
+    std.testing.refAllDecls(v3_params_struct);
 }
 
 const SseCallback = struct {
@@ -186,4 +188,21 @@ test "generated endpoint parsing is loose" {
     const source = @embedFile("generated_v3.zig");
     try std.testing.expect(std.mem.indexOf(u8, source, ", allocator, body, .{})") == null);
     try std.testing.expect(std.mem.indexOf(u8, source, ".ignore_unknown_fields = true") != null);
+}
+
+test "options struct parameters accept partial literals with null defaults" {
+    const Options = @typeInfo(@TypeOf(v3_params_struct.findPetsByStatus)).@"fn".params[1].type.?;
+
+    const all_defaults: Options = .{};
+    try std.testing.expect(all_defaults.status == null);
+
+    const partial: Options = .{ .status = "available" };
+    try std.testing.expectEqualStrings("available", partial.status.?);
+}
+
+test "options struct parameters require required fields" {
+    const Options = @typeInfo(@TypeOf(v3_params_struct.getPetById)).@"fn".params[1].type.?;
+
+    const required: Options = .{ .petId = 1 };
+    try std.testing.expectEqual(@as(i64, 1), required.petId);
 }

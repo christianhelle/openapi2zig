@@ -230,6 +230,7 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `--multiple-files` | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`. |
 | `--file-name <kind>=<name>` | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. `<name>` may include a relative subpath (e.g. `models=gen/types.zig`); any required parent directories are created automatically. Can be specified multiple times. |
 | `--force` | Force overwriting output even when unchanged (skip unchanged-content check). |
+| `--parameters-as-struct` | Wrap the method parameters of each operation in a single `options` struct instead of emitting them as individual function arguments. Optional query parameters become nullable fields defaulting to `null`; required path and query parameters stay non-optional. The request body, when present, remains a separate `requestBody` argument. |
 
 
 ### Examples
@@ -269,6 +270,25 @@ openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerEndpoint
 ```
+
+**Wrap method parameters in a single `options` struct:**
+```bash
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --parameters-as-struct
+```
+
+With `--parameters-as-struct`, operations that take many parameters generate methods that accept one `options` struct instead of a long list of arguments. Optional query parameters become nullable fields that default to `null`, so callers only set the fields they care about:
+
+```zig
+// without the flag
+var pets = try api.findPetsByStatus(&client, "available");
+defer pets.deinit();
+
+// with --parameters-as-struct
+var pets = try api.findPetsByStatus(&client, .{ .status = "available" });
+defer pets.deinit();
+```
+
+Required path and query parameters are emitted as non-optional struct fields, and the request body stays a separate `requestBody` argument. Resource wrapper, per-tag, and per-endpoint methods follow the same shape.
 
 **Generate only endpoints and models for selected tags:**
 ```bash
