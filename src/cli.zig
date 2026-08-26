@@ -314,13 +314,12 @@ fn validateFileName(name: []const u8) error{InvalidFileName}!void {
 }
 
 /// Return true when `path` is absolute under any platform's conventions. This
-/// treats root-relative and drive-letter paths as absolute regardless of the
+/// treats root-relative and Windows drive paths as absolute regardless of the
 /// build host, so import validation does not depend on the platform.
 fn isAbsoluteImportPath(path: []const u8) bool {
     if (path.len == 0) return false;
     if (path[0] == '/' or path[0] == '\\') return true;
-    if (path.len >= 3 and std.ascii.isAlphabetic(path[0]) and path[1] == ':' and
-        (path[2] == '/' or path[2] == '\\')) return true;
+    if (path.len >= 2 and std.ascii.isAlphabetic(path[0]) and path[1] == ':') return true;
     return false;
 }
 
