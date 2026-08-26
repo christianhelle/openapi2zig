@@ -314,10 +314,10 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     api_gen.model_prefix = "models.";
     api_gen.emit_imports = true;
     if (args.runtime_module) |mod| {
-        const alias = try @import("cli.zig").deriveAlias(allocator, std.fs.path.basename(mod), "runtime");
-        defer allocator.free(alias);
         const normalized = try std.mem.replaceOwned(u8, allocator, mod, "\\", "/");
         defer allocator.free(normalized);
+        const alias = try @import("cli.zig").deriveAlias(allocator, @import("cli.zig").importBasename(normalized), "runtime");
+        defer allocator.free(alias);
         api_gen.runtime_import = normalized;
         api_gen.runtime_import_alias = alias;
         const api_code = try api_gen.generateClientOnly(unified_doc);
@@ -402,6 +402,34 @@ pub fn convertOpenApi32ToUnified(allocator: std.mem.Allocator, openapi32_doc: Op
 /// - UnifiedDocument: Unified representation of the Swagger document
 pub fn convertSwaggerToUnified(allocator: std.mem.Allocator, swagger_doc: SwaggerDocument) !UnifiedDocument {
     return convertDocument(allocator, swagger_doc, SwaggerConverter);
+}
+
+test "generateCodeMultiple with windows-style runtime_module normalizes separators" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const io = std.testing.io;
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+    var unified = try parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var result = try generateCodeMultiple(allocator, io, unified, .{
+        .input_path = "fixture.json",
+        .runtime_module = "..\\shared\\my_runtime.zig",
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expect(result.runtime == null);
+    try std.testing.expect(result.client != null);
+    try std.testing.expect(std.mem.indexOf(u8, result.client.?, "@import(\"../shared/my_runtime.zig\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result.client.?, "const my_runtime = @import(\"../shared/my_runtime.zig\");") != null);
 }
 
 // Version information
