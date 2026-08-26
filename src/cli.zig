@@ -1601,6 +1601,8 @@ test "parse rejects --runtime-module with absolute path" {
         "C:\\absolute\\runtime.zig",
         "C:/absolute/runtime.zig",
         "\\\\server\\share\\runtime.zig",
+        "C:runtime.zig",
+        "C:shared\\runtime.zig",
     };
     for (cases) |path| {
         const argv = [_][:0]const u8{
@@ -1663,6 +1665,9 @@ test "validateImportPath rejects absolute paths on any platform" {
     try std.testing.expectError(error.InvalidFileName, validateImportPath("\\abs\\runtime.zig"));
     try std.testing.expectError(error.InvalidFileName, validateImportPath("C:\\abs\\runtime.zig"));
     try std.testing.expectError(error.InvalidFileName, validateImportPath("C:/abs/runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("C:runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("C:shared\\runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("C:shared/runtime.zig"));
     try std.testing.expectError(error.InvalidFileName, validateImportPath("\\\\server\\share\\runtime.zig"));
     try std.testing.expectError(error.InvalidFileName, validateImportPath("//server/share/runtime.zig"));
 }
@@ -1780,6 +1785,21 @@ test "parse rejects runtime-module resolved relative to client dir that collides
         "../models.zig",
         "--file-name",
         "client=sub/client.zig",
+    };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects runtime-module resolved relative to backslash client dir" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "../models.zig",
+        "--file-name",
+        "client=sub\\client.zig",
     };
     try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }

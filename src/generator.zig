@@ -1080,6 +1080,40 @@ test "generateMultipleFiles with runtime_module and nested client preserves verb
     try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../../shared/runtime.zig\")") != null);
 }
 
+test "generateMultipleFiles treats backslash-separated nested client path as a directory" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .file_names = .{ .client = "sub\\client.zig" },
+        .runtime_module = "../shared/runtime.zig",
+    });
+
+    const client = try tmp.dir.readFileAlloc(std.testing.io, "out/sub/client.zig", allocator, .unlimited);
+    defer allocator.free(client);
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../shared/runtime.zig\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const models = @import(\"../models.zig\");") != null);
+}
+
 test "generateMultipleFiles with windows-style runtime_module normalizes separators" {
     const test_utils = @import("tests/test_utils.zig");
 
