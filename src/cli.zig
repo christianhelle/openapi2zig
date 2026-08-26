@@ -277,6 +277,7 @@ fn validateImportPath(path: []const u8) error{InvalidFileName}!void {
     while (bwd.next()) |part| {
         if (part.len == 0 or std.mem.eql(u8, part, ".")) return error.InvalidFileName;
     }
+    if (std.mem.eql(u8, importBasename(path), "..")) return error.InvalidFileName;
 }
 
 pub const CliArgs = struct {
@@ -1624,4 +1625,30 @@ test "parse rejects windows-style runtime-module alias colliding with models ali
     };
 
     try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "validateImportPath rejects basename dotdot" {
+    try std.testing.expectError(error.InvalidFileName, validateImportPath(".."));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("a/.."));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("a\\.."));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("../.."));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("..\\.."));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("a/b/.."));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("a\\b\\.."));
+}
+
+test "parse rejects --runtime-module with trailing dotdot" {
+    const cases = [_][:0]const u8{ "..", "a/..", "a\\..", "../..", "..\\.." };
+    for (cases) |path| {
+        const argv = [_][:0]const u8{
+            "openapi2zig",
+            "generate",
+            "-i",
+            "openapi.json",
+            "--multiple-files",
+            "--runtime-module",
+            path,
+        };
+        try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+    }
 }
