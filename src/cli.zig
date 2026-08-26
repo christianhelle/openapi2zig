@@ -1585,17 +1585,24 @@ test "parse rejects --runtime-module with --models-only" {
 }
 
 test "parse rejects --runtime-module with absolute path" {
-    const argv = [_][:0]const u8{
-        "openapi2zig",
-        "generate",
-        "-i",
-        "openapi.json",
-        "--multiple-files",
-        "--runtime-module",
+    const cases = [_][:0]const u8{
         "/absolute/runtime.zig",
+        "C:\\absolute\\runtime.zig",
+        "C:/absolute/runtime.zig",
+        "\\\\server\\share\\runtime.zig",
     };
-
-    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+    for (cases) |path| {
+        const argv = [_][:0]const u8{
+            "openapi2zig",
+            "generate",
+            "-i",
+            "openapi.json",
+            "--multiple-files",
+            "--runtime-module",
+            path,
+        };
+        try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+    }
 }
 
 test "parse rejects --runtime-module mapping to reserved alias" {
@@ -1638,6 +1645,15 @@ test "validateImportPath rejects dot segments and absolute paths" {
     try std.testing.expectError(error.InvalidFileName, validateImportPath("./runtime.zig"));
     try std.testing.expectError(error.InvalidFileName, validateImportPath("a//b.zig"));
     try std.testing.expectError(error.InvalidFileName, validateImportPath("/abs/runtime.zig"));
+}
+
+test "validateImportPath rejects absolute paths on any platform" {
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("/abs/runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("\\abs\\runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("C:\\abs\\runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("C:/abs/runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("\\\\server\\share\\runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("//server/share/runtime.zig"));
 }
 
 test "importBasename handles both separators" {
