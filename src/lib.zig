@@ -432,6 +432,94 @@ test "generateCodeMultiple with windows-style runtime_module normalizes separato
     try std.testing.expect(std.mem.indexOf(u8, result.client.?, "const my_runtime = @import(\"../shared/my_runtime.zig\");") != null);
 }
 
+test "generateCodeMultiple honors custom file names and nested client paths" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const io = std.testing.io;
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "get": {
+        \\        "operationId": "listPets",
+        \\        "responses": {
+        \\          "200": {
+        \\            "description": "ok",
+        \\            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Pet" } } } }
+        \\          }
+        \\        }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+    var unified = try parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var result = try generateCodeMultiple(allocator, io, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .file_names = .{ .models = "gen\\models.zig", .runtime = "rt\\runtime.zig", .client = "sub\\client.zig" },
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expect(result.runtime != null);
+    try std.testing.expect(result.client != null);
+    const client = result.client.?;
+
+    try std.testing.expect(std.mem.indexOf(u8, client, "const gen_models = @import(\"../gen/models.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const rt_runtime = @import(\"../rt/runtime.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "gen_models.Pet") != null);
+
+    // No backslash-separated imports should leak into generated code.
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"gen\\models.zig\")") == null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"rt\\runtime.zig\")") == null);
+}
+
+test "generateCodeMultiple with runtime_module honors custom models name and nested client" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const io = std.testing.io;
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+    var unified = try parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var result = try generateCodeMultiple(allocator, io, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .file_names = .{ .models = "contracts.zig", .client = "sub\\client.zig" },
+        .runtime_module = "..\\shared\\my_runtime.zig",
+    });
+    defer result.deinit(allocator);
+
+    try std.testing.expect(result.runtime == null);
+    try std.testing.expect(result.client != null);
+    const client = result.client.?;
+
+    try std.testing.expect(std.mem.indexOf(u8, client, "const contracts = @import(\"../contracts.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const my_runtime = @import(\"../shared/my_runtime.zig\");") != null);
+}
+
 // Version information
 pub const version_info = @import("build_info");
 
