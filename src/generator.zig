@@ -1150,3 +1150,50 @@ test "generateMultipleFiles with windows-style runtime_module normalizes separat
     try std.testing.expect(std.mem.indexOf(u8, client, "const my_runtime = @import(\"../shared/my_runtime.zig\");") != null);
     try std.testing.expect(std.mem.indexOf(u8, client, "const Owned = my_runtime.Owned;") != null);
 }
+
+test "generateMultipleFiles normalizes backslash-separated models and runtime file paths" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .file_names = .{ .models = "gen\\models.zig", .runtime = "rt\\runtime.zig", .client = "client.zig" },
+    });
+
+    const models_source = try tmp.dir.readFileAlloc(std.testing.io, "out/gen/models.zig", allocator, .unlimited);
+    defer allocator.free(models_source);
+    const runtime_source = try tmp.dir.readFileAlloc(std.testing.io, "out/rt/runtime.zig", allocator, .unlimited);
+    defer allocator.free(runtime_source);
+    const client = try tmp.dir.readFileAlloc(std.testing.io, "out/client.zig", allocator, .unlimited);
+    defer allocator.free(client);
+
+    // Imports in the generated client should use forward slashes.
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"gen/models.zig\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"rt/runtime.zig\")") != null);
+
+    // No backslash-separated imports should leak into generated code.
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"gen\\models.zig\")") == null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"rt\\runtime.zig\")") == null);
+
+    // Aliases are derived from the normalized path stems.
+    try std.testing.expect(std.mem.indexOf(u8, client, "const gen_models = @import(\"gen/models.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const rt_runtime = @import(\"rt/runtime.zig\");") != null);
+}
