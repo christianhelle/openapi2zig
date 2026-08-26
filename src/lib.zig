@@ -31,6 +31,7 @@
 const std = @import("std");
 const yaml_loader = @import("yaml_loader.zig");
 const generated_header = @import("generators/generated_header.zig");
+const cli = @import("cli.zig");
 
 // Core version detection
 pub const ApiVersion = @import("detector.zig").OpenApiVersion;
@@ -279,6 +280,13 @@ pub const GeneratedFiles = struct {
 /// args.models_only is true. `runtime` is also null when `args.runtime_module` is set
 /// to reuse an existing runtime module instead of generating one.
 pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) !GeneratedFiles {
+    const models_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.models) orelse cli.FileKind.models.defaultName(), "\\", "/");
+    defer allocator.free(models_file);
+    const runtime_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.runtime) orelse cli.FileKind.runtime.defaultName(), "\\", "/");
+    defer allocator.free(runtime_file);
+    const client_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.client) orelse cli.FileKind.client.defaultName(), "\\", "/");
+    defer allocator.free(client_file);
+
     const models_code = try generateModels(allocator, unified_doc);
     defer allocator.free(models_code);
 
@@ -296,7 +304,17 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     var runtime_with_header: ?[]const u8 = null;
     errdefer if (runtime_with_header) |r| allocator.free(r);
 
-    if (args.runtime_module == null) {
+    var runtime_import_owned: ?[]const u8 = null;
+    defer if (runtime_import_owned) |v| allocator.free(v);
+    var runtime_alias_owned: ?[]const u8 = null;
+    defer if (runtime_alias_owned) |v| allocator.free(v);
+
+    if (args.runtime_module) |mod| {
+        const normalized = try std.mem.replaceOwned(u8, allocator, mod, "\\", "/");
+        defer allocator.free(normalized);
+        runtime_alias_owned = try cli.deriveAlias(allocator, cli.importBasename(normalized), "runtime");
+        runtime_import_owned = try allocator.dupe(u8, normalized);
+    } else {
         var runtime_gen = RuntimeGenerator.init(allocator);
         defer runtime_gen.deinit();
         const runtime_code = try runtime_gen.generate();
@@ -307,48 +325,51 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
         defer allocator.free(runtime_header);
 
         runtime_with_header = try std.mem.concat(allocator, u8, &.{ runtime_header, runtime_code });
+
+        runtime_alias_owned = try cli.deriveAlias(allocator, runtime_file, "runtime");
+        const computed_import = if (std.fs.path.dirname(client_file)) |client_dir| blk: {
+            const raw = try std.fs.path.relative(allocator, ".", null, client_dir, runtime_file);
+            defer allocator.free(raw);
+            break :blk try std.mem.replaceOwned(u8, allocator, raw, "\\", "/");
+        } else try allocator.dupe(u8, runtime_file);
+        runtime_import_owned = computed_import;
     }
+
+    const models_alias = try cli.deriveAlias(allocator, models_file, "models");
+    defer allocator.free(models_alias);
+    const models_prefix = try std.mem.concat(allocator, u8, &.{ models_alias, "." });
+    defer allocator.free(models_prefix);
+    const models_import_path = if (std.fs.path.dirname(client_file)) |client_dir| blk: {
+        const raw = try std.fs.path.relative(allocator, ".", null, client_dir, models_file);
+        defer allocator.free(raw);
+        break :blk try std.mem.replaceOwned(u8, allocator, raw, "\\", "/");
+    } else models_file;
+    defer if (std.fs.path.dirname(client_file) != null) allocator.free(models_import_path);
 
     var api_gen = UnifiedApiGenerator.init(allocator, args);
     defer api_gen.deinit();
-    api_gen.model_prefix = "models.";
+    api_gen.model_prefix = models_prefix;
     api_gen.emit_imports = true;
-    if (args.runtime_module) |mod| {
-        const normalized = try std.mem.replaceOwned(u8, allocator, mod, "\\", "/");
-        defer allocator.free(normalized);
-        const alias = try @import("cli.zig").deriveAlias(allocator, @import("cli.zig").importBasename(normalized), "runtime");
-        defer allocator.free(alias);
-        api_gen.runtime_import = normalized;
-        api_gen.runtime_import_alias = alias;
-        const api_code = try api_gen.generateClientOnly(unified_doc);
-        defer allocator.free(api_code);
-        const client_checksum = generated_header.computeChecksum(api_code);
-        const client_header = try generated_header.renderNowWithChecksum(allocator, io, client_checksum);
-        defer allocator.free(client_header);
-        const client_with_header = try std.mem.concat(allocator, u8, &.{ client_header, api_code });
-        errdefer allocator.free(client_with_header);
-        return .{
-            .models = models_with_header,
-            .runtime = runtime_with_header,
-            .client = client_with_header,
-        };
-    } else {
-        const api_code = try api_gen.generateClientOnly(unified_doc);
-        defer allocator.free(api_code);
+    api_gen.models_import = models_import_path;
+    api_gen.models_import_alias = models_alias;
+    api_gen.runtime_import = runtime_import_owned.?;
+    api_gen.runtime_import_alias = runtime_alias_owned.?;
 
-        const client_checksum = generated_header.computeChecksum(api_code);
-        const client_header = try generated_header.renderNowWithChecksum(allocator, io, client_checksum);
-        defer allocator.free(client_header);
+    const api_code = try api_gen.generateClientOnly(unified_doc);
+    defer allocator.free(api_code);
 
-        const client_with_header = try std.mem.concat(allocator, u8, &.{ client_header, api_code });
-        errdefer allocator.free(client_with_header);
+    const client_checksum = generated_header.computeChecksum(api_code);
+    const client_header = try generated_header.renderNowWithChecksum(allocator, io, client_checksum);
+    defer allocator.free(client_header);
 
-        return .{
-            .models = models_with_header,
-            .runtime = runtime_with_header,
-            .client = client_with_header,
-        };
-    }
+    const client_with_header = try std.mem.concat(allocator, u8, &.{ client_header, api_code });
+    errdefer allocator.free(client_with_header);
+
+    return .{
+        .models = models_with_header,
+        .runtime = runtime_with_header,
+        .client = client_with_header,
+    };
 }
 
 fn convertDocument(allocator: std.mem.Allocator, doc: anytype, comptime Converter: type) !UnifiedDocument {
@@ -445,11 +466,11 @@ test "generateCodeMultiple honors custom file names and nested client paths" {
         \\  "paths": {
         \\    "/pets": {
         \\      "get": {
-        \\        "operationId": "listPets",
+        \\        "operationId": "getPet",
         \\        "responses": {
         \\          "200": {
         \\            "description": "ok",
-        \\            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Pet" } } } }
+        \\            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pet" } } }
         \\          }
         \\        }
         \\      }
