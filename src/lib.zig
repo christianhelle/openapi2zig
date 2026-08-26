@@ -292,37 +292,71 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
         return .{ .models = models_with_header };
     }
 
-    var runtime_gen = RuntimeGenerator.init(allocator);
-    defer runtime_gen.deinit();
-    const runtime_code = try runtime_gen.generate();
-    defer allocator.free(runtime_code);
+    var runtime_with_header: ?[]const u8 = null;
+    errdefer if (runtime_with_header) |r| allocator.free(r);
 
-    const runtime_checksum = generated_header.computeChecksum(runtime_code);
-    const runtime_header = try generated_header.renderNowWithChecksum(allocator, io, runtime_checksum);
-    defer allocator.free(runtime_header);
+    if (args.runtime_module == null) {
+        var runtime_gen = RuntimeGenerator.init(allocator);
+        defer runtime_gen.deinit();
+        const runtime_code = try runtime_gen.generate();
+        defer allocator.free(runtime_code);
 
-    const runtime_with_header = try std.mem.concat(allocator, u8, &.{ runtime_header, runtime_code });
-    errdefer allocator.free(runtime_with_header);
+        const runtime_checksum = generated_header.computeChecksum(runtime_code);
+        const runtime_header = try generated_header.renderNowWithChecksum(allocator, io, runtime_checksum);
+        defer allocator.free(runtime_header);
+
+        runtime_with_header = try std.mem.concat(allocator, u8, &.{ runtime_header, runtime_code });
+    }
 
     var api_gen = UnifiedApiGenerator.init(allocator, args);
     api_gen.model_prefix = "models.";
     api_gen.emit_imports = true;
-    defer api_gen.deinit();
-    const api_code = try api_gen.generateClientOnly(unified_doc);
-    defer allocator.free(api_code);
+    if (args.runtime_module) |mod| {
+        const alias = try @import("cli.zig").deriveAlias(allocator, std.fs.path.basename(mod), "runtime");
+        defer allocator.free(alias);
+        // Need to keep alias alive until after generateClientOnly; copy into generator-allocated buffer.
+        // UnifiedApiGenerator stores slice reference only for generation, so dupe into its allocator scope.
+        const alias_copy = try allocator.dupe(u8, alias);
+        defer allocator.free(alias_copy);
+        const normalized = try std.mem.replaceOwned(u8, allocator, mod, "\\", "/");
+        defer allocator.free(normalized);
+        api_gen.runtime_import = normalized;
+        api_gen.runtime_import_alias = alias_copy;
+        // generateClientOnly copies the strings into its buffer, so defer above is safe until after call
+        const api_code = try api_gen.generateClientOnly(unified_doc);
+        defer allocator.free(api_code);
+        const client_checksum = generated_header.computeChecksum(api_code);
+        const client_header = try generated_header.renderNowWithChecksum(allocator, io, client_checksum);
+        defer allocator.free(client_header);
+        const client_with_header = try std.mem.concat(allocator, u8, &.{ client_header, api_code });
+        errdefer allocator.free(client_with_header);
+        // Need to free the runtime path if allocated differently? Already deferred.
+        // api_gen may have stored Normalized slice; we need to ensure not use-after-free before deinit.
+        // Copy needed fields already consumed.
+        api_gen.deinit();
+        return .{
+            .models = models_with_header,
+            .runtime = runtime_with_header,
+            .client = client_with_header,
+        };
+    } else {
+        defer api_gen.deinit();
+        const api_code = try api_gen.generateClientOnly(unified_doc);
+        defer allocator.free(api_code);
 
-    const client_checksum = generated_header.computeChecksum(api_code);
-    const client_header = try generated_header.renderNowWithChecksum(allocator, io, client_checksum);
-    defer allocator.free(client_header);
+        const client_checksum = generated_header.computeChecksum(api_code);
+        const client_header = try generated_header.renderNowWithChecksum(allocator, io, client_checksum);
+        defer allocator.free(client_header);
 
-    const client_with_header = try std.mem.concat(allocator, u8, &.{ client_header, api_code });
-    errdefer allocator.free(client_with_header);
+        const client_with_header = try std.mem.concat(allocator, u8, &.{ client_header, api_code });
+        errdefer allocator.free(client_with_header);
 
-    return .{
-        .models = models_with_header,
-        .runtime = runtime_with_header,
-        .client = client_with_header,
-    };
+        return .{
+            .models = models_with_header,
+            .runtime = runtime_with_header,
+            .client = client_with_header,
+        };
+    }
 }
 
 fn convertDocument(allocator: std.mem.Allocator, doc: anytype, comptime Converter: type) !UnifiedDocument {

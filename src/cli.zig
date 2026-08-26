@@ -1401,3 +1401,166 @@ test "parse generate defaults parameters-as-struct to false" {
 
     try std.testing.expect(!parsed.args.parameters_as_struct);
 }
+
+test "parse accepts --runtime-module with --multiple-files" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "../runtime.zig",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expectEqualStrings("../runtime.zig", parsed.args.runtime_module.?);
+    try std.testing.expect(parsed.args.multiple_files);
+}
+
+test "parse accepts --runtime-module with nested path and custom models name" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "../shared/runtime.zig",
+        "--file-name",
+        "models=contracts.zig",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expectEqualStrings("../shared/runtime.zig", parsed.args.runtime_module.?);
+    try std.testing.expectEqualStrings("contracts.zig", parsed.args.file_names.models.?);
+}
+
+test "parse rejects --runtime-module without --multiple-files" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--runtime-module",
+        "../runtime.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-module without value" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects duplicate --runtime-module" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "../runtime.zig",
+        "--runtime-module",
+        "../other.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-module combined with --file-name runtime" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "../runtime.zig",
+        "--file-name",
+        "runtime=custom.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-module with --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--models-only",
+        "--runtime-module",
+        "../runtime.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-module with absolute path" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "/absolute/runtime.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-module mapping to reserved alias" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "../std.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-module alias colliding with models alias" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "../runtime.zig",
+        "--file-name",
+        "models=runtime.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "validateImportPath allows parent traversal and nested paths" {
+    try validateImportPath("../runtime.zig");
+    try validateImportPath("../../shared/runtime.zig");
+    try validateImportPath("a/b/runtime.zig");
+}
+
+test "validateImportPath rejects dot segments and absolute paths" {
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("./runtime.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("a//b.zig"));
+    try std.testing.expectError(error.InvalidFileName, validateImportPath("/abs/runtime.zig"));
+}

@@ -217,17 +217,50 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
 
     if (args.models_only) return;
 
-    var runtime_gen = RuntimeGenerator.init(allocator);
-    defer runtime_gen.deinit();
-    const generated_runtime = try runtime_gen.generate();
-    defer allocator.free(generated_runtime);
+    var runtime_alias_owned: ?[]const u8 = null;
+    defer if (runtime_alias_owned) |v| allocator.free(v);
+    var runtime_import_owned: ?[]const u8 = null;
+    defer if (runtime_import_owned) |v| allocator.free(v);
 
-    try writeFile(allocator, io, cwd, dir_path, runtime_file, generated_runtime, args.force);
+    var runtime_alias: []const u8 = undefined;
+    var runtime_import_path: []const u8 = undefined;
+
+    if (args.runtime_module) |mod| {
+        std.log.info("Reusing runtime module '{s}' (skipping generation of '{s}')", .{ mod, runtime_file });
+        // Best-effort existence check relative to the output directory / client location.
+        const candidate_path = if (std.fs.path.dirname(client_file)) |client_dir|
+            try std.fs.path.join(allocator, &.{ dir_path, client_dir, mod })
+        else
+            try std.fs.path.join(allocator, &.{ dir_path, mod });
+        defer allocator.free(candidate_path);
+        cwd.access(io, candidate_path, .{}) catch {
+            std.log.info("Runtime module '{s}' not found at '{s}' (import will be dangling until file exists)", .{ mod, candidate_path });
+        };
+        runtime_alias_owned = try cli.deriveAlias(allocator, std.fs.path.basename(mod), "runtime");
+        runtime_alias = runtime_alias_owned.?;
+        runtime_import_owned = try std.mem.replaceOwned(u8, allocator, mod, "\\", "/");
+        runtime_import_path = runtime_import_owned.?;
+    } else {
+        var runtime_gen = RuntimeGenerator.init(allocator);
+        defer runtime_gen.deinit();
+        const generated_runtime = try runtime_gen.generate();
+        defer allocator.free(generated_runtime);
+
+        try writeFile(allocator, io, cwd, dir_path, runtime_file, generated_runtime, args.force);
+
+        runtime_alias_owned = try cli.deriveAlias(allocator, runtime_file, "runtime");
+        runtime_alias = runtime_alias_owned.?;
+        const computed_import = if (std.fs.path.dirname(client_file)) |client_dir| blk: {
+            const raw = try std.fs.path.relative(allocator, ".", null, client_dir, runtime_file);
+            defer allocator.free(raw);
+            break :blk try std.mem.replaceOwned(u8, allocator, raw, "\\", "/");
+        } else try allocator.dupe(u8, runtime_file);
+        runtime_import_owned = computed_import;
+        runtime_import_path = runtime_import_owned.?;
+    }
 
     const models_alias = try cli.deriveAlias(allocator, models_file, "models");
     defer allocator.free(models_alias);
-    const runtime_alias = try cli.deriveAlias(allocator, runtime_file, "runtime");
-    defer allocator.free(runtime_alias);
     const models_prefix = try std.mem.concat(allocator, u8, &.{ models_alias, "." });
     defer allocator.free(models_prefix);
 
@@ -237,12 +270,6 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
         break :blk try std.mem.replaceOwned(u8, allocator, raw, "\\", "/");
     } else models_file;
     defer if (std.fs.path.dirname(client_file) != null) allocator.free(models_import_path);
-    const runtime_import_path = if (std.fs.path.dirname(client_file)) |client_dir| blk: {
-        const raw = try std.fs.path.relative(allocator, ".", null, client_dir, runtime_file);
-        defer allocator.free(raw);
-        break :blk try std.mem.replaceOwned(u8, allocator, raw, "\\", "/");
-    } else runtime_file;
-    defer if (std.fs.path.dirname(client_file) != null) allocator.free(runtime_import_path);
 
     var api_generator = UnifiedApiGenerator.init(allocator, args);
     api_generator.model_prefix = models_prefix;
@@ -901,4 +928,150 @@ test "generateMultipleFiles overwrites unchanged files when force is set" {
     defer allocator.free(second_models);
 
     try std.testing.expect(!std.mem.eql(u8, first_models, second_models));
+}
+
+test "generateMultipleFiles with runtime_module reuses existing runtime" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "post": {
+        \\        "operationId": "addPet",
+        \\        "requestBody": {
+        \\          "required": true,
+        \\          "content": {
+        \\            "application/json": {
+        \\              "schema": { "$ref": "#/components/schemas/Pet" }
+        \\            }
+        \\          }
+        \\        },
+        \\        "responses": {
+        \\          "200": { "description": "ok" }
+        \\        }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Leader: normal generation that creates runtime.zig in shared location
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "shared",
+    });
+
+    const shared_runtime = try tmp.dir.readFileAlloc(std.testing.io, "shared/runtime.zig", allocator, .unlimited);
+    defer allocator.free(shared_runtime);
+    try std.testing.expect(std.mem.indexOf(u8, shared_runtime, "pub fn Owned") != null);
+
+    // Follower: reuse existing runtime via client-relative import
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "client",
+        .runtime_module = "../shared/runtime.zig",
+    });
+
+    const client = try tmp.dir.readFileAlloc(std.testing.io, "client/client.zig", allocator, .unlimited);
+    defer allocator.free(client);
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../shared/runtime.zig\")") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const runtime = @import(\"../shared/runtime.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const Owned = runtime.Owned;") != null);
+
+    // No runtime should be emitted in the follower output
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "client/runtime.zig", .{}));
+
+    const models_content = try tmp.dir.readFileAlloc(std.testing.io, "client/models.zig", allocator, .unlimited);
+    defer allocator.free(models_content);
+    try std.testing.expect(std.mem.indexOf(u8, models_content, "pub const Pet") != null);
+}
+
+test "generateMultipleFiles with runtime_module derives alias from basename and supports custom models name" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .runtime_module = "../shared/my_runtime.zig",
+        .file_names = .{ .models = "contracts.zig" },
+    });
+
+    const client = try tmp.dir.readFileAlloc(std.testing.io, "out/client.zig", allocator, .unlimited);
+    defer allocator.free(client);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const my_runtime = @import(\"../shared/my_runtime.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const Owned = my_runtime.Owned;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const contracts = @import(\"contracts.zig\");") != null);
+}
+
+test "generateMultipleFiles with runtime_module and nested client preserves verbatim import" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .file_names = .{ .client = "sub/client.zig" },
+        .runtime_module = "../../shared/runtime.zig",
+    });
+
+    const client = try tmp.dir.readFileAlloc(std.testing.io, "out/sub/client.zig", allocator, .unlimited);
+    defer allocator.free(client);
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../../shared/runtime.zig\")") != null);
 }
