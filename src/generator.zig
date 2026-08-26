@@ -237,8 +237,12 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
         else
             try std.fs.path.join(allocator, &.{ dir_path, runtime_import_path });
         defer allocator.free(candidate_path);
-        cwd.access(io, candidate_path, .{}) catch {
-            std.log.info("Runtime module '{s}' not found at '{s}' (import will be dangling until file exists)", .{ mod, candidate_path });
+        cwd.access(io, candidate_path, .{}) catch |err| {
+            if (err == error.FileNotFound) {
+                std.log.info("Runtime module '{s}' not found at '{s}' (import will be dangling until file exists)", .{ mod, candidate_path });
+            } else {
+                std.log.warn("Failed to access runtime module '{s}' at '{s}': {}", .{ mod, candidate_path, err });
+            }
         };
     } else {
         var runtime_gen = RuntimeGenerator.init(allocator);
