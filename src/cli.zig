@@ -1413,7 +1413,8 @@ test "parse accepts --runtime-module with --multiple-files" {
         "../runtime.zig",
     };
 
-    const parsed = try parse(std.testing.allocator, &argv);
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
     try std.testing.expectEqualStrings("../runtime.zig", parsed.args.runtime_module.?);
     try std.testing.expect(parsed.args.multiple_files);
 }
@@ -1431,7 +1432,8 @@ test "parse accepts --runtime-module with nested path and custom models name" {
         "models=contracts.zig",
     };
 
-    const parsed = try parse(std.testing.allocator, &argv);
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
     try std.testing.expectEqualStrings("../shared/runtime.zig", parsed.args.runtime_module.?);
     try std.testing.expectEqualStrings("contracts.zig", parsed.args.file_names.models.?);
 }
