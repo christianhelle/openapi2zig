@@ -227,19 +227,19 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
 
     if (args.runtime_module) |mod| {
         std.log.info("Reusing runtime module '{s}' (skipping generation of '{s}')", .{ mod, runtime_file });
+        runtime_import_owned = try std.mem.replaceOwned(u8, allocator, mod, "\\", "/");
+        runtime_import_path = runtime_import_owned.?;
+        runtime_alias_owned = try cli.deriveAlias(allocator, cli.importBasename(runtime_import_path), "runtime");
+        runtime_alias = runtime_alias_owned.?;
         // Best-effort existence check relative to the output directory / client location.
         const candidate_path = if (std.fs.path.dirname(client_file)) |client_dir|
-            try std.fs.path.join(allocator, &.{ dir_path, client_dir, mod })
+            try std.fs.path.join(allocator, &.{ dir_path, client_dir, runtime_import_path })
         else
-            try std.fs.path.join(allocator, &.{ dir_path, mod });
+            try std.fs.path.join(allocator, &.{ dir_path, runtime_import_path });
         defer allocator.free(candidate_path);
         cwd.access(io, candidate_path, .{}) catch {
             std.log.info("Runtime module '{s}' not found at '{s}' (import will be dangling until file exists)", .{ mod, candidate_path });
         };
-        runtime_alias_owned = try cli.deriveAlias(allocator, std.fs.path.basename(mod), "runtime");
-        runtime_alias = runtime_alias_owned.?;
-        runtime_import_owned = try std.mem.replaceOwned(u8, allocator, mod, "\\", "/");
-        runtime_import_path = runtime_import_owned.?;
     } else {
         var runtime_gen = RuntimeGenerator.init(allocator);
         defer runtime_gen.deinit();
@@ -1074,4 +1074,40 @@ test "generateMultipleFiles with runtime_module and nested client preserves verb
     const client = try tmp.dir.readFileAlloc(std.testing.io, "out/sub/client.zig", allocator, .unlimited);
     defer allocator.free(client);
     try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../../shared/runtime.zig\")") != null);
+}
+
+test "generateMultipleFiles with windows-style runtime_module normalizes separators" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+        .runtime_module = "..\\shared\\my_runtime.zig",
+    });
+
+    const client = try tmp.dir.readFileAlloc(std.testing.io, "out/client.zig", allocator, .unlimited);
+    defer allocator.free(client);
+    // Import should be normalized to forward slashes even when input uses backslashes
+    try std.testing.expect(std.mem.indexOf(u8, client, "@import(\"../shared/my_runtime.zig\")") != null);
+    // Alias should be derived from basename only, not include path separators
+    try std.testing.expect(std.mem.indexOf(u8, client, "const my_runtime = @import(\"../shared/my_runtime.zig\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, client, "const Owned = my_runtime.Owned;") != null);
 }
