@@ -42,7 +42,7 @@ fn printUsage() void {
         \\                              Can be specified multiple times.
         \\   --runtime-module <path>    Re-use an existing runtime.zig instead of generating one.
         \\                              The path is a Zig import path relative to the generated
-        \\                              client file (e.g. \"../runtime.zig\").
+        \\                              client file (e.g. "../runtime.zig").
         \\                              Requires --multiple-files and is mutually exclusive with
         \\                              --file-name runtime=... .
         \\   --force                   Force overwriting output even when unchanged
