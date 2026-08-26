@@ -40,6 +40,11 @@ fn printUsage() void {
         \\                              <kind> is models, runtime, or client.
         \\                              (default: models.zig, runtime.zig, client.zig)
         \\                              Can be specified multiple times.
+        \\   --runtime-module <path>    Re-use an existing runtime.zig instead of generating one.
+        \\                              The path is a Zig import path relative to the generated
+        \\                              client file (e.g. \"../runtime.zig\").
+        \\                              Requires --multiple-files and is mutually exclusive with
+        \\                              --file-name runtime=... .
         \\   --force                   Force overwriting output even when unchanged
         \\   --parameters-as-struct    Wrap method parameters in a single options struct
         \\                            instead of individual function arguments
@@ -248,6 +253,19 @@ fn validateFileName(name: []const u8) error{InvalidFileName}!void {
     }
 }
 
+fn validateImportPath(path: []const u8) error{InvalidFileName}!void {
+    if (std.fs.path.isAbsolute(path)) return error.InvalidFileName;
+    if (path.len == 0) return error.InvalidFileName;
+    var fwd = std.mem.splitScalar(u8, path, '/');
+    while (fwd.next()) |part| {
+        if (part.len == 0 or std.mem.eql(u8, part, ".")) return error.InvalidFileName;
+    }
+    var bwd = std.mem.splitScalar(u8, path, '\\');
+    while (bwd.next()) |part| {
+        if (part.len == 0 or std.mem.eql(u8, part, ".")) return error.InvalidFileName;
+    }
+}
+
 pub const CliArgs = struct {
     input_path: []const u8,
     output_path: ?[]const u8 = null,
@@ -257,6 +275,10 @@ pub const CliArgs = struct {
     multiple_files: bool = false,
     multiple_clients: ?MultipleClientsMode = null,
     file_names: FileNameOverrides = .{},
+    /// Optional import path to an existing runtime.zig. When set, no
+    /// runtime.zig is generated and the client imports this path instead.
+    /// The path is relative to the generated client file.
+    runtime_module: ?[]const u8 = null,
     /// OpenAPI tags to include. When empty, no tag filtering is applied.
     /// The slice is freed by `deinit(allocator)` when `owns_tags` is true.
     tags: []const []const u8 = &.{},
@@ -309,6 +331,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var multiple_files = false;
     var multiple_clients: ?MultipleClientsMode = null;
     var file_names: FileNameOverrides = .{};
+    var runtime_module: ?[]const u8 = null;
     var tags_list = std.ArrayList([]const u8).empty;
     defer tags_list.deinit(allocator);
     var tags: []const []const u8 = &.{};
@@ -423,6 +446,27 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
                     return error.InvalidArguments;
                 },
             };
+        } else if (std.mem.eql(u8, arg, "--runtime-module")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                printError("--runtime-module value required\n", .{});
+                return error.InvalidArguments;
+            }
+            if (runtime_module != null) {
+                printUsage();
+                printError("duplicate --runtime-module\n", .{});
+                return error.InvalidArguments;
+            }
+            const value = args[i];
+            validateImportPath(value) catch |err| switch (err) {
+                error.InvalidFileName => {
+                    printUsage();
+                    printError("invalid runtime module path '{s}'\n", .{value});
+                    return error.InvalidArguments;
+                },
+            };
+            runtime_module = value;
         } else if (std.mem.eql(u8, arg, "--force")) {
             force = true;
         } else if (std.mem.eql(u8, arg, "--parameters-as-struct")) {
@@ -439,6 +483,24 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     if (!multiple_files and file_names.any()) {
         printUsage();
         printError("--file-name requires --multiple-files\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_module != null and !multiple_files) {
+        printUsage();
+        printError("--runtime-module requires --multiple-files\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_module != null and file_names.runtime != null) {
+        printUsage();
+        printError("--runtime-module and --file-name runtime are mutually exclusive\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_module != null and models_only) {
+        printUsage();
+        printError("--runtime-module has no effect with --models-only\n", .{});
         return error.InvalidArguments;
     }
 
@@ -468,25 +530,52 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     }
 
     if (!models_only) {
-        if (findDuplicateFileName(file_names)) |dup| {
-            printUsage();
-            printError("duplicate output file name '{s}' for multiple --file-name options\n", .{dup});
-            return error.InvalidArguments;
-        }
+        if (runtime_module) |mod| {
+            // When re-using an external runtime, only models and client are emitted, so
+            // duplicate checks must be scoped to those two outputs plus the imported runtime alias.
+            const models_name = file_names.get(.models) orelse FileKind.models.defaultName();
+            const client_name = file_names.get(.client) orelse FileKind.client.defaultName();
+            if (fileNamesCollide(models_name, client_name)) {
+                printUsage();
+                printError("duplicate output file name '{s}' for multiple --file-name options\n", .{models_name});
+                return error.InvalidArguments;
+            }
+            var alias_bufs: [3][max_import_alias_len]u8 = undefined;
+            var aliases: [3][]const u8 = undefined;
+            aliases[0] = deriveAliasInto(&alias_bufs[0], models_name, "models");
+            aliases[1] = deriveAliasInto(&alias_bufs[1], std.fs.path.basename(mod), "runtime");
+            aliases[2] = deriveAliasInto(&alias_bufs[2], client_name, "client");
+            if (findDuplicateAlias(aliases)) |dup| {
+                printUsage();
+                printError("output file names map to the same import alias '{s}' for multiple --file-name options\n", .{dup});
+                return error.InvalidArguments;
+            }
+            if (findReservedAlias(aliases)) |alias| {
+                printUsage();
+                printError("output file name maps to import alias '{s}', which the generated client reserves\n", .{alias});
+                return error.InvalidArguments;
+            }
+        } else {
+            if (findDuplicateFileName(file_names)) |dup| {
+                printUsage();
+                printError("duplicate output file name '{s}' for multiple --file-name options\n", .{dup});
+                return error.InvalidArguments;
+            }
 
-        var alias_bufs: [3][max_import_alias_len]u8 = undefined;
-        const aliases = effectiveAliasesInto(file_names, &alias_bufs);
+            var alias_bufs: [3][max_import_alias_len]u8 = undefined;
+            const aliases = effectiveAliasesInto(file_names, &alias_bufs);
 
-        if (findDuplicateAlias(aliases)) |dup| {
-            printUsage();
-            printError("output file names map to the same import alias '{s}' for multiple --file-name options\n", .{dup});
-            return error.InvalidArguments;
-        }
+            if (findDuplicateAlias(aliases)) |dup| {
+                printUsage();
+                printError("output file names map to the same import alias '{s}' for multiple --file-name options\n", .{dup});
+                return error.InvalidArguments;
+            }
 
-        if (findReservedAlias(aliases)) |alias| {
-            printUsage();
-            printError("output file name maps to import alias '{s}', which the generated client reserves\n", .{alias});
-            return error.InvalidArguments;
+            if (findReservedAlias(aliases)) |alias| {
+                printUsage();
+                printError("output file name maps to import alias '{s}', which the generated client reserves\n", .{alias});
+                return error.InvalidArguments;
+            }
         }
     }
 
@@ -506,6 +595,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .multiple_files = multiple_files,
             .multiple_clients = multiple_clients,
             .file_names = file_names,
+            .runtime_module = runtime_module,
             .tags = tags,
             .owns_tags = tags_owned,
             .force = force,
