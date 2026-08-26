@@ -206,7 +206,8 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
 
     const models_file = args.file_names.get(.models) orelse cli.FileKind.models.defaultName();
     const runtime_file = args.file_names.get(.runtime) orelse cli.FileKind.runtime.defaultName();
-    const client_file = args.file_names.get(.client) orelse cli.FileKind.client.defaultName();
+    const client_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.client) orelse cli.FileKind.client.defaultName(), "\\", "/");
+    defer allocator.free(client_file);
 
     var model_generator = UnifiedModelGenerator.init(allocator);
     defer model_generator.deinit();
