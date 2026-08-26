@@ -276,7 +276,8 @@ pub const GeneratedFiles = struct {
 
 /// Generate separate Zig source files (models, runtime, client) from a unified document.
 /// Only the models field is always present; runtime and client are null when
-/// args.models_only is true.
+/// args.models_only is true. `runtime` is also null when `args.runtime_module` is set
+/// to reuse an existing runtime module instead of generating one.
 pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) !GeneratedFiles {
     const models_code = try generateModels(allocator, unified_doc);
     defer allocator.free(models_code);
@@ -309,20 +310,16 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     }
 
     var api_gen = UnifiedApiGenerator.init(allocator, args);
+    defer api_gen.deinit();
     api_gen.model_prefix = "models.";
     api_gen.emit_imports = true;
     if (args.runtime_module) |mod| {
         const alias = try @import("cli.zig").deriveAlias(allocator, std.fs.path.basename(mod), "runtime");
         defer allocator.free(alias);
-        // Need to keep alias alive until after generateClientOnly; copy into generator-allocated buffer.
-        // UnifiedApiGenerator stores slice reference only for generation, so dupe into its allocator scope.
-        const alias_copy = try allocator.dupe(u8, alias);
-        defer allocator.free(alias_copy);
         const normalized = try std.mem.replaceOwned(u8, allocator, mod, "\\", "/");
         defer allocator.free(normalized);
         api_gen.runtime_import = normalized;
-        api_gen.runtime_import_alias = alias_copy;
-        // generateClientOnly copies the strings into its buffer, so defer above is safe until after call
+        api_gen.runtime_import_alias = alias;
         const api_code = try api_gen.generateClientOnly(unified_doc);
         defer allocator.free(api_code);
         const client_checksum = generated_header.computeChecksum(api_code);
@@ -330,17 +327,12 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
         defer allocator.free(client_header);
         const client_with_header = try std.mem.concat(allocator, u8, &.{ client_header, api_code });
         errdefer allocator.free(client_with_header);
-        // Need to free the runtime path if allocated differently? Already deferred.
-        // api_gen may have stored Normalized slice; we need to ensure not use-after-free before deinit.
-        // Copy needed fields already consumed.
-        api_gen.deinit();
         return .{
             .models = models_with_header,
             .runtime = runtime_with_header,
             .client = client_with_header,
         };
     } else {
-        defer api_gen.deinit();
         const api_code = try api_gen.generateClientOnly(unified_doc);
         defer allocator.free(api_code);
 
