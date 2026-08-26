@@ -204,6 +204,19 @@ pub fn deriveAlias(allocator: std.mem.Allocator, file_name: []const u8, fallback
     return allocator.dupe(u8, deriveAliasInto(&buf, file_name, fallback));
 }
 
+/// Return the basename of an import path, treating both '/' and '\' as
+/// separators. This handles Windows-style paths correctly on non-Windows hosts.
+pub fn importBasename(path: []const u8) []const u8 {
+    var i = path.len;
+    while (i > 0) {
+        i -= 1;
+        if (path[i] == '/' or path[i] == '\\') {
+            return path[i + 1 ..];
+        }
+    }
+    return path;
+}
+
 fn effectiveAliasesInto(file_names: FileNameOverrides, bufs: *[3][max_import_alias_len]u8) [3][]const u8 {
     var aliases: [3][]const u8 = undefined;
     const kinds = [_]FileKind{ .models, .runtime, .client };
@@ -543,7 +556,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             var alias_bufs: [3][max_import_alias_len]u8 = undefined;
             var aliases: [3][]const u8 = undefined;
             aliases[0] = deriveAliasInto(&alias_bufs[0], models_name, "models");
-            aliases[1] = deriveAliasInto(&alias_bufs[1], std.fs.path.basename(mod), "runtime");
+            aliases[1] = deriveAliasInto(&alias_bufs[1], importBasename(mod), "runtime");
             aliases[2] = deriveAliasInto(&alias_bufs[2], client_name, "client");
             if (findDuplicateAlias(aliases)) |dup| {
                 printUsage();
@@ -1565,4 +1578,50 @@ test "validateImportPath rejects dot segments and absolute paths" {
     try std.testing.expectError(error.InvalidFileName, validateImportPath("./runtime.zig"));
     try std.testing.expectError(error.InvalidFileName, validateImportPath("a//b.zig"));
     try std.testing.expectError(error.InvalidFileName, validateImportPath("/abs/runtime.zig"));
+}
+
+test "importBasename handles both separators" {
+    try std.testing.expectEqualStrings("runtime.zig", importBasename("../runtime.zig"));
+    try std.testing.expectEqualStrings("runtime.zig", importBasename("..\\runtime.zig"));
+    try std.testing.expectEqualStrings("my_runtime.zig", importBasename("..\\shared\\my_runtime.zig"));
+    try std.testing.expectEqualStrings("my_runtime.zig", importBasename("../shared/my_runtime.zig"));
+    try std.testing.expectEqualStrings("file.zig", importBasename("file.zig"));
+}
+
+test "validateImportPath allows windows separators and parent traversal" {
+    try validateImportPath("..\\runtime.zig");
+    try validateImportPath("..\\shared\\runtime.zig");
+    try validateImportPath("a\\b\\runtime.zig");
+}
+
+test "parse accepts windows-style runtime-module path" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "..\\shared\\runtime.zig",
+    };
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+    try std.testing.expectEqualStrings("..\\shared\\runtime.zig", parsed.args.runtime_module.?);
+}
+
+test "parse rejects windows-style runtime-module alias colliding with models alias" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "..\\shared\\my_runtime.zig",
+        "--file-name",
+        "models=my_runtime.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
