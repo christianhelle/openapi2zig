@@ -60,6 +60,12 @@ fn buildStreamingDocument(allocator: std.mem.Allocator) !common.UnifiedDocument 
     };
 }
 
+fn buildNonStreamingDocument(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var document = try buildStreamingDocument(allocator);
+    document.paths.getPtr("/chat").?.post.?.streaming = false;
+    return document;
+}
+
 test "generated single-file client exposes a cancel_check field" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
@@ -122,4 +128,21 @@ test "generated streamJson wraps streaming reads with cancel_check" {
     try std.testing.expect(std.mem.indexOf(u8, code, "CancelableReader.init(response_reader, &cancelable_buffer, pred)") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "if (pred()) return error.Cancelled;") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "error.ReadFailed => return response.bodyErr() orelse err,") != null);
+}
+
+test "generated non-streaming client omits interruptible streaming helpers" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var document = try buildNonStreamingDocument(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "const CancelWatcher = struct {") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "fn streamJson(") == null);
 }
