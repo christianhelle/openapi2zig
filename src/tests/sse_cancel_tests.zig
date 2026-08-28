@@ -82,6 +82,23 @@ test "generated single-file client exposes a cancel_check field" {
     try std.testing.expect(std.mem.indexOf(u8, code, "cancel_check: ?*const fn () bool = null,") != null);
 }
 
+test "generated client documents interruptible cancellation" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var document = try buildStreamingDocument(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "background watcher interrupts a blocked SSE socket read within about 10 ms") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "When null (default), no watcher thread is spawned.") != null);
+}
+
 test "generated runtime emits CancelableReader" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
