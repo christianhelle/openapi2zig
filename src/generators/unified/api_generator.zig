@@ -293,7 +293,6 @@ pub const UnifiedApiGenerator = struct {
     fn generateHeader(self: *UnifiedApiGenerator) !void {
         try self.generateRuntimePreamble();
         try self.generateClientPreamble();
-        if (self.has_streaming_operations) try self.generateCancelWatcher();
         try self.generateSsePreamble();
         try self.generateSseBufferConstants();
     }
@@ -315,7 +314,6 @@ pub const UnifiedApiGenerator = struct {
             try self.generateRuntimeReexports();
         }
         try self.generateClientPreamble();
-        if (self.has_streaming_operations) try self.generateCancelWatcher();
     }
 
     fn generateRuntimePreamble(self: *UnifiedApiGenerator) !void {
@@ -414,10 +412,11 @@ pub const UnifiedApiGenerator = struct {
             \\    http_observer: ?HttpObserver = null,
             \\
             \\    /// Optional predicate polled while reading a streaming response body.
-            \\    /// When it returns true, a background watcher interrupts a blocked SSE socket read within about 10 ms
-            \\    /// and the stream exits with error.Cancelled. A CancelableReader also
-            \\    /// checks the predicate at every read boundary. Point it at an app-level
-            \\    /// cancel flag; it composes with an explicit CancellationToken.
+            \\    /// When it returns true, a successfully started background watcher interrupts
+            \\    /// a blocked SSE socket read within about 10 ms and the stream exits with
+            \\    /// error.Cancelled. A CancelableReader also checks the predicate at every read
+            \\    /// boundary. If watcher startup fails, cancellation remains read-boundary only.
+            \\    /// Point it at an app-level cancel flag; it composes with a CancellationToken.
             \\    /// When null (default), no watcher thread is spawned.
             \\    cancel_check: ?*const fn () bool = null,
             \\
@@ -438,6 +437,10 @@ pub const UnifiedApiGenerator = struct {
             \\    pub fn withBaseUrl(self: *Client, base_url: []const u8) void {
             \\        self.base_url = base_url;
             \\    }
+            \\
+        );
+        if (self.has_streaming_operations) try self.generateCancelWatcher();
+        try self.buffer.appendSlice(self.allocator,
             \\};
             \\
             \\fn isQueryChar(c: u8) bool {
@@ -566,29 +569,44 @@ pub const UnifiedApiGenerator = struct {
 
     fn generateCancelWatcher(self: *UnifiedApiGenerator) !void {
         try self.buffer.appendSlice(self.allocator,
-            \\const CancelWatcher = struct {
-            \\    connection: ?*std.http.Client.Connection,
-            \\    io: std.Io,
-            \\    pred: *const fn () bool,
-            \\    done: *std.atomic.Value(bool),
+            \\    const CancelWatcher = struct {
+            \\        connection: ?*std.http.Client.Connection,
+            \\        io: std.Io,
+            \\        pred: *const fn () bool,
+            \\        done: *std.atomic.Value(bool),
+            \\        replacement_handle: ?std.Io.net.Socket.Handle = null,
+            \\        interrupted: bool = false,
             \\
-            \\    fn run(self: *CancelWatcher) void {
-            \\        while (!self.done.load(.acquire)) {
-            \\            if (self.pred()) {
-            \\                if (self.connection) |conn| {
-            \\                    conn.closing = true;
-            \\                    if (comptime @import("builtin").os.tag == .windows) {
-            \\                        conn.stream_reader.stream.close(self.io);
-            \\                    } else {
-            \\                        conn.stream_reader.stream.shutdown(self.io, .both) catch {};
+            \\        const Windows = if (@import("builtin").os.tag == .windows) struct {
+            \\            extern "kernel32" fn CreateEventW(event_attributes: ?*anyopaque, manual_reset: std.os.windows.BOOL, initial_state: std.os.windows.BOOL, name: ?[*:0]const u16) callconv(.winapi) ?std.os.windows.HANDLE;
+            \\        } else struct {};
+            \\
+            \\        fn run(self: *CancelWatcher) void {
+            \\            while (!self.done.load(.acquire)) {
+            \\                if (self.pred()) {
+            \\                    if (self.connection) |conn| {
+            \\                        if (comptime @import("builtin").os.tag == .windows) {
+            \\                            if (Windows.CreateEventW(null, .FALSE, .FALSE, null)) |replacement| {
+            \\                                // Connection.destroy unconditionally closes the stream handle. Preserve
+            \\                                // a separately owned valid handle for it before closing the socket.
+            \\                                self.replacement_handle = replacement;
+            \\                                self.interrupted = true;
+            \\                                conn.stream_reader.stream.close(self.io);
+            \\                            } else {
+            \\                                self.interrupted = true;
+            \\                                conn.stream_reader.stream.shutdown(self.io, .both) catch {};
+            \\                            }
+            \\                        } else {
+            \\                            self.interrupted = true;
+            \\                            conn.stream_reader.stream.shutdown(self.io, .both) catch {};
+            \\                        }
             \\                    }
+            \\                    return;
             \\                }
-            \\                return;
+            \\                self.io.sleep(.{ .nanoseconds = 10 * std.time.ns_per_ms }, .awake) catch return;
             \\            }
-            \\            self.io.sleep(.{ .nanoseconds = 10 * std.time.ns_per_ms }, .awake) catch {};
             \\        }
-            \\    }
-            \\};
+            \\    };
             \\
         );
     }
@@ -843,11 +861,21 @@ pub const UnifiedApiGenerator = struct {
                 \\    const response_reader = response.reader(&transfer_buffer);
                 \\    if (client.cancel_check) |pred| {
                 \\        var done = std.atomic.Value(bool).init(false);
-                \\        var watcher_ctx = CancelWatcher{ .connection = req.connection, .io = client.io, .pred = pred, .done = &done };
-                \\        const watcher_thread: ?std.Thread = std.Thread.spawn(.{}, CancelWatcher.run, .{&watcher_ctx}) catch null;
+                \\        var watcher_ctx = Client.CancelWatcher{ .connection = req.connection, .io = client.io, .pred = pred, .done = &done };
+                \\        const watcher_thread: ?std.Thread = std.Thread.spawn(.{}, Client.CancelWatcher.run, .{&watcher_ctx}) catch null;
                 \\        defer if (watcher_thread) |thread| {
                 \\            done.store(true, .release);
                 \\            thread.join();
+                \\            if (watcher_ctx.interrupted) {
+                \\                const conn = watcher_ctx.connection.?;
+                \\                if (comptime @import("builtin").os.tag == .windows) {
+                \\                    if (watcher_ctx.replacement_handle) |handle| {
+                \\                        conn.stream_reader.stream.socket.handle = handle;
+                \\                        conn.stream_writer.stream.socket.handle = handle;
+                \\                    }
+                \\                }
+                \\                conn.closing = true;
+                \\            }
                 \\        };
                 \\        var cancelable_buffer: [1]u8 = undefined;
                 \\        var cancelable_reader = CancelableReader.init(response_reader, &cancelable_buffer, pred);
