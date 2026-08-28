@@ -18,6 +18,7 @@ const openapi2zig = @import("lib.zig");
 
 const default_output_file: []const u8 = "generated.zig";
 const default_output_dir: []const u8 = "generated";
+const runtime_only_default_output_file: []const u8 = "runtime.zig";
 
 const Extension = enum {
     YAML,
@@ -45,6 +46,10 @@ pub fn validateExtension(input_file_path: []const u8) !Extension {
 }
 
 pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs) !void {
+    if (args.runtime_only) {
+        return generateRuntimeOnly(allocator, io, args);
+    }
+
     const extension = try validateExtension(args.input_path);
 
     // Determine input source: URL or file path
@@ -70,6 +75,30 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs)
     };
 
     try generateCodeFromJsonContents(allocator, io, json_contents, args);
+}
+
+fn writeRuntimeOnly(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, output_file_path: []const u8, force: bool) !void {
+    var runtime_gen = RuntimeGenerator.init(allocator);
+    defer runtime_gen.deinit();
+    const generated_runtime = try runtime_gen.generate();
+    defer allocator.free(generated_runtime);
+
+    const output_dir = std.fs.path.dirname(output_file_path) orelse ".";
+    const output_name = std.fs.path.basename(output_file_path);
+    try writeFile(allocator, io, cwd, output_dir, output_name, generated_runtime, force);
+}
+
+fn generateRuntimeOnly(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs) !void {
+    const cwd = std.Io.Dir.cwd();
+    const output_path = args.output_path orelse runtime_only_default_output_file;
+    const is_directory = std.fs.path.extension(output_path).len == 0;
+    const runtime_output_file = if (is_directory)
+        try std.fs.path.join(allocator, &.{ output_path, runtime_only_default_output_file })
+    else
+        try allocator.dupe(u8, output_path);
+    defer allocator.free(runtime_output_file);
+
+    try writeRuntimeOnly(allocator, io, cwd, runtime_output_file, args.force);
 }
 
 fn generateCodeFromJsonContents(allocator: std.mem.Allocator, io: std.Io, json_contents: []const u8, args: cli.CliArgs) !void {
@@ -322,6 +351,25 @@ test "unsupported OpenAPI versions return a distinct generator error" {
             .input_path = "unsupported.json",
         }),
     );
+}
+
+test "generateCode runtime-only emits runtime without input dependency" {
+    const test_utils = @import("tests/test_utils.zig");
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateRuntimeOnly(allocator, std.testing.io, .{
+        .input_path = "does-not-matter.any",
+        .runtime_only = true,
+        .output_path = "out/runtime-only.zig",
+    });
+
+    const runtime = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, "out/runtime-only.zig", allocator, .unlimited);
+    defer allocator.free(runtime);
+    try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
 }
 
 fn buildPetstoreUnified(allocator: std.mem.Allocator) !@import("models/common/document.zig").UnifiedDocument {
