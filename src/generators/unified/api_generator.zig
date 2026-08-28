@@ -561,7 +561,7 @@ pub const UnifiedApiGenerator = struct {
             \\}
             \\
         );
-        if (self.has_streaming_operations) try self.generateStreamAuthCode();
+        try self.generateStreamAuthCode();
     }
 
     fn generateCancelWatcher(self: *UnifiedApiGenerator) !void {
@@ -755,116 +755,120 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateStreamAuthCode(self: *UnifiedApiGenerator) !void {
+        if (self.has_streaming_operations) {
+            try self.buffer.appendSlice(self.allocator,
+                \\fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![]u8 {
+                \\    var buf: std.Io.Writer.Allocating = .init(allocator);
+                \\    defer buf.deinit();
+                \\    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &buf.writer);
+                \\
+                \\    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, buf.written(), .{ .ignore_unknown_fields = true });
+                \\    defer parsed.deinit();
+                \\
+                \\    if (parsed.value == .object) {
+                \\        try parsed.value.object.put(parsed.arena.allocator(), "stream", .{ .bool = true });
+                \\    }
+                \\
+                \\    var out: std.Io.Writer.Allocating = .init(allocator);
+                \\    errdefer out.deinit();
+                \\    try std.json.Stringify.value(parsed.value, .{ .emit_null_optional_fields = false }, &out.writer);
+                \\    return try out.toOwnedSlice();
+                \\}
+                \\
+                \\fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
+                \\    const Callback = @TypeOf(callback.*);
+                \\    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = client.allocator, .callback = callback };
+                \\    try streamJson(client, path, requestBody, &typed_callback, cancellation_token);
+                \\}
+                \\
+                \\fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
+                \\    const allocator = client.allocator;
+                \\    const payload = try stringifyStreamRequest(allocator, requestBody);
+                \\    defer allocator.free(payload);
+                \\
+                \\    var headers = std.ArrayList(std.http.Header).empty;
+                \\    defer headers.deinit(allocator);
+                \\    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/json", "text/event-stream");
+                \\    defer if (auth_header) |value| allocator.free(value);
+                \\
+                \\    const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
+                \\    defer allocator.free(url);
+                \\
+                \\    if (client.http_observer) |obs| {
+                \\        if (obs.onRequest) |cb| cb(obs.ctx, .POST, url, headers.items, payload);
+                \\    }
+                \\
+                \\    const uri = try std.Uri.parse(url);
+                \\    try checkCancellation(cancellation_token);
+                \\
+                \\    const start = std.Io.Clock.awake.now(client.io);
+                \\    var req = client.http.request(.POST, uri, .{
+                \\        .redirect_behavior = .unhandled,
+                \\        .headers = .{ .accept_encoding = .{ .override = "identity" } },
+                \\        .extra_headers = headers.items,
+                \\    }) catch |err| {
+                \\        if (client.http_observer) |obs| {
+                \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
+                \\        }
+                \\        return err;
+                \\    };
+                \\    defer req.deinit();
+                \\
+                \\    req.transfer_encoding = .{ .content_length = payload.len };
+                \\    var request_body = try req.sendBodyUnflushed(&.{});
+                \\    try request_body.writer.writeAll(payload);
+                \\    try request_body.end();
+                \\    try req.connection.?.flush();
+                \\    try checkCancellation(cancellation_token);
+                \\
+                \\    var response = req.receiveHead(&.{}) catch |err| {
+                \\        if (client.http_observer) |obs| {
+                \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
+                \\        }
+                \\        return err;
+                \\    };
+                \\    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));
+                \\    if (response.head.status.class() != .success) {
+                \\        if (client.http_observer) |obs| {
+                \\            if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
+                \\        }
+                \\        return error.ResponseError;
+                \\    }
+                \\
+                \\    if (client.http_observer) |obs| {
+                \\        if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
+                \\    }
+                \\
+                \\    var transfer_buffer: [8 * 1024]u8 = undefined;
+                \\    const response_reader = response.reader(&transfer_buffer);
+                \\    if (client.cancel_check) |pred| {
+                \\        var done = std.atomic.Value(bool).init(false);
+                \\        var watcher_ctx = CancelWatcher{ .connection = req.connection, .io = client.io, .pred = pred, .done = &done };
+                \\        const watcher_thread: ?std.Thread = std.Thread.spawn(.{}, CancelWatcher.run, .{&watcher_ctx}) catch null;
+                \\        defer if (watcher_thread) |thread| {
+                \\            done.store(true, .release);
+                \\            thread.join();
+                \\        };
+                \\        var cancelable_buffer: [1]u8 = undefined;
+                \\        var cancelable_reader = CancelableReader.init(response_reader, &cancelable_buffer, pred);
+                \\        parseSseReader(allocator, &cancelable_reader.reader, callback, cancellation_token) catch |err| switch (err) {
+                \\            error.ReadFailed => {
+                \\                if (pred()) return error.Cancelled;
+                \\                return response.bodyErr() orelse err;
+                \\            },
+                \\            else => return err,
+                \\        };
+                \\    } else {
+                \\        parseSseReader(allocator, response_reader, callback, cancellation_token) catch |err| switch (err) {
+                \\            error.ReadFailed => return response.bodyErr() orelse err,
+                \\            else => return err,
+                \\        };
+                \\    }
+                \\}
+                \\
+            );
+        }
         try self.buffer.appendSlice(self.allocator,
-            \\fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![]u8 {
-            \\    var buf: std.Io.Writer.Allocating = .init(allocator);
-            \\    defer buf.deinit();
-            \\    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &buf.writer);
-            \\
-            \\    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, buf.written(), .{ .ignore_unknown_fields = true });
-            \\    defer parsed.deinit();
-            \\
-            \\    if (parsed.value == .object) {
-            \\        try parsed.value.object.put(parsed.arena.allocator(), "stream", .{ .bool = true });
-            \\    }
-            \\
-            \\    var out: std.Io.Writer.Allocating = .init(allocator);
-            \\    errdefer out.deinit();
-            \\    try std.json.Stringify.value(parsed.value, .{ .emit_null_optional_fields = false }, &out.writer);
-            \\    return try out.toOwnedSlice();
-            \\}
-            \\
-            \\fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
-            \\    const Callback = @TypeOf(callback.*);
-            \\    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = client.allocator, .callback = callback };
-            \\    try streamJson(client, path, requestBody, &typed_callback, cancellation_token);
-            \\}
-            \\
-            \\fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
-            \\    const allocator = client.allocator;
-            \\    const payload = try stringifyStreamRequest(allocator, requestBody);
-            \\    defer allocator.free(payload);
-            \\
-            \\    var headers = std.ArrayList(std.http.Header).empty;
-            \\    defer headers.deinit(allocator);
-            \\    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/json", "text/event-stream");
-            \\    defer if (auth_header) |value| allocator.free(value);
-            \\
-            \\    const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
-            \\    defer allocator.free(url);
-            \\
-            \\    if (client.http_observer) |obs| {
-            \\        if (obs.onRequest) |cb| cb(obs.ctx, .POST, url, headers.items, payload);
-            \\    }
-            \\
-            \\    const uri = try std.Uri.parse(url);
-            \\    try checkCancellation(cancellation_token);
-            \\
-            \\    const start = std.Io.Clock.awake.now(client.io);
-            \\    var req = client.http.request(.POST, uri, .{
-            \\        .redirect_behavior = .unhandled,
-            \\        .headers = .{ .accept_encoding = .{ .override = "identity" } },
-            \\        .extra_headers = headers.items,
-            \\    }) catch |err| {
-            \\        if (client.http_observer) |obs| {
-            \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
-            \\        }
-            \\        return err;
-            \\    };
-            \\    defer req.deinit();
-            \\
-            \\    req.transfer_encoding = .{ .content_length = payload.len };
-            \\    var request_body = try req.sendBodyUnflushed(&.{});
-            \\    try request_body.writer.writeAll(payload);
-            \\    try request_body.end();
-            \\    try req.connection.?.flush();
-            \\    try checkCancellation(cancellation_token);
-            \\
-            \\    var response = req.receiveHead(&.{}) catch |err| {
-            \\        if (client.http_observer) |obs| {
-            \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
-            \\        }
-            \\        return err;
-            \\    };
-            \\    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));
-            \\    if (response.head.status.class() != .success) {
-            \\        if (client.http_observer) |obs| {
-            \\            if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
-            \\        }
-            \\        return error.ResponseError;
-            \\    }
-            \\
-            \\    if (client.http_observer) |obs| {
-            \\        if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
-            \\    }
-            \\
-            \\    var transfer_buffer: [8 * 1024]u8 = undefined;
-            \\    const response_reader = response.reader(&transfer_buffer);
-            \\    if (client.cancel_check) |pred| {
-            \\        var done = std.atomic.Value(bool).init(false);
-            \\        var watcher_ctx = CancelWatcher{ .connection = req.connection, .io = client.io, .pred = pred, .done = &done };
-            \\        const watcher_thread: ?std.Thread = std.Thread.spawn(.{}, CancelWatcher.run, .{&watcher_ctx}) catch null;
-            \\        defer if (watcher_thread) |thread| {
-            \\            done.store(true, .release);
-            \\            thread.join();
-            \\        };
-            \\        var cancelable_buffer: [1]u8 = undefined;
-            \\        var cancelable_reader = CancelableReader.init(response_reader, &cancelable_buffer, pred);
-            \\        parseSseReader(allocator, &cancelable_reader.reader, callback, cancellation_token) catch |err| switch (err) {
-            \\            error.ReadFailed => {
-            \\                if (pred()) return error.Cancelled;
-            \\                return response.bodyErr() orelse err;
-            \\            },
-            \\            else => return err,
-            \\        };
-            \\    } else {
-            \\        parseSseReader(allocator, response_reader, callback, cancellation_token) catch |err| switch (err) {
-            \\            error.ReadFailed => return response.bodyErr() orelse err,
-            \\            else => return err,
-            \\        };
-            \\    }
-            \\}
-            \\
             \\fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, content_type: ?[]const u8, accept: []const u8) !?[]u8 {
             \\    if (content_type) |ct| {
             \\        try headers.append(allocator, .{ .name = "Content-Type", .value = ct });
