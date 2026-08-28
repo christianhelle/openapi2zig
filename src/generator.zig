@@ -370,7 +370,6 @@ test "generateCode runtime-only emits runtime without input dependency" {
     const runtime = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, "out/runtime-only.zig", allocator, .unlimited);
     defer allocator.free(runtime);
     try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
-
 }
 
 fn buildPetstoreUnified(allocator: std.mem.Allocator) !@import("models/common/document.zig").UnifiedDocument {
