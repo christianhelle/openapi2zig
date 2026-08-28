@@ -34,6 +34,10 @@ fn printUsage() void {
         \\                              tag and only the models they reference.
         \\                              Can be specified multiple times.
         \\   --models-only              Generate only Zig models, skipping the API client.
+        \\   --runtime-only             Generate only the runtime module.
+        \\                              In this mode, --input is optional and ignored.
+        \\                              Output defaults to runtime.zig; when --output points
+        \\                              to a directory, runtime.zig is created inside it.
         \\   --multiple-files           Generate separate output files for models, runtime, and API client
         \\                              into the output directory specified by -o.
         \\   --file-name <kind>=<name>  Customize an output file name in --multiple-files mode.
