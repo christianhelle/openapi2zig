@@ -45,12 +45,12 @@ fn printUsage() void {
         \\                              client file (e.g. "../runtime.zig").
         \\                              Requires --multiple-files and is mutually exclusive with
         \\                              --file-name runtime=... .
-         \\   --force                   Force overwriting output even when unchanged
-         \\   --parameters-as-struct    Wrap method parameters in a single options struct
-         \\                            instead of individual function arguments
-         \\   --runtime-only            Generate only the runtime module (no input required)
-         \\
-         \\ EXAMPLES:
+        \\   --force                   Force overwriting output even when unchanged
+        \\   --parameters-as-struct    Wrap method parameters in a single options struct
+        \\                            instead of individual function arguments
+        \\   --runtime-only            Generate only the runtime module (no input required)
+        \\
+        \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
         \\   openapi2zig generate -i ./openapi/petstore.json -o models.zig --models-only
         \\   openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
