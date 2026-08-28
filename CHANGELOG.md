@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Reuse existing runtime via --runtime-module [\#94](https://github.com/christianhelle/openapi2zig/pull/94) ([christianhelle](https://github.com/christianhelle))
 - Add install-release build steps [\#93](https://github.com/christianhelle/openapi2zig/pull/93) ([christianhelle](https://github.com/christianhelle))
 - Support inline cancellation of streaming SSE reads via Client.cancel\_check [\#92](https://github.com/christianhelle/openapi2zig/pull/92) ([christianhelle](https://github.com/christianhelle))
 - Add --parameters-as-struct flag to wrap method parameters in a struct [\#91](https://github.com/christianhelle/openapi2zig/pull/91) ([christianhelle](https://github.com/christianhelle))
