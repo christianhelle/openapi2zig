@@ -193,7 +193,10 @@ fn generateRuntimeOnly(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir
     }
 
     const output_path = args.output_path orelse default_runtime_only_file;
-    try writeFile(allocator, io, cwd, ".", output_path, generated_runtime, args.force);
+    // Split into dir + name so writeFile never prefixes an absolute path with
+    // "./", which the OS rejects as a malformed path.
+    const output_dir = std.fs.path.dirname(output_path) orelse ".";
+    try writeFile(allocator, io, cwd, output_dir, std.fs.path.basename(output_path), generated_runtime, args.force);
 }
 
 fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path: []const u8, file_name: []const u8, raw_code: []const u8, force: bool) !void {
@@ -1319,4 +1322,30 @@ test "generateRuntimeOnly with multiple_files honors a custom runtime file name"
     try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
 
     try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/runtime.zig", .{}));
+}
+
+test "generateRuntimeOnly supports an absolute output path" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const cwd_path = try std.process.currentPathAlloc(std.testing.io, allocator);
+    defer allocator.free(cwd_path);
+    const output_path = try std.fs.path.join(allocator, &.{ cwd_path, ".zig-cache", "tmp", &tmp.sub_path, "abs", "runtime.zig" });
+    defer allocator.free(output_path);
+    try std.testing.expect(std.fs.path.isAbsolute(output_path));
+
+    try generateRuntimeOnly(allocator, std.testing.io, std.Io.Dir.cwd(), .{
+        .input_path = "",
+        .runtime_only = true,
+        .output_path = output_path,
+    });
+
+    const runtime = try tmp.dir.readFileAlloc(std.testing.io, "abs/runtime.zig", allocator, .unlimited);
+    defer allocator.free(runtime);
+    try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
 }
