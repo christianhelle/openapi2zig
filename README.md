@@ -229,6 +229,7 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `--models-only` | Generate only Zig models, skipping the API client. |
 | `--multiple-files` | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`. |
 | `--file-name <kind>=<name>` | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. `<name>` may include a relative subpath (e.g. `models=gen/types.zig`); any required parent directories are created automatically. Can be specified multiple times. |
+| `--runtime-module <path>` | Re-use an existing `runtime.zig` instead of generating a new one. The path is a Zig import path relative to the generated `client.zig` (e.g. `../runtime.zig` or `../shared/my_runtime.zig`). Requires `--multiple-files` and is mutually exclusive with `--file-name runtime=...`. When given, no `runtime.zig` is emitted; the client imports the supplied path and derives the import alias from the file basename (`my_runtime` for `my_runtime.zig`). |
 | `--force` | Force overwriting output even when unchanged (skip unchanged-content check). |
 | `--parameters-as-struct` | Wrap the method parameters of each operation in a single `options` struct instead of emitting them as individual function arguments. Optional query parameters become nullable fields defaulting to `null`; required path and query parameters stay non-optional. The request body, when present, remains a separate `requestBody` argument. |
 
@@ -320,6 +321,19 @@ defer pet.deinit();
 ```
 
 `--multiple-clients` is mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`; combining them is a parse error. It composes with `--multiple-files`: the client structs are emitted into the client file.
+
+**Re-use an existing runtime when generating multiple clients (avoid duplicate `runtime.zig`):**
+```bash
+# Generate a shared runtime once
+openapi2zig generate -i openapi/v3.0/petstore.json -o generated/shared --multiple-files
+
+# Re-use it from other clients via a client-relative import path
+openapi2zig generate -i openapi/v3.1/anthropic.json -o generated/anthropic --multiple-files --runtime-module ../shared/runtime.zig
+openapi2zig generate -i openapi/v3.1/openai.json -o generated/openai --multiple-files --runtime-module ../shared/runtime.zig
+# With custom models file name, the same pattern applies:
+openapi2zig generate -i openapi/v3.1/lmstudio.json -o generated/lmstudio --multiple-files --file-name models=contracts.zig --runtime-module ../shared/runtime.zig
+```
+When `--runtime-module` is given, no `runtime.zig` is emitted in the output directory; `client.zig` instead contains `const runtime = @import("../shared/runtime.zig");` (alias derived from the file basename, e.g. `my_runtime` for `my_runtime.zig`) and re-exports `Owned`, `RawResponse`, etc. from that module. The flag requires `--multiple-files` and is mutually exclusive with `--file-name runtime=...`. If the target file does not yet exist, generation still succeeds with an info log so you can generate the shared runtime first.
 
 ### Upgrading
 
