@@ -45,11 +45,12 @@ fn printUsage() void {
         \\                              client file (e.g. "../runtime.zig").
         \\                              Requires --multiple-files and is mutually exclusive with
         \\                              --file-name runtime=... .
-        \\   --force                   Force overwriting output even when unchanged
-        \\   --parameters-as-struct    Wrap method parameters in a single options struct
-        \\                            instead of individual function arguments
-        \\
-        \\ EXAMPLES:
+         \\   --force                   Force overwriting output even when unchanged
+         \\   --parameters-as-struct    Wrap method parameters in a single options struct
+         \\                            instead of individual function arguments
+         \\   --runtime-only            Generate only the runtime module (no input required)
+         \\
+         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
         \\   openapi2zig generate -i ./openapi/petstore.json -o models.zig --models-only
         \\   openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
@@ -343,6 +344,7 @@ pub const CliArgs = struct {
     base_url: ?[]const u8 = null,
     resource_wrappers: ResourceWrapperMode = .paths,
     models_only: bool = false,
+    runtime_only: bool = false,
     multiple_files: bool = false,
     multiple_clients: ?MultipleClientsMode = null,
     file_names: FileNameOverrides = .{},
@@ -385,7 +387,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
         };
     }
 
-    if (args.len < 4 or (args.len >= 1 and !std.mem.eql(u8, args[1], "generate"))) {
+    if (args.len < 3 or (args.len >= 1 and !std.mem.eql(u8, args[1], "generate"))) {
         printUsage();
         return .{
             .help = true,
@@ -399,6 +401,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var resource_wrappers: ResourceWrapperMode = .paths;
     var resource_wrappers_explicit = false;
     var models_only = false;
+    var runtime_only = false;
     var multiple_files = false;
     var multiple_clients: ?MultipleClientsMode = null;
     var file_names: FileNameOverrides = .{};
@@ -453,6 +456,8 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             resource_wrappers_explicit = true;
         } else if (std.mem.eql(u8, arg, "--models-only")) {
             models_only = true;
+        } else if (std.mem.eql(u8, arg, "--runtime-only")) {
+            runtime_only = true;
         } else if (std.mem.eql(u8, arg, "--tag")) {
             i += 1;
             if (i >= args.len) {
@@ -546,9 +551,13 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     }
 
     if (input_path == null) {
-        printUsage();
-        printError("OpenAPI spec path or URL required\n", .{});
-        return error.InvalidArguments;
+        if (runtime_only) {
+            input_path = "";
+        } else {
+            printUsage();
+            printError("OpenAPI spec path or URL required\n", .{});
+            return error.InvalidArguments;
+        }
     }
 
     if (!multiple_files and file_names.any()) {
@@ -600,7 +609,31 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
         return error.InvalidArguments;
     }
 
-    if (!models_only) {
+    if (runtime_only and models_only) {
+        printUsage();
+        printError("--runtime-only and --models-only are mutually exclusive\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_only and multiple_clients != null) {
+        printUsage();
+        printError("--runtime-only and --multiple-clients are mutually exclusive\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_only and runtime_module != null) {
+        printUsage();
+        printError("--runtime-only and --runtime-module are mutually exclusive\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_only and (file_names.models != null or file_names.client != null)) {
+        printUsage();
+        printError("--file-name for models or client has no effect with --runtime-only\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (!models_only and !runtime_only) {
         if (runtime_module) |mod| {
             // When re-using an external runtime, only models and client are emitted, so
             // duplicate checks must be scoped to those two outputs plus the imported runtime alias.
@@ -675,6 +708,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .base_url = base_url,
             .resource_wrappers = resource_wrappers,
             .models_only = models_only,
+            .runtime_only = runtime_only,
             .multiple_files = multiple_files,
             .multiple_clients = multiple_clients,
             .file_names = file_names,
