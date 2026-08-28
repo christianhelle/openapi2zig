@@ -37,11 +37,6 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Copy install scripts to docs directory
-        run: |
-          cp install.sh docs/install
-          cp install.ps1 docs/install.ps1
-
       - name: Generate documentation metadata
         run: |
           # Create a build info file with timestamp and commit info
