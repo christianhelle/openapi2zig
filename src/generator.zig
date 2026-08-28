@@ -18,6 +18,7 @@ const openapi2zig = @import("lib.zig");
 
 const default_output_file: []const u8 = "generated.zig";
 const default_output_dir: []const u8 = "generated";
+const default_runtime_only_file: []const u8 = "runtime.zig";
 
 const Extension = enum {
     YAML,
@@ -45,6 +46,12 @@ pub fn validateExtension(input_file_path: []const u8) !Extension {
 }
 
 pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs) !void {
+    if (args.runtime_only) {
+        // The input spec is irrelevant for a runtime-only build: never
+        // validate its extension or read it.
+        return generateRuntimeOnly(allocator, io, std.Io.Dir.cwd(), args);
+    }
+
     const extension = try validateExtension(args.input_path);
 
     // Determine input source: URL or file path
@@ -166,6 +173,18 @@ fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io, cwd
     defer output_file.close(io);
     try output_file.writeStreamingAll(io, output_code);
     std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
+}
+
+/// Generate only the runtime module. The input spec plays no role here, so
+/// callers must not require or read one when `args.runtime_only` is set.
+fn generateRuntimeOnly(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, args: cli.CliArgs) !void {
+    var runtime_gen = RuntimeGenerator.init(allocator);
+    defer runtime_gen.deinit();
+    const generated_runtime = try runtime_gen.generate();
+    defer allocator.free(generated_runtime);
+
+    const output_path = args.output_path orelse default_runtime_only_file;
+    try writeFile(allocator, io, cwd, ".", output_path, generated_runtime, args.force);
 }
 
 fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_path: []const u8, file_name: []const u8, raw_code: []const u8, force: bool) !void {
@@ -1198,4 +1217,49 @@ test "generateMultipleFiles normalizes backslash-separated models and runtime fi
     // Aliases are derived from the normalized path stems.
     try std.testing.expect(std.mem.indexOf(u8, client, "const gen_models = @import(\"gen/models.zig\");") != null);
     try std.testing.expect(std.mem.indexOf(u8, client, "const rt_runtime = @import(\"rt/runtime.zig\");") != null);
+}
+
+test "generateCode with runtime_only ignores the input and writes only the runtime module" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const output_path = try std.fs.path.join(allocator, &.{ ".zig-cache", "tmp", &tmp.sub_path, "runtime.zig" });
+    defer allocator.free(output_path);
+
+    // A bogus input path with an unsupported extension proves the input is
+    // never validated or read when runtime_only is set.
+    try generateCode(allocator, std.testing.io, .{
+        .input_path = "does/not/exist.txt",
+        .runtime_only = true,
+        .output_path = output_path,
+    });
+
+    const runtime = try tmp.dir.readFileAlloc(std.testing.io, "runtime.zig", allocator, .unlimited);
+    defer allocator.free(runtime);
+    try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
+    try std.testing.expect(std.mem.indexOf(u8, runtime, "pub const Pet") == null);
+}
+
+test "generateRuntimeOnly defaults the output file name to runtime.zig" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateRuntimeOnly(allocator, std.testing.io, tmp.dir, .{
+        .input_path = "",
+        .runtime_only = true,
+    });
+
+    const runtime = try tmp.dir.readFileAlloc(std.testing.io, "runtime.zig", allocator, .unlimited);
+    defer allocator.free(runtime);
+    try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
 }
