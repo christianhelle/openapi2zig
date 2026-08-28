@@ -569,6 +569,18 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
         return error.InvalidArguments;
     }
 
+    if (runtime_only and models_only) {
+        printUsage();
+        printError("--runtime-only and --models-only are mutually exclusive\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_only and runtime_module != null) {
+        printUsage();
+        printError("--runtime-only and --runtime-module are mutually exclusive\n", .{});
+        return error.InvalidArguments;
+    }
+
     if (!multiple_files and file_names.any()) {
         printUsage();
         printError("--file-name requires --multiple-files\n", .{});
@@ -1942,4 +1954,28 @@ test "parse accepts --runtime-only with output and ignores input" {
     defer parsed.deinit(std.testing.allocator);
     try std.testing.expect(parsed.args.runtime_only);
     try std.testing.expectEqualStrings("runtime.zig", parsed.args.output_path.?);
+}
+
+test "parse rejects --runtime-only with --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "--runtime-only",
+        "--models-only",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-only with --runtime-module" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "--runtime-only",
+        "--multiple-files",
+        "--runtime-module",
+        "../runtime.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
