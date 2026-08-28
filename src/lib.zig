@@ -541,6 +541,87 @@ test "generateCodeMultiple with runtime_module honors custom models name and nes
     try std.testing.expect(std.mem.indexOf(u8, client, "const my_runtime = @import(\"../shared/my_runtime.zig\");") != null);
 }
 
+test "generateCodeMultiple rejects reserved alias std" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const io = std.testing.io;
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+    var unified = try parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+    try std.testing.expectError(error.InvalidArguments, generateCodeMultiple(allocator, io, unified, .{
+        .input_path = "fixture.json",
+        .file_names = .{ .models = "std.zig" },
+    }));
+}
+
+test "generateCodeMultiple rejects duplicate alias derived from file names" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const io = std.testing.io;
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+    var unified = try parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+    try std.testing.expectError(error.InvalidArguments, generateCodeMultiple(allocator, io, unified, .{
+        .input_path = "fixture.json",
+        .file_names = .{ .models = "my-models.zig", .runtime = "my_models.zig" },
+    }));
+}
+
+test "generateCodeMultiple rejects reserved alias via runtime_module" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const io = std.testing.io;
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+    var unified = try parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+    try std.testing.expectError(error.InvalidArguments, generateCodeMultiple(allocator, io, unified, .{
+        .input_path = "fixture.json",
+        .runtime_module = "../std.zig",
+    }));
+}
+
+test "generateCodeMultiple rejects duplicate alias between models and runtime_module" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const io = std.testing.io;
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+    var unified = try parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+    try std.testing.expectError(error.InvalidArguments, generateCodeMultiple(allocator, io, unified, .{
+        .input_path = "fixture.json",
+        .file_names = .{ .models = "runtime.zig" },
+        .runtime_module = "../runtime.zig",
+    }));
+}
+
 // Version information
 pub const version_info = @import("build_info");
 
