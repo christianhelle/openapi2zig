@@ -359,6 +359,7 @@ pub const CliArgs = struct {
     /// Wrap non-body method parameters in a single `options` struct instead of
     /// emitting them as individual function arguments.
     parameters_as_struct: bool = false,
+    runtime_only: bool = false,
 
     pub fn deinit(self: *CliArgs, allocator: std.mem.Allocator) void {
         if (self.owns_tags) allocator.free(self.tags);
@@ -385,7 +386,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
         };
     }
 
-    if (args.len < 4 or (args.len >= 1 and !std.mem.eql(u8, args[1], "generate"))) {
+    if ((args.len >= 1 and !std.mem.eql(u8, args[1], "generate")) or args.len < 3) {
         printUsage();
         return .{
             .help = true,
@@ -409,6 +410,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var tags_owned = false;
     var force = false;
     var parameters_as_struct = false;
+    var runtime_only = false;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -542,12 +544,26 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             force = true;
         } else if (std.mem.eql(u8, arg, "--parameters-as-struct")) {
             parameters_as_struct = true;
+        } else if (std.mem.eql(u8, arg, "--runtime-only")) {
+            runtime_only = true;
         }
     }
 
-    if (input_path == null) {
+    if (input_path == null and !runtime_only) {
         printUsage();
         printError("OpenAPI spec path or URL required\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_only and models_only) {
+        printUsage();
+        printError("--runtime-only and --models-only are mutually exclusive\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (runtime_only and runtime_module != null) {
+        printUsage();
+        printError("--runtime-only and --runtime-module are mutually exclusive\n", .{});
         return error.InvalidArguments;
     }
 
@@ -670,7 +686,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
 
     return .{
         .args = .{
-            .input_path = input_path.?,
+            .input_path = input_path orelse "",
             .output_path = output_path,
             .base_url = base_url,
             .resource_wrappers = resource_wrappers,
@@ -683,6 +699,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .owns_tags = tags_owned,
             .force = force,
             .parameters_as_struct = parameters_as_struct,
+            .runtime_only = runtime_only,
         },
     };
 }
@@ -727,6 +744,55 @@ test "parse generate supports models-only flag" {
 
     try std.testing.expect(parsed.args.models_only);
     try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
+}
+
+test "parse accepts runtime-only without input path" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "--runtime-only",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expect(parsed.args.runtime_only);
+}
+
+test "parse accepts runtime-only with input path" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--runtime-only",
+    };
+
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expect(parsed.args.runtime_only);
+    try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
+}
+
+test "parse rejects runtime-only with models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "--runtime-only",
+        "--models-only",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects runtime-only with runtime-module" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "--runtime-only",
+        "--multiple-files",
+        "--runtime-module",
+        "../runtime.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
 test "parse generate defaults to complete output" {
