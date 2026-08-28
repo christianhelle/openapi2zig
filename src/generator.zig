@@ -45,6 +45,9 @@ pub fn validateExtension(input_file_path: []const u8) !Extension {
 }
 
 pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs) !void {
+    if (args.runtime_only) {
+        return try generateRuntimeOnly(allocator, io, std.Io.Dir.cwd(), args);
+    }
     const extension = try validateExtension(args.input_path);
 
     // Determine input source: URL or file path
@@ -290,6 +293,59 @@ fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.D
     defer allocator.free(generated_api);
 
     try writeFile(allocator, io, cwd, dir_path, client_file, generated_api, args.force);
+}
+
+fn generateRuntimeOnly(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, args: cli.CliArgs) !void {
+    if (args.multiple_files) {
+        const dir_path = args.output_path orelse default_output_dir;
+        try cwd.createDirPath(io, dir_path);
+
+        const runtime_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.runtime) orelse cli.FileKind.runtime.defaultName(), "\\", "/");
+        defer allocator.free(runtime_file);
+
+        var runtime_gen = RuntimeGenerator.init(allocator);
+        defer runtime_gen.deinit();
+        const generated_runtime = try runtime_gen.generate();
+        defer allocator.free(generated_runtime);
+
+        try writeFile(allocator, io, cwd, dir_path, runtime_file, generated_runtime, args.force);
+        return;
+    }
+
+    var runtime_gen = RuntimeGenerator.init(allocator);
+    defer runtime_gen.deinit();
+    const generated_runtime = try runtime_gen.generate();
+    defer allocator.free(generated_runtime);
+
+    const checksum = generated_header.computeChecksum(generated_runtime);
+    const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
+    defer allocator.free(header);
+    const output_code = try std.mem.concat(allocator, u8, &.{ header, generated_runtime });
+    defer allocator.free(output_code);
+
+    const output_path = args.output_path orelse default_output_file;
+    if (std.fs.path.dirname(output_path)) |dir_path| {
+        try cwd.createDirPath(io, dir_path);
+    }
+
+    if (!args.force) {
+        const full_path = try std.fs.path.join(allocator, &.{ ".", output_path });
+        defer allocator.free(full_path);
+        if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
+            defer allocator.free(existing);
+            if (!generated_header.hasChanged(existing, generated_runtime)) {
+                std.log.info("Skipping '{s}' (unchanged)", .{output_path});
+                return;
+            }
+        } else |_| {}
+    } else {
+        std.log.info("Force flag is set; overwriting '{s}'", .{output_path});
+    }
+
+    const output_file = try cwd.createFile(io, output_path, .{});
+    defer output_file.close(io);
+    try output_file.writeStreamingAll(io, output_code);
+    std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
 }
 
 fn generateCodeFromDocument(allocator: std.mem.Allocator, io: std.Io, doc: anytype, args: cli.CliArgs, comptime Converter: type) !void {
