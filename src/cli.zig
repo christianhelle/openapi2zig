@@ -157,7 +157,7 @@ fn findDuplicateFileName(file_names: FileNameOverrides) ?[]const u8 {
 /// Compare two output file names treating '/' and '\' as equivalent path
 /// separators and ignoring case, matching how the same on-disk path resolves on
 /// case-insensitive filesystems.
-fn fileNamesCollide(a: []const u8, b: []const u8) bool {
+pub fn fileNamesCollide(a: []const u8, b: []const u8) bool {
     if (a.len != b.len) return false;
     for (a, b) |ca, cb| {
         const na = if (ca == '/' or ca == '\\') '/' else std.ascii.toLower(ca);
@@ -231,7 +231,7 @@ pub fn importDirname(path: []const u8) ?[]const u8 {
     return null;
 }
 
-fn resolveRuntimeModulePath(allocator: std.mem.Allocator, client_name: []const u8, runtime_mod: []const u8) ![]const u8 {
+pub fn resolveRuntimeModulePath(allocator: std.mem.Allocator, client_name: []const u8, runtime_mod: []const u8) ![]const u8 {
     const client_dir = importDirname(client_name);
     var segments = std.ArrayList([]const u8).empty;
     defer segments.deinit(allocator);
@@ -316,14 +316,14 @@ fn validateFileName(name: []const u8) error{InvalidFileName}!void {
 /// Return true when `path` is absolute under any platform's conventions. This
 /// treats root-relative and Windows drive paths as absolute regardless of the
 /// build host, so import validation does not depend on the platform.
-fn isAbsoluteImportPath(path: []const u8) bool {
+pub fn isAbsoluteImportPath(path: []const u8) bool {
     if (path.len == 0) return false;
     if (path[0] == '/' or path[0] == '\\') return true;
     if (path.len >= 2 and std.ascii.isAlphabetic(path[0]) and path[1] == ':') return true;
     return false;
 }
 
-fn validateImportPath(path: []const u8) error{InvalidFileName}!void {
+pub fn validateImportPath(path: []const u8) error{InvalidFileName}!void {
     if (isAbsoluteImportPath(path)) return error.InvalidFileName;
     if (path.len == 0) return error.InvalidFileName;
     var fwd = std.mem.splitScalar(u8, path, '/');
