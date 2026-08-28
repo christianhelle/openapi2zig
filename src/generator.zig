@@ -183,6 +183,15 @@ fn generateRuntimeOnly(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir
     const generated_runtime = try runtime_gen.generate();
     defer allocator.free(generated_runtime);
 
+    if (args.multiple_files) {
+        const dir_path = args.output_path orelse default_output_dir;
+        try cwd.createDirPath(io, dir_path);
+        const runtime_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.runtime) orelse cli.FileKind.runtime.defaultName(), "\\", "/");
+        defer allocator.free(runtime_file);
+        try writeFile(allocator, io, cwd, dir_path, runtime_file, generated_runtime, args.force);
+        return;
+    }
+
     const output_path = args.output_path orelse default_runtime_only_file;
     try writeFile(allocator, io, cwd, ".", output_path, generated_runtime, args.force);
 }
@@ -1262,4 +1271,52 @@ test "generateRuntimeOnly defaults the output file name to runtime.zig" {
     const runtime = try tmp.dir.readFileAlloc(std.testing.io, "runtime.zig", allocator, .unlimited);
     defer allocator.free(runtime);
     try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
+}
+
+test "generateRuntimeOnly with multiple_files writes only the runtime file into the output dir" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateRuntimeOnly(allocator, std.testing.io, tmp.dir, .{
+        .input_path = "",
+        .runtime_only = true,
+        .multiple_files = true,
+        .output_path = "out",
+    });
+
+    const runtime = try tmp.dir.readFileAlloc(std.testing.io, "out/runtime.zig", allocator, .unlimited);
+    defer allocator.free(runtime);
+    try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
+
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/models.zig", .{}));
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/client.zig", .{}));
+}
+
+test "generateRuntimeOnly with multiple_files honors a custom runtime file name" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateRuntimeOnly(allocator, std.testing.io, tmp.dir, .{
+        .input_path = "",
+        .runtime_only = true,
+        .multiple_files = true,
+        .output_path = "out",
+        .file_names = .{ .runtime = "shared/http.zig" },
+    });
+
+    const runtime = try tmp.dir.readFileAlloc(std.testing.io, "out/shared/http.zig", allocator, .unlimited);
+    defer allocator.free(runtime);
+    try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
+
+    try std.testing.expectError(error.FileNotFound, tmp.dir.access(std.testing.io, "out/runtime.zig", .{}));
 }
