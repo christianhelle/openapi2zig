@@ -1894,3 +1894,120 @@ test "resolveRuntimeModulePath normalizes dotdot segments" {
         try std.testing.expectEqualStrings(c.expected, resolved);
     }
 }
+
+test "parse generate supports --runtime-only flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--runtime-only",
+    };
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+
+    try std.testing.expect(parsed.args.runtime_only);
+    try std.testing.expectEqualStrings("openapi.json", parsed.args.input_path);
+}
+
+test "parse generate with --runtime-only does not require input" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "--runtime-only",
+    };
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+
+    try std.testing.expect(parsed.args.runtime_only);
+}
+
+test "parse generate supports --runtime-only with output" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "--runtime-only",
+        "-o",
+        "runtime.zig",
+    };
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+
+    try std.testing.expect(parsed.args.runtime_only);
+    try std.testing.expectEqualStrings("runtime.zig", parsed.args.output_path.?);
+}
+
+test "parse rejects --runtime-only with --models-only" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--runtime-only",
+        "--models-only",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-only with --multiple-clients" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--runtime-only",
+        "--multiple-clients",
+        "PerTag",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-only with --runtime-module" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--runtime-only",
+        "--multiple-files",
+        "--runtime-module",
+        "../runtime.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-only with --file-name models override" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--runtime-only",
+        "--multiple-files",
+        "--file-name",
+        "models=types.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-only with --file-name client override" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--runtime-only",
+        "--multiple-files",
+        "--file-name",
+        "client=api.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
