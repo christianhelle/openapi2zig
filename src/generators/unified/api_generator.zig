@@ -413,14 +413,12 @@ pub const UnifiedApiGenerator = struct {
             \\    default_headers: []const std.http.Header = &.{},
             \\    http_observer: ?HttpObserver = null,
             \\
-            \\    /// Optional predicate called before every read of a streaming response
-            \\    /// body. When it returns true, the in-flight SSE stream aborts with
-            \\    /// error.Cancelled at the next read boundary. Cancellation is observed
-            \\    /// between reads: a read already blocked waiting for the next chunk is
-            \\    /// not interrupted until that read returns. Point it at an app-level
-            \\    /// cancel flag and pass null for the CancellationToken to streaming
-            \\    /// calls. When null (default) streaming reads cannot be interrupted
-            \\    /// until the next chunk arrives.
+            \\    /// Optional predicate polled while reading a streaming response body.
+            \\    /// When it returns true, a background watcher interrupts a blocked SSE socket read within about 10 ms
+            \\    /// and the stream exits with error.Cancelled. A CancelableReader also
+            \\    /// checks the predicate at every read boundary. Point it at an app-level
+            \\    /// cancel flag; it composes with an explicit CancellationToken.
+            \\    /// When null (default), no watcher thread is spawned.
             \\    cancel_check: ?*const fn () bool = null,
             \\
             \\    pub fn init(allocator: std.mem.Allocator, io: std.Io, api_key: []const u8) Client {
