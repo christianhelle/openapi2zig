@@ -1199,3 +1199,118 @@ test "generateMultipleFiles normalizes backslash-separated models and runtime fi
     try std.testing.expect(std.mem.indexOf(u8, client, "const gen_models = @import(\"gen/models.zig\");") != null);
     try std.testing.expect(std.mem.indexOf(u8, client, "const rt_runtime = @import(\"rt/runtime.zig\");") != null);
 }
+
+test "generateCode with --runtime-only single file writes runtime source without parsing input" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const out_path = "test_runtime_only_single.zig";
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, out_path) catch {};
+
+    try generateCode(allocator, std.testing.io, .{
+        .input_path = "nonexistent.json",
+        .output_path = out_path,
+        .runtime_only = true,
+    });
+
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, out_path, allocator, .unlimited);
+    defer allocator.free(content);
+    try std.testing.expect(std.mem.indexOf(u8, content, "pub fn Owned") != null);
+    try std.testing.expect(std.mem.indexOf(u8, content, "pub const RawResponse") != null);
+    try std.testing.expect(std.mem.indexOf(u8, content, "pub const HttpObserver") != null);
+    // Runtime-only output should not contain client-specific code like Client struct? Actually runtime does not contain Client, but check it contains SSE helpers
+    try std.testing.expect(std.mem.indexOf(u8, content, "max_sse_line_size") != null);
+}
+
+test "generateCode with --runtime-only skips input validation for invalid extension" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const out_path = "test_runtime_only_invalid_ext.zig";
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, out_path) catch {};
+
+    try generateCode(allocator, std.testing.io, .{
+        .input_path = "invalid.txt",
+        .output_path = out_path,
+        .runtime_only = true,
+    });
+
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, out_path, allocator, .unlimited);
+    defer allocator.free(content);
+    try std.testing.expect(std.mem.indexOf(u8, content, "pub fn Owned") != null);
+}
+
+test "generateCode with --runtime-only and no input succeeds" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const out_path = "test_runtime_only_no_input.zig";
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, out_path) catch {};
+
+    try generateCode(allocator, std.testing.io, .{
+        .input_path = "",
+        .output_path = out_path,
+        .runtime_only = true,
+    });
+
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, out_path, allocator, .unlimited);
+    defer allocator.free(content);
+    try std.testing.expect(std.mem.indexOf(u8, content, "pub fn Owned") != null);
+}
+
+test "generateCode with --runtime-only and --multiple-files writes only runtime file" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const out_dir = "test_runtime_only_multi";
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, out_dir) catch {};
+
+    try generateCode(allocator, std.testing.io, .{
+        .input_path = "nonexistent.json",
+        .output_path = out_dir,
+        .runtime_only = true,
+        .multiple_files = true,
+    });
+
+    const runtime_path = out_dir ++ "/runtime.zig";
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, runtime_path, allocator, .unlimited);
+    defer allocator.free(content);
+    try std.testing.expect(std.mem.indexOf(u8, content, "pub fn Owned") != null);
+    try std.testing.expect(std.mem.indexOf(u8, content, "pub const CancellationToken") != null);
+
+    try std.testing.expectError(error.FileNotFound, std.Io.Dir.cwd().access(std.testing.io, out_dir ++ "/models.zig", .{}));
+    try std.testing.expectError(error.FileNotFound, std.Io.Dir.cwd().access(std.testing.io, out_dir ++ "/client.zig", .{}));
+}
+
+test "generateCode with --runtime-only and custom runtime file name" {
+    const test_utils = @import("tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const out_dir = "test_runtime_only_custom";
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, out_dir) catch {};
+
+    try generateCode(allocator, std.testing.io, .{
+        .input_path = "",
+        .output_path = out_dir,
+        .runtime_only = true,
+        .multiple_files = true,
+        .file_names = .{ .runtime = "http.zig" },
+    });
+
+    const runtime_path = out_dir ++ "/http.zig";
+    const content = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, runtime_path, allocator, .unlimited);
+    defer allocator.free(content);
+    try std.testing.expect(std.mem.indexOf(u8, content, "pub fn Owned") != null);
+
+    try std.testing.expectError(error.FileNotFound, std.Io.Dir.cwd().access(std.testing.io, out_dir ++ "/runtime.zig", .{}));
+}
