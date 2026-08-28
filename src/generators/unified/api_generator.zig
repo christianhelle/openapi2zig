@@ -427,6 +427,30 @@ pub const UnifiedApiGenerator = struct {
             \\    }
             \\};
             \\
+            \\const CancelWatcher = struct {
+            \\    connection: ?*std.http.Client.Connection,
+            \\    io: std.Io,
+            \\    pred: *const fn () bool,
+            \\    done: *std.atomic.Value(bool),
+            \\
+            \\    fn run(self: *CancelWatcher) void {
+            \\        while (!self.done.load(.acquire)) {
+            \\            if (self.pred()) {
+            \\                if (self.connection) |conn| {
+            \\                    conn.closing = true;
+            \\                    if (comptime @import("builtin").os.tag == .windows) {
+            \\                        conn.stream_reader.stream.close(self.io);
+            \\                    } else {
+            \\                        conn.stream_reader.stream.shutdown(self.io, .both) catch {};
+            \\                    }
+            \\                }
+            \\                return;
+            \\            }
+            \\            self.io.sleep(.{ .nanoseconds = 10 * std.time.ns_per_ms }, .awake) catch {};
+            \\        }
+            \\    }
+            \\};
+            \\
             \\fn isQueryChar(c: u8) bool {
             \\    return std.ascii.isAlphanumeric(c) or switch (c) {
             \\        '-', '.', '_', '~' => true,
@@ -799,6 +823,13 @@ pub const UnifiedApiGenerator = struct {
             \\    var transfer_buffer: [8 * 1024]u8 = undefined;
             \\    const response_reader = response.reader(&transfer_buffer);
             \\    if (client.cancel_check) |pred| {
+            \\        var done = std.atomic.Value(bool).init(false);
+            \\        var watcher_ctx = CancelWatcher{ .connection = req.connection, .io = client.io, .pred = pred, .done = &done };
+            \\        const watcher_thread: ?std.Thread = std.Thread.spawn(.{}, CancelWatcher.run, .{&watcher_ctx}) catch null;
+            \\        defer if (watcher_thread) |thread| {
+            \\            done.store(true, .release);
+            \\            thread.join();
+            \\        };
             \\        var cancelable_buffer: [1]u8 = undefined;
             \\        var cancelable_reader = CancelableReader.init(response_reader, &cancelable_buffer, pred);
             \\        parseSseReader(allocator, &cancelable_reader.reader, callback, cancellation_token) catch |err| switch (err) {
