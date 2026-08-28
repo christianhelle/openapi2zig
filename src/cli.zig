@@ -581,6 +581,39 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
         return error.InvalidArguments;
     }
 
+    if (runtime_only) {
+        if (multiple_clients != null) {
+            printUsage();
+            printError("--multiple-clients has no effect with --runtime-only\n", .{});
+            return error.InvalidArguments;
+        }
+        if (tags_list.items.len > 0) {
+            printUsage();
+            printError("--tag has no effect with --runtime-only\n", .{});
+            return error.InvalidArguments;
+        }
+        if (base_url != null) {
+            printUsage();
+            printError("--base-url has no effect with --runtime-only\n", .{});
+            return error.InvalidArguments;
+        }
+        if (parameters_as_struct) {
+            printUsage();
+            printError("--parameters-as-struct has no effect with --runtime-only\n", .{});
+            return error.InvalidArguments;
+        }
+        if (resource_wrappers_explicit) {
+            printUsage();
+            printError("--resource-wrappers has no effect with --runtime-only\n", .{});
+            return error.InvalidArguments;
+        }
+        if (file_names.models != null or file_names.client != null) {
+            printUsage();
+            printError("--file-name for models or client has no effect with --runtime-only\n", .{});
+            return error.InvalidArguments;
+        }
+    }
+
     if (!multiple_files and file_names.any()) {
         printUsage();
         printError("--file-name requires --multiple-files\n", .{});
@@ -1978,4 +2011,35 @@ test "parse rejects --runtime-only with --runtime-module" {
     };
 
     try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects --runtime-only with client-only options" {
+    const cases = [_][]const [:0]const u8{
+        &.{ "openapi2zig", "generate", "--runtime-only", "--multiple-clients" },
+        &.{ "openapi2zig", "generate", "--runtime-only", "--tag", "pets" },
+        &.{ "openapi2zig", "generate", "--runtime-only", "--base-url", "https://example.com" },
+        &.{ "openapi2zig", "generate", "--runtime-only", "--parameters-as-struct" },
+        &.{ "openapi2zig", "generate", "--runtime-only", "--resource-wrappers", "none" },
+        &.{ "openapi2zig", "generate", "--runtime-only", "--multiple-files", "--file-name", "models=types.zig" },
+        &.{ "openapi2zig", "generate", "--runtime-only", "--multiple-files", "--file-name", "client=api.zig" },
+    };
+    for (cases) |argv| {
+        try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, argv));
+    }
+}
+
+test "parse accepts --runtime-only with --multiple-files and runtime file name" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "--runtime-only",
+        "--multiple-files",
+        "--file-name",
+        "runtime=http.zig",
+    };
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+    try std.testing.expect(parsed.args.runtime_only);
+    try std.testing.expectEqualStrings("http.zig", parsed.args.file_names.runtime.?);
 }
