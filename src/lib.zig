@@ -238,7 +238,21 @@ pub fn generateApi(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, a
 ///
 /// Returns:
 /// - String containing complete generated Zig code
+pub fn generateRuntime(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
+    var runtime_gen = RuntimeGenerator.init(allocator);
+    defer runtime_gen.deinit();
+    const runtime_code = try runtime_gen.generate();
+    defer allocator.free(runtime_code);
+    const checksum = generated_header.computeChecksum(runtime_code);
+    const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
+    defer allocator.free(header);
+    return try std.mem.concat(allocator, u8, &.{ header, runtime_code });
+}
+
 pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
+    if (args.runtime_only) {
+        return try generateRuntime(allocator, io);
+    }
     const models_code = try generateModels(allocator, unified_doc);
     defer allocator.free(models_code);
 
@@ -280,6 +294,29 @@ pub const GeneratedFiles = struct {
 /// args.models_only is true. `runtime` is also null when `args.runtime_module` is set
 /// to reuse an existing runtime module instead of generating one.
 pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) !GeneratedFiles {
+    if (args.runtime_only) {
+        if (args.models_only) return error.InvalidArguments;
+        if (args.multiple_clients != null) return error.InvalidArguments;
+        if (args.runtime_module != null) return error.InvalidArguments;
+        if (args.file_names.models != null or args.file_names.client != null) return error.InvalidArguments;
+        const runtime_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.runtime) orelse cli.FileKind.runtime.defaultName(), "\\", "/");
+        defer allocator.free(runtime_file);
+        const r_alias = try cli.deriveAlias(allocator, runtime_file, "runtime");
+        defer allocator.free(r_alias);
+        const reserved = [_][]const u8{ "std", "Client", "_" };
+        for (reserved) |r| if (std.mem.eql(u8, r_alias, r)) return error.InvalidArguments;
+        var runtime_gen = RuntimeGenerator.init(allocator);
+        defer runtime_gen.deinit();
+        const runtime_code = try runtime_gen.generate();
+        defer allocator.free(runtime_code);
+        const runtime_checksum = generated_header.computeChecksum(runtime_code);
+        const runtime_header = try generated_header.renderNowWithChecksum(allocator, io, runtime_checksum);
+        defer allocator.free(runtime_header);
+        const runtime_with_header = try std.mem.concat(allocator, u8, &.{ runtime_header, runtime_code });
+        errdefer allocator.free(runtime_with_header);
+        const empty_models = try allocator.dupe(u8, "");
+        return .{ .models = empty_models, .runtime = runtime_with_header, .client = null };
+    }
     const models_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.models) orelse cli.FileKind.models.defaultName(), "\\", "/");
     defer allocator.free(models_file);
     const runtime_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.runtime) orelse cli.FileKind.runtime.defaultName(), "\\", "/");
