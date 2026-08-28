@@ -234,6 +234,102 @@ test "generated CancelableReader passes through when cancel check returns false"
     try std.testing.expectEqualStrings("hello", out.written());
 }
 
+const StallServer = struct {
+    io: std.Io,
+    server: std.Io.net.Server,
+    thread: std.Thread = undefined,
+
+    fn serve(self: *StallServer) void {
+        var stream = self.server.accept(self.io) catch return;
+        defer stream.close(self.io);
+
+        var in_buffer: [4096]u8 = undefined;
+        var out_buffer: [4096]u8 = undefined;
+        var reader = stream.reader(self.io, &in_buffer);
+        var writer = stream.writer(self.io, &out_buffer);
+
+        var server = std.http.Server.init(&reader.interface, &writer.interface);
+        var request = server.receiveHead() catch return;
+        var chunk_buffer: [1024]u8 = undefined;
+        var body = request.respondStreaming(&chunk_buffer, .{
+            .respond_options = .{ .status = .ok },
+        }) catch return;
+        defer body.end() catch {};
+
+        body.writer.writeAll("data: {\"message\":\"hello\"}\n\n") catch return;
+        body.flush() catch return;
+        self.io.sleep(.{ .nanoseconds = 5 * std.time.ns_per_s }, .awake) catch {};
+        body.writer.writeAll("data: [DONE]\n\n") catch return;
+        body.flush() catch return;
+    }
+};
+
+fn startStallServer() !*StallServer {
+    const address: std.Io.net.IpAddress = .{ .ip4 = std.Io.net.Ip4Address.loopback(0) };
+    const server = std.Io.net.IpAddress.listen(&address, std.testing.io, .{}) catch return error.ListenFailed;
+    const context = try std.testing.allocator.create(StallServer);
+    errdefer std.testing.allocator.destroy(context);
+    context.* = .{ .io = std.testing.io, .server = server };
+    errdefer context.server.deinit(std.testing.io);
+    context.thread = try std.Thread.spawn(.{}, StallServer.serve, .{context});
+    return context;
+}
+
+fn stopStallServer(context: *StallServer) void {
+    context.server.deinit(std.testing.io);
+    context.thread.join();
+    std.testing.allocator.destroy(context);
+}
+
+var stall_cancelled = std.atomic.Value(bool).init(false);
+
+fn isStallCancelled() bool {
+    return stall_cancelled.load(.acquire);
+}
+
+const CancelTrigger = struct {
+    fn run() void {
+        std.testing.io.sleep(.{ .nanoseconds = 20 * std.time.ns_per_ms }, .awake) catch {};
+        stall_cancelled.store(true, .release);
+    }
+};
+
+const StallCallback = struct {
+    count: usize = 0,
+
+    pub fn event(self: *StallCallback, _: []const u8) !void {
+        self.count += 1;
+    }
+};
+
+test "generated streaming cancellation interrupts a stalled response" {
+    const server = try startStallServer();
+    defer stopStallServer(server);
+    const url = try std.fmt.allocPrint(std.testing.allocator, "http://127.0.0.1:{d}", .{server.server.socket.address.getPort()});
+    defer std.testing.allocator.free(url);
+
+    stall_cancelled.store(false, .release);
+    defer stall_cancelled.store(false, .release);
+
+    var client = lmstudio.Client.init(std.testing.allocator, std.testing.io, "");
+    defer client.deinit();
+    client.withBaseUrl(url);
+    client.cancel_check = isStallCancelled;
+
+    const trigger = try std.Thread.spawn(.{}, CancelTrigger.run, .{});
+    defer trigger.join();
+
+    var callback: StallCallback = .{};
+    const start = std.Io.Clock.awake.now(std.testing.io);
+    try std.testing.expectError(
+        error.Cancelled,
+        lmstudio.chatStreaming(&client, .{ .input = "hello" }, &callback, null),
+    );
+    const elapsed = start.untilNow(std.testing.io, .awake).nanoseconds;
+
+    try std.testing.expect(elapsed < 2 * std.time.ns_per_s);
+}
+
 test "generated endpoint parsing is loose" {
     const source = @embedFile("generated_v3.zig");
     try std.testing.expect(std.mem.indexOf(u8, source, ", allocator, body, .{})") == null);
