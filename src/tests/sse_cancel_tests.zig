@@ -95,6 +95,20 @@ test "generated runtime emits CancelableReader" {
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const CancelableReader = struct {") != null);
 }
 
+test "generated runtime documents the companion cancellation watcher" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var runtime_gen = RuntimeGenerator.init(allocator);
+    defer runtime_gen.deinit();
+
+    const code = try runtime_gen.generate();
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "companion watcher thread in the generated client") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "blocked socket reads are interrupted within about 10 ms") != null);
+}
+
 test "generated single-file client emits CancelableReader" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
