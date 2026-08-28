@@ -74,6 +74,16 @@ const OperationRef = struct {
     operation: Operation,
 };
 
+fn documentHasStreamingOperations(document: UnifiedDocument) bool {
+    var path_iterator = document.paths.iterator();
+    while (path_iterator.next()) |entry| {
+        if (entry.value_ptr.post) |operation| {
+            if (operation.streaming) return true;
+        }
+    }
+    return false;
+}
+
 const ResourceWrapper = struct {
     segments: [][]const u8,
     method_name: []const u8,
@@ -183,6 +193,7 @@ pub const UnifiedApiGenerator = struct {
     models_import_alias: []const u8 = "models",
     runtime_import: []const u8 = "runtime.zig",
     runtime_import_alias: []const u8 = "runtime",
+    has_streaming_operations: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
@@ -224,6 +235,7 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
+        self.has_streaming_operations = documentHasStreamingOperations(document);
         try self.generateHeader();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -242,6 +254,7 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
+        self.has_streaming_operations = documentHasStreamingOperations(document);
         try self.generateHeaderMulti();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -280,6 +293,7 @@ pub const UnifiedApiGenerator = struct {
     fn generateHeader(self: *UnifiedApiGenerator) !void {
         try self.generateRuntimePreamble();
         try self.generateClientPreamble();
+        if (self.has_streaming_operations) try self.generateCancelWatcher();
         try self.generateSsePreamble();
         try self.generateSseBufferConstants();
     }
@@ -301,6 +315,7 @@ pub const UnifiedApiGenerator = struct {
             try self.generateRuntimeReexports();
         }
         try self.generateClientPreamble();
+        if (self.has_streaming_operations) try self.generateCancelWatcher();
     }
 
     fn generateRuntimePreamble(self: *UnifiedApiGenerator) !void {
@@ -427,30 +442,6 @@ pub const UnifiedApiGenerator = struct {
             \\    }
             \\};
             \\
-            \\const CancelWatcher = struct {
-            \\    connection: ?*std.http.Client.Connection,
-            \\    io: std.Io,
-            \\    pred: *const fn () bool,
-            \\    done: *std.atomic.Value(bool),
-            \\
-            \\    fn run(self: *CancelWatcher) void {
-            \\        while (!self.done.load(.acquire)) {
-            \\            if (self.pred()) {
-            \\                if (self.connection) |conn| {
-            \\                    conn.closing = true;
-            \\                    if (comptime @import("builtin").os.tag == .windows) {
-            \\                        conn.stream_reader.stream.close(self.io);
-            \\                    } else {
-            \\                        conn.stream_reader.stream.shutdown(self.io, .both) catch {};
-            \\                    }
-            \\                }
-            \\                return;
-            \\            }
-            \\            self.io.sleep(.{ .nanoseconds = 10 * std.time.ns_per_ms }, .awake) catch {};
-            \\        }
-            \\    }
-            \\};
-            \\
             \\fn isQueryChar(c: u8) bool {
             \\    return std.ascii.isAlphanumeric(c) or switch (c) {
             \\        '-', '.', '_', '~' => true,
@@ -572,7 +563,36 @@ pub const UnifiedApiGenerator = struct {
             \\}
             \\
         );
-        try self.generateStreamAuthCode();
+        if (self.has_streaming_operations) try self.generateStreamAuthCode();
+    }
+
+    fn generateCancelWatcher(self: *UnifiedApiGenerator) !void {
+        try self.buffer.appendSlice(self.allocator,
+            \\const CancelWatcher = struct {
+            \\    connection: ?*std.http.Client.Connection,
+            \\    io: std.Io,
+            \\    pred: *const fn () bool,
+            \\    done: *std.atomic.Value(bool),
+            \\
+            \\    fn run(self: *CancelWatcher) void {
+            \\        while (!self.done.load(.acquire)) {
+            \\            if (self.pred()) {
+            \\                if (self.connection) |conn| {
+            \\                    conn.closing = true;
+            \\                    if (comptime @import("builtin").os.tag == .windows) {
+            \\                        conn.stream_reader.stream.close(self.io);
+            \\                    } else {
+            \\                        conn.stream_reader.stream.shutdown(self.io, .both) catch {};
+            \\                    }
+            \\                }
+            \\                return;
+            \\            }
+            \\            self.io.sleep(.{ .nanoseconds = 10 * std.time.ns_per_ms }, .awake) catch {};
+            \\        }
+            \\    }
+            \\};
+            \\
+        );
     }
 
     fn generateSsePreamble(self: *UnifiedApiGenerator) !void {
