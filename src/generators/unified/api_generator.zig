@@ -2233,7 +2233,7 @@ pub const UnifiedApiGenerator = struct {
                     try allocated_declarations.append(self.allocator, result_name);
                     try declarations.append(self.allocator, result_name);
                 }
-                if (wrapper.operation.streaming) {
+                if (wrapper.operation.streaming and std.mem.eql(u8, wrapper.method, "POST")) {
                     const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
                     try declarations.append(self.allocator, stream_decl_name);
                     try allocated_declarations.append(self.allocator, stream_decl_name);
@@ -2250,7 +2250,7 @@ pub const UnifiedApiGenerator = struct {
                 if (self.hasReturnValue(wrapper.method, wrapper.operation)) {
                     try self.generateResourceResultMethod(wrapper, declarations.items, indent);
                 }
-                if (wrapper.operation.streaming) {
+                if (wrapper.operation.streaming and std.mem.eql(u8, wrapper.method, "POST")) {
                     const stream_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{wrapper.operation_id});
                     defer self.allocator.free(stream_name);
                     try self.generateResourceStreamMethods(wrapper, stream_name, indent);
@@ -2481,7 +2481,7 @@ pub const UnifiedApiGenerator = struct {
             if (std.mem.eql(u8, result_name, name)) return true;
         }
 
-        if (operation.streaming) {
+        if (operation.streaming and std.mem.eql(u8, method, "POST")) {
             const stream_name = std.fmt.allocPrint(self.allocator, "{s}Streaming", .{operation_id}) catch return true;
             defer self.allocator.free(stream_name);
             if (std.mem.eql(u8, stream_name, name)) return true;

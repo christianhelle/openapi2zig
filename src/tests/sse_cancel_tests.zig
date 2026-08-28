@@ -66,6 +66,35 @@ fn buildNonStreamingDocument(allocator: std.mem.Allocator) !common.UnifiedDocume
     return document;
 }
 
+fn buildNonPostStreamingDocument(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var document = try buildStreamingDocument(allocator);
+    errdefer document.deinit(allocator);
+    const path = document.paths.getPtr("/chat").?;
+    if (path.post.?.parameters) |params| {
+        for (params) |*param| param.deinit(allocator);
+        allocator.free(params);
+        path.post.?.parameters = null;
+    }
+    path.get = path.post;
+    path.post = null;
+
+    var responses = std.StringHashMap(common.Response).init(allocator);
+    errdefer responses.deinit();
+    const response_key = try allocator.dupe(u8, "204");
+    errdefer allocator.free(response_key);
+    try responses.put(response_key, .{ .description = "ok" });
+
+    const path_key = try allocator.dupe(u8, "/chat-streaming");
+    errdefer allocator.free(path_key);
+    try document.paths.put(path_key, .{
+        .get = .{
+            .operationId = "chat-completion-streaming",
+            .responses = responses,
+        },
+    });
+    return document;
+}
+
 fn buildWatcherNameCollisionDocument(allocator: std.mem.Allocator) !common.UnifiedDocument {
     var document = try buildStreamingDocument(allocator);
     errdefer document.deinit(allocator);
@@ -223,6 +252,31 @@ test "generated non-streaming client omits interruptible streaming helpers" {
 
     try std.testing.expect(std.mem.indexOf(u8, code, "const CancelWatcher = struct {") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "fn streamJson(") == null);
+}
+
+test "non-POST streaming metadata does not emit POST-only helpers or wrapper methods" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var document = try buildNonPostStreamingDocument(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .paths,
+        .multiple_clients = .per_endpoint,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chatCompletion(client: *Client)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const CancelWatcher = struct {") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "fn streamJson(") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "chatCompletionStreaming") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "chatCompletionStream(") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const ChatCompletionStreaming = struct {") != null);
 }
 
 test "nested cancellation watcher does not reserve top-level client names" {
