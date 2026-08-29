@@ -88,6 +88,33 @@ test "optional header parameters are only sent when non-null" {
     try std.testing.expect(std.mem.indexOf(u8, code, "try appendOrReplaceHeader(allocator, &operation_headers, \"anthropic-beta\", header_value);") != null);
 }
 
+test "header API key security emits its declared auth header" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildHeaderFixture(allocator);
+    defer document.deinit(allocator);
+    const schemes = try allocator.create(std.StringHashMap(common.SecurityScheme));
+    schemes.* = std.StringHashMap(common.SecurityScheme).init(allocator);
+    document.security_schemes = schemes;
+    try schemes.put(try allocator.dupe(u8, "anthropicApiKey"), .{
+        .api_key_header = .{ .name = try allocator.dupe(u8, "x-api-key") },
+    });
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "try headers.append(allocator, .{ .name = \"x-api-key\", .value = client.api_key });") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "auth_header = try std.fmt.allocPrint(allocator, \"Bearer {s}\", .{client.api_key});") == null);
+}
+
 test "generated Raw function passes headers to the shared request helper" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();

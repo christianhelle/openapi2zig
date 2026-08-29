@@ -9,6 +9,10 @@ const media_type = @import("../../media_type.zig");
 const ident = @import("ident_utils.zig");
 
 const BodyKind = enum { none, json, binary, text, form };
+const AuthScheme = union(enum) {
+    bearer,
+    api_key_header: []const u8,
+};
 
 const HeaderLocalNames = struct {
     headers: []const u8,
@@ -135,6 +139,18 @@ fn documentHasStreamingOperations(document: UnifiedDocument) bool {
     return false;
 }
 
+fn authSchemeFor(document: UnifiedDocument) AuthScheme {
+    const schemes = document.security_schemes orelse return .bearer;
+    var iterator = schemes.iterator();
+    while (iterator.next()) |entry| {
+        return switch (entry.value_ptr.*) {
+            .bearer => .bearer,
+            .api_key_header => |scheme| .{ .api_key_header = scheme.name },
+        };
+    }
+    return .bearer;
+}
+
 const ResourceWrapper = struct {
     segments: [][]const u8,
     method_name: []const u8,
@@ -245,6 +261,7 @@ pub const UnifiedApiGenerator = struct {
     runtime_import: []const u8 = "runtime.zig",
     runtime_import_alias: []const u8 = "runtime",
     has_streaming_operations: bool = false,
+    auth_scheme: AuthScheme = .bearer,
 
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
@@ -287,6 +304,7 @@ pub const UnifiedApiGenerator = struct {
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
         self.has_streaming_operations = documentHasStreamingOperations(document);
+        self.auth_scheme = authSchemeFor(document);
         try self.generateHeader();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -306,6 +324,7 @@ pub const UnifiedApiGenerator = struct {
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
         self.has_streaming_operations = documentHasStreamingOperations(document);
+        self.auth_scheme = authSchemeFor(document);
         try self.generateHeaderMulti();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -1038,10 +1057,29 @@ pub const UnifiedApiGenerator = struct {
             \\    try headers.append(allocator, .{ .name = "Accept", .value = accept });
             \\
             \\    var auth_header: ?[]u8 = null;
-            \\    if (client.api_key.len > 0) {
-            \\        auth_header = try std.fmt.allocPrint(allocator, "Bearer {s}", .{client.api_key});
-            \\        try headers.append(allocator, .{ .name = "Authorization", .value = auth_header.? });
-            \\    }
+        );
+        switch (self.auth_scheme) {
+            .bearer => try self.buffer.appendSlice(self.allocator,
+                \\    if (client.api_key.len > 0) {
+                \\        auth_header = try std.fmt.allocPrint(allocator, "Bearer {s}", .{client.api_key});
+                \\        try headers.append(allocator, .{ .name = "Authorization", .value = auth_header.? });
+                \\    }
+                \\
+            ),
+            .api_key_header => |name| {
+                const escaped_name = try escapeZigString(self.allocator, name);
+                defer self.allocator.free(escaped_name);
+                const auth_code = try std.fmt.allocPrint(self.allocator,
+                    \\    if (client.api_key.len > 0) {{
+                    \\        try headers.append(allocator, .{{ .name = "{s}", .value = client.api_key }});
+                    \\    }}
+                    \\
+                , .{escaped_name});
+                defer self.allocator.free(auth_code);
+                try self.buffer.appendSlice(self.allocator, auth_code);
+            },
+        }
+        try self.buffer.appendSlice(self.allocator,
             \\    if (client.organization) |organization| {
             \\        try headers.append(allocator, .{ .name = "OpenAI-Organization", .value = organization });
             \\    }
