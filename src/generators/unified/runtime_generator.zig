@@ -125,9 +125,10 @@ pub const RuntimeGenerator = struct {
             \\/// Wraps an underlying reader and checks an optional cancel predicate before
             \\/// every read of the underlying reader. When the predicate returns true, the
             \\/// read fails with error.ReadFailed; callers translate that into
-            \\/// error.Cancelled. Cancellation is only observed at read boundaries: a read
-            \\/// already blocked inside the underlying reader (e.g. waiting for the next SSE
-            \\/// chunk on the socket) is not aborted until that read returns.
+            \\/// error.Cancelled. When a streaming client sets cancel_check and successfully
+            \\/// starts a companion watcher thread in the generated client, the watcher interrupts
+            \\/// the underlying socket so blocked socket reads are interrupted within about 10 ms.
+            \\/// Without that watcher, cancellation is observed only at read boundaries.
             \\pub const CancelableReader = struct {
             \\    inner: *std.Io.Reader,
             \\    reader: std.Io.Reader,

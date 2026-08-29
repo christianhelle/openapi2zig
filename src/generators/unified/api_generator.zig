@@ -74,6 +74,16 @@ const OperationRef = struct {
     operation: Operation,
 };
 
+fn documentHasStreamingOperations(document: UnifiedDocument) bool {
+    var path_iterator = document.paths.iterator();
+    while (path_iterator.next()) |entry| {
+        if (entry.value_ptr.post) |operation| {
+            if (operation.streaming) return true;
+        }
+    }
+    return false;
+}
+
 const ResourceWrapper = struct {
     segments: [][]const u8,
     method_name: []const u8,
@@ -183,6 +193,7 @@ pub const UnifiedApiGenerator = struct {
     models_import_alias: []const u8 = "models",
     runtime_import: []const u8 = "runtime.zig",
     runtime_import_alias: []const u8 = "runtime",
+    has_streaming_operations: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, args: cli.CliArgs) UnifiedApiGenerator {
         return UnifiedApiGenerator{
@@ -224,6 +235,7 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
+        self.has_streaming_operations = documentHasStreamingOperations(document);
         try self.generateHeader();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -242,6 +254,7 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
+        self.has_streaming_operations = documentHasStreamingOperations(document);
         try self.generateHeaderMulti();
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
@@ -398,14 +411,13 @@ pub const UnifiedApiGenerator = struct {
             \\    default_headers: []const std.http.Header = &.{},
             \\    http_observer: ?HttpObserver = null,
             \\
-            \\    /// Optional predicate called before every read of a streaming response
-            \\    /// body. When it returns true, the in-flight SSE stream aborts with
-            \\    /// error.Cancelled at the next read boundary. Cancellation is observed
-            \\    /// between reads: a read already blocked waiting for the next chunk is
-            \\    /// not interrupted until that read returns. Point it at an app-level
-            \\    /// cancel flag and pass null for the CancellationToken to streaming
-            \\    /// calls. When null (default) streaming reads cannot be interrupted
-            \\    /// until the next chunk arrives.
+            \\    /// Optional predicate polled while reading a streaming response body.
+            \\    /// When it returns true, a successfully started background watcher interrupts
+            \\    /// a blocked SSE socket read within about 10 ms and the stream exits with
+            \\    /// error.Cancelled. A CancelableReader also checks the predicate at every read
+            \\    /// boundary. If watcher startup fails, cancellation remains read-boundary only.
+            \\    /// Point it at an app-level cancel flag; it composes with a CancellationToken.
+            \\    /// When null (default), no watcher thread is spawned.
             \\    cancel_check: ?*const fn () bool = null,
             \\
             \\    pub fn init(allocator: std.mem.Allocator, io: std.Io, api_key: []const u8) Client {
@@ -425,6 +437,10 @@ pub const UnifiedApiGenerator = struct {
             \\    pub fn withBaseUrl(self: *Client, base_url: []const u8) void {
             \\        self.base_url = base_url;
             \\    }
+            \\
+        );
+        if (self.has_streaming_operations) try self.generateCancelWatcher();
+        try self.buffer.appendSlice(self.allocator,
             \\};
             \\
             \\fn isQueryChar(c: u8) bool {
@@ -549,6 +565,50 @@ pub const UnifiedApiGenerator = struct {
             \\
         );
         try self.generateStreamAuthCode();
+    }
+
+    fn generateCancelWatcher(self: *UnifiedApiGenerator) !void {
+        try self.buffer.appendSlice(self.allocator,
+            \\    const CancelWatcher = struct {
+            \\        connection: ?*std.http.Client.Connection,
+            \\        io: std.Io,
+            \\        pred: *const fn () bool,
+            \\        done: *std.atomic.Value(bool),
+            \\        replacement_handle: ?std.Io.net.Socket.Handle = null,
+            \\        interrupted: bool = false,
+            \\
+            \\        const Windows = if (@import("builtin").os.tag == .windows) struct {
+            \\            extern "kernel32" fn CreateEventW(event_attributes: ?*anyopaque, manual_reset: std.os.windows.BOOL, initial_state: std.os.windows.BOOL, name: ?[*:0]const u16) callconv(.winapi) ?std.os.windows.HANDLE;
+            \\        } else struct {};
+            \\
+            \\        fn run(self: *CancelWatcher) void {
+            \\            while (!self.done.load(.acquire)) {
+            \\                if (self.pred()) {
+            \\                    if (self.connection) |conn| {
+            \\                        if (comptime @import("builtin").os.tag == .windows) {
+            \\                            if (Windows.CreateEventW(null, .FALSE, .FALSE, null)) |replacement| {
+            \\                                // Connection.destroy unconditionally closes the stream handle. Preserve
+            \\                                // a separately owned valid handle for it before closing the socket.
+            \\                                self.replacement_handle = replacement;
+            \\                                self.interrupted = true;
+            \\                                conn.stream_reader.stream.close(self.io);
+            \\                            } else {
+            \\                                self.interrupted = true;
+            \\                                conn.stream_reader.stream.shutdown(self.io, .both) catch {};
+            \\                            }
+            \\                        } else {
+            \\                            self.interrupted = true;
+            \\                            conn.stream_reader.stream.shutdown(self.io, .both) catch {};
+            \\                        }
+            \\                    }
+            \\                    return;
+            \\                }
+            \\                self.io.sleep(.{ .nanoseconds = 10 * std.time.ns_per_ms }, .awake) catch return;
+            \\            }
+            \\        }
+            \\    };
+            \\
+        );
     }
 
     fn generateSsePreamble(self: *UnifiedApiGenerator) !void {
@@ -713,109 +773,130 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn generateStreamAuthCode(self: *UnifiedApiGenerator) !void {
+        if (self.has_streaming_operations) {
+            try self.buffer.appendSlice(self.allocator,
+                \\fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![]u8 {
+                \\    var buf: std.Io.Writer.Allocating = .init(allocator);
+                \\    defer buf.deinit();
+                \\    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &buf.writer);
+                \\
+                \\    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, buf.written(), .{ .ignore_unknown_fields = true });
+                \\    defer parsed.deinit();
+                \\
+                \\    if (parsed.value == .object) {
+                \\        try parsed.value.object.put(parsed.arena.allocator(), "stream", .{ .bool = true });
+                \\    }
+                \\
+                \\    var out: std.Io.Writer.Allocating = .init(allocator);
+                \\    errdefer out.deinit();
+                \\    try std.json.Stringify.value(parsed.value, .{ .emit_null_optional_fields = false }, &out.writer);
+                \\    return try out.toOwnedSlice();
+                \\}
+                \\
+                \\fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
+                \\    const Callback = @TypeOf(callback.*);
+                \\    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = client.allocator, .callback = callback };
+                \\    try streamJson(client, path, requestBody, &typed_callback, cancellation_token);
+                \\}
+                \\
+                \\fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
+                \\    const allocator = client.allocator;
+                \\    const payload = try stringifyStreamRequest(allocator, requestBody);
+                \\    defer allocator.free(payload);
+                \\
+                \\    var headers = std.ArrayList(std.http.Header).empty;
+                \\    defer headers.deinit(allocator);
+                \\    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/json", "text/event-stream");
+                \\    defer if (auth_header) |value| allocator.free(value);
+                \\
+                \\    const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
+                \\    defer allocator.free(url);
+                \\
+                \\    if (client.http_observer) |obs| {
+                \\        if (obs.onRequest) |cb| cb(obs.ctx, .POST, url, headers.items, payload);
+                \\    }
+                \\
+                \\    const uri = try std.Uri.parse(url);
+                \\    try checkCancellation(cancellation_token);
+                \\
+                \\    const start = std.Io.Clock.awake.now(client.io);
+                \\    var req = client.http.request(.POST, uri, .{
+                \\        .redirect_behavior = .unhandled,
+                \\        .headers = .{ .accept_encoding = .{ .override = "identity" } },
+                \\        .extra_headers = headers.items,
+                \\    }) catch |err| {
+                \\        if (client.http_observer) |obs| {
+                \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
+                \\        }
+                \\        return err;
+                \\    };
+                \\    defer req.deinit();
+                \\
+                \\    req.transfer_encoding = .{ .content_length = payload.len };
+                \\    var request_body = try req.sendBodyUnflushed(&.{});
+                \\    try request_body.writer.writeAll(payload);
+                \\    try request_body.end();
+                \\    try req.connection.?.flush();
+                \\    try checkCancellation(cancellation_token);
+                \\
+                \\    var response = req.receiveHead(&.{}) catch |err| {
+                \\        if (client.http_observer) |obs| {
+                \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
+                \\        }
+                \\        return err;
+                \\    };
+                \\    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));
+                \\    if (response.head.status.class() != .success) {
+                \\        if (client.http_observer) |obs| {
+                \\            if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
+                \\        }
+                \\        return error.ResponseError;
+                \\    }
+                \\
+                \\    if (client.http_observer) |obs| {
+                \\        if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
+                \\    }
+                \\
+                \\    var transfer_buffer: [8 * 1024]u8 = undefined;
+                \\    const response_reader = response.reader(&transfer_buffer);
+                \\    if (client.cancel_check) |pred| {
+                \\        var done = std.atomic.Value(bool).init(false);
+                \\        var watcher_ctx = Client.CancelWatcher{ .connection = req.connection, .io = client.io, .pred = pred, .done = &done };
+                \\        const watcher_thread: ?std.Thread = std.Thread.spawn(.{}, Client.CancelWatcher.run, .{&watcher_ctx}) catch null;
+                \\        defer if (watcher_thread) |thread| {
+                \\            done.store(true, .release);
+                \\            thread.join();
+                \\            if (watcher_ctx.interrupted) {
+                \\                const conn = watcher_ctx.connection.?;
+                \\                if (comptime @import("builtin").os.tag == .windows) {
+                \\                    if (watcher_ctx.replacement_handle) |handle| {
+                \\                        conn.stream_reader.stream.socket.handle = handle;
+                \\                        conn.stream_writer.stream.socket.handle = handle;
+                \\                    }
+                \\                }
+                \\                conn.closing = true;
+                \\            }
+                \\        };
+                \\        var cancelable_buffer: [1]u8 = undefined;
+                \\        var cancelable_reader = CancelableReader.init(response_reader, &cancelable_buffer, pred);
+                \\        parseSseReader(allocator, &cancelable_reader.reader, callback, cancellation_token) catch |err| switch (err) {
+                \\            error.ReadFailed => {
+                \\                if (pred()) return error.Cancelled;
+                \\                return response.bodyErr() orelse err;
+                \\            },
+                \\            else => return err,
+                \\        };
+                \\    } else {
+                \\        parseSseReader(allocator, response_reader, callback, cancellation_token) catch |err| switch (err) {
+                \\            error.ReadFailed => return response.bodyErr() orelse err,
+                \\            else => return err,
+                \\        };
+                \\    }
+                \\}
+                \\
+            );
+        }
         try self.buffer.appendSlice(self.allocator,
-            \\fn stringifyStreamRequest(allocator: std.mem.Allocator, requestBody: anytype) ![]u8 {
-            \\    var buf: std.Io.Writer.Allocating = .init(allocator);
-            \\    defer buf.deinit();
-            \\    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &buf.writer);
-            \\
-            \\    var parsed = try std.json.parseFromSlice(std.json.Value, allocator, buf.written(), .{ .ignore_unknown_fields = true });
-            \\    defer parsed.deinit();
-            \\
-            \\    if (parsed.value == .object) {
-            \\        try parsed.value.object.put(parsed.arena.allocator(), "stream", .{ .bool = true });
-            \\    }
-            \\
-            \\    var out: std.Io.Writer.Allocating = .init(allocator);
-            \\    errdefer out.deinit();
-            \\    try std.json.Stringify.value(parsed.value, .{ .emit_null_optional_fields = false }, &out.writer);
-            \\    return try out.toOwnedSlice();
-            \\}
-            \\
-            \\fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
-            \\    const Callback = @TypeOf(callback.*);
-            \\    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = client.allocator, .callback = callback };
-            \\    try streamJson(client, path, requestBody, &typed_callback, cancellation_token);
-            \\}
-            \\
-            \\fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
-            \\    const allocator = client.allocator;
-            \\    const payload = try stringifyStreamRequest(allocator, requestBody);
-            \\    defer allocator.free(payload);
-            \\
-            \\    var headers = std.ArrayList(std.http.Header).empty;
-            \\    defer headers.deinit(allocator);
-            \\    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/json", "text/event-stream");
-            \\    defer if (auth_header) |value| allocator.free(value);
-            \\
-            \\    const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
-            \\    defer allocator.free(url);
-            \\
-            \\    if (client.http_observer) |obs| {
-            \\        if (obs.onRequest) |cb| cb(obs.ctx, .POST, url, headers.items, payload);
-            \\    }
-            \\
-            \\    const uri = try std.Uri.parse(url);
-            \\    try checkCancellation(cancellation_token);
-            \\
-            \\    const start = std.Io.Clock.awake.now(client.io);
-            \\    var req = client.http.request(.POST, uri, .{
-            \\        .redirect_behavior = .unhandled,
-            \\        .headers = .{ .accept_encoding = .{ .override = "identity" } },
-            \\        .extra_headers = headers.items,
-            \\    }) catch |err| {
-            \\        if (client.http_observer) |obs| {
-            \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
-            \\        }
-            \\        return err;
-            \\    };
-            \\    defer req.deinit();
-            \\
-            \\    req.transfer_encoding = .{ .content_length = payload.len };
-            \\    var request_body = try req.sendBodyUnflushed(&.{});
-            \\    try request_body.writer.writeAll(payload);
-            \\    try request_body.end();
-            \\    try req.connection.?.flush();
-            \\    try checkCancellation(cancellation_token);
-            \\
-            \\    var response = req.receiveHead(&.{}) catch |err| {
-            \\        if (client.http_observer) |obs| {
-            \\            if (obs.onError) |cb| cb(obs.ctx, .POST, url, @errorName(err));
-            \\        }
-            \\        return err;
-            \\    };
-            \\    const elapsed_ns = @as(u64, @intCast(start.untilNow(client.io, .awake).nanoseconds));
-            \\    if (response.head.status.class() != .success) {
-            \\        if (client.http_observer) |obs| {
-            \\            if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
-            \\        }
-            \\        return error.ResponseError;
-            \\    }
-            \\
-            \\    if (client.http_observer) |obs| {
-            \\        if (obs.onResponse) |cb| cb(obs.ctx, .POST, url, response.head.status, &.{}, "", elapsed_ns);
-            \\    }
-            \\
-            \\    var transfer_buffer: [8 * 1024]u8 = undefined;
-            \\    const response_reader = response.reader(&transfer_buffer);
-            \\    if (client.cancel_check) |pred| {
-            \\        var cancelable_buffer: [1]u8 = undefined;
-            \\        var cancelable_reader = CancelableReader.init(response_reader, &cancelable_buffer, pred);
-            \\        parseSseReader(allocator, &cancelable_reader.reader, callback, cancellation_token) catch |err| switch (err) {
-            \\            error.ReadFailed => {
-            \\                if (pred()) return error.Cancelled;
-            \\                return response.bodyErr() orelse err;
-            \\            },
-            \\            else => return err,
-            \\        };
-            \\    } else {
-            \\        parseSseReader(allocator, response_reader, callback, cancellation_token) catch |err| switch (err) {
-            \\            error.ReadFailed => return response.bodyErr() orelse err,
-            \\            else => return err,
-            \\        };
-            \\    }
-            \\}
-            \\
             \\fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, content_type: ?[]const u8, accept: []const u8) !?[]u8 {
             \\    if (content_type) |ct| {
             \\        try headers.append(allocator, .{ .name = "Content-Type", .value = ct });
@@ -2152,7 +2233,7 @@ pub const UnifiedApiGenerator = struct {
                     try allocated_declarations.append(self.allocator, result_name);
                     try declarations.append(self.allocator, result_name);
                 }
-                if (wrapper.operation.streaming) {
+                if (wrapper.operation.streaming and std.mem.eql(u8, wrapper.method, "POST")) {
                     const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
                     try declarations.append(self.allocator, stream_decl_name);
                     try allocated_declarations.append(self.allocator, stream_decl_name);
@@ -2169,7 +2250,7 @@ pub const UnifiedApiGenerator = struct {
                 if (self.hasReturnValue(wrapper.method, wrapper.operation)) {
                     try self.generateResourceResultMethod(wrapper, declarations.items, indent);
                 }
-                if (wrapper.operation.streaming) {
+                if (wrapper.operation.streaming and std.mem.eql(u8, wrapper.method, "POST")) {
                     const stream_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{wrapper.operation_id});
                     defer self.allocator.free(stream_name);
                     try self.generateResourceStreamMethods(wrapper, stream_name, indent);
@@ -2400,7 +2481,7 @@ pub const UnifiedApiGenerator = struct {
             if (std.mem.eql(u8, result_name, name)) return true;
         }
 
-        if (operation.streaming) {
+        if (operation.streaming and std.mem.eql(u8, method, "POST")) {
             const stream_name = std.fmt.allocPrint(self.allocator, "{s}Streaming", .{operation_id}) catch return true;
             defer self.allocator.free(stream_name);
             if (std.mem.eql(u8, stream_name, name)) return true;
