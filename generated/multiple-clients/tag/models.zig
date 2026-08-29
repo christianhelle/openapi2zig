@@ -63,4 +63,3 @@ pub const ApiResponse = struct {
     message: ?[]const u8 = null,
     code: ?i64 = null,
 };
-

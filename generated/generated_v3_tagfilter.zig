@@ -40,8 +40,6 @@ pub const ApiResponse = struct {
     code: ?i64 = null,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -566,7 +564,7 @@ pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
 // uploads an image
 //
 // Description:
-// 
+//
 //
 pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(ApiResponse) {
     var result = try uploadFileResult(client, petId, additionalMetadata, requestBody);
@@ -689,7 +687,7 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
 // Updates a pet in the store with form data
 //
 // Description:
-// 
+//
 //
 pub fn updatePetWithForm(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
     var raw = try updatePetWithFormRaw(client, petId, name, status);
@@ -719,7 +717,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, stat
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub fn deletePet(client: *Client, api_key: ?[]const u8, petId: i64) !void {
     var raw = try deletePetRaw(client, api_key, petId);
@@ -1039,7 +1037,6 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
     return requestRawWithExtraHeaders(client, std.http.Method.DELETE, uri_buf.written(), payload, operation_headers.items);
 }
 
-
 pub const resources = struct {
     pub const pet = struct {
         pub fn addpet(client: *Client, requestBody: Pet) !Owned(Pet) {
@@ -1122,4 +1119,3 @@ pub const resources = struct {
 
 pub const pet = resources.pet;
 pub const store = resources.store;
-
