@@ -23,6 +23,7 @@ const ExternalDocs32 = @import("../../models/v3.2/externaldocs.zig").ExternalDoc
 const Tag32 = @import("../../models/v3.2/tag.zig").Tag;
 const Server32 = @import("../../models/v3.2/server.zig").Server;
 const SecurityRequirement32 = @import("../../models/v3.2/security.zig").SecurityRequirement;
+const UnifiedSecurityScheme = @import("../../models/common/document.zig").SecurityScheme;
 const Components32 = @import("../../models/v3.2/components.zig").Components;
 const SchemaOrReference32 = @import("../../models/v3.2/schema.zig").SchemaOrReference;
 const Schema32 = @import("../../models/v3.2/schema.zig").Schema;
@@ -52,18 +53,45 @@ pub const OpenApi32Converter = struct {
         const tags = if (openapi.tags) |tags_list| try self.convertTags(tags_list) else null;
         const externalDocs = if (openapi.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
         const schemas = if (openapi.components) |components| try self.convertSchemas(components) else null;
+        const security_schemes = if (openapi.components) |components| try self.convertSecuritySchemes(components) else null;
         return UnifiedDocument{
             .version = version,
             .info = info,
             .paths = paths,
             .servers = servers,
             .security = security,
+            .security_schemes = security_schemes,
             .tags = tags,
             .externalDocs = externalDocs,
             .schemas = schemas,
             .parameters = null,
             .responses = null,
         };
+    }
+
+    fn convertSecuritySchemes(self: *OpenApi32Converter, components: Components32) !?*std.StringHashMap(UnifiedSecurityScheme) {
+        const source = components.securitySchemes orelse return null;
+        const converted = try self.allocator.create(std.StringHashMap(UnifiedSecurityScheme));
+        converted.* = std.StringHashMap(UnifiedSecurityScheme).init(self.allocator);
+        errdefer {
+            var iterator = converted.iterator();
+            while (iterator.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+                if (entry.value_ptr.* == .api_key_header) self.allocator.free(entry.value_ptr.api_key_header.name);
+            }
+            converted.deinit();
+            self.allocator.destroy(converted);
+        }
+        var iterator = source.iterator();
+        while (iterator.next()) |entry| switch (entry.value_ptr.*) {
+            .security_scheme => |scheme| switch (scheme) {
+                .http => |http| if (std.ascii.eqlIgnoreCase(http.scheme, "bearer")) try converted.put(try self.allocator.dupe(u8, entry.key_ptr.*), .bearer),
+                .api_key => |api_key| if (std.mem.eql(u8, api_key.in_field, "header")) try converted.put(try self.allocator.dupe(u8, entry.key_ptr.*), .{ .api_key_header = .{ .name = try self.allocator.dupe(u8, api_key.name) } }),
+                else => {},
+            },
+            .reference => {},
+        };
+        return converted;
     }
 
     fn convertInfo(self: *OpenApi32Converter, info: Info32) DocumentInfo {
