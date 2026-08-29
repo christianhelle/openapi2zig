@@ -1,6 +1,7 @@
 const std = @import("std");
 const cli = @import("../../cli.zig");
 const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
+const SecurityScheme = @import("../../models/common/document.zig").SecurityScheme;
 const Operation = @import("../../models/common/document.zig").Operation;
 const Schema = @import("../../models/common/document.zig").Schema;
 const SchemaType = @import("../../models/common/document.zig").SchemaType;
@@ -141,13 +142,72 @@ fn documentHasStreamingOperations(document: UnifiedDocument) bool {
 
 fn authSchemeFor(document: UnifiedDocument) AuthScheme {
     const schemes = document.security_schemes orelse return .bearer;
+
+    // 1. Check operation-level security requirements
+    var path_iterator = document.paths.iterator();
+    while (path_iterator.next()) |path_entry| {
+        const path_item = path_entry.value_ptr.*;
+        const ops = [_]?Operation{
+            path_item.get,
+            path_item.put,
+            path_item.post,
+            path_item.delete,
+            path_item.options,
+            path_item.head,
+            path_item.patch,
+        };
+        for (ops) |maybe_op| {
+            if (maybe_op) |op| {
+                if (op.security) |sec_reqs| {
+                    for (sec_reqs) |sec_req| {
+                        var req_iterator = sec_req.schemes.iterator();
+                        while (req_iterator.next()) |scheme_entry| {
+                            if (schemes.get(scheme_entry.key_ptr.*)) |s| {
+                                return switch (s) {
+                                    .bearer => .bearer,
+                                    .api_key_header => |scheme| .{ .api_key_header = scheme.name },
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Check document-level security requirements
+    if (document.security) |sec_reqs| {
+        for (sec_reqs) |sec_req| {
+            var req_iterator = sec_req.schemes.iterator();
+            while (req_iterator.next()) |scheme_entry| {
+                if (schemes.get(scheme_entry.key_ptr.*)) |s| {
+                    return switch (s) {
+                        .bearer => .bearer,
+                        .api_key_header => |scheme| .{ .api_key_header = scheme.name },
+                    };
+                }
+            }
+        }
+    }
+
+    // 3. Fall back deterministically across document.security_schemes (alphabetical key order)
+    var min_key: ?[]const u8 = null;
+    var min_scheme: ?SecurityScheme = null;
     var iterator = schemes.iterator();
     while (iterator.next()) |entry| {
-        return switch (entry.value_ptr.*) {
+        const key = entry.key_ptr.*;
+        if (min_key == null or std.mem.order(u8, key, min_key.?) == .lt) {
+            min_key = key;
+            min_scheme = entry.value_ptr.*;
+        }
+    }
+    if (min_scheme) |s| {
+        return switch (s) {
             .bearer => .bearer,
             .api_key_header => |scheme| .{ .api_key_header = scheme.name },
         };
     }
+
     return .bearer;
 }
 

@@ -136,6 +136,79 @@ test "SecurityScheme deinit correctly frees ApiKeyHeader allocation" {
     defer document.deinit(allocator);
 }
 
+test "auth scheme selection prefers document security requirements when operation security is missing" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildHeaderFixture(allocator);
+    defer document.deinit(allocator);
+
+    const schemes = try allocator.create(std.StringHashMap(common.SecurityScheme));
+    schemes.* = std.StringHashMap(common.SecurityScheme).init(allocator);
+    document.security_schemes = schemes;
+
+    try schemes.put(try allocator.dupe(u8, "bearerAuth"), .bearer);
+    try schemes.put(try allocator.dupe(u8, "apiKeyAuth"), .{
+        .api_key_header = .{ .name = try allocator.dupe(u8, "x-api-key") },
+    });
+
+    var sec_req_schemes = std.StringHashMap([][]const u8).init(allocator);
+    try sec_req_schemes.put(try allocator.dupe(u8, "apiKeyAuth"), &.{});
+    const sec_reqs = try allocator.dupe(common.SecurityRequirement, &.{
+        .{ .schemes = sec_req_schemes },
+    });
+    document.security = sec_reqs;
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "try headers.append(allocator, .{ .name = \"x-api-key\", .value = client.api_key });") != null);
+}
+
+test "auth scheme selection prefers operation security requirements" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildHeaderFixture(allocator);
+    defer document.deinit(allocator);
+
+    const schemes = try allocator.create(std.StringHashMap(common.SecurityScheme));
+    schemes.* = std.StringHashMap(common.SecurityScheme).init(allocator);
+    document.security_schemes = schemes;
+
+    try schemes.put(try allocator.dupe(u8, "bearerAuth"), .bearer);
+    try schemes.put(try allocator.dupe(u8, "apiKeyAuth"), .{
+        .api_key_header = .{ .name = try allocator.dupe(u8, "x-api-key") },
+    });
+
+    var path_entry = document.paths.getPtr("/v1/messages").?;
+    var op_sec_schemes = std.StringHashMap([][]const u8).init(allocator);
+    try op_sec_schemes.put(try allocator.dupe(u8, "apiKeyAuth"), &.{});
+    const op_sec_reqs = try allocator.dupe(common.SecurityRequirement, &.{
+        .{ .schemes = op_sec_schemes },
+    });
+    path_entry.post.?.security = op_sec_reqs;
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "try headers.append(allocator, .{ .name = \"x-api-key\", .value = client.api_key });") != null);
+}
+
 test "generated Raw function passes headers to the shared request helper" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
