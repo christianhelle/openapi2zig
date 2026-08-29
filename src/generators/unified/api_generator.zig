@@ -533,19 +533,11 @@ pub const UnifiedApiGenerator = struct {
             \\            if (ptr.size == .slice and ptr.child == u8) {
             \\                break :blk try allocator.dupe(u8, value);
             \\            }
-            \\            var buf: std.Io.Writer.Allocating = .init(allocator);
-            \\            errdefer buf.deinit();
-            \\            try std.json.Stringify.value(value, .{}, &buf.writer);
-            \\            break :blk try buf.toOwnedSlice();
+            \\            @compileError("OpenAPI header values must be strings, numbers, booleans, or enums");
             \\        },
             \\        .@"enum" => try allocator.dupe(u8, @tagName(value)),
             \\        .int, .comptime_int, .float, .comptime_float, .bool => try std.fmt.allocPrint(allocator, "{}", .{value}),
-            \\        else => blk: {
-            \\            var buf: std.Io.Writer.Allocating = .init(allocator);
-            \\            errdefer buf.deinit();
-            \\            try std.json.Stringify.value(value, .{}, &buf.writer);
-            \\            break :blk try buf.toOwnedSlice();
-            \\        },
+            \\        else => @compileError("OpenAPI header values must be strings, numbers, booleans, or enums"),
             \\    };
             \\}
             \\
@@ -554,10 +546,12 @@ pub const UnifiedApiGenerator = struct {
             \\/// parameter always wins over an equal-named client default header while
             \\/// emitting exactly one header on the wire.
             \\fn appendOrReplaceHeader(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), name: []const u8, value: []const u8) !void {
-            \\    for (headers.items) |*existing| {
-            \\        if (std.ascii.eqlIgnoreCase(existing.name, name)) {
-            \\            existing.value = value;
-            \\            return;
+            \\    var i: usize = 0;
+            \\    while (i < headers.items.len) {
+            \\        if (std.ascii.eqlIgnoreCase(headers.items[i].name, name)) {
+            \\            _ = headers.orderedRemove(i);
+            \\        } else {
+            \\            i += 1;
             \\        }
             \\    }
             \\    try headers.append(allocator, .{ .name = name, .value = value });
@@ -1604,6 +1598,7 @@ pub const UnifiedApiGenerator = struct {
                     try self.buffer.appendSlice(self.allocator, "        const header_value = try formatHeaderValue(allocator, ");
                     try self.appendParamReference(operation, method, path, i, parameter);
                     try self.buffer.appendSlice(self.allocator, ");\n");
+                    try self.buffer.appendSlice(self.allocator, "        errdefer allocator.free(header_value);\n");
                     try self.buffer.appendSlice(self.allocator, "        try header_values.append(allocator, header_value);\n");
                     try self.buffer.appendSlice(self.allocator, "        try appendOrReplaceHeader(allocator, &headers, \"");
                     try self.buffer.appendSlice(self.allocator, escaped_name);
@@ -1614,6 +1609,7 @@ pub const UnifiedApiGenerator = struct {
                     try self.appendParamReference(operation, method, path, i, parameter);
                     try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                     try self.buffer.appendSlice(self.allocator, "        const header_value = try formatHeaderValue(allocator, value);\n");
+                    try self.buffer.appendSlice(self.allocator, "        errdefer allocator.free(header_value);\n");
                     try self.buffer.appendSlice(self.allocator, "        try header_values.append(allocator, header_value);\n");
                     try self.buffer.appendSlice(self.allocator, "        try appendOrReplaceHeader(allocator, &headers, \"");
                     try self.buffer.appendSlice(self.allocator, escaped_name);
