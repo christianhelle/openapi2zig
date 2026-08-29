@@ -131,6 +131,45 @@ test "operation headers replace every default with their declared wire name" {
     try std.testing.expect(std.mem.indexOf(u8, code, "errdefer allocator.free(header_value);") != null);
 }
 
+test "header parameters do not shadow generated header locals" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    const params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "headers", .location = .header, .required = true, .schema = .{ .type = .string } },
+        .{ .name = "header_values", .location = .header, .required = true, .schema = .{ .type = .string } },
+    });
+    try paths.put(try allocator.dupe(u8, "/headers"), .{
+        .get = .{
+            .operationId = "getHeaders",
+            .parameters = params,
+            .responses = try responseMap(allocator),
+        },
+    });
+    var document: common.UnifiedDocument = .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "getHeadersRaw(client: *Client, headers: []const u8, header_values: []const u8)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "var operation_headers = std.ArrayList(std.http.Header).empty;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "var operation_header_values = std.ArrayList([]u8).empty;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "&operation_headers, \"headers\", header_value") != null);
+}
+
 fn buildFixedQueryFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     var paths = std.StringHashMap(common.PathItem).init(allocator);
     errdefer paths.deinit();
