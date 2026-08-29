@@ -741,8 +741,7 @@ pub const UnifiedApiGenerator = struct {
             \\    var headers = std.ArrayList(std.http.Header).empty;
             \\    defer headers.deinit(allocator);
             \\    const content_type: ?[]const u8 = if (payload != null) content_type_value else null;
-            \\    const auth_header = try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
-            \\    defer if (auth_header) |value| allocator.free(value);
+            \\    try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
             \\    for (extra_headers) |header| try appendOrReplaceHeader(allocator, &headers, header.name, header.value);
             \\
             \\    if (client.http_observer) |obs| {
@@ -786,8 +785,7 @@ pub const UnifiedApiGenerator = struct {
             \\    var headers = std.ArrayList(std.http.Header).empty;
             \\    defer headers.deinit(allocator);
             \\    const content_type: ?[]const u8 = if (payload != null) content_type_value else null;
-            \\    const auth_header = try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
-            \\    defer if (auth_header) |value| allocator.free(value);
+            \\    try appendClientHeaders(allocator, &headers, client, content_type, "application/json");
             \\
             \\    if (client.http_observer) |obs| {
             \\        if (obs.onRequest) |cb| cb(obs.ctx, method, url, headers.items, payload);
@@ -1089,20 +1087,28 @@ pub const UnifiedApiGenerator = struct {
                 \\}
                 \\
                 \\fn streamJsonTyped(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
+                \\    return streamJsonTypedWithExtraHeaders(T, client, path, requestBody, callback, cancellation_token, &.{});
+                \\}
+                \\
+                \\fn streamJsonTypedWithExtraHeaders(comptime T: type, client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken, extra_headers: []const std.http.Header) !void {
                 \\    const Callback = @TypeOf(callback.*);
                 \\    var typed_callback: TypedSseCallback(T, Callback) = .{ .allocator = client.allocator, .callback = callback };
-                \\    try streamJson(client, path, requestBody, &typed_callback, cancellation_token);
+                \\    try streamJsonWithExtraHeaders(client, path, requestBody, &typed_callback, cancellation_token, extra_headers);
                 \\}
                 \\
                 \\fn streamJson(client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {
+                \\    return streamJsonWithExtraHeaders(client, path, requestBody, callback, cancellation_token, &.{});
+                \\}
+                \\
+                \\fn streamJsonWithExtraHeaders(client: *Client, path: []const u8, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken, extra_headers: []const std.http.Header) !void {
                 \\    const allocator = client.allocator;
                 \\    const payload = try stringifyStreamRequest(allocator, requestBody);
                 \\    defer allocator.free(payload);
                 \\
                 \\    var headers = std.ArrayList(std.http.Header).empty;
                 \\    defer headers.deinit(allocator);
-                \\    const auth_header = try appendClientHeaders(allocator, &headers, client, "application/json", "text/event-stream");
-                \\    defer if (auth_header) |value| allocator.free(value);
+                \\    try appendClientHeaders(allocator, &headers, client, "application/json", "text/event-stream");
+                \\    for (extra_headers) |header| try appendOrReplaceHeader(allocator, &headers, header.name, header.value);
                 \\
                 \\    const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ client.base_url, path });
                 \\    defer allocator.free(url);
@@ -1192,39 +1198,11 @@ pub const UnifiedApiGenerator = struct {
             );
         }
         try self.buffer.appendSlice(self.allocator,
-            \\fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, content_type: ?[]const u8, accept: []const u8) !?[]u8 {
+            \\fn appendClientHeaders(allocator: std.mem.Allocator, headers: *std.ArrayList(std.http.Header), client: *Client, content_type: ?[]const u8, accept: []const u8) !void {
             \\    if (content_type) |ct| {
             \\        try headers.append(allocator, .{ .name = "Content-Type", .value = ct });
             \\    }
             \\    try headers.append(allocator, .{ .name = "Accept", .value = accept });
-            \\
-        );
-        switch (self.auth_scheme) {
-            .bearer => try self.buffer.appendSlice(self.allocator,
-                \\    var auth_header: ?[]u8 = null;
-                \\
-                \\    if (client.api_key.len > 0) {
-                \\        auth_header = try std.fmt.allocPrint(allocator, "Bearer {s}", .{client.api_key});
-                \\        try headers.append(allocator, .{ .name = "Authorization", .value = auth_header.? });
-                \\    }
-                \\
-            ),
-            .api_key_header => |name| {
-                const escaped_name = try escapeZigString(self.allocator, name);
-                defer self.allocator.free(escaped_name);
-                const auth_code = try std.fmt.allocPrint(self.allocator,
-                    \\    const auth_header: ?[]u8 = null;
-                    \\
-                    \\    if (client.api_key.len > 0) {{
-                    \\        try headers.append(allocator, .{{ .name = "{s}", .value = client.api_key }});
-                    \\    }}
-                    \\
-                , .{escaped_name});
-                defer self.allocator.free(auth_code);
-                try self.buffer.appendSlice(self.allocator, auth_code);
-            },
-        }
-        try self.buffer.appendSlice(self.allocator,
             \\    if (client.organization) |organization| {
             \\        try headers.append(allocator, .{ .name = "OpenAI-Organization", .value = organization });
             \\    }
@@ -1234,7 +1212,6 @@ pub const UnifiedApiGenerator = struct {
             \\    for (client.default_headers) |header| {
             \\        try headers.append(allocator, header);
             \\    }
-            \\    return auth_header;
             \\}
             \\
             \\
@@ -1283,7 +1260,7 @@ pub const UnifiedApiGenerator = struct {
         try self.generateFunctionSignature(method, path, operation);
         try self.generateFunctionBody(method, path, operation);
         if (operation.operationId != null) {
-            try self.generateFunctionRaw(method, path, operation);
+            try self.generateFunctionRaw(method, path, operation, document);
         }
         if (operation.operationId != null and self.hasReturnValue(method, operation)) {
             try self.generateFunctionResult(method, path, operation);
@@ -1293,7 +1270,7 @@ pub const UnifiedApiGenerator = struct {
             if (operation.operationId) |op_id| {
                 const stream_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{op_id});
                 defer self.allocator.free(stream_name);
-                try self.generateStreamFunction(stream_name, path);
+                try self.generateStreamFunction(stream_name, path, operation, document);
             }
         }
     }
@@ -1321,7 +1298,7 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "}\n\n");
     }
 
-    fn generateFunctionRaw(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
+    fn generateFunctionRaw(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation, document: UnifiedDocument) !void {
         const operation_id = operation.operationId orelse return;
         const raw_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id});
         defer self.allocator.free(raw_name);
@@ -1339,6 +1316,9 @@ pub const UnifiedApiGenerator = struct {
         const raw_has_header_params = hasHeaderParams(operation);
         const header_local_names = try self.headerLocalNamesAlloc(operation);
         defer header_local_names.deinit(self.allocator);
+        const scheme = authSchemeForOperation(document, operation);
+        const needs_auth = scheme != null;
+        const needs_headers = raw_has_header_params or needs_auth;
 
         switch (kind) {
             .json => {
@@ -1347,10 +1327,13 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n");
                 try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
                 try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = str.written();\n");
-                if (raw_has_header_params) {
+                if (needs_headers) {
                     try self.buffer.appendSlice(self.allocator, "\n");
                     try self.appendHeaderLocals(header_local_names);
-                    try self.appendHeaderParamAppends(operation, method, path, header_local_names);
+                    try self.appendAuthHeader(scheme, header_local_names);
+                    if (raw_has_header_params) {
+                        try self.appendHeaderParamAppends(operation, method, path, header_local_names);
+                    }
                     if (std.mem.eql(u8, json_ct, "application/json")) {
                         try self.buffer.appendSlice(self.allocator, "\n    return requestRawWithExtraHeaders(client, std.http.Method.");
                         try self.buffer.appendSlice(self.allocator, method);
@@ -1386,10 +1369,13 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "    defer str.deinit();\n");
                 try self.buffer.appendSlice(self.allocator, "    try std.json.Stringify.value(requestBody, .{ .emit_null_optional_fields = false }, &str.writer);\n");
                 try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = str.written();\n");
-                if (raw_has_header_params) {
+                if (needs_headers) {
                     try self.buffer.appendSlice(self.allocator, "\n");
                     try self.appendHeaderLocals(header_local_names);
-                    try self.appendHeaderParamAppends(operation, method, path, header_local_names);
+                    try self.appendAuthHeader(scheme, header_local_names);
+                    if (raw_has_header_params) {
+                        try self.appendHeaderParamAppends(operation, method, path, header_local_names);
+                    }
                     try self.buffer.appendSlice(self.allocator, "\n    return requestRawWithExtraHeaders(client, std.http.Method.");
                     try self.buffer.appendSlice(self.allocator, method);
                     try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, ");
@@ -1405,10 +1391,13 @@ pub const UnifiedApiGenerator = struct {
             },
             .none => {
                 try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = null;\n");
-                if (raw_has_header_params) {
+                if (needs_headers) {
                     try self.buffer.appendSlice(self.allocator, "\n");
                     try self.appendHeaderLocals(header_local_names);
-                    try self.appendHeaderParamAppends(operation, method, path, header_local_names);
+                    try self.appendAuthHeader(scheme, header_local_names);
+                    if (raw_has_header_params) {
+                        try self.appendHeaderParamAppends(operation, method, path, header_local_names);
+                    }
                     try self.buffer.appendSlice(self.allocator, "\n    return requestRawWithExtraHeaders(client, std.http.Method.");
                     try self.buffer.appendSlice(self.allocator, method);
                     try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, ");
@@ -1434,12 +1423,12 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    defer ");
         try self.buffer.appendSlice(self.allocator, header_local_names.headers);
         try self.buffer.appendSlice(self.allocator, ".deinit(allocator);\n");
-        try self.buffer.appendSlice(self.allocator, "    const auth_header = try appendClientHeaders(allocator, &");
+        try self.buffer.appendSlice(self.allocator, "    try appendClientHeaders(allocator, &");
         try self.buffer.appendSlice(self.allocator, header_local_names.headers);
         try self.buffer.appendSlice(self.allocator, ", client, \"");
         try self.buffer.appendSlice(self.allocator, ct);
         try self.buffer.appendSlice(self.allocator, "\", \"application/json\");\n");
-        try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n");
+        try self.appendAuthHeader(scheme, header_local_names);
         if (raw_has_header_params) {
             try self.appendHeaderValuesLocal(header_local_names);
             try self.appendHeaderParamAppends(operation, method, path, header_local_names);
@@ -1881,6 +1870,30 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
+    fn appendAuthHeader(self: *UnifiedApiGenerator, scheme: ?AuthScheme, names: HeaderLocalNames) !void {
+        if (scheme) |s| {
+            switch (s) {
+                .bearer => {
+                    try self.buffer.appendSlice(self.allocator, "    var auth_header: ?[]u8 = null;\n");
+                    try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n");
+                    try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) {\n");
+                    try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(allocator, \"Bearer {s}\", .{client.api_key});\n");
+                    try self.buffer.appendSlice(self.allocator, "        try ");
+                    try self.buffer.appendSlice(self.allocator, names.headers);
+                    try self.buffer.appendSlice(self.allocator, ".append(allocator, .{ .name = \"Authorization\", .value = auth_header.? });\n");
+                    try self.buffer.appendSlice(self.allocator, "    }\n");
+                },
+                .api_key_header => |name| {
+                    const escaped = try escapeZigString(self.allocator, name);
+                    defer self.allocator.free(escaped);
+                    const code = try std.fmt.allocPrint(self.allocator, "    if (client.api_key.len > 0) {{\n        try {s}.append(allocator, .{{ .name = \"{s}\", .value = client.api_key }});\n    }}\n", .{ names.headers, escaped });
+                    defer self.allocator.free(code);
+                    try self.buffer.appendSlice(self.allocator, code);
+                },
+            }
+        }
+    }
+
     fn appendUrlConstruction(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
         var new_path = path;
         var allocated_paths = std.ArrayList([]u8).empty;
@@ -1996,7 +2009,54 @@ pub const UnifiedApiGenerator = struct {
         return false;
     }
 
-    fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path: []const u8) !void {
+    fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path: []const u8, operation: Operation, document: UnifiedDocument) !void {
+        const scheme = authSchemeForOperation(document, operation);
+        if (scheme) |s| {
+            switch (s) {
+                .bearer => {
+                    try self.buffer.appendSlice(self.allocator, "pub fn ");
+                    try self.buffer.appendSlice(self.allocator, name);
+                    try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+                    try self.buffer.appendSlice(self.allocator, "    var stream_headers = std.ArrayList(std.http.Header).empty;\n");
+                    try self.buffer.appendSlice(self.allocator, "    defer stream_headers.deinit(client.allocator);\n");
+                    try self.buffer.appendSlice(self.allocator, "    var auth_header: ?[]u8 = null;\n");
+                    try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| client.allocator.free(value);\n");
+                    try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) {\n");
+                    try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{client.api_key});\n");
+                    try self.buffer.appendSlice(self.allocator, "        try stream_headers.append(client.allocator, .{ .name = \"Authorization\", .value = auth_header.? });\n");
+                    try self.buffer.appendSlice(self.allocator, "    }\n");
+                    try self.buffer.appendSlice(self.allocator, "    return streamJsonWithExtraHeaders(client, \"");
+                    try self.buffer.appendSlice(self.allocator, path);
+                    try self.buffer.appendSlice(self.allocator, "\", requestBody, callback, cancellation_token, stream_headers.items);\n");
+                    try self.buffer.appendSlice(self.allocator, "}\n\n");
+
+                    try self.buffer.appendSlice(self.allocator, "pub fn ");
+                    try self.buffer.appendSlice(self.allocator, name);
+                    try self.buffer.appendSlice(self.allocator, "Events(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+                    try self.buffer.appendSlice(self.allocator, "    var stream_headers = std.ArrayList(std.http.Header).empty;\n");
+                    try self.buffer.appendSlice(self.allocator, "    defer stream_headers.deinit(client.allocator);\n");
+                    try self.buffer.appendSlice(self.allocator, "    var auth_header: ?[]u8 = null;\n");
+                    try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| client.allocator.free(value);\n");
+                    try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) {\n");
+                    try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{client.api_key});\n");
+                    try self.buffer.appendSlice(self.allocator, "        try stream_headers.append(client.allocator, .{ .name = \"Authorization\", .value = auth_header.? });\n");
+                    try self.buffer.appendSlice(self.allocator, "    }\n");
+                    try self.buffer.appendSlice(self.allocator, "    return streamJsonTypedWithExtraHeaders(Event, client, \"");
+                    try self.buffer.appendSlice(self.allocator, path);
+                    try self.buffer.appendSlice(self.allocator, "\", requestBody, callback, cancellation_token, stream_headers.items);\n");
+                    try self.buffer.appendSlice(self.allocator, "}\n\n");
+                    return;
+                },
+                .api_key_header => |header_name| {
+                    const escaped = try escapeZigString(self.allocator, header_name);
+                    defer self.allocator.free(escaped);
+                    const header_code = try std.fmt.allocPrint(self.allocator, "pub fn {s}(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {{\n    var stream_headers = std.ArrayList(std.http.Header).empty;\n    defer stream_headers.deinit(client.allocator);\n    if (client.api_key.len > 0) {{\n        try stream_headers.append(client.allocator, .{{ .name = \"{s}\", .value = client.api_key }});\n    }}\n    return streamJsonWithExtraHeaders(client, \"{s}\", requestBody, callback, cancellation_token, stream_headers.items);\n}}\n\npub fn {s}Events(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {{\n    var stream_headers = std.ArrayList(std.http.Header).empty;\n    defer stream_headers.deinit(client.allocator);\n    if (client.api_key.len > 0) {{\n        try stream_headers.append(client.allocator, .{{ .name = \"{s}\", .value = client.api_key }});\n    }}\n    return streamJsonTypedWithExtraHeaders(Event, client, \"{s}\", requestBody, callback, cancellation_token, stream_headers.items);\n}}\n\n", .{ name, escaped, path, name, escaped, path });
+                    defer self.allocator.free(header_code);
+                    try self.buffer.appendSlice(self.allocator, header_code);
+                    return;
+                },
+            }
+        }
         try self.buffer.appendSlice(self.allocator, "pub fn ");
         try self.buffer.appendSlice(self.allocator, name);
         try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");

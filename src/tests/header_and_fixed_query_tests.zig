@@ -111,7 +111,7 @@ test "header API key security emits its declared auth header" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "try headers.append(allocator, .{ .name = \"x-api-key\", .value = client.api_key });") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, ".name = \"x-api-key\", .value = client.api_key") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "auth_header = try std.fmt.allocPrint(allocator, \"Bearer {s}\", .{client.api_key});") == null);
 }
 
@@ -169,7 +169,7 @@ test "auth scheme selection prefers document security requirements when operatio
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "try headers.append(allocator, .{ .name = \"x-api-key\", .value = client.api_key });") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, ".name = \"x-api-key\", .value = client.api_key") != null);
 }
 
 test "auth scheme selection prefers operation security requirements" {
@@ -206,7 +206,7 @@ test "auth scheme selection prefers operation security requirements" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "try headers.append(allocator, .{ .name = \"x-api-key\", .value = client.api_key });") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, ".name = \"x-api-key\", .value = client.api_key") != null);
 }
 
 test "generated Raw function passes headers to the shared request helper" {
