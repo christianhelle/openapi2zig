@@ -6,6 +6,8 @@
 
 **Implemented enhancements:**
 
+- Generate interruptible cancellation \(CancelWatcher\) for stalled SSE streams [\#99](https://github.com/christianhelle/openapi2zig/issues/99)
+- Generate provider-compatible API key authentication [\#104](https://github.com/christianhelle/openapi2zig/pull/104) ([christianhelle](https://github.com/christianhelle))
 - Interrupt stalled SSE reads when streaming is cancelled [\#100](https://github.com/christianhelle/openapi2zig/pull/100) ([christianhelle](https://github.com/christianhelle))
 - Add --runtime-only flag to generate just the runtime module [\#98](https://github.com/christianhelle/openapi2zig/pull/98) ([christianhelle](https://github.com/christianhelle))
 - Reuse existing runtime via --runtime-module [\#94](https://github.com/christianhelle/openapi2zig/pull/94) ([christianhelle](https://github.com/christianhelle))
@@ -21,6 +23,10 @@
 
 - PRD: Preserve OpenAPI header parameters and fixed query parameters in generated clients [\#101](https://github.com/christianhelle/openapi2zig/issues/101)
 - "type" needs to be a reserved word [\#84](https://github.com/christianhelle/openapi2zig/issues/84)
+
+**Closed issues:**
+
+- Port generated provider runtime fixes from puny PR \#161 [\#103](https://github.com/christianhelle/openapi2zig/issues/103)
 
 **Merged pull requests:**
 
