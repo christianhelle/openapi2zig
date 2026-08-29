@@ -85,8 +85,26 @@ pub const OpenApi32Converter = struct {
         var iterator = source.iterator();
         while (iterator.next()) |entry| switch (entry.value_ptr.*) {
             .security_scheme => |scheme| switch (scheme) {
-                .http => |http| if (std.ascii.eqlIgnoreCase(http.scheme, "bearer")) try converted.put(try self.allocator.dupe(u8, entry.key_ptr.*), .bearer),
-                .api_key => |api_key| if (std.mem.eql(u8, api_key.in_field, "header")) try converted.put(try self.allocator.dupe(u8, entry.key_ptr.*), .{ .api_key_header = .{ .name = try self.allocator.dupe(u8, api_key.name) } }),
+                .http => |http| if (std.ascii.eqlIgnoreCase(http.scheme, "bearer")) {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    converted.put(key, .bearer) catch |err| {
+                        self.allocator.free(key);
+                        return err;
+                    };
+                },
+                .api_key => |api_key| if (std.mem.eql(u8, api_key.in_field, "header")) {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    const name = self.allocator.dupe(u8, api_key.name) catch |err| {
+                        self.allocator.free(key);
+                        return err;
+                    };
+                    const scheme_value: UnifiedSecurityScheme = .{ .api_key_header = .{ .name = name } };
+                    converted.put(key, scheme_value) catch |err| {
+                        self.allocator.free(key);
+                        self.allocator.free(name);
+                        return err;
+                    };
+                },
                 else => {},
             },
             .reference => {},
