@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Interrupt stalled SSE reads when streaming is cancelled [\#100](https://github.com/christianhelle/openapi2zig/pull/100) ([christianhelle](https://github.com/christianhelle))
 - Add --runtime-only flag to generate just the runtime module [\#98](https://github.com/christianhelle/openapi2zig/pull/98) ([christianhelle](https://github.com/christianhelle))
 - Reuse existing runtime via --runtime-module [\#94](https://github.com/christianhelle/openapi2zig/pull/94) ([christianhelle](https://github.com/christianhelle))
 - Add install-release build steps [\#93](https://github.com/christianhelle/openapi2zig/pull/93) ([christianhelle](https://github.com/christianhelle))
