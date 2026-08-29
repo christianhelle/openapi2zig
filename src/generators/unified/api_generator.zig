@@ -1663,11 +1663,13 @@ pub const UnifiedApiGenerator = struct {
             }
         }
         const query_info = if (has_query_param) computeQueryPrefixInfo(new_path) else QueryPrefixInfo{ .head = new_path, .fragment = "", .first_query_init = true };
+        const escaped_query_head = try escapeZigString(self.allocator, query_info.head);
+        defer self.allocator.free(escaped_query_head);
 
         try self.buffer.appendSlice(self.allocator, "    var uri_buf: std.Io.Writer.Allocating = .init(allocator);\n");
         try self.buffer.appendSlice(self.allocator, "    defer uri_buf.deinit();\n");
         try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.print(\"{s}");
-        try self.buffer.appendSlice(self.allocator, query_info.head);
+        try self.buffer.appendSlice(self.allocator, escaped_query_head);
         try self.buffer.appendSlice(self.allocator, "\", .{");
         const has_path_param = blk: {
             if (operation.parameters) |params| {
@@ -1713,8 +1715,10 @@ pub const UnifiedApiGenerator = struct {
                 }
             }
             if (query_info.fragment.len > 0) {
+                const escaped_fragment = try escapeZigString(self.allocator, query_info.fragment);
+                defer self.allocator.free(escaped_fragment);
                 try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.writeAll(\"");
-                try self.buffer.appendSlice(self.allocator, query_info.fragment);
+                try self.buffer.appendSlice(self.allocator, escaped_fragment);
                 try self.buffer.appendSlice(self.allocator, "\");\n");
             }
         }
@@ -2978,11 +2982,13 @@ pub const UnifiedApiGenerator = struct {
             }
         }
         const query_info = if (has_query_param) computeQueryPrefixInfo(new_path) else QueryPrefixInfo{ .head = new_path, .fragment = "", .first_query_init = true };
+        const escaped_query_head = try escapeZigString(self.allocator, query_info.head);
+        defer self.allocator.free(escaped_query_head);
 
         try self.buffer.appendSlice(self.allocator, "    var uri_buf: std.Io.Writer.Allocating = .init(allocator);\n");
         try self.buffer.appendSlice(self.allocator, "    defer uri_buf.deinit();\n");
         try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.print(\"{s}");
-        try self.buffer.appendSlice(self.allocator, query_info.head);
+        try self.buffer.appendSlice(self.allocator, escaped_query_head);
         try self.buffer.appendSlice(self.allocator, "\", .{");
         const has_path_param_direct = blk: {
             if (operation.parameters) |params| {
@@ -3028,8 +3034,10 @@ pub const UnifiedApiGenerator = struct {
                 }
             }
             if (query_info.fragment.len > 0) {
+                const escaped_fragment = try escapeZigString(self.allocator, query_info.fragment);
+                defer self.allocator.free(escaped_fragment);
                 try self.buffer.appendSlice(self.allocator, "    try uri_buf.writer.writeAll(\"");
-                try self.buffer.appendSlice(self.allocator, query_info.fragment);
+                try self.buffer.appendSlice(self.allocator, escaped_fragment);
                 try self.buffer.appendSlice(self.allocator, "\");\n");
             }
         }
