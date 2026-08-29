@@ -10,6 +10,16 @@ const ident = @import("ident_utils.zig");
 
 const BodyKind = enum { none, json, binary, text, form };
 
+const HeaderLocalNames = struct {
+    headers: []const u8,
+    values: []const u8,
+
+    fn deinit(self: HeaderLocalNames, allocator: std.mem.Allocator) void {
+        allocator.free(self.headers);
+        allocator.free(self.values);
+    }
+};
+
 fn startsWithIgnoreCase(haystack: []const u8, prefix: []const u8) bool {
     if (haystack.len < prefix.len) return false;
     return std.ascii.eqlIgnoreCase(haystack[0..prefix.len], prefix);
@@ -1144,6 +1154,8 @@ pub const UnifiedApiGenerator = struct {
         try self.appendUnusedParameters(operation, method, path);
         try self.appendUrlConstruction(method, path, operation);
         const raw_has_header_params = hasHeaderParams(operation);
+        const header_local_names = try self.headerLocalNamesAlloc(operation);
+        defer header_local_names.deinit(self.allocator);
 
         switch (kind) {
             .json => {
@@ -1154,18 +1166,22 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = str.written();\n");
                 if (raw_has_header_params) {
                     try self.buffer.appendSlice(self.allocator, "\n");
-                    try self.appendHeaderLocals();
-                    try self.appendHeaderParamAppends(operation, method, path);
+                    try self.appendHeaderLocals(header_local_names);
+                    try self.appendHeaderParamAppends(operation, method, path, header_local_names);
                     if (std.mem.eql(u8, json_ct, "application/json")) {
                         try self.buffer.appendSlice(self.allocator, "\n    return requestRawWithExtraHeaders(client, std.http.Method.");
                         try self.buffer.appendSlice(self.allocator, method);
-                        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, operation_headers.items);\n");
+                        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, ");
+                        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+                        try self.buffer.appendSlice(self.allocator, ".items);\n");
                     } else {
                         try self.buffer.appendSlice(self.allocator, "\n    return requestRawWithContentTypeAndExtraHeaders(client, std.http.Method.");
                         try self.buffer.appendSlice(self.allocator, method);
                         try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, \"");
                         try self.buffer.appendSlice(self.allocator, json_ct);
-                        try self.buffer.appendSlice(self.allocator, "\", operation_headers.items);\n");
+                        try self.buffer.appendSlice(self.allocator, "\", ");
+                        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+                        try self.buffer.appendSlice(self.allocator, ".items);\n");
                     }
                 } else if (std.mem.eql(u8, json_ct, "application/json")) {
                     try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
@@ -1189,11 +1205,13 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = str.written();\n");
                 if (raw_has_header_params) {
                     try self.buffer.appendSlice(self.allocator, "\n");
-                    try self.appendHeaderLocals();
-                    try self.appendHeaderParamAppends(operation, method, path);
+                    try self.appendHeaderLocals(header_local_names);
+                    try self.appendHeaderParamAppends(operation, method, path, header_local_names);
                     try self.buffer.appendSlice(self.allocator, "\n    return requestRawWithExtraHeaders(client, std.http.Method.");
                     try self.buffer.appendSlice(self.allocator, method);
-                    try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, operation_headers.items);\n");
+                    try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, ");
+                    try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+                    try self.buffer.appendSlice(self.allocator, ".items);\n");
                 } else {
                     try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
                     try self.buffer.appendSlice(self.allocator, method);
@@ -1206,11 +1224,13 @@ pub const UnifiedApiGenerator = struct {
                 try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = null;\n");
                 if (raw_has_header_params) {
                     try self.buffer.appendSlice(self.allocator, "\n");
-                    try self.appendHeaderLocals();
-                    try self.appendHeaderParamAppends(operation, method, path);
+                    try self.appendHeaderLocals(header_local_names);
+                    try self.appendHeaderParamAppends(operation, method, path, header_local_names);
                     try self.buffer.appendSlice(self.allocator, "\n    return requestRawWithExtraHeaders(client, std.http.Method.");
                     try self.buffer.appendSlice(self.allocator, method);
-                    try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, operation_headers.items);\n");
+                    try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), payload, ");
+                    try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+                    try self.buffer.appendSlice(self.allocator, ".items);\n");
                 } else {
                     try self.buffer.appendSlice(self.allocator, "\n    return requestRaw(client, std.http.Method.");
                     try self.buffer.appendSlice(self.allocator, method);
@@ -1225,20 +1245,28 @@ pub const UnifiedApiGenerator = struct {
         const body_param = findBodyParam(operation) orelse unreachable;
         const ct = body_param.content_type orelse "application/octet-stream";
         try self.buffer.appendSlice(self.allocator, "    const payload: ?[]const u8 = requestBody;\n");
-        try self.buffer.appendSlice(self.allocator, "\n    var operation_headers = std.ArrayList(std.http.Header).empty;\n");
-        try self.buffer.appendSlice(self.allocator, "    defer operation_headers.deinit(allocator);\n");
-        try self.buffer.appendSlice(self.allocator, "    const auth_header = try appendClientHeaders(allocator, &operation_headers, client, \"");
+        try self.buffer.appendSlice(self.allocator, "\n    var ");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, " = std.ArrayList(std.http.Header).empty;\n");
+        try self.buffer.appendSlice(self.allocator, "    defer ");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, ".deinit(allocator);\n");
+        try self.buffer.appendSlice(self.allocator, "    const auth_header = try appendClientHeaders(allocator, &");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, ", client, \"");
         try self.buffer.appendSlice(self.allocator, ct);
         try self.buffer.appendSlice(self.allocator, "\", \"application/json\");\n");
         try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n");
         if (raw_has_header_params) {
-            try self.appendHeaderValuesLocal();
-            try self.appendHeaderParamAppends(operation, method, path);
+            try self.appendHeaderValuesLocal(header_local_names);
+            try self.appendHeaderParamAppends(operation, method, path, header_local_names);
         }
         try self.buffer.appendSlice(self.allocator, "\n    if (client.http_observer) |obs| {\n");
         try self.buffer.appendSlice(self.allocator, "        if (obs.onRequest) |cb| cb(obs.ctx, std.http.Method.");
         try self.buffer.appendSlice(self.allocator, method);
-        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), operation_headers.items, payload);\n");
+        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), ");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, ".items, payload);\n");
         try self.buffer.appendSlice(self.allocator, "    }\n");
         try self.buffer.appendSlice(self.allocator, "\n    const uri = try std.Uri.parse(uri_buf.written());\n");
         try self.buffer.appendSlice(self.allocator, "    var response_body: std.Io.Writer.Allocating = .init(allocator);\n");
@@ -1249,7 +1277,9 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
         try self.buffer.appendSlice(self.allocator, method);
         try self.buffer.appendSlice(self.allocator, ",\n");
-        try self.buffer.appendSlice(self.allocator, "        .extra_headers = operation_headers.items,\n");
+        try self.buffer.appendSlice(self.allocator, "        .extra_headers = ");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, ".items,\n");
         try self.buffer.appendSlice(self.allocator, "        .payload = payload,\n");
         try self.buffer.appendSlice(self.allocator, "        .response_writer = &response_body.writer,\n");
         try self.buffer.appendSlice(self.allocator, "    }) catch |err| {\n");
@@ -1563,22 +1593,63 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
+    fn headerLocalNamesAlloc(self: *UnifiedApiGenerator, operation: Operation) !HeaderLocalNames {
+        var headers = try self.allocator.dupe(u8, "operation_headers");
+        errdefer self.allocator.free(headers);
+
+        while (true) {
+            const suffix = headers["operation_headers".len..];
+            const values = try std.fmt.allocPrint(self.allocator, "operation_header_values{s}", .{suffix});
+            defer self.allocator.free(values);
+
+            var conflicts = false;
+            if (operation.parameters) |parameters| {
+                for (parameters) |parameter| {
+                    if (std.mem.eql(u8, parameter.name, headers) or std.mem.eql(u8, parameter.name, values)) {
+                        conflicts = true;
+                        break;
+                    }
+                }
+            }
+            if (!conflicts) {
+                return .{
+                    .headers = headers,
+                    .values = try self.allocator.dupe(u8, values),
+                };
+            }
+
+            const next_headers = try std.fmt.allocPrint(self.allocator, "{s}_", .{headers});
+            self.allocator.free(headers);
+            headers = next_headers;
+        }
+    }
+
     /// Emits collision-safe local declarations required before
     /// `appendHeaderParamAppends` can run.
-    fn appendHeaderLocals(self: *UnifiedApiGenerator) !void {
-        try self.buffer.appendSlice(self.allocator, "    var operation_headers = std.ArrayList(std.http.Header).empty;\n");
-        try self.buffer.appendSlice(self.allocator, "    defer operation_headers.deinit(allocator);\n");
-        try self.appendHeaderValuesLocal();
+    fn appendHeaderLocals(self: *UnifiedApiGenerator, names: HeaderLocalNames) !void {
+        try self.buffer.appendSlice(self.allocator, "    var ");
+        try self.buffer.appendSlice(self.allocator, names.headers);
+        try self.buffer.appendSlice(self.allocator, " = std.ArrayList(std.http.Header).empty;\n");
+        try self.buffer.appendSlice(self.allocator, "    defer ");
+        try self.buffer.appendSlice(self.allocator, names.headers);
+        try self.buffer.appendSlice(self.allocator, ".deinit(allocator);\n");
+        try self.appendHeaderValuesLocal(names);
     }
 
     /// Emits the `operation_header_values` local declaration used to own allocations
     /// made while serializing header parameter values, freed once the
     /// enclosing function returns.
-    fn appendHeaderValuesLocal(self: *UnifiedApiGenerator) !void {
-        try self.buffer.appendSlice(self.allocator, "    var operation_header_values = std.ArrayList([]u8).empty;\n");
+    fn appendHeaderValuesLocal(self: *UnifiedApiGenerator, names: HeaderLocalNames) !void {
+        try self.buffer.appendSlice(self.allocator, "    var ");
+        try self.buffer.appendSlice(self.allocator, names.values);
+        try self.buffer.appendSlice(self.allocator, " = std.ArrayList([]u8).empty;\n");
         try self.buffer.appendSlice(self.allocator, "    defer {\n");
-        try self.buffer.appendSlice(self.allocator, "        for (operation_header_values.items) |item| allocator.free(item);\n");
-        try self.buffer.appendSlice(self.allocator, "        operation_header_values.deinit(allocator);\n");
+        try self.buffer.appendSlice(self.allocator, "        for (");
+        try self.buffer.appendSlice(self.allocator, names.values);
+        try self.buffer.appendSlice(self.allocator, ".items) |item| allocator.free(item);\n");
+        try self.buffer.appendSlice(self.allocator, "        ");
+        try self.buffer.appendSlice(self.allocator, names.values);
+        try self.buffer.appendSlice(self.allocator, ".deinit(allocator);\n");
         try self.buffer.appendSlice(self.allocator, "    }\n");
     }
 
@@ -1586,7 +1657,7 @@ pub const UnifiedApiGenerator = struct {
     /// appends it to the in-scope `headers` ArrayList, replacing any
     /// equal-named client default header. Required parameters are always
     /// emitted; optional parameters are emitted only when non-null.
-    fn appendHeaderParamAppends(self: *UnifiedApiGenerator, operation: Operation, method: []const u8, path: []const u8) !void {
+    fn appendHeaderParamAppends(self: *UnifiedApiGenerator, operation: Operation, method: []const u8, path: []const u8, names: HeaderLocalNames) !void {
         if (operation.parameters) |parameters| {
             for (parameters, 0..) |parameter, i| {
                 if (parameter.location != .header) continue;
@@ -1598,10 +1669,14 @@ pub const UnifiedApiGenerator = struct {
                     try self.appendParamReference(operation, method, path, i, parameter);
                     try self.buffer.appendSlice(self.allocator, ");\n");
                     try self.buffer.appendSlice(self.allocator, "        errdefer allocator.free(header_value);\n");
-                    try self.buffer.appendSlice(self.allocator, "        try operation_header_values.append(allocator, header_value);\n");
-                    try self.buffer.appendSlice(self.allocator, "        try appendOrReplaceHeader(allocator, &operation_headers, \"");
+                    try self.buffer.appendSlice(self.allocator, "        try appendOrReplaceHeader(allocator, &");
+                    try self.buffer.appendSlice(self.allocator, names.headers);
+                    try self.buffer.appendSlice(self.allocator, ", \"");
                     try self.buffer.appendSlice(self.allocator, escaped_name);
                     try self.buffer.appendSlice(self.allocator, "\", header_value);\n");
+                    try self.buffer.appendSlice(self.allocator, "        try ");
+                    try self.buffer.appendSlice(self.allocator, names.values);
+                    try self.buffer.appendSlice(self.allocator, ".append(allocator, header_value);\n");
                     try self.buffer.appendSlice(self.allocator, "    }\n");
                 } else {
                     try self.buffer.appendSlice(self.allocator, "    if (");
@@ -1609,10 +1684,14 @@ pub const UnifiedApiGenerator = struct {
                     try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                     try self.buffer.appendSlice(self.allocator, "        const header_value = try formatHeaderValue(allocator, value);\n");
                     try self.buffer.appendSlice(self.allocator, "        errdefer allocator.free(header_value);\n");
-                    try self.buffer.appendSlice(self.allocator, "        try operation_header_values.append(allocator, header_value);\n");
-                    try self.buffer.appendSlice(self.allocator, "        try appendOrReplaceHeader(allocator, &operation_headers, \"");
+                    try self.buffer.appendSlice(self.allocator, "        try appendOrReplaceHeader(allocator, &");
+                    try self.buffer.appendSlice(self.allocator, names.headers);
+                    try self.buffer.appendSlice(self.allocator, ", \"");
                     try self.buffer.appendSlice(self.allocator, escaped_name);
                     try self.buffer.appendSlice(self.allocator, "\", header_value);\n");
+                    try self.buffer.appendSlice(self.allocator, "        try ");
+                    try self.buffer.appendSlice(self.allocator, names.values);
+                    try self.buffer.appendSlice(self.allocator, ".append(allocator, header_value);\n");
                     try self.buffer.appendSlice(self.allocator, "    }\n");
                 }
             }
@@ -2920,9 +2999,17 @@ pub const UnifiedApiGenerator = struct {
             }
         }
 
-        try self.buffer.appendSlice(self.allocator, "    var operation_headers = std.ArrayList(std.http.Header).empty;\n");
-        try self.buffer.appendSlice(self.allocator, "    defer operation_headers.deinit(allocator);\n");
-        try self.buffer.appendSlice(self.allocator, "    const auth_header = try appendClientHeaders(allocator, &operation_headers, client, ");
+        const header_local_names = try self.headerLocalNamesAlloc(operation);
+        defer header_local_names.deinit(self.allocator);
+        try self.buffer.appendSlice(self.allocator, "    var ");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, " = std.ArrayList(std.http.Header).empty;\n");
+        try self.buffer.appendSlice(self.allocator, "    defer ");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, ".deinit(allocator);\n");
+        try self.buffer.appendSlice(self.allocator, "    const auth_header = try appendClientHeaders(allocator, &");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, ", client, ");
         if (has_body_param) {
             try self.buffer.appendSlice(self.allocator, "\"");
             try self.buffer.appendSlice(self.allocator, direct_ct);
@@ -2934,8 +3021,8 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n");
         const direct_has_header_params = hasHeaderParams(operation);
         if (direct_has_header_params) {
-            try self.appendHeaderValuesLocal();
-            try self.appendHeaderParamAppends(operation, method, path);
+            try self.appendHeaderValuesLocal(header_local_names);
+            try self.appendHeaderParamAppends(operation, method, path, header_local_names);
         }
         try self.buffer.appendSlice(self.allocator, "\n");
 
@@ -3075,7 +3162,9 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "\n    if (client.http_observer) |obs| {\n");
         try self.buffer.appendSlice(self.allocator, "        if (obs.onRequest) |cb| cb(obs.ctx, std.http.Method.");
         try self.buffer.appendSlice(self.allocator, method);
-        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), operation_headers.items, ");
+        try self.buffer.appendSlice(self.allocator, ", uri_buf.written(), ");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, ".items, ");
         if (has_body_param) {
             try self.buffer.appendSlice(self.allocator, "payload");
         } else {
@@ -3090,7 +3179,9 @@ pub const UnifiedApiGenerator = struct {
         try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
         try self.buffer.appendSlice(self.allocator, method);
         try self.buffer.appendSlice(self.allocator, ",\n");
-        try self.buffer.appendSlice(self.allocator, "        .extra_headers = operation_headers.items,\n");
+        try self.buffer.appendSlice(self.allocator, "        .extra_headers = ");
+        try self.buffer.appendSlice(self.allocator, header_local_names.headers);
+        try self.buffer.appendSlice(self.allocator, ".items,\n");
         if (has_body_param) {
             try self.buffer.appendSlice(self.allocator, "        .payload = payload,\n");
         }
