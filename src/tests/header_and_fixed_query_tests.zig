@@ -129,6 +129,9 @@ test "operation headers replace every default with their declared wire name" {
     try std.testing.expect(std.mem.indexOf(u8, code, "try headers.append(allocator, .{ .name = name, .value = value });") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "@compileError(\"OpenAPI header values must be strings, numbers, booleans, or enums\");") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "errdefer allocator.free(header_value);") != null);
+    const append_header = std.mem.indexOf(u8, code, "try appendOrReplaceHeader(allocator, &operation_headers, \"anthropic-version\", header_value);").?;
+    const own_header_value = std.mem.indexOf(u8, code, "try operation_header_values.append(allocator, header_value);").?;
+    try std.testing.expect(append_header < own_header_value);
 }
 
 test "header parameters do not shadow generated header locals" {
@@ -140,6 +143,8 @@ test "header parameters do not shadow generated header locals" {
     const params = try allocator.dupe(common.Parameter, &.{
         .{ .name = "headers", .location = .header, .required = true, .schema = .{ .type = .string } },
         .{ .name = "header_values", .location = .header, .required = true, .schema = .{ .type = .string } },
+        .{ .name = "operation_headers", .location = .header, .required = true, .schema = .{ .type = .string } },
+        .{ .name = "operation_header_values", .location = .header, .required = true, .schema = .{ .type = .string } },
     });
     try paths.put(try allocator.dupe(u8, "/headers"), .{
         .get = .{
@@ -164,10 +169,10 @@ test "header parameters do not shadow generated header locals" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "getHeadersRaw(client: *Client, headers: []const u8, header_values: []const u8)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "var operation_headers = std.ArrayList(std.http.Header).empty;") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "var operation_header_values = std.ArrayList([]u8).empty;") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "&operation_headers, \"headers\", header_value") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "getHeadersRaw(client: *Client, headers: []const u8, header_values: []const u8, operation_headers: []const u8, operation_header_values: []const u8)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "var operation_headers_ = std.ArrayList(std.http.Header).empty;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "var operation_header_values_ = std.ArrayList([]u8).empty;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "&operation_headers_, \"headers\", header_value") != null);
 }
 
 fn buildFixedQueryFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
