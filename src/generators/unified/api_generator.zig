@@ -1056,10 +1056,11 @@ pub const UnifiedApiGenerator = struct {
             \\    }
             \\    try headers.append(allocator, .{ .name = "Accept", .value = accept });
             \\
-            \\    var auth_header: ?[]u8 = null;
         );
         switch (self.auth_scheme) {
             .bearer => try self.buffer.appendSlice(self.allocator,
+                \\    var auth_header: ?[]u8 = null;
+                \\
                 \\    if (client.api_key.len > 0) {
                 \\        auth_header = try std.fmt.allocPrint(allocator, "Bearer {s}", .{client.api_key});
                 \\        try headers.append(allocator, .{ .name = "Authorization", .value = auth_header.? });
@@ -1070,6 +1071,8 @@ pub const UnifiedApiGenerator = struct {
                 const escaped_name = try escapeZigString(self.allocator, name);
                 defer self.allocator.free(escaped_name);
                 const auth_code = try std.fmt.allocPrint(self.allocator,
+                    \\    const auth_header: ?[]u8 = null;
+                    \\
                     \\    if (client.api_key.len > 0) {{
                     \\        try headers.append(allocator, .{{ .name = "{s}", .value = client.api_key }});
                     \\    }}
