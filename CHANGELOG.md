@@ -19,7 +19,12 @@
 
 **Fixed bugs:**
 
+- PRD: Preserve OpenAPI header parameters and fixed query parameters in generated clients [\#101](https://github.com/christianhelle/openapi2zig/issues/101)
 - "type" needs to be a reserved word [\#84](https://github.com/christianhelle/openapi2zig/issues/84)
+
+**Merged pull requests:**
+
+- Preserve OpenAPI header parameters and fixed query parameters in generated clients [\#102](https://github.com/christianhelle/openapi2zig/pull/102) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.5.0](https://github.com/christianhelle/openapi2zig/tree/v0.5.0) (2026-08-18)
 
