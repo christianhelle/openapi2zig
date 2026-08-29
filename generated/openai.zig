@@ -121,7 +121,8 @@ pub const RealtimeBetaResponseCreateParamsMaxOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -562,7 +563,8 @@ pub const CreateFineTuningJobRequestHyperparametersLearningRateMultiplier = unio
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .float => |value| .{ .number = value },
             else => .{ .raw = source },
         };
@@ -588,7 +590,8 @@ pub const CreateFineTuningJobRequestHyperparametersNEpochs = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -614,7 +617,8 @@ pub const CreateFineTuningJobRequestHyperparametersBatchSize = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -2002,7 +2006,8 @@ pub const RealtimeResponseMaxOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -2716,7 +2721,8 @@ pub const FineTuneSupervisedHyperparametersLearningRateMultiplier = union(enum) 
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .float => |value| .{ .number = value },
             else => .{ .raw = source },
         };
@@ -2742,7 +2748,8 @@ pub const FineTuneSupervisedHyperparametersNEpochs = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -2768,7 +2775,8 @@ pub const FineTuneSupervisedHyperparametersBatchSize = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -4734,7 +4742,8 @@ pub const RealtimeSessionCreateResponseMaxOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -5007,7 +5016,8 @@ pub const RealtimeSessionCreateRequestMaxResponseOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -7678,7 +7688,8 @@ pub const FineTuneReinforcementHyperparametersEvalInterval = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -7704,7 +7715,8 @@ pub const FineTuneReinforcementHyperparametersEvalSamples = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -7730,7 +7742,8 @@ pub const FineTuneReinforcementHyperparametersLearningRateMultiplier = union(enu
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .float => |value| .{ .number = value },
             else => .{ .raw = source },
         };
@@ -7756,7 +7769,8 @@ pub const FineTuneReinforcementHyperparametersNEpochs = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -7782,7 +7796,8 @@ pub const FineTuneReinforcementHyperparametersBatchSize = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -7808,7 +7823,8 @@ pub const FineTuneReinforcementHyperparametersComputeMultiplier = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .float => |value| .{ .number = value },
             else => .{ .raw = source },
         };
@@ -9240,7 +9256,8 @@ pub const FineTuneDpohyperparametersLearningRateMultiplier = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .float => |value| .{ .number = value },
             else => .{ .raw = source },
         };
@@ -9266,7 +9283,8 @@ pub const FineTuneDpohyperparametersBeta = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .float => |value| .{ .number = value },
             else => .{ .raw = source },
         };
@@ -9292,7 +9310,8 @@ pub const FineTuneDpohyperparametersBatchSize = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -9318,7 +9337,8 @@ pub const FineTuneDpohyperparametersNEpochs = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -10170,7 +10190,8 @@ pub const FineTuningJobHyperparametersLearningRateMultiplier = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .float => |value| .{ .number = value },
             else => .{ .raw = source },
         };
@@ -10196,7 +10217,8 @@ pub const FineTuningJobHyperparametersNEpochs = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .integer => |value| .{ .integer = value },
             else => .{ .raw = source },
         };
@@ -10392,7 +10414,8 @@ pub const RealtimeSessionCreateRequestGaMaxOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -10594,7 +10617,8 @@ pub const RealtimeSessionCreateResponseGaMaxOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -10811,7 +10835,8 @@ pub const RealtimeCallCreateRequestSessionMaxOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -14441,7 +14466,8 @@ pub const ComparisonFilterValueVariant3Item = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .string => |value| .{ .string = value },
+        return switch (source) {
+            .string => |value| .{ .string = value },
             .float => |value| .{ .number = value },
             else => .{ .raw = source },
         };
@@ -15126,7 +15152,8 @@ pub const RealtimeBetaResponseMaxOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -16029,7 +16056,8 @@ pub const RealtimeSessionMaxResponseOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -16213,7 +16241,8 @@ pub const RealtimeResponseCreateParamsMaxOutputTokens = union(enum) {
     }
 
     pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
-        return switch (source) {            .integer => |value| .{ .integer = value },
+        return switch (source) {
+            .integer => |value| .{ .integer = value },
             .string => |value| .{ .string = value },
             else => .{ .raw = source },
         };
@@ -16709,8 +16738,6 @@ pub const ChatkitWorkflowStateVariable = union(enum) {
 };
 
 pub const ChatkitWorkflowStateVariables = std.json.ArrayHashMap(ChatkitWorkflowStateVariable);
-
-
 
 pub fn Owned(comptime T: type) type {
     return struct {
@@ -17354,7 +17381,7 @@ const max_sse_event_size = 1024 * 1024;
 // [tools](/docs/guides/tools) like [web search](/docs/guides/tools-web-search)
 // or [file search](/docs/guides/tools-file-search) to use your own data
 // as input for the model's response.
-// 
+//
 //
 pub fn createResponse(client: *Client, requestBody: CreateResponse) !Owned(Response) {
     var result = try createResponseResult(client, requestBody);
@@ -17401,7 +17428,7 @@ pub fn createResponseStreamingEvents(comptime Event: type, client: *Client, requ
 // Summary:
 // List stored Chat Completions. Only Chat Completions that have been stored
 // with the `store` parameter set to `true` will be returned.
-// 
+//
 //
 pub fn listChatCompletions(client: *Client, model: ?[]const u8, metadata: ?[]const u8, after: ?[]const u8, limit: ?i64, order: ?[]const u8) !Owned(ChatCompletionList) {
     var result = try listChatCompletionsResult(client, model, metadata, after, limit, order);
@@ -17453,22 +17480,22 @@ pub fn listChatCompletionsResult(client: *Client, model: ?[]const u8, metadata: 
 // **Starting a new project?** We recommend trying [Responses](/docs/api-reference/responses)
 // to take advantage of the latest OpenAI platform features. Compare
 // [Chat Completions with Responses](/docs/guides/responses-vs-chat-completions?api-mode=responses).
-// 
+//
 // ---
-// 
+//
 // Creates a model response for the given chat conversation. Learn more in the
 // [text generation](/docs/guides/text-generation), [vision](/docs/guides/vision),
 // and [audio](/docs/guides/audio) guides.
-// 
+//
 // Parameter support can differ depending on the model used to generate the
 // response, particularly for newer reasoning models. Parameters that are only
 // supported for reasoning models are noted below. For the current state of
 // unsupported parameters in reasoning models,
 // [refer to the reasoning guide](/docs/guides/reasoning).
-// 
+//
 // Returns a chat completion object, or a streamed sequence of chat completion
 // chunk objects if the request is streamed.
-// 
+//
 //
 pub fn createChatCompletion(client: *Client, requestBody: CreateChatCompletionRequest) !Owned(CreateChatCompletionResponse) {
     var result = try createChatCompletionResult(client, requestBody);
@@ -17514,7 +17541,7 @@ pub fn createChatCompletionStreamingEvents(comptime Event: type, client: *Client
 /////////////////
 // Summary:
 // Creates an image given a prompt. [Learn more](/docs/guides/images).
-// 
+//
 //
 pub fn createImage(client: *Client, requestBody: CreateImageRequest) !Owned(ImagesResponse) {
     var result = try createImageResult(client, requestBody);
@@ -17783,7 +17810,7 @@ pub fn @"hangup-realtime-callRaw"(client: *Client, call_id: []const u8) !RawResp
 /////////////////
 // Summary:
 // Cancel an active ChatKit session and return its most recent metadata.
-// 
+//
 // Cancelling prevents new requests from using the issued client secret.
 //
 pub fn CancelChatSessionMethod(client: *Client, session_id: []const u8) !Owned(ChatSessionResource) {
@@ -17818,9 +17845,9 @@ pub fn CancelChatSessionMethodResult(client: *Client, session_id: []const u8) !A
 /////////////////
 // Summary:
 // Activate certificates at the organization level.
-// 
+//
 // You can atomically and idempotently activate up to 10 certificates at a time.
-// 
+//
 //
 pub fn activateOrganizationCertificates(client: *Client, requestBody: ToggleCertificatesRequest) !Owned(OrganizationCertificateActivationResponse) {
     var result = try activateOrganizationCertificatesResult(client, requestBody);
@@ -17858,15 +17885,15 @@ pub fn activateOrganizationCertificatesResult(client: *Client, requestBody: Togg
 /////////////////
 // Summary:
 // Create an ephemeral API token for use in client-side applications with the
-// Realtime API specifically for realtime transcriptions. 
+// Realtime API specifically for realtime transcriptions.
 // Can be configured with the same session parameters as the `transcription_session.update` client event.
-// 
+//
 // It responds with a session object, plus a `client_secret` key which contains
 // a usable ephemeral API token that can be used to authenticate browser clients
 // for the Realtime API.
-// 
+//
 // Returns the created Realtime transcription session object, plus an ephemeral key.
-// 
+//
 //
 pub fn @"create-realtime-transcription-session"(client: *Client, requestBody: RealtimeTranscriptionSessionCreateRequest) !Owned(RealtimeTranscriptionSessionCreateResponse) {
     var result = try @"create-realtime-transcription-sessionResult"(client, requestBody);
@@ -17984,9 +18011,9 @@ pub fn @"assign-project-user-roleResult"(client: *Client, project_id: []const u8
 /////////////////
 // Summary:
 // Creates a completion for the provided prompt and parameters.
-// 
+//
 // Returns a completion object, or a sequence of completion objects if the request is streamed.
-// 
+//
 //
 pub fn createCompletion(client: *Client, requestBody: CreateCompletionRequest) !Owned(CreateCompletionResponse) {
     var result = try createCompletionResult(client, requestBody);
@@ -18410,7 +18437,7 @@ pub fn @"list-audit-logsResult"(client: *Client, effective_at: ?[]const u8, @"pr
 /////////////////
 // Summary:
 // Download the generated video bytes or a derived preview asset.
-// 
+//
 // Streams the rendered video content for the specified video job.
 //
 pub fn RetrieveVideoContent(client: *Client, video_id: []const u8, variant: ?[]const u8) !Owned([]const u8) {
@@ -18449,7 +18476,7 @@ pub fn RetrieveVideoContentResult(client: *Client, video_id: []const u8, variant
 /////////////////
 // Summary:
 // List checkpoints for a fine-tuning job.
-// 
+//
 //
 pub fn listFineTuningJobCheckpoints(client: *Client, fine_tuning_job_id: []const u8, after: ?[]const u8, limit: ?i64) !Owned(ListFineTuningJobCheckpointsResponse) {
     var result = try listFineTuningJobCheckpointsResult(client, fine_tuning_job_id, after, limit);
@@ -18872,7 +18899,7 @@ pub fn DeleteThreadMethodResult(client: *Client, thread_id: []const u8) !ApiResu
 // Summary:
 // Classifies if text and/or image inputs are potentially harmful. Learn
 // more in the [moderation guide](/docs/guides/moderation).
-// 
+//
 //
 pub fn createModeration(client: *Client, requestBody: CreateModerationRequest) !Owned(CreateModerationResponse) {
     var result = try createModerationResult(client, requestBody);
@@ -19677,9 +19704,9 @@ pub fn @"list-project-api-keysResult"(client: *Client, project_id: []const u8, l
 /////////////////
 // Summary:
 // Activate certificates at the project level.
-// 
+//
 // You can atomically and idempotently activate up to 10 certificates at a time.
-// 
+//
 //
 pub fn activateProjectCertificates(client: *Client, project_id: []const u8, requestBody: ToggleCertificatesRequest) !Owned(OrganizationProjectCertificateActivationResponse) {
     var result = try activateProjectCertificatesResult(client, project_id, requestBody);
@@ -19717,7 +19744,7 @@ pub fn activateProjectCertificatesResult(client: *Client, project_id: []const u8
 /////////////////
 // Summary:
 // Retrieves a model response with the given ID.
-// 
+//
 //
 pub fn getResponse(client: *Client, response_id: []const u8, include: ?[]const u8, stream: ?bool, starting_after: ?i64, include_obfuscation: ?bool) !Owned(Response) {
     var result = try getResponseResult(client, response_id, include, stream, starting_after, include_obfuscation);
@@ -19764,7 +19791,7 @@ pub fn getResponseResult(client: *Client, response_id: []const u8, include: ?[]c
 /////////////////
 // Summary:
 // Deletes a model response with the given ID.
-// 
+//
 //
 pub fn deleteResponse(client: *Client, response_id: []const u8) !void {
     var raw = try deleteResponseRaw(client, response_id);
@@ -19785,7 +19812,7 @@ pub fn deleteResponseRaw(client: *Client, response_id: []const u8) !RawResponse 
 /////////////////
 // Summary:
 // Pause a fine-tune job.
-// 
+//
 //
 pub fn pauseFineTuningJob(client: *Client, fine_tuning_job_id: []const u8) !Owned(FineTuningJob) {
     var result = try pauseFineTuningJobResult(client, fine_tuning_job_id);
@@ -20051,9 +20078,9 @@ pub fn deleteConversationResult(client: *Client, conversation_id: []const u8) !A
 /////////////////
 // Summary:
 // Deactivate certificates at the organization level.
-// 
+//
 // You can atomically and idempotently deactivate up to 10 certificates at a time.
-// 
+//
 //
 pub fn deactivateOrganizationCertificates(client: *Client, requestBody: ToggleCertificatesRequest) !Owned(OrganizationCertificateDeactivationResponse) {
     var result = try deactivateOrganizationCertificatesResult(client, requestBody);
@@ -20091,7 +20118,7 @@ pub fn deactivateOrganizationCertificatesResult(client: *Client, requestBody: To
 /////////////////
 // Summary:
 // List evaluations for a project.
-// 
+//
 //
 pub fn listEvals(client: *Client, after: ?[]const u8, limit: ?i64, order: ?[]const u8, order_by: ?[]const u8) !Owned(EvalList) {
     var result = try listEvalsResult(client, after, limit, order, order_by);
@@ -20140,7 +20167,7 @@ pub fn listEvalsResult(client: *Client, after: ?[]const u8, limit: ?i64, order: 
 // Create the structure of an evaluation that can be used to test a model's performance.
 // An evaluation is a set of testing criteria and the config for a data source, which dictates the schema of the data used in the evaluation. After creating an evaluation, you can run it on different models and model parameters. We support several types of graders and datasources.
 // For more information, see the [Evals guide](/docs/guides/evals).
-// 
+//
 //
 pub fn createEval(client: *Client, requestBody: CreateEvalRequest) !Owned(Eval) {
     var result = try createEvalResult(client, requestBody);
@@ -20180,13 +20207,13 @@ pub fn createEvalResult(client: *Client, requestBody: CreateEvalRequest) !ApiRes
 // Create an ephemeral API token for use in client-side applications with the
 // Realtime API. Can be configured with the same session parameters as the
 // `session.update` client event.
-// 
+//
 // It responds with a session object, plus a `client_secret` key which contains
 // a usable ephemeral API token that can be used to authenticate browser clients
 // for the Realtime API.
-// 
+//
 // Returns the created Realtime session object, plus an ephemeral key.
-// 
+//
 //
 pub fn @"create-realtime-session"(client: *Client, requestBody: RealtimeSessionCreateRequest) !Owned(RealtimeSessionCreateResponse) {
     var result = try @"create-realtime-sessionResult"(client, requestBody);
@@ -20395,19 +20422,19 @@ pub fn @"usage-imagesResult"(client: *Client, start_time: i64, end_time: ?i64, b
 /////////////////
 // Summary:
 // Create a Realtime client secret with an associated session configuration.
-// 
+//
 // Client secrets are short-lived tokens that can be passed to a client app,
 // such as a web frontend or mobile client, which grants access to the Realtime API without
 // leaking your main API key. You can configure a custom TTL for each client secret.
-// 
+//
 // You can also attach session configuration options to the client secret, which will be
 // applied to any sessions created using that client secret, but these can also be overridden
 // by the client connection.
-// 
+//
 // [Learn more about authentication with client secrets over WebRTC](/docs/guides/realtime-webrtc).
-// 
+//
 // Returns the created client secret and the effective session object. The client secret is a string that looks like `ek_1234`.
-// 
+//
 //
 pub fn @"create-realtime-client-secret"(client: *Client, requestBody: RealtimeCreateClientSecretRequest) !Owned(RealtimeCreateClientSecretResponse) {
     var result = try @"create-realtime-client-secretResult"(client, requestBody);
@@ -20565,7 +20592,7 @@ pub fn listFilesResult(client: *Client, purpose: ?[]const u8, limit: ?i64, order
 // total. There is no organization-wide storage limit. Uploads to this
 // endpoint are rate-limited to 1,000 requests per minute per authenticated
 // user.
-// 
+//
 // - The Assistants API supports files up to 2 million tokens and of specific
 //   file types. See the [Assistants Tools guide](/docs/assistants/tools) for
 //   details.
@@ -20582,10 +20609,10 @@ pub fn listFilesResult(client: *Client, purpose: ?[]const u8, limit: ?i64, order
 //   instead of attaching them one by one. Vector store attachment has separate
 //   limits from file upload, including 2,000 attached files per minute per
 //   organization.
-// 
+//
 // Please [contact us](https://help.openai.com/) if you need to increase these
 // storage limits.
-// 
+//
 //
 pub fn createFile(client: *Client, requestBody: CreateFileRequest) !Owned(OpenAIFile) {
     var result = try createFileResult(client, requestBody);
@@ -20627,9 +20654,9 @@ pub fn createFileResult(client: *Client, requestBody: CreateFileRequest) !ApiRes
 //
 // Description:
 // Retrieve consent recording metadata used for creating custom voices.
-// 
+//
 // See the [custom voices guide](/docs/guides/text-to-speech#custom-voices). Custom voices are limited to eligible customers.
-// 
+//
 //
 pub fn getVoiceConsent(client: *Client, consent_id: []const u8) !Owned(VoiceConsentResource) {
     var result = try getVoiceConsentResult(client, consent_id);
@@ -20666,9 +20693,9 @@ pub fn getVoiceConsentResult(client: *Client, consent_id: []const u8) !ApiResult
 //
 // Description:
 // Update consent recording metadata used for creating custom voices. This endpoint updates metadata only and does not replace the underlying audio.
-// 
+//
 // See the [custom voices guide](/docs/guides/text-to-speech#custom-voices). Custom voices are limited to eligible customers.
-// 
+//
 //
 pub fn updateVoiceConsent(client: *Client, consent_id: []const u8, requestBody: UpdateVoiceConsentRequest) !Owned(VoiceConsentResource) {
     var result = try updateVoiceConsentResult(client, consent_id, requestBody);
@@ -20709,9 +20736,9 @@ pub fn updateVoiceConsentResult(client: *Client, consent_id: []const u8, request
 //
 // Description:
 // Delete a consent recording that was uploaded for creating custom voices.
-// 
+//
 // See the [custom voices guide](/docs/guides/text-to-speech#custom-voices). Custom voices are limited to eligible customers.
-// 
+//
 //
 pub fn deleteVoiceConsent(client: *Client, consent_id: []const u8) !Owned(VoiceConsentDeletedResource) {
     var result = try deleteVoiceConsentResult(client, consent_id);
@@ -20832,7 +20859,7 @@ pub fn createConversationItemsResult(client: *Client, conversation_id: []const u
 /////////////////
 // Summary:
 // List your organization's fine-tuning jobs
-// 
+//
 //
 pub fn listPaginatedFineTuningJobs(client: *Client, after: ?[]const u8, limit: ?i64, metadata: ?[]const u8) !Owned(ListPaginatedFineTuningJobsResponse) {
     var result = try listPaginatedFineTuningJobsResult(client, after, limit, metadata);
@@ -20876,11 +20903,11 @@ pub fn listPaginatedFineTuningJobsResult(client: *Client, after: ?[]const u8, li
 /////////////////
 // Summary:
 // Creates a fine-tuning job which begins the process of creating a new model from a given dataset.
-// 
+//
 // Response includes details of the enqueued job including job status and the name of the fine-tuned models once complete.
-// 
+//
 // [Learn more about fine-tuning](/docs/guides/model-optimization)
-// 
+//
 //
 pub fn createFineTuningJob(client: *Client, requestBody: CreateFineTuningJobRequest) !Owned(FineTuningJob) {
     var result = try createFineTuningJobResult(client, requestBody);
@@ -21202,13 +21229,13 @@ pub fn ListContainerFilesResult(client: *Client, container_id: []const u8, limit
 /////////////////
 // Summary:
 // Create a Container File
-// 
+//
 // You can send either a multipart/form-data request with the raw file content, or a JSON request with a file ID.
-// 
+//
 //
 // Description:
 // Creates a container file.
-// 
+//
 //
 pub fn CreateContainerFile(client: *Client, container_id: []const u8, requestBody: CreateContainerFileBody) !Owned(ContainerFileResource) {
     var result = try CreateContainerFileResult(client, container_id, requestBody);
@@ -21249,12 +21276,12 @@ pub fn CreateContainerFileResult(client: *Client, container_id: []const u8, requ
 //
 // Description:
 // You can call this endpoint with either:
-// 
+//
 // - `multipart/form-data`: use binary uploads via `image` (and optional `mask`).
 // - `application/json`: use `images` (and optional `mask`) as references with either `image_url` or `file_id`.
-// 
+//
 // Note that JSON requests use `images` (array) instead of the multipart `image` field.
-// 
+//
 //
 pub fn createImageEdit(client: *Client, requestBody: EditImageBodyJsonParam) !Owned(ImagesResponse) {
     var result = try createImageEditResult(client, requestBody);
@@ -21547,7 +21574,7 @@ pub fn @"create-groupResult"(client: *Client, requestBody: CreateGroupBody) !Api
 /////////////////
 // Summary:
 // Get a list of runs for an evaluation.
-// 
+//
 //
 pub fn getEvalRuns(client: *Client, eval_id: []const u8, after: ?[]const u8, limit: ?i64, order: ?[]const u8, status: ?[]const u8) !Owned(EvalRunList) {
     var result = try getEvalRunsResult(client, eval_id, after, limit, order, status);
@@ -21594,7 +21621,7 @@ pub fn getEvalRunsResult(client: *Client, eval_id: []const u8, after: ?[]const u
 /////////////////
 // Summary:
 // Kicks off a new run for a given evaluation, specifying the data source, and what model configuration to use to test. The datasource will be validated against the schema specified in the config of the evaluation.
-// 
+//
 //
 pub fn createEvalRun(client: *Client, eval_id: []const u8, requestBody: CreateEvalRunRequest) !Owned(EvalRun) {
     var result = try createEvalRunResult(client, eval_id, requestBody);
@@ -21632,9 +21659,9 @@ pub fn createEvalRunResult(client: *Client, eval_id: []const u8, requestBody: Cr
 /////////////////
 // Summary:
 // Get a certificate that has been uploaded to the organization.
-// 
+//
 // You can get a certificate regardless of whether it is active or not.
-// 
+//
 //
 pub fn getCertificate(client: *Client, certificate_id: []const u8, include: ?[]const u8) !Owned(Certificate) {
     var result = try getCertificateResult(client, certificate_id, include);
@@ -21672,7 +21699,7 @@ pub fn getCertificateResult(client: *Client, certificate_id: []const u8, include
 /////////////////
 // Summary:
 // Modify a certificate. Note that only the name can be modified.
-// 
+//
 //
 pub fn modifyCertificate(client: *Client, certificate_id: []const u8, requestBody: ModifyCertificateRequest) !Owned(Certificate) {
     var result = try modifyCertificateResult(client, certificate_id, requestBody);
@@ -21710,9 +21737,9 @@ pub fn modifyCertificateResult(client: *Client, certificate_id: []const u8, requ
 /////////////////
 // Summary:
 // Delete a certificate from the organization.
-// 
+//
 // The certificate must be inactive for the organization and all projects.
-// 
+//
 //
 pub fn deleteCertificate(client: *Client, certificate_id: []const u8) !Owned(DeleteCertificateResponse) {
     var result = try deleteCertificateResult(client, certificate_id);
@@ -21746,9 +21773,9 @@ pub fn deleteCertificateResult(client: *Client, certificate_id: []const u8) !Api
 /////////////////
 // Summary:
 // Generates audio from the input text.
-// 
+//
 // Returns the audio file content, or a stream of audio events.
-// 
+//
 //
 pub fn createSpeech(client: *Client, requestBody: CreateSpeechRequest) !Owned(CreateSpeechResponseStreamEvent) {
     var result = try createSpeechResult(client, requestBody);
@@ -21897,15 +21924,15 @@ pub fn deleteMessageResult(client: *Client, thread_id: []const u8, message_id: [
 /////////////////
 // Summary:
 // Create a Realtime translation client secret with an associated translation session configuration.
-// 
+//
 // Client secrets are short-lived tokens that can be passed to a client app,
 // such as a web frontend or mobile client, which grants access to the Realtime
 // Translation API without leaking your main API key. You can configure a custom
 // TTL for each client secret.
-// 
+//
 // Returns the created client secret and the effective translation session object.
 // The client secret is a string that looks like `ek_1234`.
-// 
+//
 //
 pub fn @"create-realtime-translation-client-secret"(client: *Client, requestBody: RealtimeTranslationClientSecretCreateRequest) !Owned(RealtimeTranslationClientSecretCreateResponse) {
     var result = try @"create-realtime-translation-client-secretResult"(client, requestBody);
@@ -21943,7 +21970,7 @@ pub fn @"create-realtime-translation-client-secretResult"(client: *Client, reque
 /////////////////
 // Summary:
 // Compact a conversation. Returns a compacted response object.
-// 
+//
 // Learn when and how to compact long-running conversations in the [conversation state guide](/docs/guides/conversation-state#managing-the-context-window). For ZDR-compatible compaction details, see [Compaction (advanced)](/docs/guides/conversation-state#compaction-advanced).
 //
 pub fn Compactconversation(client: *Client, requestBody: CompactResponseMethodPublicBody) !Owned(CompactResource) {
@@ -21987,7 +22014,7 @@ pub fn CompactconversationResult(client: *Client, requestBody: CompactResponseMe
 // The maximum number of files in a single batch request is 2000.
 // Vector store file attach requests are rate limited per vector store (300 requests per minute across both this endpoint and `/vector_stores/{vector_store_id}/files`).
 // For ingesting multiple files into the same vector store, this batch endpoint is recommended.
-// 
+//
 //
 pub fn createVectorStoreFileBatch(client: *Client, vector_store_id: []const u8, requestBody: CreateVectorStoreFileBatchRequest) !Owned(VectorStoreFileBatchObject) {
     var result = try createVectorStoreFileBatchResult(client, vector_store_id, requestBody);
@@ -22223,9 +22250,9 @@ pub fn listOrganizationCertificatesResult(client: *Client, limit: ?i64, after: ?
 /////////////////
 // Summary:
 // Upload a certificate to the organization. This does **not** automatically activate the certificate.
-// 
+//
 // Organizations can upload up to 50 certificates.
-// 
+//
 //
 pub fn uploadCertificate(client: *Client, requestBody: UploadCertificateRequest) !Owned(Certificate) {
     var result = try uploadCertificateResult(client, requestBody);
@@ -22370,9 +22397,9 @@ pub fn CreateSkillVersionResult(client: *Client, skill_id: []const u8, requestBo
 //
 // Description:
 // Create a custom voice you can use for audio output (for example, in Text-to-Speech and the Realtime API). This requires an audio sample and a previously uploaded consent recording.
-// 
+//
 // See the [custom voices guide](/docs/guides/text-to-speech#custom-voices) for requirements and best practices. Custom voices are limited to eligible customers.
-// 
+//
 //
 pub fn createVoice(client: *Client, requestBody: CreateVoiceRequest) !Owned(VoiceResource) {
     var result = try createVoiceResult(client, requestBody);
@@ -22411,7 +22438,7 @@ pub fn createVoiceResult(client: *Client, requestBody: CreateVoiceRequest) !ApiR
 /////////////////
 // Summary:
 // Get status updates for a fine-tuning job.
-// 
+//
 //
 pub fn listFineTuningEvents(client: *Client, fine_tuning_job_id: []const u8, after: ?[]const u8, limit: ?i64) !Owned(ListFineTuningJobEventsResponse) {
     var result = try listFineTuningEventsResult(client, fine_tuning_job_id, after, limit);
@@ -22555,7 +22582,7 @@ pub fn createEmbeddingResult(client: *Client, requestBody: CreateEmbeddingReques
 /////////////////
 // Summary:
 // Returns input token counts of the request.
-// 
+//
 // Returns an object with `object` set to `response.input_tokens` and an `input_tokens` count.
 //
 pub fn Getinputtokencounts(client: *Client, requestBody: TokenCountsBody) !Owned(TokenCountsResource) {
@@ -22780,12 +22807,12 @@ pub fn createThreadAndRunResult(client: *Client, requestBody: CreateThreadAndRun
 
 /////////////////
 // Summary:
-// Adds a [Part](/docs/api-reference/uploads/part-object) to an [Upload](/docs/api-reference/uploads/object) object. A Part represents a chunk of bytes from the file you are trying to upload. 
-// 
+// Adds a [Part](/docs/api-reference/uploads/part-object) to an [Upload](/docs/api-reference/uploads/object) object. A Part represents a chunk of bytes from the file you are trying to upload.
+//
 // Each Part can be at most 64 MB, and you can add Parts until you hit the Upload maximum of 8 GB.
-// 
+//
 // It is possible to add multiple Parts in parallel. You can decide the intended order of the Parts when you [complete the Upload](/docs/api-reference/uploads/complete).
-// 
+//
 //
 pub fn addUploadPart(client: *Client, upload_id: []const u8, requestBody: AddUploadPartRequest) !Owned(UploadPart) {
     var result = try addUploadPartResult(client, upload_id, requestBody);
@@ -22825,7 +22852,7 @@ pub fn addUploadPartResult(client: *Client, upload_id: []const u8, requestBody: 
 // Summary:
 // Get a stored chat completion. Only Chat Completions that have been created
 // with the `store` parameter set to `true` will be returned.
-// 
+//
 //
 pub fn getChatCompletion(client: *Client, completion_id: []const u8) !Owned(CreateChatCompletionResponse) {
     var result = try getChatCompletionResult(client, completion_id);
@@ -22861,7 +22888,7 @@ pub fn getChatCompletionResult(client: *Client, completion_id: []const u8) !ApiR
 // Modify a stored chat completion. Only Chat Completions that have been
 // created with the `store` parameter set to `true` can be modified. Currently,
 // the only supported modification is to update the `metadata` field.
-// 
+//
 //
 pub fn updateChatCompletion(client: *Client, completion_id: []const u8, requestBody: std.json.Value) !Owned(CreateChatCompletionResponse) {
     var result = try updateChatCompletionResult(client, completion_id, requestBody);
@@ -22900,7 +22927,7 @@ pub fn updateChatCompletionResult(client: *Client, completion_id: []const u8, re
 // Summary:
 // Delete a stored chat completion. Only Chat Completions that have been
 // created with the `store` parameter set to `true` can be deleted.
-// 
+//
 //
 pub fn deleteChatCompletion(client: *Client, completion_id: []const u8) !Owned(ChatCompletionDeleted) {
     var result = try deleteChatCompletionResult(client, completion_id);
@@ -22980,10 +23007,10 @@ pub fn ListThreadItemsMethodResult(client: *Client, thread_id: []const u8, limit
 /////////////////
 // Summary:
 // Transcribes audio into the input language.
-// 
+//
 // Returns a transcription object in `json`, `diarized_json`, or `verbose_json`
 // format, or a stream of transcript events.
-// 
+//
 //
 pub fn createTranscription(client: *Client, requestBody: CreateTranscriptionRequest) !Owned(std.json.Value) {
     var result = try createTranscriptionResult(client, requestBody);
@@ -23107,7 +23134,7 @@ pub fn createBatchResult(client: *Client, requestBody: std.json.Value) !ApiResul
 /////////////////
 // Summary:
 // When a run has the `status: "requires_action"` and `required_action.type` is `submit_tool_outputs`, this endpoint can be used to submit the outputs from the tool calls once they're all completed. All outputs must be submitted in a single request.
-// 
+//
 //
 pub fn submitToolOuputsToRun(client: *Client, thread_id: []const u8, run_id: []const u8, requestBody: SubmitToolOutputsRunRequest) !Owned(RunObject) {
     var result = try submitToolOuputsToRunResult(client, thread_id, run_id, requestBody);
@@ -23373,9 +23400,9 @@ pub fn DeleteContainerRaw(client: *Client, container_id: []const u8) !RawRespons
 /////////////////
 // Summary:
 // Cancels a model response with the given ID. Only responses created with
-// the `background` parameter set to `true` can be cancelled. 
+// the `background` parameter set to `true` can be cancelled.
 // [Learn more](/docs/guides/background).
-// 
+//
 //
 pub fn cancelResponse(client: *Client, response_id: []const u8) !Owned(Response) {
     var result = try cancelResponseResult(client, response_id);
@@ -23409,7 +23436,7 @@ pub fn cancelResponseResult(client: *Client, response_id: []const u8) !ApiResult
 /////////////////
 // Summary:
 // Get an evaluation run output item by ID.
-// 
+//
 //
 pub fn getEvalRunOutputItem(client: *Client, eval_id: []const u8, run_id: []const u8, output_item_id: []const u8) !Owned(EvalRunOutputItem) {
     var result = try getEvalRunOutputItemResult(client, eval_id, run_id, output_item_id);
@@ -23443,9 +23470,9 @@ pub fn getEvalRunOutputItemResult(client: *Client, eval_id: []const u8, run_id: 
 /////////////////
 // Summary:
 // Get info about a fine-tuning job.
-// 
+//
 // [Learn more about fine-tuning](/docs/guides/model-optimization)
-// 
+//
 //
 pub fn retrieveFineTuningJob(client: *Client, fine_tuning_job_id: []const u8) !Owned(FineTuningJob) {
     var result = try retrieveFineTuningJobResult(client, fine_tuning_job_id);
@@ -23613,7 +23640,7 @@ pub fn createVectorStoreResult(client: *Client, requestBody: CreateVectorStoreRe
 // Get the messages in a stored chat completion. Only Chat Completions that
 // have been created with the `store` parameter set to `true` will be
 // returned.
-// 
+//
 //
 pub fn getChatCompletionMessages(client: *Client, completion_id: []const u8, after: ?[]const u8, limit: ?i64, order: ?[]const u8) !Owned(ChatCompletionMessageList) {
     var result = try getChatCompletionMessagesResult(client, completion_id, after, limit, order);
@@ -24468,9 +24495,9 @@ pub fn DeleteSkillResult(client: *Client, skill_id: []const u8) !ApiResult(Delet
 /////////////////
 // Summary:
 // **NOTE:** This endpoint requires an [admin API key](../admin-api-keys).
-// 
+//
 // Organization owners can use this endpoint to delete a permission for a fine-tuned model checkpoint.
-// 
+//
 //
 pub fn deleteFineTuningCheckpointPermission(client: *Client, fine_tuned_model_checkpoint: []const u8, permission_id: []const u8) !Owned(DeleteFineTuningCheckpointPermissionResponse) {
     var result = try deleteFineTuningCheckpointPermissionResult(client, fine_tuned_model_checkpoint, permission_id);
@@ -24678,9 +24705,9 @@ pub fn CreateSkillResult(client: *Client, requestBody: CreateSkillBody) !ApiResu
 //
 // Description:
 // List consent recordings available to your organization for creating custom voices.
-// 
+//
 // See the [custom voices guide](/docs/guides/text-to-speech#custom-voices). Custom voices are limited to eligible customers.
-// 
+//
 //
 pub fn listVoiceConsents(client: *Client, after: ?[]const u8, limit: ?i64) !Owned(VoiceConsentListResource) {
     var result = try listVoiceConsentsResult(client, after, limit);
@@ -24724,9 +24751,9 @@ pub fn listVoiceConsentsResult(client: *Client, after: ?[]const u8, limit: ?i64)
 //
 // Description:
 // Upload a consent recording that authorizes creation of a custom voice.
-// 
+//
 // See the [custom voices guide](/docs/guides/text-to-speech#custom-voices) for requirements and best practices. Custom voices are limited to eligible customers.
-// 
+//
 //
 pub fn createVoiceConsent(client: *Client, requestBody: CreateVoiceConsentRequest) !Owned(VoiceConsentResource) {
     var result = try createVoiceConsentResult(client, requestBody);
@@ -24917,7 +24944,7 @@ pub fn @"add-project-groupResult"(client: *Client, project_id: []const u8, reque
 /////////////////
 // Summary:
 // Resume a fine-tune job.
-// 
+//
 //
 pub fn resumeFineTuningJob(client: *Client, fine_tuning_job_id: []const u8) !Owned(FineTuningJob) {
     var result = try resumeFineTuningJobResult(client, fine_tuning_job_id);
@@ -24951,7 +24978,7 @@ pub fn resumeFineTuningJobResult(client: *Client, fine_tuning_job_id: []const u8
 /////////////////
 // Summary:
 // Validate a grader.
-// 
+//
 //
 pub fn validateGrader(client: *Client, requestBody: ValidateGraderRequest) !Owned(ValidateGraderResponse) {
     var result = try validateGraderResult(client, requestBody);
@@ -25238,7 +25265,7 @@ pub fn @"delete-project-roleResult"(client: *Client, project_id: []const u8, rol
 /////////////////
 // Summary:
 // Get an evaluation run by ID.
-// 
+//
 //
 pub fn getEvalRun(client: *Client, eval_id: []const u8, run_id: []const u8) !Owned(EvalRun) {
     var result = try getEvalRunResult(client, eval_id, run_id);
@@ -25272,7 +25299,7 @@ pub fn getEvalRunResult(client: *Client, eval_id: []const u8, run_id: []const u8
 /////////////////
 // Summary:
 // Cancel an ongoing evaluation run.
-// 
+//
 //
 pub fn cancelEvalRun(client: *Client, eval_id: []const u8, run_id: []const u8) !Owned(EvalRun) {
     var result = try cancelEvalRunResult(client, eval_id, run_id);
@@ -25306,7 +25333,7 @@ pub fn cancelEvalRunResult(client: *Client, eval_id: []const u8, run_id: []const
 /////////////////
 // Summary:
 // Delete an eval run.
-// 
+//
 //
 pub fn deleteEvalRun(client: *Client, eval_id: []const u8, run_id: []const u8) !Owned(std.json.Value) {
     var result = try deleteEvalRunResult(client, eval_id, run_id);
@@ -25340,7 +25367,7 @@ pub fn deleteEvalRunResult(client: *Client, eval_id: []const u8, run_id: []const
 /////////////////
 // Summary:
 // Run a grader.
-// 
+//
 //
 pub fn runGrader(client: *Client, requestBody: RunGraderRequest) !Owned(RunGraderResponse) {
     var result = try runGraderResult(client, requestBody);
@@ -25378,7 +25405,7 @@ pub fn runGraderResult(client: *Client, requestBody: RunGraderRequest) !ApiResul
 /////////////////
 // Summary:
 // Immediately cancel a fine-tune job.
-// 
+//
 //
 pub fn cancelFineTuningJob(client: *Client, fine_tuning_job_id: []const u8) !Owned(FineTuningJob) {
     var result = try cancelFineTuningJobResult(client, fine_tuning_job_id);
@@ -25511,10 +25538,10 @@ pub fn @"retrieve-project-api-keyResult"(client: *Client, project_id: []const u8
 /////////////////
 // Summary:
 // Deletes an API key from the project.
-// 
+//
 // Returns confirmation of the key deletion, or an error if the key belonged to
 // a service account.
-// 
+//
 //
 pub fn @"delete-project-api-key"(client: *Client, project_id: []const u8, api_key_id: []const u8) !Owned(ProjectApiKeyDeleteResponse) {
     var result = try @"delete-project-api-keyResult"(client, project_id, api_key_id);
@@ -25548,7 +25575,7 @@ pub fn @"delete-project-api-keyResult"(client: *Client, project_id: []const u8, 
 /////////////////
 // Summary:
 // Get a list of output items for an evaluation run.
-// 
+//
 //
 pub fn getEvalRunOutputItems(client: *Client, eval_id: []const u8, run_id: []const u8, after: ?[]const u8, limit: ?i64, status: ?[]const u8, order: ?[]const u8) !Owned(EvalRunOutputItemList) {
     var result = try getEvalRunOutputItemsResult(client, eval_id, run_id, after, limit, status, order);
@@ -25594,9 +25621,9 @@ pub fn getEvalRunOutputItemsResult(client: *Client, eval_id: []const u8, run_id:
 
 /////////////////
 // Summary:
-// Deactivate certificates at the project level. You can atomically and 
+// Deactivate certificates at the project level. You can atomically and
 // idempotently deactivate up to 10 certificates at a time.
-// 
+//
 //
 pub fn deactivateProjectCertificates(client: *Client, project_id: []const u8, requestBody: ToggleCertificatesRequest) !Owned(OrganizationProjectCertificateDeactivationResponse) {
     var result = try deactivateProjectCertificatesResult(client, project_id, requestBody);
@@ -25816,10 +25843,10 @@ pub fn @"retrieve-project-service-accountResult"(client: *Client, project_id: []
 /////////////////
 // Summary:
 // Deletes a service account from the project.
-// 
+//
 // Returns confirmation of service account deletion, or an error if the project
 // is archived (archived projects have no service accounts).
-// 
+//
 //
 pub fn @"delete-project-service-account"(client: *Client, project_id: []const u8, service_account_id: []const u8) !Owned(ProjectServiceAccountDeleteResponse) {
     var result = try @"delete-project-service-accountResult"(client, project_id, service_account_id);
@@ -26074,22 +26101,22 @@ pub fn @"delete-inviteResult"(client: *Client, invite_id: []const u8) !ApiResult
 // that you can add [Parts](/docs/api-reference/uploads/part-object) to.
 // Currently, an Upload can accept at most 8 GB in total and expires after an
 // hour after you create it.
-// 
+//
 // Once you complete the Upload, we will create a
 // [File](/docs/api-reference/files/object) object that contains all the parts
 // you uploaded. This File is usable in the rest of our platform as a regular
 // File object.
-// 
-// For certain `purpose` values, the correct `mime_type` must be specified. 
-// Please refer to documentation for the 
+//
+// For certain `purpose` values, the correct `mime_type` must be specified.
+// Please refer to documentation for the
 // [supported MIME types for your use case](/docs/assistants/tools/file-search#supported-files).
-// 
+//
 // For guidance on the proper filename extensions for each purpose, please
 // follow the documentation on [creating a
 // File](/docs/api-reference/files/create).
-// 
+//
 // Returns the Upload object with status `pending`.
-// 
+//
 //
 pub fn createUpload(client: *Client, requestBody: CreateUploadRequest) !Owned(Upload) {
     var result = try createUploadResult(client, requestBody);
@@ -26213,9 +26240,9 @@ pub fn createMessageResult(client: *Client, thread_id: []const u8, requestBody: 
 /////////////////
 // Summary:
 // **NOTE:** This endpoint requires an [admin API key](../admin-api-keys).
-// 
+//
 // Organization owners can use this endpoint to view all permissions for a fine-tuned model checkpoint.
-// 
+//
 //
 pub fn listFineTuningCheckpointPermissions(client: *Client, fine_tuned_model_checkpoint: []const u8, project_id: ?[]const u8, after: ?[]const u8, limit: ?i64, order: ?[]const u8) !Owned(ListFineTuningCheckpointPermissionResponse) {
     var result = try listFineTuningCheckpointPermissionsResult(client, fine_tuned_model_checkpoint, project_id, after, limit, order);
@@ -26262,9 +26289,9 @@ pub fn listFineTuningCheckpointPermissionsResult(client: *Client, fine_tuned_mod
 /////////////////
 // Summary:
 // **NOTE:** Calling this endpoint requires an [admin API key](../admin-api-keys).
-// 
+//
 // This enables organization owners to share fine-tuned models with other projects in their organization.
-// 
+//
 //
 pub fn createFineTuningCheckpointPermission(client: *Client, fine_tuned_model_checkpoint: []const u8, requestBody: CreateFineTuningCheckpointPermissionRequest) !Owned(ListFineTuningCheckpointPermissionResponse) {
     var result = try createFineTuningCheckpointPermissionResult(client, fine_tuned_model_checkpoint, requestBody);
@@ -26302,9 +26329,9 @@ pub fn createFineTuningCheckpointPermissionResult(client: *Client, fine_tuned_mo
 /////////////////
 // Summary:
 // Cancels the Upload. No Parts may be added after an Upload is cancelled.
-// 
+//
 // Returns the Upload object with status `cancelled`.
-// 
+//
 //
 pub fn cancelUpload(client: *Client, upload_id: []const u8) !Owned(Upload) {
     var result = try cancelUploadResult(client, upload_id);
@@ -26337,15 +26364,15 @@ pub fn cancelUploadResult(client: *Client, upload_id: []const u8) !ApiResult(Upl
 
 /////////////////
 // Summary:
-// Completes the [Upload](/docs/api-reference/uploads/object). 
-// 
+// Completes the [Upload](/docs/api-reference/uploads/object).
+//
 // Within the returned Upload object, there is a nested [File](/docs/api-reference/files/object) object that is ready to use in the rest of the platform.
-// 
+//
 // You can specify the order of the Parts by passing in an ordered list of the Part IDs.
-// 
+//
 // The number of bytes uploaded upon completion must match the number of bytes initially specified when creating the Upload object. No Parts may be added after an Upload is completed.
 // Returns the Upload object with status `completed`, including an additional `file` property containing the created usable File object.
-// 
+//
 //
 pub fn completeUpload(client: *Client, upload_id: []const u8, requestBody: CompleteUploadRequest) !Owned(Upload) {
     var result = try completeUploadResult(client, upload_id, requestBody);
@@ -26545,10 +26572,10 @@ pub fn @"modify-project-userResult"(client: *Client, project_id: []const u8, use
 /////////////////
 // Summary:
 // Deletes a user from the project.
-// 
+//
 // Returns confirmation of project user deletion, or an error if the project is
 // archived (archived projects have no users).
-// 
+//
 //
 pub fn @"delete-project-user"(client: *Client, project_id: []const u8, user_id: []const u8) !Owned(ProjectUserDeleteResponse) {
     var result = try @"delete-project-userResult"(client, project_id, user_id);
@@ -26582,7 +26609,7 @@ pub fn @"delete-project-userResult"(client: *Client, project_id: []const u8, use
 /////////////////
 // Summary:
 // Get an evaluation by ID.
-// 
+//
 //
 pub fn getEval(client: *Client, eval_id: []const u8) !Owned(Eval) {
     var result = try getEvalResult(client, eval_id);
@@ -26616,7 +26643,7 @@ pub fn getEvalResult(client: *Client, eval_id: []const u8) !ApiResult(Eval) {
 /////////////////
 // Summary:
 // Update certain properties of an evaluation.
-// 
+//
 //
 pub fn updateEval(client: *Client, eval_id: []const u8, requestBody: std.json.Value) !Owned(Eval) {
     var result = try updateEvalResult(client, eval_id, requestBody);
@@ -26654,7 +26681,7 @@ pub fn updateEvalResult(client: *Client, eval_id: []const u8, requestBody: std.j
 /////////////////
 // Summary:
 // Delete an evaluation.
-// 
+//
 //
 pub fn deleteEval(client: *Client, eval_id: []const u8) !Owned(std.json.Value) {
     var result = try deleteEvalResult(client, eval_id);
@@ -28620,4 +28647,3 @@ pub const threads = resources.threads;
 pub const uploads = resources.uploads;
 pub const vector_stores = resources.vector_stores;
 pub const videos = resources.videos;
-

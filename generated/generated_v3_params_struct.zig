@@ -64,8 +64,6 @@ pub const ApiResponse = struct {
     code: ?i64 = null,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -587,7 +585,7 @@ pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
 // uploads an image
 //
 // Description:
-// 
+//
 //
 pub const uploadFileOptions = struct {
     petId: i64,
@@ -709,7 +707,7 @@ pub fn getPetByIdResult(client: *Client, options: getPetByIdOptions) !ApiResult(
 // Updates a pet in the store with form data
 //
 // Description:
-// 
+//
 //
 pub const updatePetWithFormOptions = struct {
     petId: i64,
@@ -745,7 +743,7 @@ pub fn updatePetWithFormRaw(client: *Client, options: updatePetWithFormOptions) 
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub const deletePetOptions = struct {
     api_key: ?[]const u8 = null,
@@ -831,7 +829,7 @@ pub fn findPetsByTagsResult(client: *Client, options: findPetsByTagsOptions) !Ap
 // Logs user into the system
 //
 // Description:
-// 
+//
 //
 pub const loginUserOptions = struct {
     username: ?[]const u8 = null,
@@ -959,7 +957,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Get user by user name
 //
 // Description:
-// 
+//
 //
 pub const getUserByNameOptions = struct {
     username: []const u8,
@@ -1271,7 +1269,7 @@ pub fn deleteOrderRaw(client: *Client, options: deleteOrderOptions) !RawResponse
 // Logs out current logged in user session
 //
 // Description:
-// 
+//
 //
 pub fn logoutUser(client: *Client) !void {
     var raw = try logoutUserRaw(client);
@@ -1288,4 +1286,3 @@ pub fn logoutUserRaw(client: *Client) !RawResponse {
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
-

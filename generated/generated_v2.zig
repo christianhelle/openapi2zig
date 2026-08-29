@@ -51,8 +51,6 @@ pub const ApiResponse = struct {
     code: ?i64 = null,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -535,7 +533,7 @@ const max_sse_event_size = 1024 * 1024;
 // Place an order for a pet
 //
 // Description:
-// 
+//
 //
 pub fn placeOrder(client: *Client, requestBody: Order) !Owned(Order) {
     var result = try placeOrderResult(client, requestBody);
@@ -575,7 +573,7 @@ pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
 // uploads an image
 //
 // Description:
-// 
+//
 //
 pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: []const u8, file: []const u8) !Owned(ApiResponse) {
     var result = try uploadFileResult(client, petId, additionalMetadata, file);
@@ -649,7 +647,7 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
 // Updates a pet in the store with form data
 //
 // Description:
-// 
+//
 //
 pub fn updatePetWithForm(client: *Client, petId: i64, name: []const u8, status: []const u8) !void {
     var raw = try updatePetWithFormRaw(client, petId, name, status);
@@ -674,7 +672,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: []const u8, statu
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub fn deletePet(client: *Client, api_key: ?[]const u8, petId: i64) !void {
     var raw = try deletePetRaw(client, api_key, petId);
@@ -749,7 +747,7 @@ pub fn findPetsByTagsResult(client: *Client, tags: []const std.json.Value) !ApiR
 // Logs user into the system
 //
 // Description:
-// 
+//
 //
 pub fn loginUser(client: *Client, username: []const u8, password: []const u8) !Owned([]const u8) {
     var result = try loginUserResult(client, username, password);
@@ -788,7 +786,7 @@ pub fn loginUserResult(client: *Client, username: []const u8, password: []const 
 // Creates list of users with given input array
 //
 // Description:
-// 
+//
 //
 pub fn createUsersWithArrayInput(client: *Client, requestBody: []const std.json.Value) !void {
     var raw = try createUsersWithArrayInputRaw(client, requestBody);
@@ -889,7 +887,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Get user by user name
 //
 // Description:
-// 
+//
 //
 pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
     var result = try getUserByNameResult(client, username);
@@ -1002,7 +1000,7 @@ pub fn createUserRaw(client: *Client, requestBody: User) !RawResponse {
 // Creates list of users with given input array
 //
 // Description:
-// 
+//
 //
 pub fn createUsersWithListInput(client: *Client, requestBody: []const std.json.Value) !void {
     var raw = try createUsersWithListInputRaw(client, requestBody);
@@ -1029,7 +1027,7 @@ pub fn createUsersWithListInputRaw(client: *Client, requestBody: []const std.jso
 // Add a new pet to the store
 //
 // Description:
-// 
+//
 //
 pub fn addPet(client: *Client, requestBody: Pet) !void {
     var raw = try addPetRaw(client, requestBody);
@@ -1056,7 +1054,7 @@ pub fn addPetRaw(client: *Client, requestBody: Pet) !RawResponse {
 // Update an existing pet
 //
 // Description:
-// 
+//
 //
 pub fn updatePet(client: *Client, requestBody: Pet) !void {
     var raw = try updatePetRaw(client, requestBody);
@@ -1142,7 +1140,7 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
 // Logs out current logged in user session
 //
 // Description:
-// 
+//
 //
 pub fn logoutUser(client: *Client) !void {
     var raw = try logoutUserRaw(client);
@@ -1159,7 +1157,6 @@ pub fn logoutUserRaw(client: *Client) !RawResponse {
 
     return requestRaw(client, std.http.Method.GET, uri_buf.written(), payload);
 }
-
 
 pub const resources = struct {
     pub const pet = struct {
@@ -1278,4 +1275,3 @@ pub const resources = struct {
 pub const pet = resources.pet;
 pub const store = resources.store;
 pub const user = resources.user;
-

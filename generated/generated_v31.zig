@@ -12,8 +12,6 @@ pub const Pet = struct {
     name: []const u8,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -491,6 +489,4 @@ pub fn parseSseReaderTyped(comptime T: type, allocator: std.mem.Allocator, reade
 const max_sse_line_size = 256 * 1024;
 const max_sse_event_size = 1024 * 1024;
 
-pub const resources = struct {
-};
-
+pub const resources = struct {};
