@@ -64,8 +64,6 @@ pub const ApiResponse = struct {
     code: ?i64 = null,
 };
 
-
-
 pub fn Owned(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -594,7 +592,7 @@ pub fn placeOrderResult(client: *Client, requestBody: Order) !ApiResult(Order) {
 // uploads an image
 //
 // Description:
-// 
+//
 //
 pub fn uploadFile(client: *Client, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !Owned(ApiResponse) {
     var result = try uploadFileResult(client, petId, additionalMetadata, requestBody);
@@ -707,7 +705,7 @@ pub fn getPetByIdResult(client: *Client, petId: i64) !ApiResult(Pet) {
 // Updates a pet in the store with form data
 //
 // Description:
-// 
+//
 //
 pub fn updatePetWithForm(client: *Client, petId: i64, name: ?[]const u8, status: ?[]const u8) !void {
     var raw = try updatePetWithFormRaw(client, petId, name, status);
@@ -737,7 +735,7 @@ pub fn updatePetWithFormRaw(client: *Client, petId: i64, name: ?[]const u8, stat
 // Deletes a pet
 //
 // Description:
-// 
+//
 //
 pub fn deletePet(client: *Client, api_key: ?[]const u8, petId: i64) !void {
     var raw = try deletePetRaw(client, api_key, petId);
@@ -813,7 +811,7 @@ pub fn findPetsByTagsResult(client: *Client, tags: ?[]const u8) !ApiResult([]con
 // Logs user into the system
 //
 // Description:
-// 
+//
 //
 pub fn loginUser(client: *Client, username: ?[]const u8, password: ?[]const u8) !Owned([]const u8) {
     var result = try loginUserResult(client, username, password);
@@ -932,7 +930,7 @@ pub fn getInventoryResult(client: *Client) !ApiResult(std.json.Value) {
 // Get user by user name
 //
 // Description:
-// 
+//
 //
 pub fn getUserByName(client: *Client, username: []const u8) !Owned(User) {
     var result = try getUserByNameResult(client, username);
@@ -1224,7 +1222,7 @@ pub fn deleteOrderRaw(client: *Client, orderId: i64) !RawResponse {
 // Logs out current logged in user session
 //
 // Description:
-// 
+//
 //
 pub fn logoutUser(client: *Client) !void {
     var raw = try logoutUserRaw(client);
@@ -1387,7 +1385,6 @@ pub const PetClient = struct {
     pub fn uploadFileResult(self: *PetClient, petId: i64, additionalMetadata: ?[]const u8, requestBody: []const u8) !ApiResult(ApiResponse) {
         return _uploadFileResult(self.client, petId, additionalMetadata, requestBody);
     }
-
 };
 
 pub const StoreClient = struct {
@@ -1440,7 +1437,6 @@ pub const StoreClient = struct {
     pub fn getOrderByIdResult(self: *StoreClient, orderId: i64) !ApiResult(Order) {
         return _getOrderByIdResult(self.client, orderId);
     }
-
 };
 
 pub const UserClient = struct {
@@ -1517,6 +1513,4 @@ pub const UserClient = struct {
     pub fn updateUserRaw(self: *UserClient, username: []const u8, requestBody: User) !RawResponse {
         return _updateUserRaw(self.client, username, requestBody);
     }
-
 };
-
