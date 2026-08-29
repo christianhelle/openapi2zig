@@ -1551,7 +1551,7 @@ pub const UnifiedApiGenerator = struct {
                 const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
                 try self.appendIdentifier(name);
                 try self.buffer.appendSlice(self.allocator, ": ");
-                if (param.location == .query and !param.required) try self.buffer.appendSlice(self.allocator, "?");
+                if ((param.location == .query or param.location == .header) and !param.required) try self.buffer.appendSlice(self.allocator, "?");
                 try self.appendParamBaseType(param);
             }
         }
@@ -2620,7 +2620,7 @@ pub const UnifiedApiGenerator = struct {
                 const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
                 try self.appendParameterName(name, forbidden_names);
                 try self.buffer.appendSlice(self.allocator, ": ");
-                if (param.location == .query and !param.required) {
+                if ((param.location == .query or param.location == .header) and !param.required) {
                     try self.buffer.appendSlice(self.allocator, "?");
                 }
                 try self.appendParamBaseType(param);
