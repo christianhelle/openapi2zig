@@ -1694,7 +1694,7 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
-    fn headerLocalNamesAlloc(self: *UnifiedApiGenerator, operation: Operation) !HeaderLocalNames {
+    fn headerLocalNamesAlloc(self: *UnifiedApiGenerator, operation: Operation) std.mem.Allocator.Error!HeaderLocalNames {
         var headers = try self.allocator.dupe(u8, "operation_headers");
         errdefer self.allocator.free(headers);
 

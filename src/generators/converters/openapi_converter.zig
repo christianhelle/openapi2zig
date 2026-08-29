@@ -69,7 +69,7 @@ pub const OpenApiConverter = struct {
         };
     }
 
-    fn convertSecuritySchemes(self: *OpenApiConverter, components: Components3) !?*std.StringHashMap(UnifiedSecurityScheme) {
+    fn convertSecuritySchemes(self: *OpenApiConverter, components: Components3) std.mem.Allocator.Error!?*std.StringHashMap(UnifiedSecurityScheme) {
         const source = components.securitySchemes orelse return null;
         const converted = try self.allocator.create(std.StringHashMap(UnifiedSecurityScheme));
         converted.* = std.StringHashMap(UnifiedSecurityScheme).init(self.allocator);
