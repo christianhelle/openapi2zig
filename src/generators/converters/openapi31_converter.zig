@@ -23,6 +23,8 @@ const ExternalDocs31 = @import("../../models/v3.1/externaldocs.zig").ExternalDoc
 const Tag31 = @import("../../models/v3.1/tag.zig").Tag;
 const Server31 = @import("../../models/v3.1/server.zig").Server;
 const SecurityRequirement31 = @import("../../models/v3.1/security.zig").SecurityRequirement;
+const SecuritySchemeOrReference31 = @import("../../models/v3.1/security.zig").SecuritySchemeOrReference;
+const UnifiedSecurityScheme = @import("../../models/common/document.zig").SecurityScheme;
 const Components31 = @import("../../models/v3.1/components.zig").Components;
 const SchemaOrReference31 = @import("../../models/v3.1/schema.zig").SchemaOrReference;
 const Schema31 = @import("../../models/v3.1/schema.zig").Schema;
@@ -53,18 +55,63 @@ pub const OpenApi31Converter = struct {
         const tags = if (openapi.tags) |tags_list| try self.convertTags(tags_list) else null;
         const externalDocs = if (openapi.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
         const schemas = if (openapi.components) |components| try self.convertSchemas(components) else null;
+        const security_schemes = if (openapi.components) |components| try self.convertSecuritySchemes(components) else null;
         return UnifiedDocument{
             .version = version,
             .info = info,
             .paths = paths,
             .servers = servers,
             .security = security,
+            .security_schemes = security_schemes,
             .tags = tags,
             .externalDocs = externalDocs,
             .schemas = schemas,
             .parameters = null,
             .responses = null,
         };
+    }
+
+    fn convertSecuritySchemes(self: *OpenApi31Converter, components: Components31) std.mem.Allocator.Error!?*std.StringHashMap(UnifiedSecurityScheme) {
+        const source = components.securitySchemes orelse return null;
+        const converted = try self.allocator.create(std.StringHashMap(UnifiedSecurityScheme));
+        converted.* = std.StringHashMap(UnifiedSecurityScheme).init(self.allocator);
+        errdefer {
+            var iterator = converted.iterator();
+            while (iterator.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(self.allocator);
+            }
+            converted.deinit();
+            self.allocator.destroy(converted);
+        }
+        var iterator = source.iterator();
+        while (iterator.next()) |entry| switch (entry.value_ptr.*) {
+            .security_scheme => |scheme| switch (scheme) {
+                .http => |http| if (std.ascii.eqlIgnoreCase(http.scheme, "bearer")) {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    converted.put(key, .bearer) catch |err| {
+                        self.allocator.free(key);
+                        return err;
+                    };
+                },
+                .api_key => |api_key| if (std.mem.eql(u8, api_key.in_field, "header")) {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    const name = self.allocator.dupe(u8, api_key.name) catch |err| {
+                        self.allocator.free(key);
+                        return err;
+                    };
+                    const scheme_value: UnifiedSecurityScheme = .{ .api_key_header = .{ .name = name } };
+                    converted.put(key, scheme_value) catch |err| {
+                        self.allocator.free(key);
+                        self.allocator.free(name);
+                        return err;
+                    };
+                },
+                else => {},
+            },
+            .reference => {},
+        };
+        return converted;
     }
 
     fn convertInfo(self: *OpenApi31Converter, info: Info31) DocumentInfo {
