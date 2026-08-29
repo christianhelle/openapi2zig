@@ -108,6 +108,29 @@ test "generated Raw function passes headers to the shared request helper" {
     try std.testing.expect(std.mem.indexOf(u8, code, "return requestRawWithExtraHeaders(client, std.http.Method.POST, uri_buf.written(), payload, headers.items);") != null);
 }
 
+test "operation headers replace every default with their declared wire name" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildHeaderFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "headers.orderedRemove(i);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try headers.append(allocator, .{ .name = name, .value = value });") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "@compileError(\"OpenAPI header values must be strings, numbers, booleans, or enums\");") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "errdefer allocator.free(header_value);") != null);
+}
+
 fn buildFixedQueryFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
     var paths = std.StringHashMap(common.PathItem).init(allocator);
     errdefer paths.deinit();
