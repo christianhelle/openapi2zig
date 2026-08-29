@@ -211,6 +211,88 @@ fn authSchemeFor(document: UnifiedDocument) AuthScheme {
     return .bearer;
 }
 
+fn authSchemeForOperation(document: UnifiedDocument, operation: Operation) ?AuthScheme {
+    const schemes = document.security_schemes orelse return .bearer;
+
+    // 1. Operation-level security
+    if (operation.security) |sec_reqs| {
+        if (sec_reqs.len == 0) return null;
+        for (sec_reqs) |sec_req| {
+            if (sec_req.schemes.count() == 0) return null;
+        }
+        for (sec_reqs) |sec_req| {
+            var min_key: ?[]const u8 = null;
+            var min_scheme: ?SecurityScheme = null;
+            var it = sec_req.schemes.iterator();
+            while (it.next()) |entry| {
+                const key = entry.key_ptr.*;
+                if (schemes.get(key)) |scheme| {
+                    if (min_key == null or std.mem.order(u8, key, min_key.?) == .lt) {
+                        min_key = key;
+                        min_scheme = scheme;
+                    }
+                }
+            }
+            if (min_scheme) |s| {
+                return switch (s) {
+                    .bearer => .bearer,
+                    .api_key_header => |ah| .{ .api_key_header = ah.name },
+                };
+            }
+        }
+        return null;
+    }
+
+    // 2. Document-level security
+    if (document.security) |sec_reqs| {
+        if (sec_reqs.len == 0) return null;
+        for (sec_reqs) |sec_req| {
+            if (sec_req.schemes.count() == 0) return null;
+        }
+        for (sec_reqs) |sec_req| {
+            var min_key: ?[]const u8 = null;
+            var min_scheme: ?SecurityScheme = null;
+            var it = sec_req.schemes.iterator();
+            while (it.next()) |entry| {
+                const key = entry.key_ptr.*;
+                if (schemes.get(key)) |scheme| {
+                    if (min_key == null or std.mem.order(u8, key, min_key.?) == .lt) {
+                        min_key = key;
+                        min_scheme = scheme;
+                    }
+                }
+            }
+            if (min_scheme) |s| {
+                return switch (s) {
+                    .bearer => .bearer,
+                    .api_key_header => |ah| .{ .api_key_header = ah.name },
+                };
+            }
+        }
+        return null;
+    }
+
+    // 3. Fall back deterministically (alphabetical)
+    var min_key: ?[]const u8 = null;
+    var min_scheme: ?SecurityScheme = null;
+    var it = schemes.iterator();
+    while (it.next()) |entry| {
+        const key = entry.key_ptr.*;
+        if (min_key == null or std.mem.order(u8, key, min_key.?) == .lt) {
+            min_key = key;
+            min_scheme = entry.value_ptr.*;
+        }
+    }
+    if (min_scheme) |s| {
+        return switch (s) {
+            .bearer => .bearer,
+            .api_key_header => |ah| .{ .api_key_header = ah.name },
+        };
+    }
+
+    return .bearer;
+}
+
 const ResourceWrapper = struct {
     segments: [][]const u8,
     method_name: []const u8,

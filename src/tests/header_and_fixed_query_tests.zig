@@ -418,3 +418,137 @@ test "fixed query text is escaped before being emitted in a Zig string literal" 
 
     try std.testing.expect(std.mem.indexOf(u8, code, "try uri_buf.writer.print(\"{s}/v1/items?filter=\\\"active\\\"\\\\draft\", .{client.base_url});") != null);
 }
+
+test "per-operation auth selects correct scheme for each operation" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    // Operation 1: requires apiKey
+    var op1_sec_schemes = std.StringHashMap([][]const u8).init(allocator);
+    try op1_sec_schemes.put(try allocator.dupe(u8, "apiKeyAuth"), &.{});
+    const op1_sec = try allocator.dupe(common.SecurityRequirement, &.{
+        .{ .schemes = op1_sec_schemes },
+    });
+    try paths.put(try allocator.dupe(u8, "/v1/apiKeyOp"), .{
+        .get = .{
+            .operationId = "apiKeyOp",
+            .security = op1_sec,
+            .responses = try responseMap(allocator),
+        },
+    });
+
+    // Operation 2: requires bearer
+    var op2_sec_schemes = std.StringHashMap([][]const u8).init(allocator);
+    try op2_sec_schemes.put(try allocator.dupe(u8, "bearerAuth"), &.{});
+    const op2_sec = try allocator.dupe(common.SecurityRequirement, &.{
+        .{ .schemes = op2_sec_schemes },
+    });
+    // Need to get the PathItem for second path; we already have first, now add second path item
+    // We add a second entry with different path
+    try paths.put(try allocator.dupe(u8, "/v1/bearerOp"), .{
+        .get = .{
+            .operationId = "bearerOp",
+            .security = op2_sec,
+            .responses = try responseMap(allocator),
+        },
+    });
+
+    var document: common.UnifiedDocument = .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+    defer document.deinit(allocator);
+
+    const schemes = try allocator.create(std.StringHashMap(common.SecurityScheme));
+    schemes.* = std.StringHashMap(common.SecurityScheme).init(allocator);
+    document.security_schemes = schemes;
+    try schemes.put(try allocator.dupe(u8, "bearerAuth"), .bearer);
+    try schemes.put(try allocator.dupe(u8, "apiKeyAuth"), .{
+        .api_key_header = .{ .name = try allocator.dupe(u8, "x-api-key") },
+    });
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // Both auth header strings must appear in generated code for respective operations
+    try std.testing.expect(std.mem.indexOf(u8, code, "x-api-key") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "Bearer") != null);
+    // Verify per-operation functions contain correct auth
+    const api_key_fn = std.mem.indexOf(u8, code, "pub fn apiKeyOpRaw") orelse unreachable;
+    const bearer_fn = std.mem.indexOf(u8, code, "pub fn bearerOpRaw") orelse unreachable;
+    const api_key_header_pos = std.mem.indexOf(u8, code, "\"x-api-key\"") orelse unreachable;
+    const bearer_header_pos = std.mem.indexOf(u8, code, "\"Bearer") orelse unreachable;
+    // apiKey header should appear near apiKeyOp (before bearerOp) and bearer header near bearerOp
+    // This checks that each operation's generated function has its own auth, not just global
+    try std.testing.expect(api_key_header_pos > api_key_fn);
+    try std.testing.expect(bearer_header_pos > bearer_fn);
+    // Global appendClientHeaders should not contain both (it should be neutral or per-op)
+    // At minimum, per-op code must have both; global duplication is okay but per-op is required
+}
+
+test "operation with empty security emits no auth header" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    // Operation with explicit no-auth (security: [])
+    const empty_sec = try allocator.alloc(common.SecurityRequirement, 0);
+    try paths.put(try allocator.dupe(u8, "/v1/noAuthOp"), .{
+        .get = .{
+            .operationId = "noAuthOp",
+            .security = empty_sec,
+            .responses = try responseMap(allocator),
+        },
+    });
+
+    var document: common.UnifiedDocument = .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+    defer document.deinit(allocator);
+
+    const schemes = try allocator.create(std.StringHashMap(common.SecurityScheme));
+    schemes.* = std.StringHashMap(common.SecurityScheme).init(allocator);
+    document.security_schemes = schemes;
+    try schemes.put(try allocator.dupe(u8, "bearerAuth"), .bearer);
+    try schemes.put(try allocator.dupe(u8, "apiKeyAuth"), .{
+        .api_key_header = .{ .name = try allocator.dupe(u8, "x-api-key") },
+    });
+    // Document-level security would normally pick apiKey, but operation explicitly disables auth
+    var doc_sec_schemes = std.StringHashMap([][]const u8).init(allocator);
+    try doc_sec_schemes.put(try allocator.dupe(u8, "apiKeyAuth"), &.{});
+    const doc_sec = try allocator.dupe(common.SecurityRequirement, &.{
+        .{ .schemes = doc_sec_schemes },
+    });
+    document.security = doc_sec;
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // With explicit no-auth, no auth header code should be emitted anywhere
+    try std.testing.expect(std.mem.indexOf(u8, code, "Bearer") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "x-api-key") == null);
+    // The operation's raw function should exist and not trigger auth
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn noAuthOpRaw") != null);
+}
