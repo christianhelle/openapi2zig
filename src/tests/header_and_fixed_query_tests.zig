@@ -257,3 +257,38 @@ test "a trailing '?' with no fixed key/value pairs still starts with a single '?
     try std.testing.expect(std.mem.indexOf(u8, code, "\"{s}/v1/items\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "var first_query = true;") != null);
 }
+
+test "fixed query text is escaped before being emitted in a Zig string literal" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    const params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "limit", .location = .query, .required = false, .schema = .{ .type = .integer } },
+    });
+    try paths.put(try allocator.dupe(u8, "/v1/items?filter=\"active\"\\draft"), .{
+        .get = .{
+            .operationId = "listEscapedItems",
+            .parameters = params,
+            .responses = try responseMap(allocator),
+        },
+    });
+    var document: common.UnifiedDocument = .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "try uri_buf.writer.print(\"{s}/v1/items?filter=\\\"active\\\"\\\\draft\", .{client.base_url});") != null);
+}
