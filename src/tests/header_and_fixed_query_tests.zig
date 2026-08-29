@@ -115,6 +115,27 @@ test "header API key security emits its declared auth header" {
     try std.testing.expect(std.mem.indexOf(u8, code, "auth_header = try std.fmt.allocPrint(allocator, \"Bearer {s}\", .{client.api_key});") == null);
 }
 
+test "SecurityScheme deinit correctly frees ApiKeyHeader allocation" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var schemes = try allocator.create(std.StringHashMap(common.SecurityScheme));
+    schemes.* = std.StringHashMap(common.SecurityScheme).init(allocator);
+
+    const key = try allocator.dupe(u8, "apiKey");
+    const val = try allocator.dupe(u8, "X-API-Key");
+    try schemes.put(key, .{ .api_key_header = .{ .name = val } });
+
+    var document = common.UnifiedDocument{
+        .version = "3.0.0",
+        .info = .{ .title = "test", .version = "1.0.0" },
+        .paths = std.StringHashMap(common.PathItem).init(allocator),
+        .security_schemes = schemes,
+    };
+    defer document.deinit(allocator);
+}
+
 test "generated Raw function passes headers to the shared request helper" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();

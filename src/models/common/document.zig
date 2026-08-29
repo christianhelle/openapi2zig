@@ -61,11 +61,23 @@ pub const SecurityRequirement = struct {
     }
 };
 
+pub const ApiKeyHeader = struct {
+    name: []const u8,
+    pub fn deinit(self: *ApiKeyHeader, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+    }
+};
+
 pub const SecurityScheme = union(enum) {
     bearer,
-    api_key_header: struct {
-        name: []const u8,
-    },
+    api_key_header: ApiKeyHeader,
+
+    pub fn deinit(self: *SecurityScheme, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .api_key_header => |*scheme| scheme.deinit(allocator),
+            .bearer => {},
+        }
+    }
 };
 
 pub const SchemaType = enum {
@@ -268,10 +280,7 @@ pub const UnifiedDocument = struct {
             var iterator = schemes.iterator();
             while (iterator.next()) |entry| {
                 allocator.free(entry.key_ptr.*);
-                switch (entry.value_ptr.*) {
-                    .api_key_header => |scheme| allocator.free(scheme.name),
-                    .bearer => {},
-                }
+                entry.value_ptr.deinit(allocator);
             }
             schemes.deinit();
             allocator.destroy(schemes);

@@ -79,7 +79,7 @@ pub const OpenApi31Converter = struct {
             var iterator = converted.iterator();
             while (iterator.next()) |entry| {
                 self.allocator.free(entry.key_ptr.*);
-                if (entry.value_ptr.* == .api_key_header) self.allocator.free(entry.value_ptr.api_key_header.name);
+                entry.value_ptr.deinit(self.allocator);
             }
             converted.deinit();
             self.allocator.destroy(converted);
