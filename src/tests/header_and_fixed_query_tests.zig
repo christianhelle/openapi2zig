@@ -63,7 +63,7 @@ test "required header parameters are sent as request headers, not discarded" {
     // The required header parameter must never be silently discarded.
     try std.testing.expect(std.mem.indexOf(u8, code, "_ = @\"anthropic-version\";") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "const header_value = try formatHeaderValue(allocator, @\"anthropic-version\");") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "try appendOrReplaceHeader(allocator, &headers, \"anthropic-version\", header_value);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try appendOrReplaceHeader(allocator, &operation_headers, \"anthropic-version\", header_value);") != null);
 }
 
 test "optional header parameters are only sent when non-null" {
@@ -85,7 +85,7 @@ test "optional header parameters are only sent when non-null" {
 
     try std.testing.expect(std.mem.indexOf(u8, code, "_ = @\"anthropic-beta\";") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "if (@\"anthropic-beta\") |value| {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "try appendOrReplaceHeader(allocator, &headers, \"anthropic-beta\", header_value);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try appendOrReplaceHeader(allocator, &operation_headers, \"anthropic-beta\", header_value);") != null);
 }
 
 test "generated Raw function passes headers to the shared request helper" {
@@ -105,7 +105,7 @@ test "generated Raw function passes headers to the shared request helper" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "return requestRawWithExtraHeaders(client, std.http.Method.POST, uri_buf.written(), payload, headers.items);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return requestRawWithExtraHeaders(client, std.http.Method.POST, uri_buf.written(), payload, operation_headers.items);") != null);
 }
 
 test "operation headers replace every default with their declared wire name" {
