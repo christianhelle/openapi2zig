@@ -264,7 +264,8 @@ test "header parameters are read from the options struct" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "_ = options.@\"X-Request-Id\";") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (options.@\"X-Request-Id\") |value| {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try appendOrReplaceHeader(allocator, &headers, \"X-Request-Id\", header_value);") != null);
 }
 
 test "operations without an operation id read query parameters from the options struct" {
@@ -597,7 +598,8 @@ test "duplicate parameter names are disambiguated in the options struct" {
 
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const dupOptions = struct {\n    filter: ?[]const u8 = null,\n    filter_1: ?[]const u8 = null,\n};") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "if (options.filter) |value| {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "_ = options.filter_1;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "if (options.filter_1) |value| {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try appendOrReplaceHeader(allocator, &headers, \"filter\", header_value);") != null);
 }
 
 test "options type name is disambiguated when an operation shares it" {
