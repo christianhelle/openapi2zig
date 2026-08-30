@@ -67,7 +67,7 @@ pub fn isUnchanged(
     const existing = cwd.readFileAlloc(io, path, allocator, .unlimited) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => {
-            std.log.warn("Could not read existing '{s}' to check for changes ({t}); it will be overwritten", .{ path, err });
+            std.log.warn("Could not read existing '{s}' to check for changes ({}); it will be overwritten", .{ path, err });
             return false;
         },
     };

@@ -1092,6 +1092,7 @@ test "single file output is zig fmt clean" {
     const test_utils = @import("../tests/test_utils.zig");
 
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
@@ -1115,6 +1116,7 @@ test "multi file output is zig fmt clean" {
     const test_utils = @import("../tests/test_utils.zig");
 
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
@@ -1140,6 +1142,7 @@ test "generateCodeFromUnifiedDocument skips rewriting a non-empty unchanged spec
     const test_utils = @import("../tests/test_utils.zig");
 
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
@@ -1175,6 +1178,7 @@ test "generateMultipleFiles skips rewriting a non-empty unchanged spec" {
     const test_utils = @import("../tests/test_utils.zig");
 
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
@@ -1218,6 +1222,7 @@ test "generateCodeFromUnifiedDocument skips rewriting an unchanged absolute outp
     const test_utils = @import("../tests/test_utils.zig");
 
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
@@ -1256,6 +1261,7 @@ test "generateRuntimeOnly skips rewriting an unchanged absolute output path" {
     const test_utils = @import("../tests/test_utils.zig");
 
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     var tmp = std.testing.tmpDir(.{});
@@ -1291,6 +1297,7 @@ test "empty resources wrapper is emitted on a single line" {
     const test_utils = @import("../tests/test_utils.zig");
 
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const json =

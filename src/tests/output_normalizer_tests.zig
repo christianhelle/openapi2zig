@@ -4,6 +4,7 @@ const normalizer = @import("../generators/output_normalizer.zig");
 
 test "normalize strips trailing whitespace from lines" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "// Description:\n// \n//\nconst a = 1;\n";
@@ -15,6 +16,7 @@ test "normalize strips trailing whitespace from lines" {
 
 test "normalize collapses consecutive blank lines" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "const a = 1;\n\n\n\nconst b = 2;\n";
@@ -26,6 +28,7 @@ test "normalize collapses consecutive blank lines" {
 
 test "normalize ends output with exactly one newline" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "const a = 1;\n\n\n";
@@ -37,6 +40,7 @@ test "normalize ends output with exactly one newline" {
 
 test "normalize appends a trailing newline when missing" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const result = try normalizer.normalize(allocator, "const a = 1;");
@@ -47,6 +51,7 @@ test "normalize appends a trailing newline when missing" {
 
 test "normalize strips carriage returns" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const result = try normalizer.normalize(allocator, "const a = 1;\r\nconst b = 2;\r\n");
@@ -57,6 +62,7 @@ test "normalize strips carriage returns" {
 
 test "normalize is idempotent" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "// Description:\n// \n//\n\n\n\nconst a = 1;   \n\n\n";
@@ -70,6 +76,7 @@ test "normalize is idempotent" {
 
 test "normalize leaves already clean output untouched" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "const std = @import(\"std\");\n\npub fn main() void {}\n";
@@ -81,6 +88,7 @@ test "normalize leaves already clean output untouched" {
 
 test "normalize handles empty input" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const result = try normalizer.normalize(allocator, "");
@@ -91,6 +99,7 @@ test "normalize handles empty input" {
 
 test "normalize preserves indentation" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "pub fn main() void {\n    const a = 1;\n}\n";
@@ -102,6 +111,7 @@ test "normalize preserves indentation" {
 
 test "normalize drops blank lines before a closing brace" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "pub const C = struct {\n    a: u8,\n\n};\n";
@@ -113,6 +123,7 @@ test "normalize drops blank lines before a closing brace" {
 
 test "normalize drops blank lines before a closing paren or bracket" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "call(\n    a,\n\n);\nconst x = [_]u8{\n    1,\n\n};\n";
@@ -124,6 +135,7 @@ test "normalize drops blank lines before a closing paren or bracket" {
 
 test "normalize keeps blank lines between declarations" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     const input = "pub const A = struct {\n    a: u8,\n};\n\npub const B = struct {\n    b: u8,\n};\n";
