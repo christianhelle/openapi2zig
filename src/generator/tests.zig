@@ -1033,3 +1033,287 @@ test "generateRuntimeOnly supports an absolute output path" {
     defer allocator.free(runtime);
     try std.testing.expect(std.mem.indexOf(u8, runtime, "pub fn Owned") != null);
 }
+
+const churn_spec =
+    \\{
+    \\  "openapi": "3.0.0",
+    \\  "info": { "title": "fixture", "version": "1.0.0" },
+    \\  "paths": {
+    \\    "/pets": {
+    \\      "get": {
+    \\        "operationId": "listPets",
+    \\        "summary": "List pets",
+    \\        "description": "First line.\n\nSecond line.",
+    \\        "responses": {
+    \\          "200": {
+    \\            "description": "ok",
+    \\            "content": {
+    \\              "application/json": {
+    \\                "schema": { "$ref": "#/components/schemas/Pet" }
+    \\              }
+    \\            }
+    \\          }
+    \\        }
+    \\      }
+    \\    }
+    \\  },
+    \\  "components": {
+    \\    "schemas": {
+    \\      "Pet": {
+    \\        "type": "object",
+    \\        "required": ["name"],
+    \\        "properties": {
+    \\          "name": { "type": "string" },
+    \\          "id": { "type": "integer", "format": "int64" }
+    \\        }
+    \\      }
+    \\    }
+    \\  }
+    \\}
+;
+
+/// Asserts the content is already `zig fmt` clean, so that formatting the
+/// generated file cannot change it behind the generator's back.
+fn expectFormattedCleanly(content: []const u8) !void {
+    try std.testing.expect(std.mem.indexOf(u8, content, "\r") == null);
+    try std.testing.expect(std.mem.indexOf(u8, content, "\n\n\n") == null);
+    try std.testing.expect(!std.mem.endsWith(u8, content, "\n\n"));
+    try std.testing.expect(std.mem.endsWith(u8, content, "\n"));
+
+    var lines = std.mem.splitScalar(u8, content, '\n');
+    while (lines.next()) |line| {
+        if (line.len == 0) continue;
+        try std.testing.expect(line[line.len - 1] != ' ');
+        try std.testing.expect(line[line.len - 1] != '\t');
+    }
+}
+
+test "single file output is zig fmt clean" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "out/api.zig",
+    });
+
+    const content = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(content);
+
+    try expectFormattedCleanly(content);
+}
+
+test "multi file output is zig fmt clean" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+    });
+
+    for ([_][]const u8{ "out/models.zig", "out/runtime.zig", "out/client.zig" }) |path| {
+        const content = try tmp.dir.readFileAlloc(std.testing.io, path, allocator, .unlimited);
+        defer allocator.free(content);
+        try expectFormattedCleanly(content);
+    }
+}
+
+test "generateCodeFromUnifiedDocument skips rewriting a non-empty unchanged spec" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "out/api.zig",
+    });
+
+    const first = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(first);
+
+    // The header timestamp has second precision, so a rewrite is only
+    // detectable once the clock has advanced past a second boundary.
+    try std.Io.sleep(std.testing.io, .fromMilliseconds(1100), .real);
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "out/api.zig",
+    });
+
+    const second = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(second);
+
+    try std.testing.expectEqualStrings(first, second);
+}
+
+test "generateMultipleFiles skips rewriting a non-empty unchanged spec" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const args: cli.CliArgs = .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+    };
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, args);
+
+    const first_models = try tmp.dir.readFileAlloc(std.testing.io, "out/models.zig", allocator, .unlimited);
+    defer allocator.free(first_models);
+    const first_client = try tmp.dir.readFileAlloc(std.testing.io, "out/client.zig", allocator, .unlimited);
+    defer allocator.free(first_client);
+    const first_runtime = try tmp.dir.readFileAlloc(std.testing.io, "out/runtime.zig", allocator, .unlimited);
+    defer allocator.free(first_runtime);
+
+    try std.Io.sleep(std.testing.io, .fromMilliseconds(1100), .real);
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, args);
+
+    const second_models = try tmp.dir.readFileAlloc(std.testing.io, "out/models.zig", allocator, .unlimited);
+    defer allocator.free(second_models);
+    const second_client = try tmp.dir.readFileAlloc(std.testing.io, "out/client.zig", allocator, .unlimited);
+    defer allocator.free(second_client);
+    const second_runtime = try tmp.dir.readFileAlloc(std.testing.io, "out/runtime.zig", allocator, .unlimited);
+    defer allocator.free(second_runtime);
+
+    try std.testing.expectEqualStrings(first_models, second_models);
+    try std.testing.expectEqualStrings(first_client, second_client);
+    try std.testing.expectEqualStrings(first_runtime, second_runtime);
+}
+
+test "generateCodeFromUnifiedDocument skips rewriting an unchanged absolute output path" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const cwd_path = try std.process.currentPathAlloc(std.testing.io, allocator);
+    defer allocator.free(cwd_path);
+    const output_path = try std.fs.path.join(allocator, &.{ cwd_path, ".zig-cache", "tmp", &tmp.sub_path, "abs", "api.zig" });
+    defer allocator.free(output_path);
+    try std.testing.expect(std.fs.path.isAbsolute(output_path));
+
+    const args: cli.CliArgs = .{
+        .input_path = "fixture.json",
+        .output_path = output_path,
+    };
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, std.Io.Dir.cwd(), unified, args);
+
+    const first = try tmp.dir.readFileAlloc(std.testing.io, "abs/api.zig", allocator, .unlimited);
+    defer allocator.free(first);
+
+    try std.Io.sleep(std.testing.io, .fromMilliseconds(1100), .real);
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, std.Io.Dir.cwd(), unified, args);
+
+    const second = try tmp.dir.readFileAlloc(std.testing.io, "abs/api.zig", allocator, .unlimited);
+    defer allocator.free(second);
+
+    try std.testing.expectEqualStrings(first, second);
+}
+
+test "generateRuntimeOnly skips rewriting an unchanged absolute output path" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const cwd_path = try std.process.currentPathAlloc(std.testing.io, allocator);
+    defer allocator.free(cwd_path);
+    const output_path = try std.fs.path.join(allocator, &.{ cwd_path, ".zig-cache", "tmp", &tmp.sub_path, "abs", "runtime.zig" });
+    defer allocator.free(output_path);
+
+    const args: cli.CliArgs = .{
+        .input_path = "",
+        .runtime_only = true,
+        .output_path = output_path,
+    };
+
+    try generateRuntimeOnly(allocator, std.testing.io, std.Io.Dir.cwd(), args);
+
+    const first = try tmp.dir.readFileAlloc(std.testing.io, "abs/runtime.zig", allocator, .unlimited);
+    defer allocator.free(first);
+
+    try std.Io.sleep(std.testing.io, .fromMilliseconds(1100), .real);
+
+    try generateRuntimeOnly(allocator, std.testing.io, std.Io.Dir.cwd(), args);
+
+    const second = try tmp.dir.readFileAlloc(std.testing.io, "abs/runtime.zig", allocator, .unlimited);
+    defer allocator.free(second);
+
+    try std.testing.expectEqualStrings(first, second);
+}
+
+test "empty resources wrapper is emitted on a single line" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    const code = try openapi2zig.generateApi(allocator, unified, .{ .input_path = "fixture.json" });
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const resources = struct {};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const resources = struct {\n};") == null);
+}

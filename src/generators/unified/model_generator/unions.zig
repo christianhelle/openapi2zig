@@ -569,6 +569,7 @@ pub fn generateUnionAlias(self: *UnifiedModelGenerator, name: []const u8, schema
         \\
         \\    pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
         \\        return switch (source) {
+        \\
     );
     var emitted_string = false;
     var emitted_integer = false;
