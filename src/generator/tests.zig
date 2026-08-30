@@ -1072,6 +1072,70 @@ const churn_spec =
     \\}
 ;
 
+/// Asserts the content is already `zig fmt` clean, so that formatting the
+/// generated file cannot change it behind the generator's back.
+fn expectFormattedCleanly(content: []const u8) !void {
+    try std.testing.expect(std.mem.indexOf(u8, content, "\r") == null);
+    try std.testing.expect(std.mem.indexOf(u8, content, "\n\n\n") == null);
+    try std.testing.expect(!std.mem.endsWith(u8, content, "\n\n"));
+    try std.testing.expect(std.mem.endsWith(u8, content, "\n"));
+
+    var lines = std.mem.splitScalar(u8, content, '\n');
+    while (lines.next()) |line| {
+        if (line.len == 0) continue;
+        try std.testing.expect(line[line.len - 1] != ' ');
+        try std.testing.expect(line[line.len - 1] != '\t');
+    }
+}
+
+test "single file output is zig fmt clean" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateCodeFromUnifiedDocument(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .output_path = "out/api.zig",
+    });
+
+    const content = try tmp.dir.readFileAlloc(std.testing.io, "out/api.zig", allocator, .unlimited);
+    defer allocator.free(content);
+
+    try expectFormattedCleanly(content);
+}
+
+test "multi file output is zig fmt clean" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var unified = try openapi2zig.parseToUnified(allocator, churn_spec);
+    defer unified.deinit(allocator);
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try generateMultipleFiles(allocator, std.testing.io, tmp.dir, unified, .{
+        .input_path = "fixture.json",
+        .multiple_files = true,
+        .output_path = "out",
+    });
+
+    for ([_][]const u8{ "out/models.zig", "out/runtime.zig", "out/client.zig" }) |path| {
+        const content = try tmp.dir.readFileAlloc(std.testing.io, path, allocator, .unlimited);
+        defer allocator.free(content);
+        try expectFormattedCleanly(content);
+    }
+}
+
 test "generateCodeFromUnifiedDocument skips rewriting a non-empty unchanged spec" {
     const test_utils = @import("../tests/test_utils.zig");
 
