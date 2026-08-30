@@ -31,6 +31,7 @@
 
 **Merged pull requests:**
 
+- Stop rewriting generated files that have not changed [\#106](https://github.com/christianhelle/openapi2zig/pull/106) ([christianhelle](https://github.com/christianhelle))
 - Preserve OpenAPI header parameters and fixed query parameters in generated clients [\#102](https://github.com/christianhelle/openapi2zig/pull/102) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.5.0](https://github.com/christianhelle/openapi2zig/tree/v0.5.0) (2026-08-18)
