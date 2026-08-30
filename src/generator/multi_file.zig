@@ -1,6 +1,6 @@
 const std = @import("std");
 const cli = @import("../cli.zig");
-const generated_header = @import("../generators/generated_header.zig");
+const output_writer = @import("output_writer.zig");
 const UnifiedModelGenerator = @import("../generators/unified/model_generator.zig").UnifiedModelGenerator;
 const UnifiedApiGenerator = @import("../generators/unified/api_generator.zig").UnifiedApiGenerator;
 const RuntimeGenerator = @import("../generators/unified/runtime_generator.zig").RuntimeGenerator;
@@ -10,32 +10,7 @@ pub fn writeFile(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, dir_
     const full_path = try std.fs.path.join(allocator, &.{ dir_path, file_name });
     defer allocator.free(full_path);
 
-    if (!force) {
-        if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
-            defer allocator.free(existing);
-            if (!generated_header.hasChanged(existing, raw_code)) {
-                std.log.info("Skipping '{s}' (unchanged)", .{full_path});
-                return;
-            }
-        } else |_| {}
-    } else {
-        std.log.info("Force flag is set; overwriting '{s}'", .{full_path});
-    }
-
-    const checksum = generated_header.computeChecksum(raw_code);
-    const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
-    defer allocator.free(header);
-
-    const content = try std.mem.concat(allocator, u8, &.{ header, raw_code });
-    defer allocator.free(content);
-
-    if (std.fs.path.dirname(full_path)) |parent| {
-        try cwd.createDirPath(io, parent);
-    }
-    const output_file = try cwd.createFile(io, full_path, .{});
-    defer output_file.close(io);
-    try output_file.writeStreamingAll(io, content);
-    std.log.info("Wrote '{s}'", .{full_path});
+    try output_writer.writeGeneratedFile(allocator, io, cwd, full_path, raw_code, force);
 }
 
 pub fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, unified_doc: @import("../models/common/document.zig").UnifiedDocument, args: cli.CliArgs) !void {

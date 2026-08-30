@@ -5,7 +5,6 @@ const models = @import("models.zig");
 const input_loader = @import("input_loader.zig");
 const yaml_loader = @import("yaml_loader.zig");
 const document_filter = @import("document_filter.zig");
-const generated_header = @import("generators/generated_header.zig");
 const OpenApiConverter = @import("generators/converters/openapi_converter.zig").OpenApiConverter;
 const OpenApi31Converter = @import("generators/converters/openapi31_converter.zig").OpenApi31Converter;
 const OpenApi32Converter = @import("generators/converters/openapi32_converter.zig").OpenApi32Converter;
@@ -144,35 +143,8 @@ pub fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io,
     };
     defer if (!args.models_only) allocator.free(generated_code);
 
-    const checksum = generated_header.computeChecksum(generated_code);
-    const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
-    defer allocator.free(header);
-    const output_code = try std.mem.concat(allocator, u8, &.{ header, generated_code });
-    defer allocator.free(output_code);
-
     const output_path = args.output_path orelse default_output_file;
-    if (std.fs.path.dirname(output_path)) |dir_path| {
-        try cwd.createDirPath(io, dir_path);
-    }
-
-    if (!args.force) {
-        const full_path = try std.fs.path.join(allocator, &.{ ".", output_path });
-        defer allocator.free(full_path);
-        if (cwd.readFileAlloc(io, full_path, allocator, .limited(10 * 1024 * 1024))) |existing| {
-            defer allocator.free(existing);
-            if (!generated_header.hasChanged(existing, generated_code)) {
-                std.log.info("Skipping '{s}' (unchanged)", .{output_path});
-                return;
-            }
-        } else |_| {}
-    } else {
-        std.log.info("Force flag is set; overwriting '{s}'", .{output_path});
-    }
-
-    const output_file = try cwd.createFile(io, output_path, .{});
-    defer output_file.close(io);
-    try output_file.writeStreamingAll(io, output_code);
-    std.log.info("Code generated successfully and written to '{s}'.", .{output_path});
+    try output_writer.writeGeneratedFile(allocator, io, cwd, output_path, generated_code, args.force);
 }
 
 /// Generate only the runtime module. The input spec plays no role here, so
@@ -193,13 +165,11 @@ pub fn generateRuntimeOnly(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io
     }
 
     const output_path = args.output_path orelse default_runtime_only_file;
-    // Split into dir + name so writeFile never prefixes an absolute path with
-    // "./", which the OS rejects as a malformed path.
-    const output_dir = std.fs.path.dirname(output_path) orelse ".";
-    try writeFile(allocator, io, cwd, output_dir, std.fs.path.basename(output_path), generated_runtime, args.force);
+    try output_writer.writeGeneratedFile(allocator, io, cwd, output_path, generated_runtime, args.force);
 }
 
 const multi_file = @import("generator/multi_file.zig");
+const output_writer = @import("generator/output_writer.zig");
 pub const writeFile = multi_file.writeFile;
 pub const generateMultipleFiles = multi_file.generateMultipleFiles;
 
