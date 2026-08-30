@@ -1286,3 +1286,27 @@ test "generateRuntimeOnly skips rewriting an unchanged absolute output path" {
 
     try std.testing.expectEqualStrings(first, second);
 }
+
+test "empty resources wrapper is emitted on a single line" {
+    const test_utils = @import("../tests/test_utils.zig");
+
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const json =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    ;
+
+    var unified = try openapi2zig.parseToUnified(allocator, json);
+    defer unified.deinit(allocator);
+
+    const code = try openapi2zig.generateApi(allocator, unified, .{ .input_path = "fixture.json" });
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const resources = struct {};") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const resources = struct {\n};") == null);
+}

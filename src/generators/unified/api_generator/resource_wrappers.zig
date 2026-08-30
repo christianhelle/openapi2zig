@@ -100,6 +100,11 @@ pub fn generateResourceWrappers(self: *UnifiedApiGenerator, document: UnifiedDoc
     }
     if (wrappers.items.len > 0) try self.buffer.appendSlice(self.allocator, "\n");
 
+    if (wrappers.items.len == 0) {
+        try self.buffer.appendSlice(self.allocator, "pub const resources = struct {};\n\n");
+        return;
+    }
+
     try self.buffer.appendSlice(self.allocator, "pub const resources = struct {\n");
     try self.generateResourceLevel(wrappers.items, 0, 1, &.{});
     try self.buffer.appendSlice(self.allocator, "};\n\n");
