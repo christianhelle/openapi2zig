@@ -7,6 +7,7 @@
 **Implemented enhancements:**
 
 - Generate interruptible cancellation \(CancelWatcher\) for stalled SSE streams [\#99](https://github.com/christianhelle/openapi2zig/issues/99)
+- Split the four largest source files into focused modules [\#105](https://github.com/christianhelle/openapi2zig/pull/105) ([christianhelle](https://github.com/christianhelle))
 - Generate provider-compatible API key authentication [\#104](https://github.com/christianhelle/openapi2zig/pull/104) ([christianhelle](https://github.com/christianhelle))
 - Interrupt stalled SSE reads when streaming is cancelled [\#100](https://github.com/christianhelle/openapi2zig/pull/100) ([christianhelle](https://github.com/christianhelle))
 - Add --runtime-only flag to generate just the runtime module [\#98](https://github.com/christianhelle/openapi2zig/pull/98) ([christianhelle](https://github.com/christianhelle))
