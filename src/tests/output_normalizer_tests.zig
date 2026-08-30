@@ -99,3 +99,36 @@ test "normalize preserves indentation" {
 
     try std.testing.expectEqualStrings(input, result);
 }
+
+test "normalize drops blank lines before a closing brace" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const input = "pub const C = struct {\n    a: u8,\n\n};\n";
+    const result = try normalizer.normalize(allocator, input);
+    defer allocator.free(result);
+
+    try std.testing.expectEqualStrings("pub const C = struct {\n    a: u8,\n};\n", result);
+}
+
+test "normalize drops blank lines before a closing paren or bracket" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const input = "call(\n    a,\n\n);\nconst x = [_]u8{\n    1,\n\n};\n";
+    const result = try normalizer.normalize(allocator, input);
+    defer allocator.free(result);
+
+    try std.testing.expectEqualStrings("call(\n    a,\n);\nconst x = [_]u8{\n    1,\n};\n", result);
+}
+
+test "normalize keeps blank lines between declarations" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const input = "pub const A = struct {\n    a: u8,\n};\n\npub const B = struct {\n    b: u8,\n};\n";
+    const result = try normalizer.normalize(allocator, input);
+    defer allocator.free(result);
+
+    try std.testing.expectEqualStrings(input, result);
+}

@@ -28,7 +28,7 @@ pub fn normalize(allocator: std.mem.Allocator, code: []const u8) ![]const u8 {
             continue;
         }
 
-        if (wrote_any_line and pending_blank_lines > 0) {
+        if (wrote_any_line and pending_blank_lines > 0 and !startsBlock(line)) {
             try buffer.append(allocator, '\n');
         }
         pending_blank_lines = 0;
@@ -39,4 +39,15 @@ pub fn normalize(allocator: std.mem.Allocator, code: []const u8) ![]const u8 {
     }
 
     return try buffer.toOwnedSlice(allocator);
+}
+
+/// `zig fmt` removes blank lines that directly precede a closing delimiter, so
+/// a line starting one must not be preceded by a blank line.
+fn startsBlock(line: []const u8) bool {
+    const trimmed = std.mem.trimStart(u8, line, " \t");
+    if (trimmed.len == 0) return false;
+    return switch (trimmed[0]) {
+        '}', ')', ']' => true,
+        else => false,
+    };
 }
