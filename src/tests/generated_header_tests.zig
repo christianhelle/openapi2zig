@@ -93,6 +93,28 @@ test "hasChanged returns false when code has not changed" {
     try std.testing.expect(!generated_header.hasChanged(full_content, code));
 }
 
+test "hasChanged returns false when the existing file has CRLF line endings" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    // Simulates a file checked out with core.autocrlf=true, which turns the
+    // repo's LF endings into CRLF on disk.
+    const code = "pub const Foo = struct {\n    name: []const u8,\n};\n";
+    const checksum = generated_header.computeChecksum(code);
+
+    const header = try generated_header.renderWithChecksum(allocator, "0.6.0 (a1b2c3d)", "2026-07-12 21:49:56 UTC", checksum);
+    defer allocator.free(header);
+
+    const crlf_header = try std.mem.replaceOwned(u8, allocator, header, "\n", "\r\n");
+    defer allocator.free(crlf_header);
+
+    const full_content = try std.mem.concat(allocator, u8, &.{ crlf_header, code });
+    defer allocator.free(full_content);
+
+    try std.testing.expect(!generated_header.hasChanged(full_content, code));
+}
+
 test "hasChanged returns true when code has changed" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
