@@ -53,7 +53,7 @@ pub fn extractChecksum(content: []const u8) ?u64 {
     const start = std.mem.indexOf(u8, content, marker) orelse return null;
     const after = content[start + marker.len ..];
     const end = std.mem.indexOf(u8, after, "\n") orelse after.len;
-    const hex_str = std.mem.trim(u8, after[0..end], " ");
+    const hex_str = std.mem.trim(u8, after[0..end], " \r");
     return std.fmt.parseInt(u64, hex_str, 16) catch null;
 }
 
