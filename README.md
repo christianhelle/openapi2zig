@@ -349,7 +349,19 @@ var pet = try op.execute(1);
 defer pet.deinit();
 ```
 
-`--multiple-clients` is mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`; combining them is a parse error. It composes with `--multiple-files`: the client structs are emitted into the client file.
+`--multiple-clients` is mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only` and `--runtime-only`; combining them is a parse error. It composes with `--multiple-files`: the client structs are emitted into the client file.
+
+`--runtime-only` is mutually exclusive with `--models-only`, `--multiple-clients`, `--runtime-module`, and `--file-name models` / `--file-name client`; no input is required.
+
+**Generate only the runtime module:**
+```bash
+# Single file (no input needed)
+openapi2zig generate --runtime-only -o runtime.zig
+
+# Multiple-files directory (only runtime.zig is emitted)
+openapi2zig generate --runtime-only --multiple-files -o generated/runtime-only
+openapi2zig generate --runtime-only --multiple-files -o generated/shared --file-name runtime=http.zig
+```
 
 **Re-use an existing runtime when generating multiple clients (avoid duplicate `runtime.zig`):**
 ```bash

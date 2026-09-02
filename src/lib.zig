@@ -228,7 +228,35 @@ pub fn generateApi(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, a
     return try generator.generate(unified_doc);
 }
 
+/// Generate the standalone runtime module (no OpenAPI document required).
+///
+/// Parameters:
+/// - allocator: Memory allocator to use for code generation
+/// - io: Standard I/O context for reading the generation timestamp
+///
+/// Returns:
+/// - String containing the generated runtime Zig module, including the header
+pub fn generateRuntime(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
+    var runtime_gen = RuntimeGenerator.init(allocator);
+    defer runtime_gen.deinit();
+    const runtime_code = try runtime_gen.generate();
+    defer allocator.free(runtime_code);
+    const checksum = generated_header.computeChecksum(runtime_code);
+    const header = try generated_header.renderNowWithChecksum(allocator, io, checksum);
+    defer allocator.free(header);
+    return try std.mem.concat(allocator, u8, &.{ header, runtime_code });
+}
+
+fn rejectRuntimeOnlyConflicts(args: CliArgs) !void {
+    if (args.models_only) return error.InvalidArguments;
+    if (args.multiple_clients != null) return error.InvalidArguments;
+    if (args.runtime_module != null) return error.InvalidArguments;
+    if (args.file_names.models != null or args.file_names.client != null) return error.InvalidArguments;
+}
+
 /// Generate complete Zig code (models + API client) from a unified document.
+/// When `args.runtime_only` is set, returns only the runtime module and ignores
+/// `unified_doc`.
 ///
 /// Parameters:
 /// - allocator: Memory allocator to use for code generation
@@ -239,6 +267,10 @@ pub fn generateApi(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, a
 /// Returns:
 /// - String containing complete generated Zig code
 pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
+    if (args.runtime_only) {
+        try rejectRuntimeOnlyConflicts(args);
+        return try generateRuntime(allocator, io);
+    }
     const models_code = try generateModels(allocator, unified_doc);
     defer allocator.free(models_code);
 
@@ -278,8 +310,24 @@ pub const GeneratedFiles = struct {
 /// Generate separate Zig source files (models, runtime, client) from a unified document.
 /// Only the models field is always present; runtime and client are null when
 /// args.models_only is true. `runtime` is also null when `args.runtime_module` is set
-/// to reuse an existing runtime module instead of generating one.
+/// to reuse an existing runtime module instead of generating one. When
+/// `args.runtime_only` is set, only the runtime file is generated (`models` is
+/// empty and `client` is null) and `unified_doc` is ignored.
 pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) !GeneratedFiles {
+    if (args.runtime_only) {
+        try rejectRuntimeOnlyConflicts(args);
+        var runtime_gen = RuntimeGenerator.init(allocator);
+        defer runtime_gen.deinit();
+        const runtime_code = try runtime_gen.generate();
+        defer allocator.free(runtime_code);
+        const runtime_checksum = generated_header.computeChecksum(runtime_code);
+        const runtime_header = try generated_header.renderNowWithChecksum(allocator, io, runtime_checksum);
+        defer allocator.free(runtime_header);
+        const runtime_with_header = try std.mem.concat(allocator, u8, &.{ runtime_header, runtime_code });
+        errdefer allocator.free(runtime_with_header);
+        const empty_models = try allocator.dupe(u8, "");
+        return .{ .models = empty_models, .runtime = runtime_with_header, .client = null };
+    }
     const models_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.models) orelse cli.FileKind.models.defaultName(), "\\", "/");
     defer allocator.free(models_file);
     const runtime_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.runtime) orelse cli.FileKind.runtime.defaultName(), "\\", "/");
@@ -750,6 +798,98 @@ test "generateCodeMultiple rejects absolute runtime_module path" {
     try std.testing.expectError(error.InvalidArguments, generateCodeMultiple(allocator, io, unified, .{
         .input_path = "fixture.json",
         .runtime_module = "C:runtime.zig",
+    }));
+}
+
+test "generateRuntime writes the runtime module" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    const code = try generateRuntime(allocator, std.testing.io);
+    defer allocator.free(code);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn Owned") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const RawResponse") != null);
+}
+
+test "generateCode with runtime_only ignores the document" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var unified = try parseToUnified(allocator,
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    );
+    defer unified.deinit(allocator);
+    const code = try generateCode(allocator, std.testing.io, unified, .{
+        .input_path = "fixture.json",
+        .runtime_only = true,
+    });
+    defer allocator.free(code);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn Owned") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const Client") == null);
+}
+
+test "generateCode with runtime_only rejects conflicting options" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var unified = try parseToUnified(allocator,
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    );
+    defer unified.deinit(allocator);
+    try std.testing.expectError(error.InvalidArguments, generateCode(allocator, std.testing.io, unified, .{
+        .input_path = "fixture.json",
+        .runtime_only = true,
+        .models_only = true,
+    }));
+}
+
+test "generateCodeMultiple with runtime_only emits only runtime" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var unified = try parseToUnified(allocator,
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    );
+    defer unified.deinit(allocator);
+    var result = try generateCodeMultiple(allocator, std.testing.io, unified, .{
+        .input_path = "fixture.json",
+        .runtime_only = true,
+        .file_names = .{ .runtime = "std.zig" },
+    });
+    defer result.deinit(allocator);
+    try std.testing.expectEqualStrings("", result.models);
+    try std.testing.expect(result.client == null);
+    try std.testing.expect(std.mem.indexOf(u8, result.runtime.?, "pub fn Owned") != null);
+}
+
+test "generateCodeMultiple with runtime_only rejects conflicting options" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var unified = try parseToUnified(allocator,
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {}
+        \\}
+    );
+    defer unified.deinit(allocator);
+    try std.testing.expectError(error.InvalidArguments, generateCodeMultiple(allocator, std.testing.io, unified, .{
+        .input_path = "fixture.json",
+        .runtime_only = true,
+        .models_only = true,
     }));
 }
 

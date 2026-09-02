@@ -48,6 +48,9 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs)
     if (args.runtime_only) {
         // The input spec is irrelevant for a runtime-only build: never
         // validate its extension or read it.
+        if (args.models_only or args.multiple_clients != null or
+            args.runtime_module != null or args.file_names.models != null or
+            args.file_names.client != null) return error.InvalidArguments;
         return generateRuntimeOnly(allocator, io, std.Io.Dir.cwd(), args);
     }
 
