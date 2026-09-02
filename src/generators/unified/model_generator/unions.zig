@@ -1,0 +1,680 @@
+const std = @import("std");
+const UnifiedDocument = @import("../../../models/common/document.zig").UnifiedDocument;
+const Schema = @import("../../../models/common/document.zig").Schema;
+const ident = @import("../ident_utils.zig");
+const model_generator = @import("../model_generator.zig");
+const UnifiedModelGenerator = model_generator.UnifiedModelGenerator;
+const isExtensibleRequest = model_generator.isExtensibleRequest;
+
+pub fn unionVariants(schema: Schema) ?[]Schema {
+    if (schema.one_of) |variants| return variants;
+    if (schema.any_of) |variants| return variants;
+    return null;
+}
+
+pub fn isNullSchema(schema: Schema) bool {
+    return schema.type == .null;
+}
+
+pub fn nonNullUnionChild(schema: Schema) ?Schema {
+    const variants = unionVariants(schema) orelse return null;
+    var child: ?Schema = null;
+    for (variants) |variant| {
+        if (isNullSchema(variant)) continue;
+        if (child != null) return null;
+        child = variant;
+    }
+    return child;
+}
+
+pub fn isStringLikeSchema(self: *UnifiedModelGenerator, schema: Schema) bool {
+    if (schema.ref) |ref| {
+        const schemas = self.source_schemas orelse return false;
+        return self.isStringLikeSchema(schemas.get(refName(ref)) orelse return false);
+    }
+    if (schema.type == .string) return true;
+    if (unionVariants(schema)) |variants| {
+        for (variants) |variant| {
+            if (isNullSchema(variant)) continue;
+            if (!self.isStringLikeSchema(variant)) return false;
+        }
+        return true;
+    }
+    return false;
+}
+
+pub fn isNullableSchema(schema: Schema) bool {
+    if (schema.nullable) return true;
+    const variants = unionVariants(schema) orelse return false;
+    for (variants) |variant| if (isNullSchema(variant)) return true;
+    return false;
+}
+
+pub fn isPrimitiveUnionSchema(schema: Schema) bool {
+    const variants = unionVariants(schema) orelse return false;
+    if (variants.len == 0) return false;
+    for (variants) |variant| {
+        if (isNullSchema(variant)) continue;
+        if (variant.ref != null or variant.properties != null or variant.items != null) return false;
+        switch (variant.type orelse return false) {
+            .string, .integer, .number, .boolean => {},
+            else => return false,
+        }
+    }
+    return true;
+}
+
+pub fn schemaVariantTag(self: *UnifiedModelGenerator, schema: Schema, discriminator_property: []const u8) ?[]const u8 {
+    const target = if (schema.ref) |ref| blk: {
+        const schemas = self.source_schemas orelse return null;
+        break :blk schemas.get(refName(ref)) orelse return null;
+    } else schema;
+    const properties = target.properties orelse return null;
+    const field = properties.get(discriminator_property) orelse return null;
+    const enum_values = field.enum_values orelse return null;
+    if (enum_values.len == 0) return null;
+    return switch (enum_values[0]) {
+        .string => |value| value,
+        else => null,
+    };
+}
+
+pub fn refName(ref: []const u8) []const u8 {
+    if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| return ref[last_slash + 1 ..];
+    return ref;
+}
+
+pub fn variantTypeNameAlloc(self: *UnifiedModelGenerator, union_name: []const u8, variant: Schema, index: usize) ![]const u8 {
+    if (variant.ref) |ref| return try self.allocator.dupe(u8, refName(ref));
+    return try std.fmt.allocPrint(self.allocator, "{s}Variant{d}", .{ union_name, index });
+}
+
+pub fn appendTitleIdentPart(self: *UnifiedModelGenerator, out: *std.ArrayList(u8), value: []const u8) !void {
+    var capitalize_next = true;
+    for (value, 0..) |c, i| {
+        if (std.ascii.isAlphanumeric(c)) {
+            const prev = if (i > 0) value[i - 1] else 0;
+            const camel_boundary = std.ascii.isUpper(c) and i > 0 and (std.ascii.isLower(prev) or std.ascii.isDigit(prev));
+            const lower = std.ascii.toLower(c);
+            try out.append(self.allocator, if (capitalize_next or camel_boundary) std.ascii.toUpper(lower) else lower);
+            capitalize_next = false;
+        } else {
+            capitalize_next = true;
+        }
+    }
+}
+
+pub fn fieldTypeNameAlloc(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8) ![]const u8 {
+    var out = std.ArrayList(u8).empty;
+    errdefer out.deinit(self.allocator);
+    try self.appendTitleIdentPart(&out, owner_name);
+    try self.appendTitleIdentPart(&out, field_name);
+    if (out.items.len == 0 or !ident.isIdentStart(out.items[0])) try out.insert(self.allocator, 0, '_');
+    return try out.toOwnedSlice(self.allocator);
+}
+
+pub fn arrayFieldItemTypeNameAlloc(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8) ![]const u8 {
+    const field_type_name = try self.fieldTypeNameAlloc(owner_name, field_name);
+    defer self.allocator.free(field_type_name);
+    return try std.fmt.allocPrint(self.allocator, "{s}Item", .{field_type_name});
+}
+
+pub fn discriminatorVariantsAreSafe(self: *UnifiedModelGenerator, variants: []Schema, discriminator_property: []const u8) !bool {
+    var names = std.StringHashMap(void).init(self.allocator);
+    defer {
+        var iterator = names.iterator();
+        while (iterator.next()) |entry| self.allocator.free(entry.key_ptr.*);
+        names.deinit();
+    }
+
+    for (variants) |variant| {
+        const tag = self.schemaVariantTag(variant, discriminator_property) orelse return false;
+        if (variant.ref == null and (variant.properties == null or variant.properties.?.count() == 0)) return false;
+        const name = try self.sanitizeIdentifierAlloc(tag);
+        errdefer self.allocator.free(name);
+        if (std.mem.eql(u8, name, "raw") or names.contains(name)) {
+            self.allocator.free(name);
+            return false;
+        }
+        try names.put(name, {});
+    }
+    return true;
+}
+
+pub fn generateInlineVariantTypes(self: *UnifiedModelGenerator, union_name: []const u8, variants: []Schema) !void {
+    for (variants, 0..) |variant, i| {
+        if (variant.ref != null) continue;
+        const type_name = try self.variantTypeNameAlloc(union_name, variant, i);
+        defer self.allocator.free(type_name);
+        if (variant.type == .array) {
+            if (variant.items) |item_schema| {
+                if (try self.canGenerateNamedArrayItemType(item_schema.*)) {
+                    const item_type_name = try std.fmt.allocPrint(self.allocator, "{s}Item", .{type_name});
+                    defer self.allocator.free(item_type_name);
+                    try self.generateSchema(item_type_name, item_schema.*);
+                }
+            }
+        }
+        if (variant.properties) |properties| {
+            if (properties.count() > 0) {
+                try self.generateFieldHelpers(type_name, properties);
+                try self.buffer.appendSlice(self.allocator, "pub const ");
+                try self.appendIdentifier(type_name);
+                try self.buffer.appendSlice(self.allocator, " = struct {\n");
+                try self.generateStructFields(type_name, properties, variant.required);
+                try self.buffer.appendSlice(self.allocator, "};\n\n");
+                continue;
+            }
+        }
+        try self.buffer.appendSlice(self.allocator, "pub const ");
+        try self.appendIdentifier(type_name);
+        try self.buffer.appendSlice(self.allocator, " = ");
+        try self.appendZigType(variant);
+        try self.buffer.appendSlice(self.allocator, ";\n\n");
+    }
+}
+
+pub fn generateDiscriminatorUnion(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !bool {
+    const variants = unionVariants(schema) orelse return false;
+    const discriminator_property = schema.discriminator_property orelse return false;
+    if (!try self.discriminatorVariantsAreSafe(variants, discriminator_property)) return false;
+
+    try self.generateInlineVariantTypes(name, variants);
+
+    try self.buffer.appendSlice(self.allocator, "pub const ");
+    try self.appendIdentifier(name);
+    try self.buffer.appendSlice(self.allocator, " = union(enum) {\n");
+
+    for (variants, 0..) |variant, i| {
+        const tag = self.schemaVariantTag(variant, discriminator_property).?;
+        const field_name = try self.sanitizeIdentifierAlloc(tag);
+        defer self.allocator.free(field_name);
+        const type_name = try self.variantTypeNameAlloc(name, variant, i);
+        defer self.allocator.free(type_name);
+        try self.buffer.appendSlice(self.allocator, "    ");
+        try self.buffer.appendSlice(self.allocator, field_name);
+        try self.buffer.appendSlice(self.allocator, ": ");
+        try self.appendIdentifier(type_name);
+        try self.buffer.appendSlice(self.allocator, ",\n");
+    }
+
+    try self.buffer.appendSlice(self.allocator,
+        \\    raw: std.json.Value,
+        \\
+        \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
+        \\        const value = try std.json.innerParse(std.json.Value, allocator, source, options);
+        \\        return jsonParseFromValue(allocator, value, options);
+        \\    }
+        \\
+        \\    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !@This() {
+        \\        if (source != .object) return error.UnexpectedToken;
+        \\
+    );
+    try self.buffer.appendSlice(self.allocator, "        const discriminator = source.object.get(");
+    try self.appendStringLiteral(discriminator_property);
+    try self.buffer.appendSlice(self.allocator,
+        \\) orelse return .{ .raw = source };
+        \\        if (discriminator != .string) return .{ .raw = source };
+        \\
+    );
+
+    for (variants, 0..) |variant, i| {
+        const tag = self.schemaVariantTag(variant, discriminator_property).?;
+        const field_name = try self.sanitizeIdentifierAlloc(tag);
+        defer self.allocator.free(field_name);
+        const type_name = try self.variantTypeNameAlloc(name, variant, i);
+        defer self.allocator.free(type_name);
+        try self.buffer.appendSlice(self.allocator, "        if (std.mem.eql(u8, discriminator.string, ");
+        try self.appendStringLiteral(tag);
+        try self.buffer.appendSlice(self.allocator, ")) {\n");
+        try self.buffer.appendSlice(self.allocator, "            return .{ .");
+        try self.buffer.appendSlice(self.allocator, field_name);
+        try self.buffer.appendSlice(self.allocator, " = try std.json.parseFromValueLeaky(");
+        try self.appendIdentifier(type_name);
+        try self.buffer.appendSlice(self.allocator, ", allocator, source, options) };\n");
+        try self.buffer.appendSlice(self.allocator, "        }\n");
+    }
+
+    try self.buffer.appendSlice(self.allocator,
+        \\
+        \\        return .{ .raw = source };
+        \\    }
+        \\
+        \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
+        \\        switch (self) {
+        \\
+    );
+
+    for (variants) |variant| {
+        const tag = self.schemaVariantTag(variant, discriminator_property).?;
+        const field_name = try self.sanitizeIdentifierAlloc(tag);
+        defer self.allocator.free(field_name);
+        try self.buffer.appendSlice(self.allocator, "            .");
+        try self.buffer.appendSlice(self.allocator, field_name);
+        try self.buffer.appendSlice(self.allocator, " => |value| try jw.write(value),\n");
+    }
+
+    try self.buffer.appendSlice(self.allocator,
+        \\            .raw => |value| try jw.write(value),
+        \\        }
+        \\    }
+        \\};
+        \\
+        \\
+    );
+    return true;
+}
+
+pub fn variantFieldNameAlloc(self: *UnifiedModelGenerator, variant: Schema, index: usize) ![]const u8 {
+    if (self.schemaVariantTag(variant, "event")) |tag| return try self.sanitizeIdentifierAlloc(tag);
+    if (self.schemaVariantTag(variant, "type")) |tag| return try self.sanitizeIdentifierAlloc(tag);
+    if (variant.ref) |ref| return try self.sanitizeIdentifierAlloc(refName(ref));
+    if (variant.title) |title| {
+        if (std.ascii.indexOfIgnoreCase(title, "text") != null and variant.type == .string) return try self.allocator.dupe(u8, "text");
+        return try self.sanitizeIdentifierAlloc(title);
+    }
+    if (variant.type) |schema_type| {
+        return try self.allocator.dupe(u8, switch (schema_type) {
+            .string => "string",
+            .integer => "integer",
+            .number => "number",
+            .boolean => "boolean",
+            .array => "items",
+            .object => "object",
+            else => "value",
+        });
+    }
+    return try std.fmt.allocPrint(self.allocator, "variant_{d}", .{index});
+}
+
+pub fn resolvedSchema(self: *UnifiedModelGenerator, schema: Schema) ?Schema {
+    if (schema.ref) |ref| {
+        const schemas = self.source_schemas orelse return null;
+        return schemas.get(refName(ref));
+    }
+    return schema;
+}
+
+pub fn stringEnumValues(self: *UnifiedModelGenerator, schema: Schema) ?[]const std.json.Value {
+    const resolved = self.resolvedSchema(schema) orelse return null;
+    if (resolved.type != .string) return null;
+    const values = resolved.enum_values orelse return null;
+    if (values.len == 0) return null;
+    for (values) |value| if (value != .string) return null;
+    return values;
+}
+
+pub fn arrayVariantFieldNameAlloc(self: *UnifiedModelGenerator, variant: Schema, index: usize) !?[]const u8 {
+    if (variant.type != .array) return null;
+    if (variant.title) |title| {
+        const name = try self.sanitizeIdentifierAlloc(title);
+        if (!std.mem.eql(u8, name, "array")) return name;
+        self.allocator.free(name);
+    }
+    const items = variant.items orelse return try std.fmt.allocPrint(self.allocator, "items_{d}", .{index});
+    if (items.ref) |ref| {
+        const base = try self.sanitizeIdentifierAlloc(refName(ref));
+        defer self.allocator.free(base);
+        return try std.fmt.allocPrint(self.allocator, "{s}_items", .{base});
+    }
+    if (items.type) |item_type| {
+        switch (item_type) {
+            .string => return try self.allocator.dupe(u8, "strings"),
+            .integer => return try self.allocator.dupe(u8, "integers"),
+            .number => return try self.allocator.dupe(u8, "numbers"),
+            .boolean => return try self.allocator.dupe(u8, "booleans"),
+            .array => return try self.allocator.dupe(u8, "arrays"),
+            else => {},
+        }
+    }
+    if (items.title) |title| {
+        const base = try self.sanitizeIdentifierAlloc(title);
+        defer self.allocator.free(base);
+        return try std.fmt.allocPrint(self.allocator, "{s}_items", .{base});
+    }
+    return try std.fmt.allocPrint(self.allocator, "items_{d}", .{index});
+}
+
+pub fn structuralVariantFieldNameAlloc(self: *UnifiedModelGenerator, variant: Schema, index: usize) ![]const u8 {
+    if (variant.ref) |ref| return try self.sanitizeIdentifierAlloc(refName(ref));
+    if (try self.arrayVariantFieldNameAlloc(variant, index)) |name| return name;
+    return self.variantFieldNameAlloc(variant, index);
+}
+
+pub fn appendStructuralVariantType(self: *UnifiedModelGenerator, union_name: []const u8, variant: Schema, index: usize) !void {
+    if (variant.ref != null or variant.properties != null) {
+        const type_name = try self.variantTypeNameAlloc(union_name, variant, index);
+        defer self.allocator.free(type_name);
+        try self.appendIdentifier(type_name);
+        return;
+    }
+    if (variant.type == .array) {
+        if (variant.items) |item_schema| {
+            if (try self.canGenerateNamedArrayItemType(item_schema.*)) {
+                const type_name = try self.variantTypeNameAlloc(union_name, variant, index);
+                defer self.allocator.free(type_name);
+                const item_type_name = try std.fmt.allocPrint(self.allocator, "{s}Item", .{type_name});
+                defer self.allocator.free(item_type_name);
+                try self.buffer.appendSlice(self.allocator, "[]const ");
+                try self.appendIdentifier(item_type_name);
+                return;
+            }
+        }
+    }
+    try self.appendZigType(variant);
+}
+
+pub fn structuralUnionVariantsAreSafe(self: *UnifiedModelGenerator, variants: []Schema) !bool {
+    var names = std.StringHashMap(void).init(self.allocator);
+    defer {
+        var iterator = names.iterator();
+        while (iterator.next()) |entry| self.allocator.free(entry.key_ptr.*);
+        names.deinit();
+    }
+    for (variants, 0..) |variant, i| {
+        if (isNullSchema(variant)) return false;
+        if (self.stringEnumValues(variant)) |values| {
+            for (values) |value| {
+                const field_name = try self.sanitizeIdentifierAlloc(value.string);
+                errdefer self.allocator.free(field_name);
+                if (std.mem.eql(u8, field_name, "raw") or names.contains(field_name)) {
+                    self.allocator.free(field_name);
+                    return false;
+                }
+                try names.put(field_name, {});
+            }
+            continue;
+        }
+        if (variant.ref == null and variant.type == null and variant.properties == null) return false;
+        const field_name = try self.structuralVariantFieldNameAlloc(variant, i);
+        errdefer self.allocator.free(field_name);
+        if (std.mem.eql(u8, field_name, "raw") or names.contains(field_name)) {
+            self.allocator.free(field_name);
+            return false;
+        }
+        try names.put(field_name, {});
+    }
+    return true;
+}
+
+pub fn generateStructuralUnion(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !bool {
+    const variants = unionVariants(schema) orelse return false;
+    if (!try self.structuralUnionVariantsAreSafe(variants)) return false;
+
+    try self.generateInlineVariantTypes(name, variants);
+
+    try self.buffer.appendSlice(self.allocator, "pub const ");
+    try self.appendIdentifier(name);
+    try self.buffer.appendSlice(self.allocator, " = union(enum) {\n");
+    for (variants, 0..) |variant, i| {
+        if (self.stringEnumValues(variant)) |values| {
+            for (values) |value| {
+                const field_name = try self.sanitizeIdentifierAlloc(value.string);
+                defer self.allocator.free(field_name);
+                try self.buffer.appendSlice(self.allocator, "    ");
+                try self.buffer.appendSlice(self.allocator, field_name);
+                try self.buffer.appendSlice(self.allocator, ",\n");
+            }
+            continue;
+        }
+        const field_name = try self.structuralVariantFieldNameAlloc(variant, i);
+        defer self.allocator.free(field_name);
+        try self.buffer.appendSlice(self.allocator, "    ");
+        try self.buffer.appendSlice(self.allocator, field_name);
+        try self.buffer.appendSlice(self.allocator, ": ");
+        try self.appendStructuralVariantType(name, variant, i);
+        try self.buffer.appendSlice(self.allocator, ",\n");
+    }
+
+    try self.buffer.appendSlice(self.allocator,
+        \\    raw: std.json.Value,
+        \\
+        \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
+        \\        const value = try std.json.innerParse(std.json.Value, allocator, source, options);
+        \\        return jsonParseFromValue(allocator, value, options);
+        \\    }
+        \\
+        \\    pub fn jsonParseFromValue(allocator: std.mem.Allocator, source: std.json.Value, options: std.json.ParseOptions) !@This() {
+        \\
+    );
+    for (variants) |variant| {
+        if (self.stringEnumValues(variant)) |values| {
+            for (values) |value| {
+                const field_name = try self.sanitizeIdentifierAlloc(value.string);
+                defer self.allocator.free(field_name);
+                try self.buffer.appendSlice(self.allocator, "        if (source == .string and std.mem.eql(u8, source.string, ");
+                try self.appendStringLiteral(value.string);
+                try self.buffer.appendSlice(self.allocator, ")) return .");
+                try self.buffer.appendSlice(self.allocator, field_name);
+                try self.buffer.appendSlice(self.allocator, ";\n");
+            }
+        }
+    }
+    for (variants, 0..) |variant, i| {
+        if (self.stringEnumValues(variant) != null) continue;
+        const field_name = try self.structuralVariantFieldNameAlloc(variant, i);
+        defer self.allocator.free(field_name);
+        try self.buffer.appendSlice(self.allocator, "        if (std.json.parseFromValueLeaky(");
+        try self.appendStructuralVariantType(name, variant, i);
+        try self.buffer.appendSlice(self.allocator, ", allocator, source, options)) |value| {\n");
+        try self.buffer.appendSlice(self.allocator, "            return .{ .");
+        try self.buffer.appendSlice(self.allocator, field_name);
+        try self.buffer.appendSlice(self.allocator, " = value };\n");
+        try self.buffer.appendSlice(self.allocator, "        } else |_| {}\n");
+    }
+    try self.buffer.appendSlice(self.allocator,
+        \\        return .{ .raw = source };
+        \\    }
+        \\
+        \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
+        \\        switch (self) {
+        \\
+    );
+    for (variants, 0..) |variant, i| {
+        if (self.stringEnumValues(variant)) |values| {
+            for (values) |value| {
+                const field_name = try self.sanitizeIdentifierAlloc(value.string);
+                defer self.allocator.free(field_name);
+                try self.buffer.appendSlice(self.allocator, "            .");
+                try self.buffer.appendSlice(self.allocator, field_name);
+                try self.buffer.appendSlice(self.allocator, " => try jw.write(");
+                try self.appendStringLiteral(value.string);
+                try self.buffer.appendSlice(self.allocator, "),\n");
+            }
+            continue;
+        }
+        const field_name = try self.structuralVariantFieldNameAlloc(variant, i);
+        defer self.allocator.free(field_name);
+        try self.buffer.appendSlice(self.allocator, "            .");
+        try self.buffer.appendSlice(self.allocator, field_name);
+        try self.buffer.appendSlice(self.allocator, " => |value| try jw.write(value),\n");
+    }
+    try self.buffer.appendSlice(self.allocator,
+        \\            .raw => |value| try jw.write(value),
+        \\        }
+        \\    }
+        \\};
+        \\
+        \\
+    );
+    return true;
+}
+
+pub fn generateUnionAlias(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) !bool {
+    if (schema.discriminator_property != null) return false;
+    if (nonNullUnionChild(schema)) |child| {
+        const variants = unionVariants(schema).?;
+        var null_count: usize = 0;
+        for (variants) |variant| {
+            if (isNullSchema(variant)) null_count += 1;
+        }
+        if (null_count == 1 and variants.len == 2) {
+            try self.buffer.appendSlice(self.allocator, "pub const ");
+            try self.appendIdentifier(name);
+            try self.buffer.appendSlice(self.allocator, " = ?");
+            try self.appendZigType(child);
+            try self.buffer.appendSlice(self.allocator, ";\n\n");
+            return true;
+        }
+    }
+    if (self.isStringLikeSchema(schema)) {
+        try self.buffer.appendSlice(self.allocator, "pub const ");
+        try self.appendIdentifier(name);
+        try self.buffer.appendSlice(self.allocator, " = ");
+        if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+        try self.buffer.appendSlice(self.allocator, "[]const u8;\n\n");
+        return true;
+    }
+
+    if (!isPrimitiveUnionSchema(schema)) return false;
+    const variants = unionVariants(schema).?;
+    var has_string = false;
+    var has_integer = false;
+    var has_number = false;
+    var has_boolean = false;
+    for (variants) |variant| {
+        if (isNullSchema(variant)) continue;
+        switch (variant.type.?) {
+            .string => has_string = true,
+            .integer => has_integer = true,
+            .number => has_number = true,
+            .boolean => has_boolean = true,
+            else => {},
+        }
+    }
+    const unique_count = @as(u8, @intFromBool(has_string)) + @as(u8, @intFromBool(has_integer)) + @as(u8, @intFromBool(has_number)) + @as(u8, @intFromBool(has_boolean));
+    if (unique_count == 1) {
+        try self.buffer.appendSlice(self.allocator, "pub const ");
+        try self.appendIdentifier(name);
+        try self.buffer.appendSlice(self.allocator, " = ");
+        if (has_string) try self.buffer.appendSlice(self.allocator, "[]const u8") else if (has_integer) try self.buffer.appendSlice(self.allocator, "i64") else if (has_number) try self.buffer.appendSlice(self.allocator, "f64") else try self.buffer.appendSlice(self.allocator, "bool");
+        try self.buffer.appendSlice(self.allocator, ";\n\n");
+        return true;
+    }
+
+    try self.buffer.appendSlice(self.allocator, "pub const ");
+    try self.appendIdentifier(name);
+    try self.buffer.appendSlice(self.allocator, " = union(enum) {\n");
+    if (has_string) try self.buffer.appendSlice(self.allocator, "    string: []const u8,\n");
+    if (has_integer) try self.buffer.appendSlice(self.allocator, "    integer: i64,\n");
+    if (has_number) try self.buffer.appendSlice(self.allocator, "    number: f64,\n");
+    if (has_boolean) try self.buffer.appendSlice(self.allocator, "    boolean: bool,\n");
+    try self.buffer.appendSlice(self.allocator,
+        \\    raw: std.json.Value,
+        \\
+        \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
+        \\        const value = try std.json.innerParse(std.json.Value, allocator, source, options);
+        \\        return jsonParseFromValue(allocator, value, options);
+        \\    }
+        \\
+        \\    pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
+        \\        return switch (source) {
+        \\
+    );
+    var emitted_string = false;
+    var emitted_integer = false;
+    var emitted_number = false;
+    var emitted_boolean = false;
+    for (variants) |variant| {
+        if (isNullSchema(variant)) continue;
+        switch (variant.type.?) {
+            .string => if (!emitted_string) {
+                emitted_string = true;
+                try self.buffer.appendSlice(self.allocator, "            .string => |value| .{ .string = value },\n");
+            },
+            .integer => if (!emitted_integer) {
+                emitted_integer = true;
+                try self.buffer.appendSlice(self.allocator, "            .integer => |value| .{ .integer = value },\n");
+            },
+            .number => if (!emitted_number) {
+                emitted_number = true;
+                try self.buffer.appendSlice(self.allocator, "            .float => |value| .{ .number = value },\n");
+            },
+            .boolean => if (!emitted_boolean) {
+                emitted_boolean = true;
+                try self.buffer.appendSlice(self.allocator, "            .bool => |value| .{ .boolean = value },\n");
+            },
+            else => {},
+        }
+    }
+    try self.buffer.appendSlice(self.allocator,
+        \\            else => .{ .raw = source },
+        \\        };
+        \\    }
+        \\
+        \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
+        \\        switch (self) {
+        \\
+    );
+    if (has_string) try self.buffer.appendSlice(self.allocator, "            .string => |value| try jw.write(value),\n");
+    if (has_integer) try self.buffer.appendSlice(self.allocator, "            .integer => |value| try jw.write(value),\n");
+    if (has_number) try self.buffer.appendSlice(self.allocator, "            .number => |value| try jw.write(value),\n");
+    if (has_boolean) try self.buffer.appendSlice(self.allocator, "            .boolean => |value| try jw.write(value),\n");
+    try self.buffer.appendSlice(self.allocator,
+        \\            .raw => |value| try jw.write(value),
+        \\        }
+        \\    }
+        \\};
+        \\
+        \\
+    );
+    return true;
+}
+
+pub fn appendJsonValueBackedUnionType(self: *UnifiedModelGenerator, name: []const u8) !void {
+    try self.buffer.appendSlice(self.allocator, "pub const ");
+    try self.appendIdentifier(name);
+    try self.buffer.appendSlice(self.allocator,
+        \\ = union(enum) {
+        \\    null,
+        \\    bool: bool,
+        \\    integer: i64,
+        \\    float: f64,
+        \\    number_string: []const u8,
+        \\    string: []const u8,
+        \\    array: std.json.Array,
+        \\    object: std.json.ObjectMap,
+        \\
+        \\    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {
+        \\        const value = try std.json.innerParse(std.json.Value, allocator, source, options);
+        \\        return jsonParseFromValue(allocator, value, options);
+        \\    }
+        \\
+        \\    pub fn jsonParseFromValue(_: std.mem.Allocator, source: std.json.Value, _: std.json.ParseOptions) !@This() {
+        \\        return switch (source) {
+        \\            .null => .null,
+        \\            .bool => |value| .{ .bool = value },
+        \\            .integer => |value| .{ .integer = value },
+        \\            .float => |value| .{ .float = value },
+        \\            .number_string => |value| .{ .number_string = value },
+        \\            .string => |value| .{ .string = value },
+        \\            .array => |value| .{ .array = value },
+        \\            .object => |value| .{ .object = value },
+        \\        };
+        \\    }
+        \\
+        \\    pub fn jsonStringify(self: @This(), jw: *std.json.Stringify) !void {
+        \\        switch (self) {
+        \\            .null => try jw.write(null),
+        \\            .bool => |value| try jw.write(value),
+        \\            .integer => |value| try jw.write(value),
+        \\            .float => |value| try jw.write(value),
+        \\            .number_string => |value| try jw.print("{s}", .{value}),
+        \\            .string => |value| try jw.write(value),
+        \\            .array => |value| try jw.write(value.items),
+        \\            .object => |value| {
+        \\                try jw.beginObject();
+        \\                var iterator = value.iterator();
+        \\                while (iterator.next()) |entry| {
+        \\                    try jw.objectField(entry.key_ptr.*);
+        \\                    try jw.write(entry.value_ptr.*);
+        \\                }
+        \\                try jw.endObject();
+        \\            },
+        \\        }
+        \\    }
+        \\};
+        \\
+        \\
+    );
+}

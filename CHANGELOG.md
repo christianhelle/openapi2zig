@@ -6,6 +6,11 @@
 
 **Implemented enhancements:**
 
+- Generate interruptible cancellation \(CancelWatcher\) for stalled SSE streams [\#99](https://github.com/christianhelle/openapi2zig/issues/99)
+- Split the four largest source files into focused modules [\#105](https://github.com/christianhelle/openapi2zig/pull/105) ([christianhelle](https://github.com/christianhelle))
+- Generate provider-compatible API key authentication [\#104](https://github.com/christianhelle/openapi2zig/pull/104) ([christianhelle](https://github.com/christianhelle))
+- Interrupt stalled SSE reads when streaming is cancelled [\#100](https://github.com/christianhelle/openapi2zig/pull/100) ([christianhelle](https://github.com/christianhelle))
+- Add --runtime-only flag to generate just the runtime module [\#98](https://github.com/christianhelle/openapi2zig/pull/98) ([christianhelle](https://github.com/christianhelle))
 - Reuse existing runtime via --runtime-module [\#94](https://github.com/christianhelle/openapi2zig/pull/94) ([christianhelle](https://github.com/christianhelle))
 - Add install-release build steps [\#93](https://github.com/christianhelle/openapi2zig/pull/93) ([christianhelle](https://github.com/christianhelle))
 - Support inline cancellation of streaming SSE reads via Client.cancel\_check [\#92](https://github.com/christianhelle/openapi2zig/pull/92) ([christianhelle](https://github.com/christianhelle))
@@ -17,7 +22,17 @@
 
 **Fixed bugs:**
 
+- PRD: Preserve OpenAPI header parameters and fixed query parameters in generated clients [\#101](https://github.com/christianhelle/openapi2zig/issues/101)
 - "type" needs to be a reserved word [\#84](https://github.com/christianhelle/openapi2zig/issues/84)
+
+**Closed issues:**
+
+- Port generated provider runtime fixes from puny PR \#161 [\#103](https://github.com/christianhelle/openapi2zig/issues/103)
+
+**Merged pull requests:**
+
+- Stop rewriting generated files that have not changed [\#106](https://github.com/christianhelle/openapi2zig/pull/106) ([christianhelle](https://github.com/christianhelle))
+- Preserve OpenAPI header parameters and fixed query parameters in generated clients [\#102](https://github.com/christianhelle/openapi2zig/pull/102) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.5.0](https://github.com/christianhelle/openapi2zig/tree/v0.5.0) (2026-08-18)
 

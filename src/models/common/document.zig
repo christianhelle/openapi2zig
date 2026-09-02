@@ -61,6 +61,25 @@ pub const SecurityRequirement = struct {
     }
 };
 
+pub const ApiKeyHeader = struct {
+    name: []const u8,
+    pub fn deinit(self: *ApiKeyHeader, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+    }
+};
+
+pub const SecurityScheme = union(enum) {
+    bearer,
+    api_key_header: ApiKeyHeader,
+
+    pub fn deinit(self: *SecurityScheme, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .api_key_header => |*scheme| scheme.deinit(allocator),
+            .bearer => {},
+        }
+    }
+};
+
 pub const SchemaType = enum {
     string,
     number,
@@ -230,6 +249,7 @@ pub const UnifiedDocument = struct {
     paths: std.StringHashMap(PathItem),
     servers: ?[]Server = null,
     security: ?[]SecurityRequirement = null,
+    security_schemes: ?*std.StringHashMap(SecurityScheme) = null,
     tags: ?[]Tag = null,
     externalDocs: ?ExternalDocumentation = null,
     schemas: ?std.StringHashMap(Schema) = null,
@@ -255,6 +275,15 @@ pub const UnifiedDocument = struct {
         if (self.security) |security| {
             for (security) |*sec| sec.deinit(allocator);
             allocator.free(security);
+        }
+        if (self.security_schemes) |schemes| {
+            var iterator = schemes.iterator();
+            while (iterator.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(allocator);
+            }
+            schemes.deinit();
+            allocator.destroy(schemes);
         }
         if (self.tags) |tags| {
             allocator.free(tags);
