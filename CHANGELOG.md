@@ -2,19 +2,20 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.1...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.2...HEAD)
 
 **Implemented enhancements:**
 
-- Add runtime-only code generation [\#107](https://github.com/christianhelle/openapi2zig/pull/107) ([christianhelle](https://github.com/christianhelle))
+- Fix skip-unchanged-output to survive CRLF checkouts [\#108](https://github.com/christianhelle/openapi2zig/pull/108) ([christianhelle](https://github.com/christianhelle))
 
-## [v0.5.1](https://github.com/christianhelle/openapi2zig/tree/v0.5.1) (2026-08-30)
+## [v0.5.2](https://github.com/christianhelle/openapi2zig/tree/v0.5.2) (2026-09-02)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.0...v0.5.1)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.0...v0.5.2)
 
 **Implemented enhancements:**
 
 - Generate interruptible cancellation \(CancelWatcher\) for stalled SSE streams [\#99](https://github.com/christianhelle/openapi2zig/issues/99)
+- Add runtime-only code generation [\#107](https://github.com/christianhelle/openapi2zig/pull/107) ([christianhelle](https://github.com/christianhelle))
 - Split the four largest source files into focused modules [\#105](https://github.com/christianhelle/openapi2zig/pull/105) ([christianhelle](https://github.com/christianhelle))
 - Generate provider-compatible API key authentication [\#104](https://github.com/christianhelle/openapi2zig/pull/104) ([christianhelle](https://github.com/christianhelle))
 - Interrupt stalled SSE reads when streaming is cancelled [\#100](https://github.com/christianhelle/openapi2zig/pull/100) ([christianhelle](https://github.com/christianhelle))
