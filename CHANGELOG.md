@@ -2,7 +2,15 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.0...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.1...HEAD)
+
+**Implemented enhancements:**
+
+- Add runtime-only code generation [\#107](https://github.com/christianhelle/openapi2zig/pull/107) ([christianhelle](https://github.com/christianhelle))
+
+## [v0.5.1](https://github.com/christianhelle/openapi2zig/tree/v0.5.1) (2026-08-30)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.0...v0.5.1)
 
 **Implemented enhancements:**
 
