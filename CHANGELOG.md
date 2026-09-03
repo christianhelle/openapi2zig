@@ -2,10 +2,19 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.2...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.3...HEAD)
 
 **Implemented enhancements:**
 
+- Expose the generate pipeline to library consumers [\#110](https://github.com/christianhelle/openapi2zig/pull/110) ([christianhelle](https://github.com/christianhelle))
+
+## [v0.5.3](https://github.com/christianhelle/openapi2zig/tree/v0.5.3) (2026-09-03)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.2...v0.5.3)
+
+**Implemented enhancements:**
+
+- Fix incorrect commands and stale API references in the docs [\#109](https://github.com/christianhelle/openapi2zig/pull/109) ([christianhelle](https://github.com/christianhelle))
 - Fix skip-unchanged-output to survive CRLF checkouts [\#108](https://github.com/christianhelle/openapi2zig/pull/108) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.5.2](https://github.com/christianhelle/openapi2zig/tree/v0.5.2) (2026-09-02)
