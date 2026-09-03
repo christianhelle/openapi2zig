@@ -126,7 +126,13 @@ The openapi2zig is available as a Docker image on Docker Hub at `christianhelle/
 ```bash
 # Pull the latest image
 docker pull christianhelle/openapi2zig
+
+# Generate into the current directory (mounted at the image's /app workdir)
+docker run --rm -v "$PWD:/app" christianhelle/openapi2zig \
+  generate -i petstore.json -o api.zig
 ```
+
+The image's entrypoint is the binary itself, so arguments are passed straight through and `docker run --rm christianhelle/openapi2zig` prints the usage text. Paths are resolved inside the container, relative to the `/app` working directory, so mount the directory holding your spec there. The container runs as UID 1001; on Linux the mounted directory must be writable by that user for the output to be written.
 
 ## Quick Start
 
