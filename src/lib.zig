@@ -910,6 +910,7 @@ test "generateCodeMultiple with runtime_only rejects conflicting options" {
 
 test "generateFromSpec generates a client from a spec on disk" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
     var tmp = std.testing.tmpDir(.{});
