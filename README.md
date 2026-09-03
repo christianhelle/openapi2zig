@@ -486,7 +486,7 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-Input and output paths are resolved relative to the process's working directory. The input can also be a YAML file or an `http`/`https` URL.
+Input and output paths are resolved relative to the process's working directory. The input can also be a YAML file or an `http`/`https` URL ending in `.json`, `.yaml`, or `.yml`.
 
 #### Inspect a specification
 
