@@ -29,7 +29,7 @@ All specifications are supported in JSON and YAML format.
 
 ## Prerequisites
 
-- [Zig](https://ziglang.org/download/) v0.16.0
+- [Zig](https://ziglang.org/download/) v0.16.0 or newer
 
 ## Development Environment
 
@@ -84,10 +84,10 @@ The install scripts will:
 
 ```bash
 # Linux/macOS
-INSTALL_DIR=$HOME/.local/bin curl -fsSL https://christianhelle.com/openapi2zig/install | bash
+curl -fsSL https://christianhelle.com/openapi2zig/install | INSTALL_DIR=$HOME/.local/bin bash
 
 # Windows
-irm https://christianhelle.com/openapi2zig/install.ps1 | iex -InstallDir "C:\Tools"
+& ([scriptblock]::Create((irm https://christianhelle.com/openapi2zig/install.ps1))) -InstallDir "C:\Tools"
 ```
 
 ### Option 2: Manual Download
@@ -126,7 +126,13 @@ The openapi2zig is available as a Docker image on Docker Hub at `christianhelle/
 ```bash
 # Pull the latest image
 docker pull christianhelle/openapi2zig
+
+# Generate into the current directory (mounted at the image's /app workdir)
+docker run --rm -v "$PWD:/app" christianhelle/openapi2zig \
+  generate -i petstore.json -o api.zig
 ```
+
+The image's entrypoint is the binary itself, so arguments are passed straight through and `docker run --rm christianhelle/openapi2zig` prints the usage text. Paths are resolved inside the container, relative to the `/app` working directory, so mount the directory holding your spec there. The container runs as UID 1001; on Linux the mounted directory must be writable by that user for the output to be written.
 
 ## Quick Start
 
@@ -214,16 +220,16 @@ zig build -Dtarget=aarch64-linux
 openapi2zig generate [options]
 ```
 
-The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a local file or `http`/`https` URL, auto-detects the spec version, and writes one Zig source file containing models, runtime helpers, and API functions.
+The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a local file or `http`/`https` URL and auto-detects the spec version. By default it writes a single self-contained Zig source file holding the models, the runtime helpers, and the API functions; `--multiple-files` splits those into `models.zig`, `runtime.zig`, and `client.zig` instead, and `--models-only` / `--runtime-only` emit just one of the pieces.
 
 ### Options
 
 | Flag | Description |
 | :--- | :--- |
-| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger JSON or YAML spec from a file path or `http`/`https` URL. Required, except with `--runtime-only` where it is ignored. |
-| `-o`, `--output <path>` | Output file for the generated Zig code. Defaults to `generated.zig`. Parent directories are created when needed. |
+| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger spec from a file path or `http`/`https` URL. The format is chosen from the suffix, so the path or URL must end in `.json`, `.yaml`, or `.yml` — an extensionless URL such as `https://example.com/api/v3/openapi` fails with `UnsupportedExtension`. Required, except with `--runtime-only` where it is ignored. |
+| `-o`, `--output <path>` | Where the generated code is written. Without `--multiple-files` this is a file path, defaulting to `generated.zig` (or `runtime.zig` with `--runtime-only`). With `--multiple-files` it is the output directory instead, defaulting to `generated/`. Parent directories are created when needed. |
 | `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
-| `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`. |
+| `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`, except with `--multiple-clients`, where it defaults to `none`. |
 | `--multiple-clients <mode>` | Generate per-tag or per-endpoint client structs that delegate to the flat API functions. Modes: `PerTag` (default when the flag is given without a value) and `PerEndpoint`. Mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`. |
 | `--tag <name>` | Include only operations carrying the specified OpenAPI tag. Schemas are removed only when unreachable from retained operations; transitively referenced schemas remain preserved. Operations without any of the requested tags (including untagged operations) are skipped. The `--tag` option can be specified multiple times, e.g. `--tag pet --tag store --tag user`. |
 | `--models-only` | Generate only Zig models, skipping the API client. |
@@ -318,7 +324,7 @@ var pets = try api.findPetsByStatus(&client, .{ .status = "available" });
 defer pets.deinit();
 ```
 
-Required path and query parameters are emitted as non-optional struct fields, and the request body stays a separate `requestBody` argument. Resource wrapper, per-tag, and per-endpoint methods follow the same shape.
+Required path and query parameters are emitted as non-optional struct fields, and the request body stays a separate `requestBody` argument. The struct is generated alongside the operation and named `<operationId>Options`, so `findPetsByStatus` gets a `findPetsByStatusOptions` you can name explicitly instead of relying on `.{ ... }` inference. Resource wrapper, per-tag, and per-endpoint methods follow the same shape.
 
 **Generate only endpoints and models for selected tags:**
 ```bash
@@ -351,7 +357,7 @@ defer pet.deinit();
 
 `--multiple-clients` is mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only` and `--runtime-only`; combining them is a parse error. It composes with `--multiple-files`: the client structs are emitted into the client file.
 
-`--runtime-only` is mutually exclusive with `--models-only`, `--multiple-clients`, `--runtime-module`, and `--file-name models` / `--file-name client`; no input is required.
+`--runtime-only` rejects every flag that only makes sense for a spec-driven build: `--models-only`, `--multiple-clients`, `--runtime-module`, `--tag`, `--base-url`, `--parameters-as-struct`, an explicit `--resource-wrappers` (even `none`), and `--file-name models` / `--file-name client`. Passing any of them is a parse error. No input is required, and `-i` is ignored when given.
 
 **Generate only the runtime module:**
 ```bash
@@ -430,19 +436,22 @@ openapi2zig can also be used as a Zig library for parsing OpenAPI/Swagger specif
 
 ### Adding as a Dependency
 
-Add openapi2zig to your `build.zig.zon`:
+Let Zig write the entry for you rather than hand-editing `build.zig.zon`. In a new project, `zig init` first generates a valid manifest (including the unique `.fingerprint` that Zig requires and refuses to accept a placeholder for), then `zig fetch --save` adds the dependency and computes its hash:
+
+```bash
+zig init   # only if you do not already have a build.zig.zon
+zig fetch --save https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.2.tar.gz
+```
+
+That adds an entry to `.dependencies` like this one — leave the `.hash` exactly as `zig fetch` wrote it, since it, not the URL, is what identifies the package:
 
 ```zig
-.{
-    .name = "my-project",
-    .version = "0.1.0",
     .dependencies = .{
         .openapi2zig = .{
-            .url = "https://github.com/christianhelle/openapi2zig/archive/refs/tags/v1.0.0.tar.gz",
-            .hash = "12345...", // Replace with actual hash from `zig fetch`
+            .url = "https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.2.tar.gz",
+            .hash = "openapi2zig-0.2.0-ykENAgs6qADVacteBBRku7J9q6iFkS-wpPGW06fdrVNx",
         },
     },
-}
 ```
 
 Then in your `build.zig`:
@@ -510,18 +519,24 @@ pub fn main(init: std.process.Init) !void {
 - `parseToUnified(allocator, json_content)` - Parse any supported JSON version (v2.0, v3.0, v3.1, v3.2) to unified representation
 - `parseOpenApi(allocator, json_content)` - Parse OpenAPI v3.0 specifically
 - `parseOpenApiYaml(allocator, yaml_content)` - Parse OpenAPI v3.0 YAML specifically
-- `parseOpenApi31(allocator, json_content)` - Parse OpenAPI v3.1 specifically
 - `parseOpenApi31Yaml(allocator, yaml_content)` - Parse OpenAPI v3.1 YAML specifically
-- `parseOpenApi32(allocator, json_content)` - Parse OpenAPI v3.2 specifically
 - `parseOpenApi32Yaml(allocator, yaml_content)` - Parse OpenAPI v3.2 YAML specifically
 - `parseSwagger(allocator, json_content)` - Parse Swagger v2.0 specifically
 - `parseSwaggerYaml(allocator, yaml_content)` - Parse Swagger v2.0 YAML specifically
 
+There is no `parseOpenApi31`/`parseOpenApi32` JSON helper. Parse v3.1 and v3.2 JSON with `parseToUnified`, or with the version-specific document type directly: `OpenApi31Document.parseFromJson(allocator, json_content)`.
+
+`parseToUnified` accepts JSON only. To reach a unified document from YAML, convert first with `yamlToJson(allocator, yaml_content)` (the caller frees the returned JSON) and pass the result to `parseToUnified`.
+
 #### Code Generation
 
 - `generateCode(allocator, io, unified_doc, args)` - Generate complete Zig code (models + API). The output begins with a versioned `<auto-generated>` header (generator version, timestamp, and a regeneration warning); any manual edits will be overwritten when the code is regenerated.
+- `generateCodeMultiple(allocator, io, unified_doc, args)` - Generate models, runtime, and client as separate sources, returned as a `GeneratedFiles` struct. `runtime` is `null` when `args.runtime_module` is set, and both `runtime` and `client` are `null` when `args.models_only` is set.
+- `generateRuntime(allocator, io)` - Generate the standalone runtime module, header included. No document is required.
 - `generateModels(allocator, unified_doc)` - Generate only model structs
 - `generateApi(allocator, unified_doc, args)` - Generate only API client functions
+
+`generateModels` and `generateApi` return the bare code without the `<auto-generated>` header; only `generateCode`, `generateCodeMultiple`, and `generateRuntime` prepend it. Every one of these returns allocator-owned memory: free the slices with `allocator.free`, or call `GeneratedFiles.deinit(allocator)`.
 
 #### Conversion Functions
 
@@ -555,7 +570,23 @@ Generated files are self-contained Zig source files. The current unified generat
 - Bounded SSE parsing helpers: `parseSseBytes`, `parseSseReader`, `parseSseBytesTyped`, and `parseSseReaderTyped`. SSE buffer size is fixed at 256KB for lines and 1MB for events. Stream helpers are generated for every POST operation whose response declares `text/event-stream` content — the function name is `{operationId}Streaming` (with an `Events` variant for typed JSON events). Setting `Client.cancel_check` enables prompt cancellation even while a socket read is stalled when the watcher thread starts successfully: the watcher polls every 10 ms, interrupts the socket, and marks the HTTP connection as closing during synchronized cleanup. No watcher thread is spawned when `cancel_check` is null, and a failed thread spawn falls back to read-boundary cancellation.
 - Resource wrapper namespaces by default, for example `pet.get(...)` and `store.order.get(...)`, derived from paths unless `--resource-wrappers` changes the mode. Wrapper names are sanitized generated conveniences, not hand-designed SDK names.
 
-Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`; see [`docs/json-value-typing-policy.md`](docs/json-value-typing-policy.md) for the current policy. For OpenAPI 3.1, the converter has stronger composite-schema handling for object/ref `allOf`, preserved `oneOf`/`anyOf` metadata, and nullable type arrays; do not assume every converter has identical composite support.
+Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`. For OpenAPI 3.1, the converter has stronger composite-schema handling for object/ref `allOf`, preserved `oneOf`/`anyOf` metadata, and nullable type arrays; do not assume every converter has identical composite support.
+
+Schemas map to Zig types as follows:
+
+| OpenAPI schema | Generated Zig type |
+| :--- | :--- |
+| `$ref` | the referenced declaration |
+| `type: string` | `[]const u8` (string enums stay strings, they do not become Zig enums) |
+| `type: integer` | `i64` |
+| `type: number` | `f64` |
+| `type: boolean` | `bool` |
+| `type: array` with a known `items` type | `[]const T` |
+| `type: array` with no usable `items` type | `[]const std.json.Value` |
+| schema with `properties` | a generated `struct`, even when `type` is omitted |
+| free-form object, `oneOf`/`anyOf` without a usable discriminator, unknown schema | `std.json.Value` |
+
+Fields not listed in `required` are emitted as optionals defaulting to `null`.
 
 ### Request body content types
 

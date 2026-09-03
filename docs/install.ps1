@@ -22,11 +22,11 @@
 
 .EXAMPLE
     # Install to a specific directory
-    irm https://christianhelle.com/openapi2zig/install.ps1 | iex -InstallDir "C:\Tools"
+    & ([scriptblock]::Create((irm https://christianhelle.com/openapi2zig/install.ps1))) -InstallDir "C:\Tools"
 
 .EXAMPLE
     # Install without adding to PATH
-    irm https://christianhelle.com/openapi2zig/install.ps1 | iex -AddToPath $false
+    & ([scriptblock]::Create((irm https://christianhelle.com/openapi2zig/install.ps1))) -AddToPath $false
 #>
 
 param(
@@ -100,7 +100,7 @@ function Show-Usage
   Write-Host "  irm https://christianhelle.com/openapi2zig/install.ps1 | iex" -ForegroundColor "White"
   Write-Host ""
   Write-Host "  # Custom directory" -ForegroundColor "Gray"
-  Write-Host "  irm https://christianhelle.com/openapi2zig/install.ps1 | iex -InstallDir 'C:\Tools'" -ForegroundColor "White"
+  Write-Host "  & ([scriptblock]::Create((irm https://christianhelle.com/openapi2zig/install.ps1))) -InstallDir 'C:\Tools'" -ForegroundColor "White"
   Write-Host ""
 }
 

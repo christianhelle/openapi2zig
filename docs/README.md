@@ -15,7 +15,9 @@ The openapi2zig tool supports the following OpenAPI and Swagger specifications:
 - `index.html` - Main documentation page
 - `styles.css` - CSS styles for the documentation
 - `script.js` - JavaScript for interactive features
-- `images/` - Images used in the documentation (copied from main repo)
+- `icon.png` - Site icon
+- `install` - POSIX install script served at `https://christianhelle.com/openapi2zig/install`
+- `install.ps1` - Windows install script served at `https://christianhelle.com/openapi2zig/install.ps1`
 
 ## Development
 
@@ -46,18 +48,6 @@ To preview the documentation locally:
 - **Dark/Light Mode**: Toggle between light and dark themes
 - **Accessibility**: Keyboard navigation support and proper ARIA labels
 - **Performance Optimized**: Minimal dependencies, optimized images and code
-
-## Recent Updates
-
-### Development Environment Integration
-
-Added a dedicated "Development" section to the website that mirrors the new dev container configuration:
-
-- **GitHub Codespaces Integration**: Featured prominently with direct launch link
-- **One-click Development Setup**: Clear instructions for cloud-based development
-- **VS Code Dev Containers**: Local development option with Docker
-- **Development Workflow**: Build, test, and run commands clearly documented
-- **Visual Hierarchy**: GitHub Codespaces positioned as the recommended option for contributors
 
 ## Deployment
 
