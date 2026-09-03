@@ -440,7 +440,7 @@ Let Zig write the entry for you rather than hand-editing `build.zig.zon`. In a n
 
 ```bash
 zig init   # only if you do not already have a build.zig.zon
-zig fetch --save https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.2.tar.gz
+zig fetch --save https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.5.tar.gz
 ```
 
 That adds an entry to `.dependencies` like this one — leave the `.hash` exactly as `zig fetch` wrote it, since it, not the URL, is what identifies the package:
@@ -448,8 +448,8 @@ That adds an entry to `.dependencies` like this one — leave the `.hash` exactl
 ```zig
     .dependencies = .{
         .openapi2zig = .{
-            .url = "https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.2.tar.gz",
-            .hash = "openapi2zig-0.2.0-ykENAgs6qADVacteBBRku7J9q6iFkS-wpPGW06fdrVNx",
+            .url = "https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.5.tar.gz",
+            .hash = "openapi2zig-0.5.5-ykENAm1sqADagDkLvb-Zf4595K-VteB1X5KjVDXk83Hk",
         },
     },
 ```
@@ -467,44 +467,161 @@ exe.root_module.addImport("openapi2zig", openapi2zig_dep.module("openapi2zig"));
 
 The repository includes a minimal downstream consumer fixture in `examples/package_consumer/`, and `zig build test-package` builds it against a clean package snapshot so ignored local files cannot mask packaging issues.
 
-### Library Usage Example
+### Library Usage Examples
+
+#### Generate code from a specification
+
+Use `generateFromSpec` to run the same loading, filtering, generation, and file-writing pipeline as the CLI without shelling out to the `openapi2zig` executable:
 
 ```zig
 const std = @import("std");
 const openapi2zig = @import("openapi2zig");
 
 pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
-    const io = init.io;
-
-    // Read OpenAPI specification
-    const content = try std.Io.Dir.cwd().readFileAlloc(io, "api.json", allocator, .limited(1024 * 1024));
-    defer allocator.free(content);
-
-    // Detect version
-    const version = try openapi2zig.detectVersion(allocator, content);
-    std.debug.print("Detected version: {}\n", .{version});
-
-    // Parse to unified document representation
-    var unified_doc = try openapi2zig.parseToUnified(allocator, content);
-    defer unified_doc.deinit(allocator);
-
-    std.debug.print("API: {s} v{s}\n", .{ unified_doc.info.title, unified_doc.info.version });
-
-    // Generate Zig code
-    const args = openapi2zig.CliArgs{
-        .input_path = "api.json",
-        .output_path = null,
+    try openapi2zig.generateFromSpec(init.gpa, init.io, .{
+        .input_path = "openapi/api.json",
+        .output_path = "src/generated/api.zig",
         .base_url = "https://api.example.com",
-    };
-
-    const generated_code = try openapi2zig.generateCode(allocator, io, unified_doc, args);
-    defer allocator.free(generated_code);
-
-    // Write generated code to file
-    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = "generated.zig", .data = generated_code });
+    });
 }
 ```
+
+Input and output paths are resolved relative to the process's working directory. The input can also be a YAML file or an `http`/`https` URL ending in `.json`, `.yaml`, or `.yml`.
+
+#### Inspect a specification
+
+Use the lower-level APIs when you need to inspect or transform a specification before generating code:
+
+```zig
+const std = @import("std");
+const openapi2zig = @import("openapi2zig");
+
+pub fn main(init: std.process.Init) !void {
+    const content = try std.Io.Dir.cwd().readFileAlloc(
+        init.io,
+        "openapi/api.json",
+        init.gpa,
+        .limited(1024 * 1024),
+    );
+    defer init.gpa.free(content);
+
+    const version = try openapi2zig.detectVersion(init.gpa, content);
+    std.debug.print("Detected version: {}\n", .{version});
+
+    var document = try openapi2zig.parseToUnified(init.gpa, content);
+    defer document.deinit(init.gpa);
+
+    std.debug.print("API: {s} v{s}\n", .{
+        document.info.title,
+        document.info.version,
+    });
+}
+```
+
+#### Generate clients from a build step
+
+For generated clients that are committed to your repository, keep regeneration opt-in so ordinary builds and tests do not fetch or run the generator. This pattern mirrors `puny`'s [`regenerate-providers` build step](https://github.com/christianhelle/puny/blob/main/build.zig) and [generation tool](https://github.com/christianhelle/puny/blob/main/tools/generate_providers.zig).
+
+First, mark the dependency as lazy in `build.zig.zon`. Omit `.lazy = true` when application source imports `openapi2zig` and therefore needs it on every build.
+
+```zig
+.dependencies = .{
+    .openapi2zig = .{
+        .url = "https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.5.tar.gz",
+        .hash = "openapi2zig-0.5.5-ykENAm1sqADagDkLvb-Zf4595K-VteB1X5KjVDXk83Hk",
+        .lazy = true,
+    },
+},
+```
+
+If your manifest has a `.paths` allowlist, include the `tools` directory and any local OpenAPI specifications needed by the generator.
+
+Add an opt-in step to `build.zig`. The generator executable targets `b.graph.host`, so it still runs on the development machine when the main project is cross-compiled.
+
+```zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    // Configure the application's normal build graph here.
+    addRegenerateApiStep(b);
+}
+
+fn addRegenerateApiStep(b: *std.Build) void {
+    const regenerate = b.option(
+        bool,
+        "regenerate-api",
+        "Fetch openapi2zig and regenerate the API client",
+    ) orelse false;
+    const regenerate_step = b.step(
+        "regenerate-api",
+        "Regenerate the API client from its OpenAPI specification",
+    );
+
+    if (regenerate) {
+        if (b.lazyDependency("openapi2zig", .{
+            .target = b.graph.host,
+            .optimize = .ReleaseSafe,
+        })) |openapi2zig_dep| {
+            const generator = b.addExecutable(.{
+                .name = "generate_api",
+                .root_module = b.createModule(.{
+                    .root_source_file = b.path("tools/generate_api.zig"),
+                    .target = b.graph.host,
+                    .optimize = .ReleaseSafe,
+                }),
+            });
+            generator.root_module.addImport(
+                "openapi2zig",
+                openapi2zig_dep.module("openapi2zig"),
+            );
+
+            const run_generator = b.addRunArtifact(generator);
+            run_generator.has_side_effects = true;
+            run_generator.setCwd(b.path("."));
+            regenerate_step.dependOn(&run_generator.step);
+        }
+    } else {
+        regenerate_step.dependOn(&b.addFail(
+            "pass -Dregenerate-api=true to fetch openapi2zig and regenerate the API client",
+        ).step);
+    }
+}
+```
+
+The boolean option is intentional: Zig evaluates `build()` before it knows which named steps will run, so gating `lazyDependency` prevents plain `zig build` and `zig build test` invocations from fetching a build-only dependency.
+
+Finally, put the generation logic in `tools/generate_api.zig`. This example generates one shared runtime and a filtered, multi-file client that imports it:
+
+```zig
+const std = @import("std");
+const openapi2zig = @import("openapi2zig");
+
+pub fn main(init: std.process.Init) !void {
+    try openapi2zig.generateFromSpec(init.gpa, init.io, .{
+        .input_path = "",
+        .output_path = "src/generated/runtime.zig",
+        .runtime_only = true,
+    });
+
+    try openapi2zig.generateFromSpec(init.gpa, init.io, .{
+        .input_path = "openapi/api.json",
+        .output_path = "src/generated/api/",
+        .base_url = "https://api.example.com",
+        .multiple_files = true,
+        .file_names = .{ .models = "contracts.zig" },
+        .runtime_module = "../runtime.zig",
+        .tags = &.{ "Pets", "Users" },
+    });
+}
+```
+
+Run the step explicitly:
+
+```bash
+zig build regenerate-api -Dregenerate-api=true
+```
+
+`run_generator.setCwd(b.path("."))` makes the paths passed to `generateFromSpec` relative to the consuming project's root. `has_side_effects = true` ensures an explicitly requested regeneration is not skipped by the build cache.
 
 ### Library API Reference
 
