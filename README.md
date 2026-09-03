@@ -440,7 +440,7 @@ Let Zig write the entry for you rather than hand-editing `build.zig.zon`. In a n
 
 ```bash
 zig init   # only if you do not already have a build.zig.zon
-zig fetch --save https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.2.tar.gz
+zig fetch --save https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.5.tar.gz
 ```
 
 That adds an entry to `.dependencies` like this one — leave the `.hash` exactly as `zig fetch` wrote it, since it, not the URL, is what identifies the package:
@@ -448,8 +448,8 @@ That adds an entry to `.dependencies` like this one — leave the `.hash` exactl
 ```zig
     .dependencies = .{
         .openapi2zig = .{
-            .url = "https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.2.tar.gz",
-            .hash = "openapi2zig-0.2.0-ykENAgs6qADVacteBBRku7J9q6iFkS-wpPGW06fdrVNx",
+            .url = "https://github.com/christianhelle/openapi2zig/archive/refs/tags/v0.5.5.tar.gz",
+            .hash = "openapi2zig-0.5.5-ykENAm1sqADagDkLvb-Zf4595K-VteB1X5KjVDXk83Hk",
         },
     },
 ```
@@ -467,42 +467,54 @@ exe.root_module.addImport("openapi2zig", openapi2zig_dep.module("openapi2zig"));
 
 The repository includes a minimal downstream consumer fixture in `examples/package_consumer/`, and `zig build test-package` builds it against a clean package snapshot so ignored local files cannot mask packaging issues.
 
-### Library Usage Example
+### Library Usage Examples
+
+#### Generate code from a specification
+
+Use `generateFromSpec` to run the same loading, filtering, generation, and file-writing pipeline as the CLI without shelling out to the `openapi2zig` executable:
 
 ```zig
 const std = @import("std");
 const openapi2zig = @import("openapi2zig");
 
 pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
-    const io = init.io;
+    try openapi2zig.generateFromSpec(init.gpa, init.io, .{
+        .input_path = "openapi/api.json",
+        .output_path = "src/generated/api.zig",
+        .base_url = "https://api.example.com",
+    });
+}
+```
 
-    // Read OpenAPI specification
-    const content = try std.Io.Dir.cwd().readFileAlloc(io, "api.json", allocator, .limited(1024 * 1024));
-    defer allocator.free(content);
+Input and output paths are resolved relative to the process's working directory. The input can also be a YAML file or an `http`/`https` URL.
 
-    // Detect version
-    const version = try openapi2zig.detectVersion(allocator, content);
+#### Inspect a specification
+
+Use the lower-level APIs when you need to inspect or transform a specification before generating code:
+
+```zig
+const std = @import("std");
+const openapi2zig = @import("openapi2zig");
+
+pub fn main(init: std.process.Init) !void {
+    const content = try std.Io.Dir.cwd().readFileAlloc(
+        init.io,
+        "openapi/api.json",
+        init.gpa,
+        .limited(1024 * 1024),
+    );
+    defer init.gpa.free(content);
+
+    const version = try openapi2zig.detectVersion(init.gpa, content);
     std.debug.print("Detected version: {}\n", .{version});
 
-    // Parse to unified document representation
-    var unified_doc = try openapi2zig.parseToUnified(allocator, content);
-    defer unified_doc.deinit(allocator);
+    var document = try openapi2zig.parseToUnified(init.gpa, content);
+    defer document.deinit(init.gpa);
 
-    std.debug.print("API: {s} v{s}\n", .{ unified_doc.info.title, unified_doc.info.version });
-
-    // Generate Zig code
-    const args = openapi2zig.CliArgs{
-        .input_path = "api.json",
-        .output_path = null,
-        .base_url = "https://api.example.com",
-    };
-
-    const generated_code = try openapi2zig.generateCode(allocator, io, unified_doc, args);
-    defer allocator.free(generated_code);
-
-    // Write generated code to file
-    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = "generated.zig", .data = generated_code });
+    std.debug.print("API: {s} v{s}\n", .{
+        document.info.title,
+        document.info.version,
+    });
 }
 ```
 
