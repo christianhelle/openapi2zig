@@ -220,7 +220,7 @@ zig build -Dtarget=aarch64-linux
 openapi2zig generate [options]
 ```
 
-The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a local file or `http`/`https` URL, auto-detects the spec version, and writes one Zig source file containing models, runtime helpers, and API functions.
+The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a local file or `http`/`https` URL and auto-detects the spec version. By default it writes a single self-contained Zig source file holding the models, the runtime helpers, and the API functions; `--multiple-files` splits those into `models.zig`, `runtime.zig`, and `client.zig` instead, and `--models-only` / `--runtime-only` emit just one of the pieces.
 
 ### Options
 
