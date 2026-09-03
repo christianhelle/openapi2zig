@@ -351,7 +351,7 @@ defer pet.deinit();
 
 `--multiple-clients` is mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only` and `--runtime-only`; combining them is a parse error. It composes with `--multiple-files`: the client structs are emitted into the client file.
 
-`--runtime-only` is mutually exclusive with `--models-only`, `--multiple-clients`, `--runtime-module`, and `--file-name models` / `--file-name client`; no input is required.
+`--runtime-only` rejects every flag that only makes sense for a spec-driven build: `--models-only`, `--multiple-clients`, `--runtime-module`, `--tag`, `--base-url`, `--parameters-as-struct`, an explicit `--resource-wrappers` (even `none`), and `--file-name models` / `--file-name client`. Passing any of them is a parse error. No input is required, and `-i` is ignored when given.
 
 **Generate only the runtime module:**
 ```bash
