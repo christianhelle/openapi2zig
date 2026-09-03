@@ -567,7 +567,23 @@ Generated files are self-contained Zig source files. The current unified generat
 - Bounded SSE parsing helpers: `parseSseBytes`, `parseSseReader`, `parseSseBytesTyped`, and `parseSseReaderTyped`. SSE buffer size is fixed at 256KB for lines and 1MB for events. Stream helpers are generated for every POST operation whose response declares `text/event-stream` content — the function name is `{operationId}Streaming` (with an `Events` variant for typed JSON events). Setting `Client.cancel_check` enables prompt cancellation even while a socket read is stalled when the watcher thread starts successfully: the watcher polls every 10 ms, interrupts the socket, and marks the HTTP connection as closing during synchronized cleanup. No watcher thread is spawned when `cancel_check` is null, and a failed thread spawn falls back to read-boundary cancellation.
 - Resource wrapper namespaces by default, for example `pet.get(...)` and `store.order.get(...)`, derived from paths unless `--resource-wrappers` changes the mode. Wrapper names are sanitized generated conveniences, not hand-designed SDK names.
 
-Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`; see [`docs/json-value-typing-policy.md`](docs/json-value-typing-policy.md) for the current policy. For OpenAPI 3.1, the converter has stronger composite-schema handling for object/ref `allOf`, preserved `oneOf`/`anyOf` metadata, and nullable type arrays; do not assume every converter has identical composite support.
+Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`. For OpenAPI 3.1, the converter has stronger composite-schema handling for object/ref `allOf`, preserved `oneOf`/`anyOf` metadata, and nullable type arrays; do not assume every converter has identical composite support.
+
+Schemas map to Zig types as follows:
+
+| OpenAPI schema | Generated Zig type |
+| :--- | :--- |
+| `$ref` | the referenced declaration |
+| `type: string` | `[]const u8` (string enums stay strings, they do not become Zig enums) |
+| `type: integer` | `i64` |
+| `type: number` | `f64` |
+| `type: boolean` | `bool` |
+| `type: array` with a known `items` type | `[]const T` |
+| `type: array` with no usable `items` type | `[]const std.json.Value` |
+| schema with `properties` | a generated `struct`, even when `type` is omitted |
+| free-form object, `oneOf`/`anyOf` without a usable discriminator, unknown schema | `std.json.Value` |
+
+Fields not listed in `required` are emitted as optionals defaulting to `null`.
 
 ### Request body content types
 
