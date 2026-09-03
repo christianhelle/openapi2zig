@@ -510,12 +510,12 @@ pub fn main(init: std.process.Init) !void {
 - `parseToUnified(allocator, json_content)` - Parse any supported JSON version (v2.0, v3.0, v3.1, v3.2) to unified representation
 - `parseOpenApi(allocator, json_content)` - Parse OpenAPI v3.0 specifically
 - `parseOpenApiYaml(allocator, yaml_content)` - Parse OpenAPI v3.0 YAML specifically
-- `parseOpenApi31(allocator, json_content)` - Parse OpenAPI v3.1 specifically
 - `parseOpenApi31Yaml(allocator, yaml_content)` - Parse OpenAPI v3.1 YAML specifically
-- `parseOpenApi32(allocator, json_content)` - Parse OpenAPI v3.2 specifically
 - `parseOpenApi32Yaml(allocator, yaml_content)` - Parse OpenAPI v3.2 YAML specifically
 - `parseSwagger(allocator, json_content)` - Parse Swagger v2.0 specifically
 - `parseSwaggerYaml(allocator, yaml_content)` - Parse Swagger v2.0 YAML specifically
+
+There is no `parseOpenApi31`/`parseOpenApi32` JSON helper. Parse v3.1 and v3.2 JSON with `parseToUnified`, or with the version-specific document type directly: `OpenApi31Document.parseFromJson(allocator, json_content)`.
 
 #### Code Generation
 
