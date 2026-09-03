@@ -155,6 +155,7 @@ pub const ParameterLocation = enum {
 };
 
 pub const Parameter = struct {
+    /// Borrowed from the source document, so `deinit` never frees it.
     name: []const u8,
     location: ParameterLocation,
     description: ?[]const u8 = null,
@@ -172,6 +173,7 @@ pub const Parameter = struct {
 };
 
 pub const Response = struct {
+    /// Borrowed from the source document, so `deinit` never frees it.
     description: []const u8,
     schema: ?Schema = null,
     headers: ?std.StringHashMap(Parameter) = null,
