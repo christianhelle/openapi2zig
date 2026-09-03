@@ -117,7 +117,7 @@ download_and_install() {
     else
       log_error "Cannot write to $INSTALL_DIR and sudo is not available"
       log_info "Try setting INSTALL_DIR to a writable directory:"
-      log_info "  INSTALL_DIR=\$HOME/.local/bin curl -fsSL https://christianhelle.com/openapi2zig/install | bash"
+      log_info "  curl -fsSL https://christianhelle.com/openapi2zig/install | INSTALL_DIR=\$HOME/.local/bin bash"
       rm -rf "$temp_dir"
       exit 1
     fi
@@ -161,7 +161,7 @@ show_usage() {
   echo "  curl -fsSL https://christianhelle.com/openapi2zig/install | bash"
   echo ""
   echo "  # Install to custom directory"
-  echo "  INSTALL_DIR=\$HOME/.local/bin curl -fsSL https://christianhelle.com/openapi2zig/install | bash"
+  echo "  curl -fsSL https://christianhelle.com/openapi2zig/install | INSTALL_DIR=\$HOME/.local/bin bash"
   echo ""
   echo "  # Install to custom directory using flag"
   echo "  curl -fsSL https://christianhelle.com/openapi2zig/install | bash -s -- --dir \$HOME/.local/bin"

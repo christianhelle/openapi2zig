@@ -84,7 +84,7 @@ The install scripts will:
 
 ```bash
 # Linux/macOS
-INSTALL_DIR=$HOME/.local/bin curl -fsSL https://christianhelle.com/openapi2zig/install | bash
+curl -fsSL https://christianhelle.com/openapi2zig/install | INSTALL_DIR=$HOME/.local/bin bash
 
 # Windows
 irm https://christianhelle.com/openapi2zig/install.ps1 | iex -InstallDir "C:\Tools"
