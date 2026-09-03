@@ -324,7 +324,7 @@ var pets = try api.findPetsByStatus(&client, .{ .status = "available" });
 defer pets.deinit();
 ```
 
-Required path and query parameters are emitted as non-optional struct fields, and the request body stays a separate `requestBody` argument. Resource wrapper, per-tag, and per-endpoint methods follow the same shape.
+Required path and query parameters are emitted as non-optional struct fields, and the request body stays a separate `requestBody` argument. The struct is generated alongside the operation and named `<operationId>Options`, so `findPetsByStatus` gets a `findPetsByStatusOptions` you can name explicitly instead of relying on `.{ ... }` inference. Resource wrapper, per-tag, and per-endpoint methods follow the same shape.
 
 **Generate only endpoints and models for selected tags:**
 ```bash
