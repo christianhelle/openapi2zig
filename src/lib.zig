@@ -206,10 +206,10 @@ pub fn parseSwagger(allocator: std.mem.Allocator, json_content: []const u8) !Swa
 /// Returns:
 /// - String containing generated Zig model code
 pub fn generateModels(allocator: std.mem.Allocator, unified_doc: UnifiedDocument) ![]const u8 {
-    var generator = UnifiedModelGenerator.init(allocator);
-    defer generator.deinit();
+    var model_generator = UnifiedModelGenerator.init(allocator);
+    defer model_generator.deinit();
 
-    return try generator.generate(unified_doc);
+    return try model_generator.generate(unified_doc);
 }
 
 /// Generate Zig API client functions from a unified document.
@@ -222,10 +222,10 @@ pub fn generateModels(allocator: std.mem.Allocator, unified_doc: UnifiedDocument
 /// Returns:
 /// - String containing generated Zig API client code
 pub fn generateApi(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
-    var generator = UnifiedApiGenerator.init(allocator, args);
-    defer generator.deinit();
+    var api_generator = UnifiedApiGenerator.init(allocator, args);
+    defer api_generator.deinit();
 
-    return try generator.generate(unified_doc);
+    return try api_generator.generate(unified_doc);
 }
 
 /// Generate the standalone runtime module (no OpenAPI document required).
