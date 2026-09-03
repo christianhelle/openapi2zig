@@ -465,9 +465,14 @@ pub fn build(b: *std.Build) void {
 fn createBuildInfoOptions(b: *std.Build, run_integration_tests: bool) *std.Build.Step.Options {
     const options = b.addOptions();
     const io = b.graph.io;
-    const package_version = getPackageVersion(b.allocator, io) orelse "unknown";
-    const git_tag = getGitOutput(b.allocator, io, &.{ "git", "describe", "--tags", "--abbrev=0" }) orelse b.fmt("v{s}", .{package_version});
-    const git_commit = getGitOutput(b.allocator, io, &.{ "git", "rev-parse", "--short", "HEAD" }) orelse "unknown";
+    // Everything here describes *this* package. A dependent's build runs with
+    // its own directory as the working directory, so read the version and the
+    // git metadata from the package root rather than from wherever the build
+    // was started; otherwise generated headers claim the consumer's version.
+    const build_root = b.build_root.path orelse ".";
+    const package_version = getPackageVersion(b, io) orelse "unknown";
+    const git_tag = getGitOutput(b.allocator, io, &.{ "git", "-C", build_root, "describe", "--tags", "--abbrev=0" }) orelse b.fmt("v{s}", .{package_version});
+    const git_commit = getGitOutput(b.allocator, io, &.{ "git", "-C", build_root, "rev-parse", "--short", "HEAD" }) orelse "unknown";
     const version = if (std.mem.startsWith(u8, git_tag, "v")) git_tag[1..] else git_tag;
     const build_date = getBuildDate(b.allocator, io) orelse "unknown";
 
@@ -539,8 +544,10 @@ fn getBuildDate(allocator: std.mem.Allocator, io: std.Io) ?[]const u8 {
     }) catch null;
 }
 
-fn getPackageVersion(allocator: std.mem.Allocator, io: std.Io) ?[]const u8 {
-    const content = std.Io.Dir.cwd().readFileAlloc(io, "build.zig.zon", allocator, .limited(64 * 1024)) catch return null;
+fn getPackageVersion(b: *std.Build, io: std.Io) ?[]const u8 {
+    const allocator = b.allocator;
+    const path = b.pathFromRoot("build.zig.zon");
+    const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(64 * 1024)) catch return null;
     const marker = ".version = \"";
     const start = std.mem.indexOf(u8, content, marker) orelse return null;
     const version_start = start + marker.len;
