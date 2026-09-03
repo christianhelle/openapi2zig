@@ -638,9 +638,8 @@ pub const OpenApi31Converter = struct {
     fn convertRequestBodyOrReference(self: *OpenApi31Converter, requestBodyOrRef: *const RequestBodyOrReference31) !Parameter {
         switch (requestBodyOrRef.*) {
             .reference => |ref| {
-                const name = try self.allocator.dupe(u8, ref.ref);
                 return Parameter{
-                    .name = name,
+                    .name = ref.ref,
                     .location = .body,
                     .required = false,
                 };
@@ -689,9 +688,8 @@ pub const OpenApi31Converter = struct {
     fn convertParameterOrReference(self: *OpenApi31Converter, paramOrRef: *const ParameterOrReference31) !Parameter {
         switch (paramOrRef.*) {
             .reference => |ref| {
-                const name = try self.allocator.dupe(u8, ref.ref);
                 return Parameter{
-                    .name = name,
+                    .name = ref.ref,
                     .location = .query,
                     .required = false,
                 };
@@ -731,8 +729,7 @@ pub const OpenApi31Converter = struct {
     fn convertResponseOrReference(self: *OpenApi31Converter, respOrRef: ResponseOrReference31) !Response {
         switch (respOrRef) {
             .reference => |ref| {
-                const description = try self.allocator.dupe(u8, ref.ref);
-                return Response{ .description = description };
+                return Response{ .description = ref.ref };
             },
             .response => |resp| {
                 return self.convertResponse(resp);
