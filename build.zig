@@ -471,8 +471,18 @@ fn createBuildInfoOptions(b: *std.Build, run_integration_tests: bool) *std.Build
     // was started; otherwise generated headers claim the consumer's version.
     const build_root = b.build_root.path orelse ".";
     const package_version = getPackageVersion(b, io) orelse "unknown";
-    const git_tag = getGitOutput(b.allocator, io, &.{ "git", "-C", build_root, "describe", "--tags", "--abbrev=0" }) orelse b.fmt("v{s}", .{package_version});
-    const git_commit = getGitOutput(b.allocator, io, &.{ "git", "-C", build_root, "rev-parse", "--short", "HEAD" }) orelse "unknown";
+    // Only ask git when the package root is a checkout of its own. A fetched
+    // package is unpacked inside the dependent's project, where git would
+    // happily describe *that* repository instead of this one.
+    const git_checkout = isGitCheckout(b, build_root);
+    const git_tag = (if (git_checkout)
+        getGitOutput(b.allocator, io, &.{ "git", "-C", build_root, "describe", "--tags", "--abbrev=0" })
+    else
+        null) orelse b.fmt("v{s}", .{package_version});
+    const git_commit = (if (git_checkout)
+        getGitOutput(b.allocator, io, &.{ "git", "-C", build_root, "rev-parse", "--short", "HEAD" })
+    else
+        null) orelse "unknown";
     const version = if (std.mem.startsWith(u8, git_tag, "v")) git_tag[1..] else git_tag;
     const build_date = getBuildDate(b.allocator, io) orelse "unknown";
 
@@ -542,6 +552,15 @@ fn getBuildDate(allocator: std.mem.Allocator, io: std.Io) ?[]const u8 {
         day_seconds.getMinutesIntoHour(),
         day_seconds.getSecondsIntoMinute(),
     }) catch null;
+}
+
+/// True when `dir` holds a `.git` of its own: a directory in a normal clone,
+/// a file in a worktree. Both mean git commands run there describe this
+/// package rather than some repository it happens to sit inside.
+fn isGitCheckout(b: *std.Build, dir: []const u8) bool {
+    const dot_git = b.pathJoin(&.{ dir, ".git" });
+    std.Io.Dir.cwd().access(b.graph.io, dot_git, .{}) catch return false;
+    return true;
 }
 
 fn getPackageVersion(b: *std.Build, io: std.Io) ?[]const u8 {
