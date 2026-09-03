@@ -79,6 +79,21 @@ pub const RuntimeGenerator = @import("generators/unified/runtime_generator.zig")
 pub const CliArgs = @import("cli.zig").CliArgs;
 pub const yamlToJson = yaml_loader.yamlToJson;
 
+// End-to-end generation pipeline: the same code path the CLI runs, exposed so
+// build scripts and other tools can generate without shelling out to the
+// `openapi2zig` binary.
+pub const generator = @import("generator.zig");
+
+/// Load a spec from `args.input_path` (file path or URL), filter it, generate
+/// code, and write the result to `args.output_path`, relative to the process's
+/// current working directory. This is exactly what `openapi2zig generate` does.
+///
+/// Parameters:
+/// - allocator: Memory allocator to use for loading, parsing and generation
+/// - io: Standard I/O context used for reading the spec and writing output
+/// - args: The same arguments the CLI accepts, as a struct
+pub const generateFromSpec = generator.generateCode;
+
 /// Parse a JSON string containing an OpenAPI or Swagger specification and convert it to a unified document representation.
 /// The caller is responsible for calling `deinit()` on the returned document.
 ///
@@ -891,6 +906,56 @@ test "generateCodeMultiple with runtime_only rejects conflicting options" {
         .runtime_only = true,
         .models_only = true,
     }));
+}
+
+test "generateFromSpec generates a client from a spec on disk" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.writeFile(std.testing.io, .{ .sub_path = "api.json", .data =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/pets": {
+        \\      "get": {
+        \\        "operationId": "listPets",
+        \\        "responses": { "200": { "description": "ok" } }
+        \\      }
+        \\    }
+        \\  },
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Pet": {
+        \\        "type": "object",
+        \\        "properties": { "name": { "type": "string" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    });
+
+    // `generateFromSpec` resolves its paths against the process's working
+    // directory, so address the temporary directory the same way.
+    const tmp_dir_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    defer allocator.free(tmp_dir_path);
+    const input_path = try std.fs.path.join(allocator, &.{ tmp_dir_path, "api.json" });
+    defer allocator.free(input_path);
+    const output_path = try std.fs.path.join(allocator, &.{ tmp_dir_path, "generated.zig" });
+    defer allocator.free(output_path);
+
+    try generateFromSpec(allocator, std.testing.io, .{
+        .input_path = input_path,
+        .output_path = output_path,
+    });
+
+    const generated = try tmp.dir.readFileAlloc(std.testing.io, "generated.zig", allocator, .unlimited);
+    defer allocator.free(generated);
+    try std.testing.expect(std.mem.indexOf(u8, generated, "pub const Pet") != null);
+    try std.testing.expect(std.mem.indexOf(u8, generated, "pub fn listPets") != null);
 }
 
 // Version information
