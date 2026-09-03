@@ -220,7 +220,7 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 
 | Flag | Description |
 | :--- | :--- |
-| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger JSON or YAML spec from a file path or `http`/`https` URL. Required, except with `--runtime-only` where it is ignored. |
+| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger spec from a file path or `http`/`https` URL. The format is chosen from the suffix, so the path or URL must end in `.json`, `.yaml`, or `.yml` — an extensionless URL such as `https://example.com/api/v3/openapi` fails with `UnsupportedExtension`. Required, except with `--runtime-only` where it is ignored. |
 | `-o`, `--output <path>` | Where the generated code is written. Without `--multiple-files` this is a file path, defaulting to `generated.zig` (or `runtime.zig` with `--runtime-only`). With `--multiple-files` it is the output directory instead, defaulting to `generated/`. Parent directories are created when needed. |
 | `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
 | `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`. |
