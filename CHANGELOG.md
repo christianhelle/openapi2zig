@@ -2,7 +2,15 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.3...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.4...HEAD)
+
+**Implemented enhancements:**
+
+- Cover the converter $ref branches and assert on leaks [\#111](https://github.com/christianhelle/openapi2zig/pull/111) ([christianhelle](https://github.com/christianhelle))
+
+## [v0.5.4](https://github.com/christianhelle/openapi2zig/tree/v0.5.4) (2026-09-03)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.3...v0.5.4)
 
 **Implemented enhancements:**
 
