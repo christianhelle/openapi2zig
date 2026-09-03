@@ -15,7 +15,9 @@ The openapi2zig tool supports the following OpenAPI and Swagger specifications:
 - `index.html` - Main documentation page
 - `styles.css` - CSS styles for the documentation
 - `script.js` - JavaScript for interactive features
-- `images/` - Images used in the documentation (copied from main repo)
+- `icon.png` - Site icon
+- `install` - POSIX install script served at `https://christianhelle.com/openapi2zig/install`
+- `install.ps1` - Windows install script served at `https://christianhelle.com/openapi2zig/install.ps1`
 
 ## Development
 
