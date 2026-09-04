@@ -6,6 +6,7 @@
 
 **Implemented enhancements:**
 
+- Generate camelCase function names from non-identifier operation ids [\#114](https://github.com/christianhelle/openapi2zig/pull/114) ([christianhelle](https://github.com/christianhelle))
 - Support large OpenAPI specifications [\#113](https://github.com/christianhelle/openapi2zig/pull/113) ([christianhelle](https://github.com/christianhelle))
 
 **Merged pull requests:**
