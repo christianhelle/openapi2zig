@@ -52,6 +52,13 @@ pub const UnifiedApiGenerator = struct {
     /// parameter name/location. Populated on first use so repeated parameter
     /// references don't rescan the operation's parameter list.
     options_field_names: std.StringHashMap([]const u8),
+    /// Zig-friendly declaration names, keyed by the raw operationId from the
+    /// specification. Ids such as GitHub's
+    /// `repos/list-pull-requests-associated-with-commit` are not valid Zig
+    /// identifiers; caching the camel cased form keeps every declaration
+    /// derived from one id consistent and keeps the names alive for the
+    /// lifetime of the generator.
+    operation_names: std.StringHashMap([]const u8),
     /// Schemas emitted as top-level types into the same file as the client.
     /// Zig forbids a parameter from shadowing a declaration in scope, so flat
     /// parameter names matching one of these get a suffix. Only set for
@@ -73,6 +80,7 @@ pub const UnifiedApiGenerator = struct {
             .args = args,
             .options_type_names = std.StringHashMap([]const u8).init(allocator),
             .options_field_names = std.StringHashMap([]const u8).init(allocator),
+            .operation_names = std.StringHashMap([]const u8).init(allocator),
         };
     }
 
@@ -94,12 +102,42 @@ pub const UnifiedApiGenerator = struct {
         self.options_field_names.clearRetainingCapacity();
     }
 
+    pub fn clearOperationNames(self: *UnifiedApiGenerator, allocator: std.mem.Allocator) void {
+        var iterator = self.operation_names.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        self.operation_names.clearRetainingCapacity();
+    }
+
+    /// The name used for declarations generated from `operation_id`. The
+    /// returned slice is owned by the generator and stays valid until the next
+    /// `generate` call.
+    pub fn operationName(self: *UnifiedApiGenerator, operation_id: []const u8) ![]const u8 {
+        if (self.operation_names.get(operation_id)) |name| return name;
+        const name = try ident.toZigMethodNameAlloc(self.allocator, operation_id);
+        errdefer self.allocator.free(name);
+        const key = try self.allocator.dupe(u8, operation_id);
+        errdefer self.allocator.free(key);
+        try self.operation_names.put(key, name);
+        return name;
+    }
+
+    /// The declaration name for `operation`, or null when it has no operationId.
+    pub fn operationNameOf(self: *UnifiedApiGenerator, operation: Operation) !?[]const u8 {
+        const operation_id = operation.operationId orelse return null;
+        return try self.operationName(operation_id);
+    }
+
     pub fn deinit(self: *UnifiedApiGenerator) void {
         self.buffer.deinit(self.allocator);
         self.clearOptionsTypeNames(self.allocator);
         self.options_type_names.deinit();
         self.clearOptionsFieldNames(self.allocator);
         self.options_field_names.deinit();
+        self.clearOperationNames(self.allocator);
+        self.operation_names.deinit();
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
@@ -108,6 +146,7 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
+        self.clearOperationNames(self.allocator);
         self.has_streaming_operations = documentHasStreamingOperations(document);
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeader();
@@ -128,6 +167,7 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
+        self.clearOperationNames(self.allocator);
         self.has_streaming_operations = documentHasStreamingOperations(document);
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeaderMulti();
