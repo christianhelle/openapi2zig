@@ -2,6 +2,7 @@ const std = @import("std");
 const cli = @import("../cli.zig");
 const UnifiedApiGenerator = @import("../generators/unified/api_generator.zig").UnifiedApiGenerator;
 const common = @import("../models/common/document.zig");
+const test_utils = @import("test_utils.zig");
 
 fn responseMap(allocator: std.mem.Allocator, with_schema: bool) !std.StringHashMap(common.Response) {
     var responses = std.StringHashMap(common.Response).init(allocator);
@@ -388,7 +389,9 @@ test "multiple-clients PerTag derives methods for operations without an operatio
 }
 
 test "multiple-clients PerTag dedupes struct names, reserved methods, and method collisions" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     var document = try buildCollisionFixture(allocator);
     defer document.deinit(allocator);
 
