@@ -108,6 +108,13 @@ fn appendIdentifierAs(buffer: *std.ArrayList(u8), allocator: std.mem.Allocator, 
     try buffer.appendSlice(allocator, "\"");
 }
 
+/// Turn an `operationId` into a name usable as a bare Zig declaration.
+/// Ids that are already valid identifiers are returned unchanged so hand
+/// written specs keep the names their authors chose.
+pub fn toZigMethodNameAlloc(allocator: std.mem.Allocator, name: []const u8) ![]const u8 {
+    return try allocator.dupe(u8, name);
+}
+
 test "isIdentStart" {
     try std.testing.expect(isIdentStart('a'));
     try std.testing.expect(isIdentStart('Z'));
@@ -208,4 +215,10 @@ test "appendEscapedIdentifier escapes ASCII control characters" {
     buf.clearRetainingCapacity();
     try appendEscapedIdentifier(&buf, std.testing.allocator, &.{0x7f});
     try std.testing.expectEqualStrings("@\"\\x7f\"", buf.items);
+}
+
+test "toZigMethodNameAlloc keeps names that are already valid identifiers" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "addPet");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("addPet", name);
 }
