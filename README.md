@@ -8,16 +8,6 @@ A CLI tool and Zig library that generates type-safe API client code from OpenAPI
 
 > **Note**: This project provides both a CLI tool for generating Zig code from OpenAPI specs and a library for parsing and working with OpenAPI documents programmatically in Zig.
 
-## Supported Specifications
-
-This tool supports the following OpenAPI and Swagger specifications:
-- **Swagger v2.0** - Full support
-- **OpenAPI v3.0** - Full support
-- **OpenAPI v3.1** - Full support
-- **OpenAPI v3.2** - Full support
-
-All specifications are supported in JSON and YAML format.
-
 ## Features
 
 - Parse and generate from Swagger v2.0, OpenAPI v3.0, v3.1, and v3.2 specifications
@@ -138,22 +128,21 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 
 ### Options
 
-| Flag | Description |
-| :--- | :--- |
-| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger spec from a file path or `http`/`https` URL. The format is chosen from the suffix, so the path or URL must end in `.json`, `.yaml`, or `.yml` — an extensionless URL such as `https://example.com/api/v3/openapi` fails with `UnsupportedExtension`. Required, except with `--runtime-only` where it is ignored. |
-| `-o`, `--output <path>` | Where the generated code is written. Without `--multiple-files` this is a file path, defaulting to `generated.zig` (or `runtime.zig` with `--runtime-only`). With `--multiple-files` it is the output directory instead, defaulting to `generated/`. Parent directories are created when needed. |
-| `--base-url <url>` | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document. |
-| `--resource-wrappers <mode>` | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`, except with `--multiple-clients`, where it defaults to `none`. |
-| `--multiple-clients <mode>` | Generate per-tag or per-endpoint client structs that delegate to the flat API functions. Modes: `PerTag` (default when the flag is given without a value) and `PerEndpoint`. Mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`. |
-| `--tag <name>` | Include only operations carrying the specified OpenAPI tag. Schemas are removed only when unreachable from retained operations; transitively referenced schemas remain preserved. Operations without any of the requested tags (including untagged operations) are skipped. The `--tag` option can be specified multiple times, e.g. `--tag pet --tag store --tag user`. |
-| `--models-only` | Generate only Zig models, skipping the API client. |
-| `--multiple-files` | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`. |
-| `--file-name <kind>=<name>` | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. `<name>` may include a relative subpath (e.g. `models=gen/types.zig`); any required parent directories are created automatically. Can be specified multiple times. |
-| `--runtime-module <path>` | Re-use an existing `runtime.zig` instead of generating a new one. The path is a Zig import path relative to the generated `client.zig` (e.g. `../runtime.zig` or `../shared/my_runtime.zig`). Requires `--multiple-files` and is mutually exclusive with `--file-name runtime=...`. When given, no `runtime.zig` is emitted; the client imports the supplied path and derives the import alias from the file basename (`my_runtime` for `my_runtime.zig`). |
-| `--runtime-only` | Generate only the runtime module. No input spec is required; when `-i` is given it is ignored entirely. Without `--multiple-files`, writes the runtime module to `-o` (default `runtime.zig`). With `--multiple-files`, writes only the runtime file into the output directory (honors `--file-name runtime=...`). Mutually exclusive with `--models-only`, `--runtime-module`, and all client-related options. |
-| `--force` | Force overwriting output even when unchanged (skip unchanged-content check). |
-| `--parameters-as-struct` | Wrap the method parameters of each operation in a single `options` struct instead of emitting them as individual function arguments. Optional query parameters become nullable fields defaulting to `null`; required path and query parameters stay non-optional. The request body, when present, remains a separate `requestBody` argument. |
-
+| Flag                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| :---------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-i`, `--input <PATH_OR_URL>` | OpenAPI/Swagger spec from a file path or `http`/`https` URL. The format is chosen from the suffix, so the path or URL must end in `.json`, `.yaml`, or `.yml` — an extensionless URL such as `https://example.com/api/v3/openapi` fails with `UnsupportedExtension`. Required, except with `--runtime-only` where it is ignored.                                                                                                                           |
+| `-o`, `--output <path>`       | Where the generated code is written. Without `--multiple-files` this is a file path, defaulting to `generated.zig` (or `runtime.zig` with `--runtime-only`). With `--multiple-files` it is the output directory instead, defaulting to `generated/`. Parent directories are created when needed.                                                                                                                                                           |
+| `--base-url <url>`            | Base URL baked into the generated `Client`. Defaults to the server URL from the OpenAPI/Swagger document.                                                                                                                                                                                                                                                                                                                                                  |
+| `--resource-wrappers <mode>`  | Generate resource wrapper namespaces. Modes: `none`, `tags`, `paths`, `hybrid`. Defaults to `paths`, except with `--multiple-clients`, where it defaults to `none`.                                                                                                                                                                                                                                                                                        |
+| `--multiple-clients <mode>`   | Generate per-tag or per-endpoint client structs that delegate to the flat API functions. Modes: `PerTag` (default when the flag is given without a value) and `PerEndpoint`. Mutually exclusive with a non-`none` `--resource-wrappers` and with `--models-only`.                                                                                                                                                                                          |
+| `--tag <name>`                | Include only operations carrying the specified OpenAPI tag. Schemas are removed only when unreachable from retained operations; transitively referenced schemas remain preserved. Operations without any of the requested tags (including untagged operations) are skipped. The `--tag` option can be specified multiple times, e.g. `--tag pet --tag store --tag user`.                                                                                   |
+| `--models-only`               | Generate only Zig models, skipping the API client.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `--multiple-files`            | Generate separate output files for models, runtime, and API client into the output directory specified by `-o`.                                                                                                                                                                                                                                                                                                                                            |
+| `--file-name <kind>=<name>`   | Customize an output file name in `--multiple-files` mode. `<kind>` is `models`, `runtime`, or `client`. `<name>` may include a relative subpath (e.g. `models=gen/types.zig`); any required parent directories are created automatically. Can be specified multiple times.                                                                                                                                                                                 |
+| `--runtime-module <path>`     | Re-use an existing `runtime.zig` instead of generating a new one. The path is a Zig import path relative to the generated `client.zig` (e.g. `../runtime.zig` or `../shared/my_runtime.zig`). Requires `--multiple-files` and is mutually exclusive with `--file-name runtime=...`. When given, no `runtime.zig` is emitted; the client imports the supplied path and derives the import alias from the file basename (`my_runtime` for `my_runtime.zig`). |
+| `--runtime-only`              | Generate only the runtime module. No input spec is required; when `-i` is given it is ignored entirely. Without `--multiple-files`, writes the runtime module to `-o` (default `runtime.zig`). With `--multiple-files`, writes only the runtime file into the output directory (honors `--file-name runtime=...`). Mutually exclusive with `--models-only`, `--runtime-module`, and all client-related options.                                            |
+| `--force`                     | Force overwriting output even when unchanged (skip unchanged-content check).                                                                                                                                                                                                                                                                                                                                                                               |
+| `--parameters-as-struct`      | Wrap the method parameters of each operation in a single `options` struct instead of emitting them as individual function arguments. Optional query parameters become nullable fields defaulting to `null`; required path and query parameters stay non-optional. The request body, when present, remains a separate `requestBody` argument.                                                                                                               |
 
 ### Unchanged output is not rewritten
 
@@ -182,46 +171,53 @@ cannot alter the file behind the checksum's back.
 
 Pass `--force` to bypass the check and always rewrite the output.
 
-
 ### Examples
 
 **From a local file:**
+
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig
 ```
 
 **From a local YAML file:**
+
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.yaml -o api.zig
 ```
 
 **From a remote URL:**
+
 ```bash
 openapi2zig generate -i https://petstore3.swagger.io/api/v3/openapi.json -o api.zig
 ```
 
 **Override the generated client's base URL:**
+
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --base-url https://petstore3.swagger.io/api/v3
 ```
 
 **Disable resource wrapper namespaces and keep only flat endpoint functions:**
+
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --resource-wrappers none
 ```
 
 **Generate per-tag client structs (default when the flag is given without a value):**
+
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerTag
 ```
 
 **Generate per-endpoint client structs:**
+
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --multiple-clients PerEndpoint
 ```
 
 **Wrap method parameters in a single `options` struct:**
+
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --parameters-as-struct
 ```
@@ -241,6 +237,7 @@ defer pets.deinit();
 Required path and query parameters are emitted as non-optional struct fields, and the request body stays a separate `requestBody` argument. The struct is generated alongside the operation and named `<operationId>Options`, so `findPetsByStatus` gets a `findPetsByStatusOptions` you can name explicitly instead of relying on `.{ ... }` inference. Resource wrapper, per-tag, and per-endpoint methods follow the same shape.
 
 **Generate only endpoints and models for selected tags:**
+
 ```bash
 openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig --tag pet --tag store
 ```
@@ -274,6 +271,7 @@ defer pet.deinit();
 `--runtime-only` rejects every flag that only makes sense for a spec-driven build: `--models-only`, `--multiple-clients`, `--runtime-module`, `--tag`, `--base-url`, `--parameters-as-struct`, an explicit `--resource-wrappers` (even `none`), and `--file-name models` / `--file-name client`. Passing any of them is a parse error. No input is required, and `-i` is ignored when given.
 
 **Generate only the runtime module:**
+
 ```bash
 # Single file (no input needed)
 openapi2zig generate --runtime-only -o runtime.zig
@@ -284,6 +282,7 @@ openapi2zig generate --runtime-only --multiple-files -o generated/shared --file-
 ```
 
 **Re-use an existing runtime when generating multiple clients (avoid duplicate `runtime.zig`):**
+
 ```bash
 # Generate a shared runtime once
 openapi2zig generate -i openapi/v3.0/petstore.json -o generated/shared --multiple-files
@@ -296,6 +295,7 @@ openapi2zig generate -i openapi/v3.1/openai.json -o generated/openai --multiple-
 # With custom models file name, the same pattern applies:
 openapi2zig generate -i openapi/v3.1/lmstudio.json -o generated/lmstudio --multiple-files --file-name models=contracts.zig --runtime-module ../shared/runtime.zig
 ```
+
 When `--runtime-module` is given, no `runtime.zig` is emitted in the output directory; `client.zig` instead contains `const runtime = @import("../shared/runtime.zig");` (alias derived from the file basename, e.g. `my_runtime` for `my_runtime.zig`) and re-exports `Owned`, `RawResponse`, etc. from that module. The flag requires `--multiple-files` and is mutually exclusive with `--file-name runtime=...`. If the target file does not yet exist, generation still succeeds with an info log so you can generate the shared runtime first, for example with `openapi2zig generate --runtime-only -o generated/shared --multiple-files`.
 
 ### Upgrading
@@ -577,17 +577,17 @@ Parsed JSON responses use `.ignore_unknown_fields = true` so compatible provider
 
 Schemas map to Zig types as follows:
 
-| OpenAPI schema | Generated Zig type |
-| :--- | :--- |
-| `$ref` | the referenced declaration |
-| `type: string` | `[]const u8` (string enums stay strings, they do not become Zig enums) |
-| `type: integer` | `i64` |
-| `type: number` | `f64` |
-| `type: boolean` | `bool` |
-| `type: array` with a known `items` type | `[]const T` |
-| `type: array` with no usable `items` type | `[]const std.json.Value` |
-| schema with `properties` | a generated `struct`, even when `type` is omitted |
-| free-form object, `oneOf`/`anyOf` without a usable discriminator, unknown schema | `std.json.Value` |
+| OpenAPI schema                                                                   | Generated Zig type                                                     |
+| :------------------------------------------------------------------------------- | :--------------------------------------------------------------------- |
+| `$ref`                                                                           | the referenced declaration                                             |
+| `type: string`                                                                   | `[]const u8` (string enums stay strings, they do not become Zig enums) |
+| `type: integer`                                                                  | `i64`                                                                  |
+| `type: number`                                                                   | `f64`                                                                  |
+| `type: boolean`                                                                  | `bool`                                                                 |
+| `type: array` with a known `items` type                                          | `[]const T`                                                            |
+| `type: array` with no usable `items` type                                        | `[]const std.json.Value`                                               |
+| schema with `properties`                                                         | a generated `struct`, even when `type` is omitted                      |
+| free-form object, `oneOf`/`anyOf` without a usable discriminator, unknown schema | `std.json.Value`                                                       |
 
 Fields not listed in `required` are emitted as optionals defaulting to `null`.
 
