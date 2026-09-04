@@ -443,18 +443,26 @@ pub const OpenApiConverter = struct {
         }
     }
 
-    /// Look up a `#/components/parameters/<name>` reference. Only direct
-    /// parameter references resolve; a component entry that is itself a
-    /// reference is left alone rather than chased.
+    /// Look up a `#/components/parameters/<name>` reference. A component entry
+    /// may itself be a Reference Object, so alias chains are followed until a
+    /// Parameter Object is reached. The hop limit bounds cyclic definitions,
+    /// which nothing in the document structure prevents.
     fn resolveComponentParameter(self: *OpenApiConverter, ref: []const u8) ?Parameter3 {
         const prefix = "#/components/parameters/";
-        if (!std.mem.startsWith(u8, ref, prefix)) return null;
+        const max_hops = 32;
         const parameters = self.component_parameters orelse return null;
-        const entry = parameters.get(ref[prefix.len..]) orelse return null;
-        return switch (entry) {
-            .parameter => |param| param,
-            .reference => null,
-        };
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = parameters.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .parameter => |param| return param,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
     }
 
     fn convertParameter(self: *OpenApiConverter, parameter: Parameter3) !Parameter {
