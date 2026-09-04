@@ -14,8 +14,10 @@ pub const LoadError = error{
     InvalidResponse,
 };
 
-// Maximum size for content downloaded over HTTP (10MB for OpenAPI specs)
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
+// Maximum size for content downloaded over HTTP. Kept bounded so a remote host
+// cannot stream indefinitely, but well above real specs: the GitHub API
+// description alone is over 12MB.
+const MAX_BODY_BYTES = 64 * 1024 * 1024;
 
 /// Loads input from either a file path or HTTP/HTTPS URL
 /// Caller owns the returned memory and must free it with allocator.free()
