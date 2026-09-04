@@ -1,4 +1,4 @@
-const ModelCodeGenerator = @import("../generators/v3.0/modelgenerator.zig").ModelCodeGenerator;
+const UnifiedModelGenerator = @import("../generators/unified/model_generator.zig").UnifiedModelGenerator;
 const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
 const models = @import("../models.zig");
 const std = @import("std");
@@ -30,11 +30,17 @@ test "can deserialize petstore into OpenApiDocument" {
 test "can generate data structures from petstore OpenAPI specification" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     var parsed = try loadOpenApiDocument(allocator, "openapi/v3.0/petstore.json");
     defer parsed.deinit(allocator);
-    var code_gen = ModelCodeGenerator.init(allocator);
+    // Model generation runs through the converter and the unified generator,
+    // the same path the CLI takes for every specification version.
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    var code_gen = UnifiedModelGenerator.init(allocator);
     defer code_gen.deinit();
-    const generated_code = try code_gen.generate(parsed);
+    const generated_code = try code_gen.generate(unified);
     defer allocator.free(generated_code);
     try std.testing.expect(generated_code.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, generated_code, "pub const Pet = struct") != null);

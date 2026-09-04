@@ -574,7 +574,7 @@ pub fn appendTagClientCallArguments(self: *UnifiedApiGenerator, operation: Opera
             if (self.args.parameters_as_struct and param.location != .body) continue;
             try self.buffer.appendSlice(self.allocator, ", ");
             const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
-            try self.appendIdentifier(name);
+            try self.appendFlatParamIdentifier(name);
         }
     }
     try self.buffer.appendSlice(self.allocator, ")");

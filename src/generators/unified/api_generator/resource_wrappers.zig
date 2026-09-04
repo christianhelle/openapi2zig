@@ -105,6 +105,26 @@ pub fn generateResourceWrappers(self: *UnifiedApiGenerator, document: UnifiedDoc
         return;
     }
 
+    // A wrapper struct sharing a model type's name makes a bare reference to that
+    // model ambiguous from inside the wrapper, so with models inlined into the
+    // same file the bodies reach them through a file-scope alias instead.
+    const needs_root_alias = self.inlined_model_names != null and wrappersShadowModel(self, wrappers.items);
+    const root_alias = if (needs_root_alias) try reserveRootAliasAlloc(self, wrappers.items) else null;
+    defer if (root_alias) |alias| self.allocator.free(alias);
+
+    var root_prefix: []const u8 = "";
+    if (root_alias) |alias| {
+        try self.buffer.appendSlice(self.allocator, "const ");
+        try self.buffer.appendSlice(self.allocator, alias);
+        try self.buffer.appendSlice(self.allocator, " = @This();\n\n");
+        root_prefix = try std.fmt.allocPrint(self.allocator, "{s}.", .{alias});
+    }
+    defer if (root_prefix.len > 0) self.allocator.free(root_prefix);
+
+    const outer_model_prefix = self.model_prefix;
+    if (root_prefix.len > 0) self.model_prefix = root_prefix;
+    defer self.model_prefix = outer_model_prefix;
+
     try self.buffer.appendSlice(self.allocator, "pub const resources = struct {\n");
     try self.generateResourceLevel(wrappers.items, 0, 1, &.{});
     try self.buffer.appendSlice(self.allocator, "};\n\n");
@@ -125,6 +145,43 @@ pub fn generateResourceWrappers(self: *UnifiedApiGenerator, document: UnifiedDoc
         try self.buffer.appendSlice(self.allocator, ";\n");
     }
     if (top_segments.items.len > 0) try self.buffer.appendSlice(self.allocator, "\n");
+}
+
+/// Pick a file-scope alias for the root container that no inlined model and no
+/// top-level wrapper already declares, so emitting it cannot redeclare a name.
+fn reserveRootAliasAlloc(self: *UnifiedApiGenerator, wrappers: []const ResourceWrapper) ![]const u8 {
+    var suffix: usize = 0;
+    while (true) : (suffix += 1) {
+        const candidate = if (suffix == 0)
+            try self.allocator.dupe(u8, "_root")
+        else
+            try std.fmt.allocPrint(self.allocator, "_root{d}", .{suffix});
+        errdefer self.allocator.free(candidate);
+
+        if (!self.isInlinedModelName(candidate) and !wrapperDeclaresName(wrappers, candidate)) {
+            return candidate;
+        }
+        self.allocator.free(candidate);
+    }
+}
+
+/// True when a top-level wrapper struct is declared under this name.
+fn wrapperDeclaresName(wrappers: []const ResourceWrapper, name: []const u8) bool {
+    for (wrappers) |wrapper| {
+        if (std.mem.eql(u8, wrapper.segments[0], name)) return true;
+    }
+    return false;
+}
+
+/// True when any wrapper struct name matches a model type inlined into the same
+/// file, which is what makes bare model references inside wrappers ambiguous.
+fn wrappersShadowModel(self: *UnifiedApiGenerator, wrappers: []const ResourceWrapper) bool {
+    for (wrappers) |wrapper| {
+        for (wrapper.segments) |segment| {
+            if (self.isInlinedModelName(segment)) return true;
+        }
+    }
+    return false;
 }
 
 pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWrapper, depth: usize, indent: usize, ancestor_names: []const []const u8) !void {
@@ -354,7 +411,7 @@ pub fn appendParameterName(self: *UnifiedApiGenerator, name: []const u8, forbidd
         try self.buffer.appendSlice(self.allocator, safe_name);
         try self.buffer.appendSlice(self.allocator, "_param");
     } else {
-        try self.appendIdentifier(name);
+        try self.appendFlatParamIdentifier(name);
     }
 }
 
@@ -363,6 +420,10 @@ pub fn resourceAliasConflicts(self: *UnifiedApiGenerator, alias: []const u8, doc
     for (reserved_aliases) |reserved_alias| {
         if (std.mem.eql(u8, alias, reserved_alias)) return true;
     }
+
+    // With models inlined into the same file, a schema declares a top-level type
+    // of its own name, which the alias would redeclare.
+    if (self.isInlinedModelName(alias)) return true;
 
     var path_iterator = document.paths.iterator();
     while (path_iterator.next()) |entry| {

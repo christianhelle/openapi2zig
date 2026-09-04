@@ -14,8 +14,10 @@ pub const LoadError = error{
     InvalidResponse,
 };
 
-// Maximum size for loaded content (10MB for OpenAPI specs)
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
+// Maximum size for content downloaded over HTTP. Kept bounded so a remote host
+// cannot stream indefinitely, but well above real specs: the GitHub API
+// description alone is over 12MB.
+const MAX_BODY_BYTES = 64 * 1024 * 1024;
 
 /// Loads input from either a file path or HTTP/HTTPS URL
 /// Caller owns the returned memory and must free it with allocator.free()
@@ -29,7 +31,9 @@ pub fn loadInput(allocator: std.mem.Allocator, io: std.Io, source: InputSource) 
 /// Loads content from a file path
 /// Caller owns the returned memory and must free it with allocator.free()
 pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]const u8 {
-    const contents = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(MAX_BODY_BYTES)) catch |err| {
+    // Local files are read without a size cap; large specs (e.g. the GitHub API
+    // description) exceed any fixed limit we would otherwise pick.
+    const contents = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .unlimited) catch |err| {
         std.log.info("Failed to read file '{s}': {}", .{ path, err });
         return err;
     };

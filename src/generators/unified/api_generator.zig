@@ -52,6 +52,11 @@ pub const UnifiedApiGenerator = struct {
     /// parameter name/location. Populated on first use so repeated parameter
     /// references don't rescan the operation's parameter list.
     options_field_names: std.StringHashMap([]const u8),
+    /// Schemas emitted as top-level types into the same file as the client.
+    /// Zig forbids a parameter from shadowing a declaration in scope, so flat
+    /// parameter names matching one of these get a suffix. Only set for
+    /// single-file output; multi-file keeps models behind `model_prefix`.
+    inlined_model_names: ?*const std.StringHashMap(Schema) = null,
     model_prefix: []const u8 = "",
     emit_imports: bool = true,
     models_import: []const u8 = "models.zig",
@@ -98,6 +103,8 @@ pub const UnifiedApiGenerator = struct {
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
+        if (document.schemas) |*schemas| self.inlined_model_names = schemas;
+        defer self.inlined_model_names = null;
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
@@ -149,11 +156,41 @@ pub const UnifiedApiGenerator = struct {
         try ident.appendEscapedIdentifier(&self.buffer, self.allocator, name);
     }
 
+    /// True when this name is a model type declared at the top level of the same
+    /// file, and so cannot be reused or referenced bare from a nested scope.
+    pub fn isInlinedModelName(self: *UnifiedApiGenerator, name: []const u8) bool {
+        const schemas = self.inlined_model_names orelse return false;
+        return schemas.contains(name);
+    }
+
+    /// Append a flat parameter identifier, renaming it when the spec's parameter
+    /// name collides with a model type sharing the output file.
+    pub fn appendFlatParamIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
+        if (!self.isInlinedModelName(name)) {
+            try self.appendIdentifier(name);
+            return;
+        }
+        const safe_name = try self.sanitizeIdentifierAlloc(name);
+        defer self.allocator.free(safe_name);
+        try self.buffer.appendSlice(self.allocator, safe_name);
+        try self.buffer.appendSlice(self.allocator, "_param");
+    }
+
     pub fn appendLineComment(self: *UnifiedApiGenerator, text: []const u8) !void {
         var lines = std.mem.splitScalar(u8, text, '\n');
         while (lines.next()) |line| {
             try self.buffer.appendSlice(self.allocator, "// ");
-            try self.buffer.appendSlice(self.allocator, std.mem.trim(u8, line, "\r"));
+            // Zig rejects tabs inside comments, so descriptions carried over from
+            // the specification (markdown tables, indented text) get spaces here.
+            // Most lines have no tab at all, so those are copied in one go.
+            const trimmed = std.mem.trim(u8, line, "\r");
+            if (std.mem.indexOfScalar(u8, trimmed, '\t') == null) {
+                try self.buffer.appendSlice(self.allocator, trimmed);
+            } else {
+                for (trimmed) |c| {
+                    try self.buffer.append(self.allocator, if (c == '\t') ' ' else c);
+                }
+            }
             try self.buffer.appendSlice(self.allocator, "\n");
         }
     }

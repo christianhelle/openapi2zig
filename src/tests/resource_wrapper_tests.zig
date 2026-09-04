@@ -2,6 +2,9 @@ const std = @import("std");
 const cli = @import("../cli.zig");
 const UnifiedApiGenerator = @import("../generators/unified/api_generator.zig").UnifiedApiGenerator;
 const common = @import("../models/common/document.zig");
+const testing = std.testing;
+const test_utils = @import("test_utils.zig");
+const UnifiedModelGenerator = @import("../generators/unified/model_generator.zig").UnifiedModelGenerator;
 
 fn responseMap(allocator: std.mem.Allocator, with_schema: bool) !std.StringHashMap(common.Response) {
     var responses = std.StringHashMap(common.Response).init(allocator);
@@ -165,4 +168,227 @@ test "resource wrapper aliases skip top-level operation name collisions" {
         try std.testing.expect(std.mem.indexOf(u8, code, "pub fn chat_(client: *Client, requestBody: std.json.Value)") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = resources.chat;") == null);
     }
+}
+
+fn buildModelNameCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    try paths.put(try allocator.dupe(u8, "/installation/repositories"), .{
+        .get = try opWithTags(allocator, "listInstallationRepos", "GET", false, false, true, null),
+    });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "installation"), .{ .type = .object });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+test "resource wrapper aliases skip model type name collisions" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var document = try buildModelNameCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .paths,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // A schema named "installation" declares a top-level `installation` type in
+    // single-file output, so the resource alias must not redeclare the name.
+    try std.testing.expect(std.mem.indexOf(u8, code, "    pub const installation = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const installation = resources.installation;") == null);
+}
+
+fn buildParameterShadowsModelFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    var params = std.ArrayList(common.Parameter).empty;
+    errdefer params.deinit(allocator);
+    try params.append(allocator, .{
+        .name = "page",
+        .location = .query,
+        .required = false,
+        .type = .integer,
+    });
+
+    var responses = std.StringHashMap(common.Response).init(allocator);
+    errdefer responses.deinit();
+    try responses.put(try allocator.dupe(u8, "200"), .{ .description = "ok" });
+
+    try paths.put(try allocator.dupe(u8, "/issues"), .{
+        .get = .{
+            .operationId = "listIssues",
+            .parameters = try params.toOwnedSlice(allocator),
+            .responses = responses,
+        },
+    });
+
+    var page_properties = std.StringHashMap(common.Schema).init(allocator);
+    errdefer page_properties.deinit();
+    try page_properties.put(try allocator.dupe(u8, "url"), .{ .type = .string });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "page"), .{ .type = .object, .properties = page_properties });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+test "flat parameters do not shadow inlined model type names" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var document = try buildParameterShadowsModelFixture(allocator);
+    defer document.deinit(allocator);
+
+    // Single-file output joins the models and the client, so both share one
+    // top-level namespace, exactly as generateCodeFromUnifiedDocument builds it.
+    var model_generator = UnifiedModelGenerator.init(allocator);
+    defer model_generator.deinit();
+    const models_code = try model_generator.generate(document);
+    defer allocator.free(models_code);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const api_code = try generator.generate(document);
+    defer allocator.free(api_code);
+
+    const code = try std.mem.join(allocator, "\n", &.{ models_code, api_code });
+    defer allocator.free(code);
+
+    // Zig rejects a function parameter that shadows a top-level declaration, and
+    // a schema named "page" declares exactly such a top-level type.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const page = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "page: ?i64") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "page_param: ?i64") != null);
+}
+
+fn buildWrapperShadowsModelFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var responses = std.StringHashMap(common.Response).init(allocator);
+    errdefer responses.deinit();
+    try responses.put(try allocator.dupe(u8, "200"), .{
+        .description = "ok",
+        .schema = .{ .type = .reference, .ref = "#/components/schemas/installation" },
+    });
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+    try paths.put(try allocator.dupe(u8, "/apps/installation"), .{
+        .get = .{ .operationId = "getInstallation", .responses = responses },
+    });
+
+    var properties = std.StringHashMap(common.Schema).init(allocator);
+    errdefer properties.deinit();
+    try properties.put(try allocator.dupe(u8, "app_id"), .{ .type = .integer });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "installation"), .{ .type = .object, .properties = properties });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+test "wrapper bodies reference models unambiguously when a wrapper shares a model name" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var document = try buildWrapperShadowsModelFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .paths,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // The wrapper struct `resources.apps.installation` makes a bare `installation`
+    // inside `resources.apps` ambiguous with the top-level model of that name, so
+    // wrapper bodies must reach the model through the file-scope alias.
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _root = @This();") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "_root.installation") != null);
+}
+
+fn buildRootAliasCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    // `/installation/...` forces the root alias, and a schema named `_root`
+    // declares a top-level type that the default alias name would redeclare.
+    try paths.put(try allocator.dupe(u8, "/installation/repositories"), .{
+        .get = try opWithTags(allocator, "listInstallationRepos", "GET", false, false, true, null),
+    });
+
+    var root_properties = std.StringHashMap(common.Schema).init(allocator);
+    errdefer root_properties.deinit();
+    try root_properties.put(try allocator.dupe(u8, "url"), .{ .type = .string });
+
+    var installation_properties = std.StringHashMap(common.Schema).init(allocator);
+    errdefer installation_properties.deinit();
+    try installation_properties.put(try allocator.dupe(u8, "app_id"), .{ .type = .integer });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "_root"), .{ .type = .object, .properties = root_properties });
+    try schemas.put(try allocator.dupe(u8, "installation"), .{ .type = .object, .properties = installation_properties });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+test "root alias avoids colliding with an inlined model of the same name" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildRootAliasCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .paths,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // A schema named `_root` already declares that identifier at file scope, so
+    // the alias must pick a different one rather than redeclare it.
+    try testing.expect(std.mem.indexOf(u8, code, "const _root = @This();") == null);
+    try testing.expect(std.mem.indexOf(u8, code, " = @This();") != null);
 }
