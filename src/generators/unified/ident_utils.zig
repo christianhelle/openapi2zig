@@ -130,6 +130,7 @@ pub fn toZigMethodNameAlloc(allocator: std.mem.Allocator, name: []const u8) ![]c
         }
         upper_next = false;
     }
+    if (out.items.len > 0 and !isIdentStart(out.items[0])) try out.insert(allocator, 0, '_');
     return try out.toOwnedSlice(allocator);
 }
 
@@ -245,4 +246,10 @@ test "toZigMethodNameAlloc camel cases ids that are not valid identifiers" {
     const name = try toZigMethodNameAlloc(std.testing.allocator, "repos/list-pull-requests-associated-with-commit");
     defer std.testing.allocator.free(name);
     try std.testing.expectEqualStrings("reposListPullRequestsAssociatedWithCommit", name);
+}
+
+test "toZigMethodNameAlloc prefixes names that would start with a digit" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "2fa/enable");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("_2faEnable", name);
 }
