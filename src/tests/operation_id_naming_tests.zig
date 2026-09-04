@@ -105,6 +105,44 @@ const spec_with_streaming_collision =
     \\}
 ;
 
+// Same collision as above, but with both operations under one tag so they land
+// in the same tag client and the sibling method can shadow the flat helper.
+const spec_with_tagged_streaming_collision =
+    \\{
+    \\  "openapi": "3.0.0",
+    \\  "info": { "title": "Naming", "version": "1.0.0" },
+    \\  "paths": {
+    \\    "/chat": {
+    \\      "post": {
+    \\        "operationId": "foo",
+    \\        "tags": ["chat"],
+    \\        "requestBody": {
+    \\          "content": { "application/json": { "schema": { "type": "object" } } }
+    \\        },
+    \\        "responses": {
+    \\          "200": {
+    \\            "description": "ok",
+    \\            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+    \\          }
+    \\        }
+    \\      }
+    \\    },
+    \\    "/other": {
+    \\      "get": {
+    \\        "operationId": "foo-streaming-events",
+    \\        "tags": ["chat"],
+    \\        "responses": {
+    \\          "200": {
+    \\            "description": "ok",
+    \\            "content": { "application/json": { "schema": { "type": "object" } } }
+    \\          }
+    \\        }
+    \\      }
+    \\    }
+    \\  }
+    \\}
+;
+
 fn generateClient(allocator: std.mem.Allocator, spec: []const u8, args: cli.CliArgs) ![]const u8 {
     var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
     defer parsed.deinit(allocator);
@@ -168,4 +206,22 @@ test "operation names avoid the streaming helpers of other operations" {
     // operation whose id camel cases onto the latter has to move aside.
     try testing.expect(std.mem.indexOf(u8, code, "pub fn fooStreamingEvents(comptime Event: type, client: *Client") != null);
     try testing.expect(std.mem.indexOf(u8, code, "pub fn fooStreamingEvents_(client: *Client) ") != null);
+}
+
+test "streaming events delegation routes through the alias when shadowed" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_tagged_streaming_collision, .{
+        .input_path = "fixture.json",
+        .multiple_clients = .per_tag,
+        .resource_wrappers = .none,
+    });
+    defer allocator.free(code);
+
+    // A sibling method named fooStreamingEvents shadows the flat helper, so the
+    // events delegation has to go through the file-scope alias.
+    try testing.expect(std.mem.indexOf(u8, code, "const _fooStreamingEvents = fooStreamingEvents;") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "return _fooStreamingEvents(Event, self.client") != null);
 }

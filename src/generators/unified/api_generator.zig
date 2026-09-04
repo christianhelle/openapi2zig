@@ -373,6 +373,7 @@ pub const UnifiedApiGenerator = struct {
     pub const generateEndpointClient = @import("api_generator/tag_clients.zig").generateEndpointClient;
     pub const topLevelNameConflicts = @import("api_generator/tag_clients.zig").topLevelNameConflicts;
     pub const uniqueTagClientStructNameAlloc = @import("api_generator/tag_clients.zig").uniqueTagClientStructNameAlloc;
+    pub const streamingEventsShadowed = @import("api_generator/tag_clients.zig").streamingEventsShadowed;
     pub const isReservedTagClientMethod = @import("api_generator/tag_clients.zig").isReservedTagClientMethod;
     pub const uniqueTagClientMethodNameAlloc = @import("api_generator/tag_clients.zig").uniqueTagClientMethodNameAlloc;
     pub const tagClientMethodNamesCollide = @import("api_generator/tag_clients.zig").tagClientMethodNamesCollide;
