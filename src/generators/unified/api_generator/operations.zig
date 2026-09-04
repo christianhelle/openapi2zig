@@ -46,7 +46,7 @@ pub fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: [
     }
 
     if (operation.streaming and std.mem.eql(u8, method, "POST")) {
-        if (operation.operationId) |op_id| {
+        if (try self.operationNameOf(operation)) |op_id| {
             const stream_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{op_id});
             defer self.allocator.free(stream_name);
             try self.generateStreamFunction(stream_name, path, operation, document);
@@ -55,7 +55,7 @@ pub fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: [
 }
 
 pub fn generateFunctionResult(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
-    const operation_id = operation.operationId orelse return;
+    const operation_id = try self.operationNameOf(operation) orelse return;
     const result_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{operation_id});
     defer self.allocator.free(result_name);
     const raw_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id});
@@ -78,7 +78,7 @@ pub fn generateFunctionResult(self: *UnifiedApiGenerator, method: []const u8, pa
 }
 
 pub fn generateFunctionRaw(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation, document: UnifiedDocument) !void {
-    const operation_id = operation.operationId orelse return;
+    const operation_id = try self.operationNameOf(operation) orelse return;
     const raw_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id});
     defer self.allocator.free(raw_name);
 
@@ -339,7 +339,7 @@ pub fn generateComments(self: *UnifiedApiGenerator, operation: Operation) !void 
 pub fn generateFunctionSignature(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
     try self.buffer.appendSlice(self.allocator, "pub fn ");
 
-    if (operation.operationId) |op_id| {
+    if (try self.operationNameOf(operation)) |op_id| {
         try self.appendIdentifier(op_id);
     } else {
         try self.buffer.appendSlice(self.allocator, "@\"operation");
@@ -359,7 +359,7 @@ pub fn generateFunctionSignature(self: *UnifiedApiGenerator, method: []const u8,
 }
 
 pub fn generateFunctionBody(self: *UnifiedApiGenerator, method: []const u8, path: []const u8, operation: Operation) !void {
-    const operation_id = operation.operationId orelse return self.generateFunctionBodyDirect(method, path, operation);
+    const operation_id = try self.operationNameOf(operation) orelse return self.generateFunctionBodyDirect(method, path, operation);
     if (self.hasReturnValue(method, operation)) {
         const result_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{operation_id});
         defer self.allocator.free(result_name);

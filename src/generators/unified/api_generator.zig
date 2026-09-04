@@ -29,6 +29,7 @@ const authSchemeForOperation = helpers.authSchemeForOperation;
 const ResourceWrapper = helpers.ResourceWrapper;
 const TagClient = helpers.TagClient;
 const operationRefLessThan = helpers.operationRefLessThan;
+const collectOperationRefs = helpers.collectOperationRefs;
 const tagClientLessThan = helpers.tagClientLessThan;
 const toPascalCaseAlloc = helpers.toPascalCaseAlloc;
 const resourceWrapperLessThan = helpers.resourceWrapperLessThan;
@@ -111,6 +112,42 @@ pub const UnifiedApiGenerator = struct {
         self.operation_names.clearRetainingCapacity();
     }
 
+    /// Assign a declaration name to every operation id in the document.
+    /// Camel casing can collapse two distinct ids onto one name (e.g.
+    /// `get-pet` and `getPet`), so later arrivals take an underscore suffix.
+    /// Names are assigned in path/method order rather than hash order so the
+    /// same document always generates the same names.
+    pub fn reserveOperationNames(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
+        var operations = std.ArrayList(OperationRef).empty;
+        defer operations.deinit(self.allocator);
+        try collectOperationRefs(&operations, self.allocator, document);
+        std.mem.sort(OperationRef, operations.items, {}, operationRefLessThan);
+
+        for (operations.items) |op_ref| {
+            const operation_id = op_ref.operation.operationId orelse continue;
+            if (self.operation_names.contains(operation_id)) continue;
+
+            var name = try ident.toZigMethodNameAlloc(self.allocator, operation_id);
+            errdefer self.allocator.free(name);
+            while (self.operationNameTaken(name)) {
+                const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{name});
+                self.allocator.free(name);
+                name = suffixed;
+            }
+            const key = try self.allocator.dupe(u8, operation_id);
+            errdefer self.allocator.free(key);
+            try self.operation_names.put(key, name);
+        }
+    }
+
+    fn operationNameTaken(self: *UnifiedApiGenerator, name: []const u8) bool {
+        var iterator = self.operation_names.valueIterator();
+        while (iterator.next()) |taken| {
+            if (std.mem.eql(u8, taken.*, name)) return true;
+        }
+        return false;
+    }
+
     /// The name used for declarations generated from `operation_id`. The
     /// returned slice is owned by the generator and stays valid until the next
     /// `generate` call.
@@ -147,6 +184,7 @@ pub const UnifiedApiGenerator = struct {
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
         self.clearOperationNames(self.allocator);
+        try self.reserveOperationNames(document);
         self.has_streaming_operations = documentHasStreamingOperations(document);
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeader();
@@ -168,6 +206,7 @@ pub const UnifiedApiGenerator = struct {
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
         self.clearOperationNames(self.allocator);
+        try self.reserveOperationNames(document);
         self.has_streaming_operations = documentHasStreamingOperations(document);
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeaderMulti();

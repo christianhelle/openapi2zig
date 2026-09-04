@@ -429,12 +429,14 @@ test "multiple-clients PerTag dedupes struct names, reserved methods, and method
     try std.testing.expect(std.mem.indexOf(u8, code, "const _ifRaw = ifRaw;") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "return _ifRaw(self.client, requestBody);") != null);
 
-    // Method collision: get-pet and getPet both sanitize to getPet → getPet, getPet_.
+    // Method collision: get-pet and getPet both camel case to getPet, so the
+    // flat functions become getPet and getPet_ and the methods follow suit.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(self: *PetClient) !Owned(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return @\"get-pet\"(self.client);") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet_(self: *PetClient, petId: i64) !Owned(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "return _getPet(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _getPet(self.client);") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "const _getPet = getPet;") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn getPet_(self: *PetClient, petId: i64) !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "return _getPet_(self.client, petId);") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _getPet_ = getPet_;") != null);
 
     // The "Pet" tag operation landed in the merged PetClient too.
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn listUsers(self: *PetClient") != null);
