@@ -112,7 +112,25 @@ fn appendIdentifierAs(buffer: *std.ArrayList(u8), allocator: std.mem.Allocator, 
 /// Ids that are already valid identifiers are returned unchanged so hand
 /// written specs keep the names their authors chose.
 pub fn toZigMethodNameAlloc(allocator: std.mem.Allocator, name: []const u8) ![]const u8 {
-    return try allocator.dupe(u8, name);
+    if (isBareIdentifier(name)) return try allocator.dupe(u8, name);
+    var out = std.ArrayList(u8).empty;
+    errdefer out.deinit(allocator);
+    var upper_next = false;
+    for (name) |c| {
+        if (!std.ascii.isAlphanumeric(c)) {
+            upper_next = out.items.len > 0;
+            continue;
+        }
+        if (out.items.len == 0) {
+            try out.append(allocator, std.ascii.toLower(c));
+        } else if (upper_next) {
+            try out.append(allocator, std.ascii.toUpper(c));
+        } else {
+            try out.append(allocator, c);
+        }
+        upper_next = false;
+    }
+    return try out.toOwnedSlice(allocator);
 }
 
 test "isIdentStart" {
@@ -221,4 +239,10 @@ test "toZigMethodNameAlloc keeps names that are already valid identifiers" {
     const name = try toZigMethodNameAlloc(std.testing.allocator, "addPet");
     defer std.testing.allocator.free(name);
     try std.testing.expectEqualStrings("addPet", name);
+}
+
+test "toZigMethodNameAlloc camel cases ids that are not valid identifiers" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "repos/list-pull-requests-associated-with-commit");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("reposListPullRequestsAssociatedWithCommit", name);
 }
