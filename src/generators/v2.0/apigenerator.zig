@@ -178,9 +178,14 @@ fn generateImplementation(allocator: std.mem.Allocator, path: []const u8, method
             for (parameters) |parameter| {
                 if (parameter.in != .path) continue;
                 const param = parameter.name;
-                const size = std.mem.replacementSize(u8, new_path, param, "any");
+                // Substitute the braced placeholder rather than the bare name: a
+                // parameter such as `repo` also occurs inside literal segments
+                // like `/repos/`, which replacing the bare name would rewrite.
+                const placeholder = try std.fmt.allocPrint(allocator, "{{{s}}}", .{param});
+                defer allocator.free(placeholder);
+                const size = std.mem.replacementSize(u8, new_path, placeholder, "{any}");
                 const output = try allocator.alloc(u8, size);
-                _ = std.mem.replace(u8, new_path, param, "any", output);
+                _ = std.mem.replace(u8, new_path, placeholder, "{any}", output);
                 new_path = output;
                 try allocations.append(allocator, output);
             }

@@ -161,9 +161,14 @@ pub const ApiCodeGenerator = struct {
                 const parameter = paramOrReference.parameter;
                 if (!std.mem.eql(u8, parameter.in_field, "path")) continue;
                 const name = parameter.name;
-                const size = std.mem.replacementSize(u8, new_path, name, "any");
+                // Substitute the braced placeholder rather than the bare name: a
+                // parameter such as `repo` also occurs inside literal segments
+                // like `/repos/`, which replacing the bare name would rewrite.
+                const placeholder = try std.fmt.allocPrint(allocator, "{{{s}}}", .{name});
+                defer allocator.free(placeholder);
+                const size = std.mem.replacementSize(u8, new_path, placeholder, "{any}");
                 const output = try allocator.alloc(u8, size);
-                _ = std.mem.replace(u8, new_path, name, "any", output);
+                _ = std.mem.replace(u8, new_path, placeholder, "{any}", output);
                 new_path = output;
                 try allocations.append(allocator, output);
             }
