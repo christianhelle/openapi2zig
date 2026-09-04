@@ -83,7 +83,7 @@ pub fn generateTagClients(self: *UnifiedApiGenerator, document: UnifiedDocument)
             try self.registerTagClientMethodNames(method_name, op_ref, &planned_names);
         }
         for (group.methods.items) |op_ref| {
-            const op_id = try self.operationNameOf(op_ref.operation) orelse continue;
+            const op_id = self.operationNameOf(op_ref.operation) orelse continue;
             if (isReservedTagClientMethod(op_id) or planned_names.contains(op_id)) {
                 try aliased.put(op_id, {});
             }
@@ -96,7 +96,7 @@ pub fn generateTagClients(self: *UnifiedApiGenerator, document: UnifiedDocument)
     // is an ambiguous reference between the struct method and the flat fn.
     var alias_count: usize = 0;
     for (operations.items) |op_ref| {
-        const op_id = try self.operationNameOf(op_ref.operation) orelse continue;
+        const op_id = self.operationNameOf(op_ref.operation) orelse continue;
         if (!aliased.contains(op_id)) continue;
 
         // The alias target is the flat function name, which may be a Zig
@@ -157,7 +157,7 @@ pub fn generateTagClients(self: *UnifiedApiGenerator, document: UnifiedDocument)
         for (group.methods.items) |op_ref| {
             const method_name = try self.uniqueTagClientMethodNameAlloc(op_ref, used_method_names);
             try self.registerTagClientMethodNames(method_name, op_ref, &used_method_names);
-            const needs_alias = if (try self.operationNameOf(op_ref.operation)) |op_id|
+            const needs_alias = if (self.operationNameOf(op_ref.operation)) |op_id|
                 aliased.contains(op_id)
             else
                 false;
@@ -251,7 +251,7 @@ pub fn generateEndpointClient(self: *UnifiedApiGenerator, struct_name: []const u
         try self.buffer.appendSlice(self.allocator, ") !void {\n");
     }
     try self.buffer.appendSlice(self.allocator, "        return ");
-    if (try self.operationNameOf(operation)) |op_id| {
+    if (self.operationNameOf(operation)) |op_id| {
         try self.appendIdentifier(op_id);
     } else {
         try self.buffer.appendSlice(self.allocator, "@\"operation");
@@ -262,7 +262,7 @@ pub fn generateEndpointClient(self: *UnifiedApiGenerator, struct_name: []const u
     try self.buffer.appendSlice(self.allocator, ";\n");
     try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
-    if (try self.operationNameOf(operation)) |op_id| {
+    if (self.operationNameOf(operation)) |op_id| {
         const raw_operation_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{op_id});
         defer self.allocator.free(raw_operation_name);
 
@@ -376,7 +376,7 @@ pub fn isReservedTagClientMethod(name: []const u8) bool {
 }
 
 pub fn uniqueTagClientMethodNameAlloc(self: *UnifiedApiGenerator, op_ref: OperationRef, used_names: std.StringHashMap(void)) ![]const u8 {
-    var candidate = if (try self.operationNameOf(op_ref.operation)) |op_id|
+    var candidate = if (self.operationNameOf(op_ref.operation)) |op_id|
         try self.tagClientMethodNameAlloc(op_id)
     else
         try self.tagClientFallbackMethodNameAlloc(op_ref);
@@ -467,7 +467,7 @@ pub fn tagClientMethodNameAlloc(self: *UnifiedApiGenerator, operation_id: []cons
 
 pub fn generateTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const u8, method_name: []const u8, op_ref: OperationRef, needs_alias: bool) !void {
     const operation = op_ref.operation;
-    const op_id = try self.operationNameOf(operation);
+    const op_id = self.operationNameOf(operation);
     const has_return = self.hasReturnValue(op_ref.method, operation);
 
     try self.buffer.appendSlice(self.allocator, "    pub fn ");

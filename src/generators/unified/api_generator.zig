@@ -175,23 +175,19 @@ pub const UnifiedApiGenerator = struct {
         }
     }
 
-    /// The name used for declarations generated from `operation_id`. The
-    /// returned slice is owned by the generator and stays valid until the next
-    /// `generate` call.
-    pub fn operationName(self: *UnifiedApiGenerator, operation_id: []const u8) ![]const u8 {
-        if (self.operation_names.get(operation_id)) |name| return name;
-        const name = try ident.toZigMethodNameAlloc(self.allocator, operation_id);
-        errdefer self.allocator.free(name);
-        const key = try self.allocator.dupe(u8, operation_id);
-        errdefer self.allocator.free(key);
-        try self.operation_names.put(key, name);
-        return name;
+    /// The name used for declarations generated from `operation_id`. Both
+    /// generate entry points reserve a name for every operation in the document
+    /// first, so this is a lookup; an id that was never reserved falls back to
+    /// itself and is escaped at the point of use as it was before. The returned
+    /// slice stays valid until the next `generate` call.
+    pub fn operationName(self: *UnifiedApiGenerator, operation_id: []const u8) []const u8 {
+        return self.operation_names.get(operation_id) orelse operation_id;
     }
 
     /// The declaration name for `operation`, or null when it has no operationId.
-    pub fn operationNameOf(self: *UnifiedApiGenerator, operation: Operation) !?[]const u8 {
+    pub fn operationNameOf(self: *UnifiedApiGenerator, operation: Operation) ?[]const u8 {
         const operation_id = operation.operationId orelse return null;
-        return try self.operationName(operation_id);
+        return self.operationName(operation_id);
     }
 
     pub fn deinit(self: *UnifiedApiGenerator) void {
