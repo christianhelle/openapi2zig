@@ -84,11 +84,14 @@ fn buildNonPostStreamingDocument(allocator: std.mem.Allocator) !common.UnifiedDo
     errdefer allocator.free(response_key);
     try responses.put(response_key, .{ .description = "ok" });
 
-    const path_key = try allocator.dupe(u8, "/chat-streaming");
+    // A second operation so the assertions below can tell a POST-only stream
+    // helper apart from an ordinary operation. Its id must not camel case to
+    // "chatCompletionStreaming", which is the helper name under test.
+    const path_key = try allocator.dupe(u8, "/chat-events");
     errdefer allocator.free(path_key);
     try document.paths.put(path_key, .{
         .get = .{
-            .operationId = "chat-completion-streaming",
+            .operationId = "chat-completion-events",
             .responses = responses,
         },
     });
@@ -276,7 +279,7 @@ test "non-POST streaming metadata does not emit POST-only helpers or wrapper met
     try std.testing.expect(std.mem.indexOf(u8, code, "fn streamJson(") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "chatCompletionStreaming") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "chatCompletionStream(") == null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub const ChatCompletionStreaming = struct {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const ChatCompletionEvents = struct {") != null);
 }
 
 test "nested cancellation watcher does not reserve top-level client names" {

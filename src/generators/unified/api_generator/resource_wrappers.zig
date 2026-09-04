@@ -43,7 +43,7 @@ pub fn generateResourceWrappers(self: *UnifiedApiGenerator, document: UnifiedDoc
     }
 
     for (operations.items) |op_ref| {
-        const operation_id = op_ref.operation.operationId orelse continue;
+        const operation_id = self.operationNameOf(op_ref.operation) orelse continue;
         const segments = try self.resourceSegments(op_ref.path, op_ref.operation);
         if (segments.len == 0) {
             self.allocator.free(segments);
@@ -461,7 +461,8 @@ pub fn operationHasParameterNamed(self: *UnifiedApiGenerator, maybe_operation: ?
 
 pub fn operationDeclaresTopLevelName(self: *UnifiedApiGenerator, maybe_operation: ?Operation, method: []const u8, name: []const u8) bool {
     const operation = maybe_operation orelse return false;
-    const operation_id = operation.operationId orelse return false;
+    const raw_operation_id = operation.operationId orelse return false;
+    const operation_id = self.operationName(raw_operation_id);
     if (std.mem.eql(u8, operation_id, name)) return true;
 
     const raw_name = std.fmt.allocPrint(self.allocator, "{s}Raw", .{operation_id}) catch return true;

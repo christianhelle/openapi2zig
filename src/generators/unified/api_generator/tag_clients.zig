@@ -63,16 +63,57 @@ pub fn generateTagClients(self: *UnifiedApiGenerator, document: UnifiedDocument)
 
     std.mem.sort(TagClient, groups.items, {}, tagClientLessThan);
 
+    // Decide the aliases before emitting anything. A method body referring to
+    // its flat function unqualified resolves to a struct member of the same
+    // name instead, so an operation needs an alias when its flat function name
+    // is shadowed by a member of the struct it lands in: a sibling method name
+    // (only known after collision suffixing across the whole group) or one of
+    // the members every tag client declares.
+    var aliased = std.StringHashMap(void).init(self.allocator);
+    defer aliased.deinit();
+    // The streaming-events helper is tracked separately: an operation's own
+    // members never shadow it (the method is named {name}StreamEvents while the
+    // helper is {name}StreamingEvents), so it needs an alias only when some
+    // other method in the struct happens to carry that name.
+    var aliased_events = std.StringHashMap(void).init(self.allocator);
+    defer aliased_events.deinit();
+    for (groups.items) |group| {
+        var planned_names = std.StringHashMap(void).init(self.allocator);
+        defer {
+            var planned_iterator = planned_names.keyIterator();
+            while (planned_iterator.next()) |key| self.allocator.free(key.*);
+            planned_names.deinit();
+        }
+        for (group.methods.items) |op_ref| {
+            const method_name = try self.uniqueTagClientMethodNameAlloc(op_ref, planned_names);
+            try self.registerTagClientMethodNames(method_name, op_ref, &planned_names);
+        }
+        for (group.methods.items) |op_ref| {
+            const op_id = self.operationNameOf(op_ref.operation) orelse continue;
+            if (isReservedTagClientMethod(op_id) or planned_names.contains(op_id)) {
+                try aliased.put(op_id, {});
+            }
+            if (try self.streamingEventsShadowed(op_id, op_ref, planned_names)) {
+                try aliased_events.put(op_id, {});
+            }
+        }
+    }
+
     // Emit file-scope aliases for operations whose tag-client method name
     // matches the flat function it delegates to. Without the alias, the
     // unqualified call inside the method (e.g. `return listPets(self.client)`)
     // is an ambiguous reference between the struct method and the flat fn.
     var alias_count: usize = 0;
     for (operations.items) |op_ref| {
-        const op_id = op_ref.operation.operationId orelse continue;
-        const prospective = try self.tagClientMethodNameAlloc(op_id);
-        defer self.allocator.free(prospective);
-        if (!std.mem.eql(u8, prospective, op_id)) continue;
+        const op_id = self.operationNameOf(op_ref.operation) orelse continue;
+        const streams = op_ref.operation.streaming and std.mem.eql(u8, op_ref.method, "POST");
+        if (streams and aliased_events.contains(op_id)) {
+            const events_alias = try std.fmt.allocPrint(self.allocator, "const _{s}StreamingEvents = {s}StreamingEvents;\n", .{ op_id, op_id });
+            defer self.allocator.free(events_alias);
+            try self.buffer.appendSlice(self.allocator, events_alias);
+            alias_count += 1;
+        }
+        if (!aliased.contains(op_id)) continue;
 
         // The alias target is the flat function name, which may be a Zig
         // keyword (e.g. operationId "if" → @"if") and so must be quoted.
@@ -132,7 +173,10 @@ pub fn generateTagClients(self: *UnifiedApiGenerator, document: UnifiedDocument)
         for (group.methods.items) |op_ref| {
             const method_name = try self.uniqueTagClientMethodNameAlloc(op_ref, used_method_names);
             try self.registerTagClientMethodNames(method_name, op_ref, &used_method_names);
-            try self.generateTagClientMethod(struct_name, method_name, op_ref);
+            const op_name = self.operationNameOf(op_ref.operation);
+            const needs_alias = if (op_name) |op_id| aliased.contains(op_id) else false;
+            const needs_events_alias = if (op_name) |op_id| aliased_events.contains(op_id) else false;
+            try self.generateTagClientMethod(struct_name, method_name, op_ref, needs_alias, needs_events_alias);
         }
 
         try self.buffer.appendSlice(self.allocator, "};\n\n");
@@ -222,7 +266,7 @@ pub fn generateEndpointClient(self: *UnifiedApiGenerator, struct_name: []const u
         try self.buffer.appendSlice(self.allocator, ") !void {\n");
     }
     try self.buffer.appendSlice(self.allocator, "        return ");
-    if (operation.operationId) |op_id| {
+    if (self.operationNameOf(operation)) |op_id| {
         try self.appendIdentifier(op_id);
     } else {
         try self.buffer.appendSlice(self.allocator, "@\"operation");
@@ -233,7 +277,7 @@ pub fn generateEndpointClient(self: *UnifiedApiGenerator, struct_name: []const u
     try self.buffer.appendSlice(self.allocator, ";\n");
     try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
-    if (operation.operationId) |op_id| {
+    if (self.operationNameOf(operation)) |op_id| {
         const raw_operation_name = try std.fmt.allocPrint(self.allocator, "{s}Raw", .{op_id});
         defer self.allocator.free(raw_operation_name);
 
@@ -339,6 +383,22 @@ pub fn uniqueTagClientStructNameAlloc(self: *UnifiedApiGenerator, name: []const 
     return candidate;
 }
 
+/// True when the `{op}StreamingEvents` helper this streaming operation emits is
+/// shadowed by a method of the tag client struct it lands in. The events method
+/// body names that helper unqualified, so a shadowed one has to be reached
+/// through a `_` alias instead.
+pub fn streamingEventsShadowed(
+    self: *UnifiedApiGenerator,
+    op_id: []const u8,
+    op_ref: OperationRef,
+    planned_names: std.StringHashMap(void),
+) !bool {
+    if (!op_ref.operation.streaming or !std.mem.eql(u8, op_ref.method, "POST")) return false;
+    const helper = try std.fmt.allocPrint(self.allocator, "{s}StreamingEvents", .{op_id});
+    defer self.allocator.free(helper);
+    return isReservedTagClientMethod(helper) or planned_names.contains(helper);
+}
+
 pub fn isReservedTagClientMethod(name: []const u8) bool {
     return ident.isReservedIdent(name) or
         std.mem.eql(u8, name, "init") or
@@ -347,7 +407,7 @@ pub fn isReservedTagClientMethod(name: []const u8) bool {
 }
 
 pub fn uniqueTagClientMethodNameAlloc(self: *UnifiedApiGenerator, op_ref: OperationRef, used_names: std.StringHashMap(void)) ![]const u8 {
-    var candidate = if (op_ref.operation.operationId) |op_id|
+    var candidate = if (self.operationNameOf(op_ref.operation)) |op_id|
         try self.tagClientMethodNameAlloc(op_id)
     else
         try self.tagClientFallbackMethodNameAlloc(op_ref);
@@ -436,22 +496,10 @@ pub fn tagClientMethodNameAlloc(self: *UnifiedApiGenerator, operation_id: []cons
     return method;
 }
 
-pub fn generateTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const u8, method_name: []const u8, op_ref: OperationRef) !void {
+pub fn generateTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const u8, method_name: []const u8, op_ref: OperationRef, needs_alias: bool, needs_events_alias: bool) !void {
     const operation = op_ref.operation;
-    const op_id = operation.operationId;
+    const op_id = self.operationNameOf(operation);
     const has_return = self.hasReturnValue(op_ref.method, operation);
-
-    // When the method name matches the operation id, the unqualified
-    // delegation call inside the method would be an ambiguous reference to
-    // the file-scope flat function. Route through the `_` aliases emitted
-    // by generateTagClients instead. Operations without an operationId
-    // delegate to the raw @"operation{path}" flat fallback, which never
-    // matches the derived method name, so no alias is needed.
-    const needs_alias = if (op_id) |id| blk: {
-        const prospective_name = try self.tagClientMethodNameAlloc(id);
-        defer self.allocator.free(prospective_name);
-        break :blk std.mem.eql(u8, prospective_name, id);
-    } else false;
 
     try self.buffer.appendSlice(self.allocator, "    pub fn ");
     try self.buffer.appendSlice(self.allocator, method_name);
@@ -553,6 +601,7 @@ pub fn generateTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const 
             try self.buffer.appendSlice(self.allocator, struct_name);
             try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
+            if (needs_events_alias) try self.buffer.appendSlice(self.allocator, "_");
             try self.appendIdentifier(stream_events_operation_name);
             try self.buffer.appendSlice(self.allocator, "(Event, self.client, requestBody, callback, cancellation_token);\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");

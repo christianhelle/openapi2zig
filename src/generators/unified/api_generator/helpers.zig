@@ -305,6 +305,24 @@ pub const TagClient = struct {
     methods: std.ArrayList(OperationRef),
 };
 
+/// Gather every operation in the document as a path/method pair. Callers that
+/// need a stable order sort the result with `operationRefLessThan`, since the
+/// path map iterates in hash order.
+pub fn collectOperationRefs(out: *std.ArrayList(OperationRef), allocator: std.mem.Allocator, document: UnifiedDocument) !void {
+    var path_iterator = document.paths.iterator();
+    while (path_iterator.next()) |entry| {
+        const path = entry.key_ptr.*;
+        const path_item = entry.value_ptr.*;
+        if (path_item.get) |op| try out.append(allocator, .{ .path = path, .method = "GET", .operation = op });
+        if (path_item.post) |op| try out.append(allocator, .{ .path = path, .method = "POST", .operation = op });
+        if (path_item.put) |op| try out.append(allocator, .{ .path = path, .method = "PUT", .operation = op });
+        if (path_item.delete) |op| try out.append(allocator, .{ .path = path, .method = "DELETE", .operation = op });
+        if (path_item.patch) |op| try out.append(allocator, .{ .path = path, .method = "PATCH", .operation = op });
+        if (path_item.head) |op| try out.append(allocator, .{ .path = path, .method = "HEAD", .operation = op });
+        if (path_item.options) |op| try out.append(allocator, .{ .path = path, .method = "OPTIONS", .operation = op });
+    }
+}
+
 pub fn operationRefLessThan(_: void, lhs: OperationRef, rhs: OperationRef) bool {
     const path_order = std.mem.order(u8, lhs.path, rhs.path);
     if (path_order != .eq) return path_order == .lt;

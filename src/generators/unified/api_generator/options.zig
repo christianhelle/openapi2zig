@@ -97,7 +97,7 @@ pub fn appendOptionsTypeName(self: *UnifiedApiGenerator, operation: Operation, m
 }
 
 pub fn appendRawOptionsTypeName(self: *UnifiedApiGenerator, operation: Operation, path: []const u8) !void {
-    if (operation.operationId) |op_id| {
+    if (self.operationNameOf(operation)) |op_id| {
         const name = try std.fmt.allocPrint(self.allocator, "{s}Options", .{op_id});
         defer self.allocator.free(name);
         try self.appendIdentifier(name);
@@ -122,7 +122,7 @@ pub fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation, met
     }
     if (count == 0) return;
 
-    var candidate = if (operation.operationId) |op_id|
+    var candidate = if (self.operationNameOf(operation)) |op_id|
         try std.fmt.allocPrint(self.allocator, "{s}Options", .{op_id})
     else
         try std.fmt.allocPrint(self.allocator, "operation{s}Options", .{path[1..]});

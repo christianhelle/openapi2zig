@@ -108,6 +108,36 @@ fn appendIdentifierAs(buffer: *std.ArrayList(u8), allocator: std.mem.Allocator, 
     try buffer.appendSlice(allocator, "\"");
 }
 
+/// Turn an `operationId` into a name usable as a bare Zig declaration.
+/// Ids that are already valid identifiers are returned unchanged so hand
+/// written specs keep the names their authors chose.
+pub fn toZigMethodNameAlloc(allocator: std.mem.Allocator, name: []const u8) ![]const u8 {
+    if (isBareIdentifier(name)) return try allocator.dupe(u8, name);
+    var out = std.ArrayList(u8).empty;
+    errdefer out.deinit(allocator);
+    var upper_next = false;
+    for (name) |c| {
+        if (!std.ascii.isAlphanumeric(c)) {
+            upper_next = out.items.len > 0;
+            continue;
+        }
+        if (out.items.len == 0) {
+            try out.append(allocator, std.ascii.toLower(c));
+        } else if (upper_next) {
+            try out.append(allocator, std.ascii.toUpper(c));
+        } else {
+            try out.append(allocator, c);
+        }
+        upper_next = false;
+    }
+    if (out.items.len == 0) {
+        out.deinit(allocator);
+        return try allocator.dupe(u8, name);
+    }
+    if (!isIdentStart(out.items[0])) try out.insert(allocator, 0, '_');
+    return try out.toOwnedSlice(allocator);
+}
+
 test "isIdentStart" {
     try std.testing.expect(isIdentStart('a'));
     try std.testing.expect(isIdentStart('Z'));
@@ -208,4 +238,35 @@ test "appendEscapedIdentifier escapes ASCII control characters" {
     buf.clearRetainingCapacity();
     try appendEscapedIdentifier(&buf, std.testing.allocator, &.{0x7f});
     try std.testing.expectEqualStrings("@\"\\x7f\"", buf.items);
+}
+
+test "toZigMethodNameAlloc keeps names that are already valid identifiers" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "addPet");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("addPet", name);
+}
+
+test "toZigMethodNameAlloc camel cases ids that are not valid identifiers" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "repos/list-pull-requests-associated-with-commit");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("reposListPullRequestsAssociatedWithCommit", name);
+}
+
+test "toZigMethodNameAlloc prefixes names that would start with a digit" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "2fa/enable");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("_2faEnable", name);
+}
+
+test "toZigMethodNameAlloc falls back to the original id when nothing is usable" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "///");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("///", name);
+}
+
+test "toZigMethodNameAlloc leaves reserved words for the escaping to handle" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "if");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("if", name);
+    try std.testing.expect(!isBareIdentifier(name));
 }

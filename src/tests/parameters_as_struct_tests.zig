@@ -572,9 +572,9 @@ test "operation id and path options type names never collide" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn @\"/pets\"(client: *Client, options: @\"/petsOptions\") !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn pets(client: *Client, options: petsOptions) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn @\"operationpets\"(client: *Client, options: @\"operationpetsOptions\") !Owned(std.json.Value) {") != null);
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *Pets, options: @\"/petsOptions\") !Owned(std.json.Value) {") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *Pets, options: petsOptions) !Owned(std.json.Value) {") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn execute(self: *PostPets, options: @\"operationpetsOptions\") !Owned(std.json.Value) {") != null);
 }
 

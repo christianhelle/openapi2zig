@@ -701,6 +701,14 @@ pub const Client = struct {
 
 ### Endpoint functions
 
+Function names come from the operation's `operationId`. An id that is already a
+valid Zig identifier is used as-is; anything else is camel cased, so GitHub's
+`repos/list-pull-requests-associated-with-commit` becomes
+`reposListPullRequestsAssociatedWithCommit` rather than a quoted
+`@"repos/list-pull-requests-associated-with-commit"`. When two ids camel case to
+the same name, or one lands on another operation's `Raw`/`Result` function, the
+later one (in path order) gets a trailing underscore.
+
 ```zig
 pub fn getPetById(client: *Client, petId: i64) !Owned(Pet) {
     var result = try getPetByIdResult(client, petId);

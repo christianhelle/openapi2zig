@@ -29,6 +29,7 @@ const authSchemeForOperation = helpers.authSchemeForOperation;
 const ResourceWrapper = helpers.ResourceWrapper;
 const TagClient = helpers.TagClient;
 const operationRefLessThan = helpers.operationRefLessThan;
+const collectOperationRefs = helpers.collectOperationRefs;
 const tagClientLessThan = helpers.tagClientLessThan;
 const toPascalCaseAlloc = helpers.toPascalCaseAlloc;
 const resourceWrapperLessThan = helpers.resourceWrapperLessThan;
@@ -52,6 +53,13 @@ pub const UnifiedApiGenerator = struct {
     /// parameter name/location. Populated on first use so repeated parameter
     /// references don't rescan the operation's parameter list.
     options_field_names: std.StringHashMap([]const u8),
+    /// Zig-friendly declaration names, keyed by the raw operationId from the
+    /// specification. Ids such as GitHub's
+    /// `repos/list-pull-requests-associated-with-commit` are not valid Zig
+    /// identifiers; caching the camel cased form keeps every declaration
+    /// derived from one id consistent and keeps the names alive for the
+    /// lifetime of the generator.
+    operation_names: std.StringHashMap([]const u8),
     /// Schemas emitted as top-level types into the same file as the client.
     /// Zig forbids a parameter from shadowing a declaration in scope, so flat
     /// parameter names matching one of these get a suffix. Only set for
@@ -73,6 +81,7 @@ pub const UnifiedApiGenerator = struct {
             .args = args,
             .options_type_names = std.StringHashMap([]const u8).init(allocator),
             .options_field_names = std.StringHashMap([]const u8).init(allocator),
+            .operation_names = std.StringHashMap([]const u8).init(allocator),
         };
     }
 
@@ -94,12 +103,103 @@ pub const UnifiedApiGenerator = struct {
         self.options_field_names.clearRetainingCapacity();
     }
 
+    pub fn clearOperationNames(self: *UnifiedApiGenerator, allocator: std.mem.Allocator) void {
+        var iterator = self.operation_names.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            allocator.free(entry.value_ptr.*);
+        }
+        self.operation_names.clearRetainingCapacity();
+    }
+
+    /// Every function one operation name gives rise to. An operation named
+    /// `foo` declares `foo` itself plus `fooRaw`, `fooResult` and the rest, so
+    /// two operations conflict when any of these names coincide -- GitHub's
+    /// `markdown/render` and `markdown/render-raw` are one such pair. The
+    /// options struct type is left out: it is disambiguated against every
+    /// top-level declaration by generateOptionsType, so an operation named
+    /// `fooOptions` need not move aside for one named `foo`. `Stream` and
+    /// `StreamEvents` are left out too -- those name wrapper and tag-client
+    /// methods, which live inside a struct rather than at file scope.
+    const declaration_suffixes = [_][]const u8{ "", "Raw", "Result", "Streaming", "StreamingEvents" };
+
+    /// Assign a declaration name to every operation id in the document.
+    /// Camel casing can collapse two distinct ids onto one name (e.g.
+    /// `get-pet` and `getPet`), so later arrivals take an underscore suffix.
+    /// Names are assigned in path/method order rather than hash order so the
+    /// same document always generates the same names.
+    pub fn reserveOperationNames(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
+        var operations = std.ArrayList(OperationRef).empty;
+        defer operations.deinit(self.allocator);
+        try collectOperationRefs(&operations, self.allocator, document);
+        std.mem.sort(OperationRef, operations.items, {}, operationRefLessThan);
+
+        var claimed = std.StringHashMap(void).init(self.allocator);
+        defer {
+            var claimed_iterator = claimed.keyIterator();
+            while (claimed_iterator.next()) |key| self.allocator.free(key.*);
+            claimed.deinit();
+        }
+
+        for (operations.items) |op_ref| {
+            const operation_id = op_ref.operation.operationId orelse continue;
+            if (self.operation_names.contains(operation_id)) continue;
+
+            var name = try ident.toZigMethodNameAlloc(self.allocator, operation_id);
+            errdefer self.allocator.free(name);
+            while (try self.declarationsClaimed(&claimed, name)) {
+                const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{name});
+                self.allocator.free(name);
+                name = suffixed;
+            }
+            try self.claimDeclarations(&claimed, name);
+            const key = try self.allocator.dupe(u8, operation_id);
+            errdefer self.allocator.free(key);
+            try self.operation_names.put(key, name);
+        }
+    }
+
+    fn declarationsClaimed(self: *UnifiedApiGenerator, claimed: *std.StringHashMap(void), name: []const u8) !bool {
+        for (declaration_suffixes) |suffix| {
+            const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
+            defer self.allocator.free(declaration);
+            if (claimed.contains(declaration)) return true;
+        }
+        return false;
+    }
+
+    fn claimDeclarations(self: *UnifiedApiGenerator, claimed: *std.StringHashMap(void), name: []const u8) !void {
+        for (declaration_suffixes) |suffix| {
+            const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
+            errdefer self.allocator.free(declaration);
+            const entry = try claimed.getOrPut(declaration);
+            if (entry.found_existing) self.allocator.free(declaration);
+        }
+    }
+
+    /// The name used for declarations generated from `operation_id`. Both
+    /// generate entry points reserve a name for every operation in the document
+    /// first, so this is a lookup; an id that was never reserved falls back to
+    /// itself and is escaped at the point of use as it was before. The returned
+    /// slice stays valid until the next `generate` call.
+    pub fn operationName(self: *UnifiedApiGenerator, operation_id: []const u8) []const u8 {
+        return self.operation_names.get(operation_id) orelse operation_id;
+    }
+
+    /// The declaration name for `operation`, or null when it has no operationId.
+    pub fn operationNameOf(self: *UnifiedApiGenerator, operation: Operation) ?[]const u8 {
+        const operation_id = operation.operationId orelse return null;
+        return self.operationName(operation_id);
+    }
+
     pub fn deinit(self: *UnifiedApiGenerator) void {
         self.buffer.deinit(self.allocator);
         self.clearOptionsTypeNames(self.allocator);
         self.options_type_names.deinit();
         self.clearOptionsFieldNames(self.allocator);
         self.options_field_names.deinit();
+        self.clearOperationNames(self.allocator);
+        self.operation_names.deinit();
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
@@ -108,6 +208,8 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
+        self.clearOperationNames(self.allocator);
+        try self.reserveOperationNames(document);
         self.has_streaming_operations = documentHasStreamingOperations(document);
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeader();
@@ -128,6 +230,8 @@ pub const UnifiedApiGenerator = struct {
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
+        self.clearOperationNames(self.allocator);
+        try self.reserveOperationNames(document);
         self.has_streaming_operations = documentHasStreamingOperations(document);
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeaderMulti();
@@ -269,6 +373,7 @@ pub const UnifiedApiGenerator = struct {
     pub const generateEndpointClient = @import("api_generator/tag_clients.zig").generateEndpointClient;
     pub const topLevelNameConflicts = @import("api_generator/tag_clients.zig").topLevelNameConflicts;
     pub const uniqueTagClientStructNameAlloc = @import("api_generator/tag_clients.zig").uniqueTagClientStructNameAlloc;
+    pub const streamingEventsShadowed = @import("api_generator/tag_clients.zig").streamingEventsShadowed;
     pub const isReservedTagClientMethod = @import("api_generator/tag_clients.zig").isReservedTagClientMethod;
     pub const uniqueTagClientMethodNameAlloc = @import("api_generator/tag_clients.zig").uniqueTagClientMethodNameAlloc;
     pub const tagClientMethodNamesCollide = @import("api_generator/tag_clients.zig").tagClientMethodNamesCollide;
