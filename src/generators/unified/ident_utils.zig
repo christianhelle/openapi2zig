@@ -263,3 +263,10 @@ test "toZigMethodNameAlloc falls back to the original id when nothing is usable"
     defer std.testing.allocator.free(name);
     try std.testing.expectEqualStrings("///", name);
 }
+
+test "toZigMethodNameAlloc leaves reserved words for the escaping to handle" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "if");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("if", name);
+    try std.testing.expect(!isBareIdentifier(name));
+}
