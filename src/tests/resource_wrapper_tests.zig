@@ -2,6 +2,7 @@ const std = @import("std");
 const cli = @import("../cli.zig");
 const UnifiedApiGenerator = @import("../generators/unified/api_generator.zig").UnifiedApiGenerator;
 const common = @import("../models/common/document.zig");
+const UnifiedModelGenerator = @import("../generators/unified/model_generator.zig").UnifiedModelGenerator;
 
 fn responseMap(allocator: std.mem.Allocator, with_schema: bool) !std.StringHashMap(common.Response) {
     var responses = std.StringHashMap(common.Response).init(allocator);
@@ -201,8 +202,80 @@ test "resource wrapper aliases skip model type name collisions" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    // A schema named "installation" already declares a top-level `installation`
-    // type, so the resource alias must not redeclare the same name.
-    try std.testing.expect(std.mem.indexOf(u8, code, "pub const installation = struct") != null);
+    // A schema named "installation" declares a top-level `installation` type in
+    // single-file output, so the resource alias must not redeclare the name.
+    try std.testing.expect(std.mem.indexOf(u8, code, "    pub const installation = struct") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const installation = resources.installation;") == null);
+}
+
+fn buildParameterShadowsModelFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    var params = std.ArrayList(common.Parameter).empty;
+    errdefer params.deinit(allocator);
+    try params.append(allocator, .{
+        .name = "page",
+        .location = .query,
+        .required = false,
+        .type = .integer,
+    });
+
+    var responses = std.StringHashMap(common.Response).init(allocator);
+    errdefer responses.deinit();
+    try responses.put(try allocator.dupe(u8, "200"), .{ .description = "ok" });
+
+    try paths.put(try allocator.dupe(u8, "/issues"), .{
+        .get = .{
+            .operationId = "listIssues",
+            .parameters = try params.toOwnedSlice(allocator),
+            .responses = responses,
+        },
+    });
+
+    var page_properties = std.StringHashMap(common.Schema).init(allocator);
+    errdefer page_properties.deinit();
+    try page_properties.put(try allocator.dupe(u8, "url"), .{ .type = .string });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "page"), .{ .type = .object, .properties = page_properties });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+test "flat parameters do not shadow inlined model type names" {
+    const allocator = std.testing.allocator;
+    var document = try buildParameterShadowsModelFixture(allocator);
+    defer document.deinit(allocator);
+
+    // Single-file output joins the models and the client, so both share one
+    // top-level namespace, exactly as generateCodeFromUnifiedDocument builds it.
+    var model_generator = UnifiedModelGenerator.init(allocator);
+    defer model_generator.deinit();
+    const models_code = try model_generator.generate(document);
+    defer allocator.free(models_code);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const api_code = try generator.generate(document);
+    defer allocator.free(api_code);
+
+    const code = try std.mem.join(allocator, "\n", &.{ models_code, api_code });
+    defer allocator.free(code);
+
+    // Zig rejects a function parameter that shadows a top-level declaration, and
+    // a schema named "page" declares exactly such a top-level type.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const page = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "page: ?i64") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "page_param: ?i64") != null);
 }

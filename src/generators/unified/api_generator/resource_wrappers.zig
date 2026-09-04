@@ -354,7 +354,7 @@ pub fn appendParameterName(self: *UnifiedApiGenerator, name: []const u8, forbidd
         try self.buffer.appendSlice(self.allocator, safe_name);
         try self.buffer.appendSlice(self.allocator, "_param");
     } else {
-        try self.appendIdentifier(name);
+        try self.appendFlatParamIdentifier(name);
     }
 }
 
