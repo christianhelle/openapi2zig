@@ -159,14 +159,22 @@ pub fn appendUrlConstruction(self: *UnifiedApiGenerator, method: []const u8, pat
                 .number => "d",
                 else => "any",
             };
-            const size = std.mem.replacementSize(u8, new_path, param, param_type);
+            // Substitute the braced placeholder rather than the bare name: a
+            // parameter such as `repo` also occurs inside literal segments like
+            // `/repos/`, which replacing the bare name would rewrite as well.
+            const placeholder = try std.fmt.allocPrint(self.allocator, "{{{s}}}", .{param});
+            defer self.allocator.free(placeholder);
+            const replacement = try std.fmt.allocPrint(self.allocator, "{{{s}}}", .{param_type});
+            defer self.allocator.free(replacement);
+
+            const size = std.mem.replacementSize(u8, new_path, placeholder, replacement);
             const output = blk: {
                 const out = try self.allocator.alloc(u8, size);
                 errdefer self.allocator.free(out);
                 try allocated_paths.append(self.allocator, out);
                 break :blk out;
             };
-            _ = std.mem.replace(u8, new_path, param, param_type, output);
+            _ = std.mem.replace(u8, new_path, placeholder, replacement, output);
             new_path = output;
         }
     }
