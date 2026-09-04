@@ -166,3 +166,43 @@ test "resource wrapper aliases skip top-level operation name collisions" {
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const chat = resources.chat;") == null);
     }
 }
+
+fn buildModelNameCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    try paths.put(try allocator.dupe(u8, "/installation/repositories"), .{
+        .get = try opWithTags(allocator, "listInstallationRepos", "GET", false, false, true, null),
+    });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "installation"), .{ .type = .object });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+test "resource wrapper aliases skip model type name collisions" {
+    const allocator = std.testing.allocator;
+    var document = try buildModelNameCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .paths,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // A schema named "installation" already declares a top-level `installation`
+    // type, so the resource alias must not redeclare the same name.
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const installation = struct") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "pub const installation = resources.installation;") == null);
+}

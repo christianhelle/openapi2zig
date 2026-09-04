@@ -364,6 +364,14 @@ pub fn resourceAliasConflicts(self: *UnifiedApiGenerator, alias: []const u8, doc
         if (std.mem.eql(u8, alias, reserved_alias)) return true;
     }
 
+    // With models inlined into the same file (no model prefix), a schema declares
+    // a top-level type of its own name, which the alias would redeclare.
+    if (self.model_prefix.len == 0) {
+        if (document.schemas) |schemas| {
+            if (schemas.contains(alias)) return true;
+        }
+    }
+
     var path_iterator = document.paths.iterator();
     while (path_iterator.next()) |entry| {
         const path_item = entry.value_ptr.*;
