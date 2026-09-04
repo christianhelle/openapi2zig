@@ -156,9 +156,9 @@ pub const UnifiedApiGenerator = struct {
         try ident.appendEscapedIdentifier(&self.buffer, self.allocator, name);
     }
 
-    /// True when a parameter of this name would shadow a model type declared at
-    /// the top level of the same file.
-    pub fn flatParamShadowsModel(self: *UnifiedApiGenerator, name: []const u8) bool {
+    /// True when this name is a model type declared at the top level of the same
+    /// file, and so cannot be reused or referenced bare from a nested scope.
+    pub fn isInlinedModelName(self: *UnifiedApiGenerator, name: []const u8) bool {
         const schemas = self.inlined_model_names orelse return false;
         return schemas.contains(name);
     }
@@ -166,7 +166,7 @@ pub const UnifiedApiGenerator = struct {
     /// Append a flat parameter identifier, renaming it when the spec's parameter
     /// name collides with a model type sharing the output file.
     pub fn appendFlatParamIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
-        if (!self.flatParamShadowsModel(name)) {
+        if (!self.isInlinedModelName(name)) {
             try self.appendIdentifier(name);
             return;
         }

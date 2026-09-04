@@ -105,6 +105,17 @@ pub fn generateResourceWrappers(self: *UnifiedApiGenerator, document: UnifiedDoc
         return;
     }
 
+    // A wrapper struct sharing a model type's name makes a bare reference to that
+    // model ambiguous from inside the wrapper, so with models inlined into the
+    // same file the bodies reach them through a file-scope alias instead.
+    const needs_root_alias = self.inlined_model_names != null and wrappersShadowModel(self, wrappers.items);
+    if (needs_root_alias) {
+        try self.buffer.appendSlice(self.allocator, "const _root = @This();\n\n");
+    }
+    const outer_model_prefix = self.model_prefix;
+    if (needs_root_alias) self.model_prefix = "_root.";
+    defer self.model_prefix = outer_model_prefix;
+
     try self.buffer.appendSlice(self.allocator, "pub const resources = struct {\n");
     try self.generateResourceLevel(wrappers.items, 0, 1, &.{});
     try self.buffer.appendSlice(self.allocator, "};\n\n");
@@ -125,6 +136,17 @@ pub fn generateResourceWrappers(self: *UnifiedApiGenerator, document: UnifiedDoc
         try self.buffer.appendSlice(self.allocator, ";\n");
     }
     if (top_segments.items.len > 0) try self.buffer.appendSlice(self.allocator, "\n");
+}
+
+/// True when any wrapper struct name matches a model type inlined into the same
+/// file, which is what makes bare model references inside wrappers ambiguous.
+fn wrappersShadowModel(self: *UnifiedApiGenerator, wrappers: []const ResourceWrapper) bool {
+    for (wrappers) |wrapper| {
+        for (wrapper.segments) |segment| {
+            if (self.isInlinedModelName(segment)) return true;
+        }
+    }
+    return false;
 }
 
 pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWrapper, depth: usize, indent: usize, ancestor_names: []const []const u8) !void {
@@ -364,13 +386,9 @@ pub fn resourceAliasConflicts(self: *UnifiedApiGenerator, alias: []const u8, doc
         if (std.mem.eql(u8, alias, reserved_alias)) return true;
     }
 
-    // With models inlined into the same file (no model prefix), a schema declares
-    // a top-level type of its own name, which the alias would redeclare.
-    if (self.model_prefix.len == 0) {
-        if (document.schemas) |schemas| {
-            if (schemas.contains(alias)) return true;
-        }
-    }
+    // With models inlined into the same file, a schema declares a top-level type
+    // of its own name, which the alias would redeclare.
+    if (self.isInlinedModelName(alias)) return true;
 
     var path_iterator = document.paths.iterator();
     while (path_iterator.next()) |entry| {

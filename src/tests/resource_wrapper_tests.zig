@@ -279,3 +279,54 @@ test "flat parameters do not shadow inlined model type names" {
     try std.testing.expect(std.mem.indexOf(u8, code, "page: ?i64") == null);
     try std.testing.expect(std.mem.indexOf(u8, code, "page_param: ?i64") != null);
 }
+
+fn buildWrapperShadowsModelFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var responses = std.StringHashMap(common.Response).init(allocator);
+    errdefer responses.deinit();
+    try responses.put(try allocator.dupe(u8, "200"), .{
+        .description = "ok",
+        .schema = .{ .type = .reference, .ref = "#/components/schemas/installation" },
+    });
+
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+    try paths.put(try allocator.dupe(u8, "/apps/installation"), .{
+        .get = .{ .operationId = "getInstallation", .responses = responses },
+    });
+
+    var properties = std.StringHashMap(common.Schema).init(allocator);
+    errdefer properties.deinit();
+    try properties.put(try allocator.dupe(u8, "app_id"), .{ .type = .integer });
+
+    var schemas = std.StringHashMap(common.Schema).init(allocator);
+    errdefer schemas.deinit();
+    try schemas.put(try allocator.dupe(u8, "installation"), .{ .type = .object, .properties = properties });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+        .schemas = schemas,
+    };
+}
+
+test "wrapper bodies reference models unambiguously when a wrapper shares a model name" {
+    const allocator = std.testing.allocator;
+    var document = try buildWrapperShadowsModelFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .paths,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    // The wrapper struct `resources.apps.installation` makes a bare `installation`
+    // inside `resources.apps` ambiguous with the top-level model of that name, so
+    // wrapper bodies must reach the model through the file-scope alias.
+    try std.testing.expect(std.mem.indexOf(u8, code, "const _root = @This();") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "_root.installation") != null);
+}
