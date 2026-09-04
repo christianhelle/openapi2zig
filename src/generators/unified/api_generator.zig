@@ -182,8 +182,14 @@ pub const UnifiedApiGenerator = struct {
             try self.buffer.appendSlice(self.allocator, "// ");
             // Zig rejects tabs inside comments, so descriptions carried over from
             // the specification (markdown tables, indented text) get spaces here.
-            for (std.mem.trim(u8, line, "\r")) |c| {
-                try self.buffer.append(self.allocator, if (c == '\t') ' ' else c);
+            // Most lines have no tab at all, so those are copied in one go.
+            const trimmed = std.mem.trim(u8, line, "\r");
+            if (std.mem.indexOfScalar(u8, trimmed, '\t') == null) {
+                try self.buffer.appendSlice(self.allocator, trimmed);
+            } else {
+                for (trimmed) |c| {
+                    try self.buffer.append(self.allocator, if (c == '\t') ' ' else c);
+                }
             }
             try self.buffer.appendSlice(self.allocator, "\n");
         }
