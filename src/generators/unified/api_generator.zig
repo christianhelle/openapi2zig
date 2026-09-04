@@ -112,6 +112,15 @@ pub const UnifiedApiGenerator = struct {
         self.operation_names.clearRetainingCapacity();
     }
 
+    /// Every function one operation name gives rise to. An operation named
+    /// `foo` declares `foo` itself plus `fooRaw`, `fooResult` and the rest, so
+    /// two operations conflict when any of these names coincide -- GitHub's
+    /// `markdown/render` and `markdown/render-raw` are one such pair. The
+    /// options struct type is left out: it is disambiguated against every
+    /// top-level declaration by generateOptionsType, so an operation named
+    /// `fooOptions` need not move aside for one named `foo`.
+    const declaration_suffixes = [_][]const u8{ "", "Raw", "Result", "Stream", "StreamEvents", "Streaming" };
+
     /// Assign a declaration name to every operation id in the document.
     /// Camel casing can collapse two distinct ids onto one name (e.g.
     /// `get-pet` and `getPet`), so later arrivals take an underscore suffix.
@@ -123,29 +132,47 @@ pub const UnifiedApiGenerator = struct {
         try collectOperationRefs(&operations, self.allocator, document);
         std.mem.sort(OperationRef, operations.items, {}, operationRefLessThan);
 
+        var claimed = std.StringHashMap(void).init(self.allocator);
+        defer {
+            var claimed_iterator = claimed.keyIterator();
+            while (claimed_iterator.next()) |key| self.allocator.free(key.*);
+            claimed.deinit();
+        }
+
         for (operations.items) |op_ref| {
             const operation_id = op_ref.operation.operationId orelse continue;
             if (self.operation_names.contains(operation_id)) continue;
 
             var name = try ident.toZigMethodNameAlloc(self.allocator, operation_id);
             errdefer self.allocator.free(name);
-            while (self.operationNameTaken(name)) {
+            while (try self.declarationsClaimed(&claimed, name)) {
                 const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{name});
                 self.allocator.free(name);
                 name = suffixed;
             }
+            try self.claimDeclarations(&claimed, name);
             const key = try self.allocator.dupe(u8, operation_id);
             errdefer self.allocator.free(key);
             try self.operation_names.put(key, name);
         }
     }
 
-    fn operationNameTaken(self: *UnifiedApiGenerator, name: []const u8) bool {
-        var iterator = self.operation_names.valueIterator();
-        while (iterator.next()) |taken| {
-            if (std.mem.eql(u8, taken.*, name)) return true;
+    fn declarationsClaimed(self: *UnifiedApiGenerator, claimed: *std.StringHashMap(void), name: []const u8) !bool {
+        for (declaration_suffixes) |suffix| {
+            const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
+            defer self.allocator.free(declaration);
+            if (claimed.contains(declaration)) return true;
         }
         return false;
+    }
+
+    fn claimDeclarations(self: *UnifiedApiGenerator, claimed: *std.StringHashMap(void), name: []const u8) !void {
+        for (declaration_suffixes) |suffix| {
+            const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
+            errdefer self.allocator.free(declaration);
+            const entry = try claimed.getOrPut(declaration);
+            if (entry.found_existing) self.allocator.free(declaration);
+        }
     }
 
     /// The name used for declarations generated from `operation_id`. The

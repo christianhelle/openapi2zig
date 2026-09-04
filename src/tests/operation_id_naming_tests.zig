@@ -51,6 +51,29 @@ const spec_with_colliding_operation_ids =
     \\}
 ;
 
+// GitHub declares both "markdown/render" and "markdown/render-raw". The first
+// one already owns the markdownRenderRaw declaration through its Raw variant.
+const spec_with_variant_collision =
+    \\{
+    \\  "openapi": "3.0.0",
+    \\  "info": { "title": "Naming", "version": "1.0.0" },
+    \\  "paths": {
+    \\    "/markdown": {
+    \\      "get": {
+    \\        "operationId": "markdown/render",
+    \\        "responses": { "200": { "description": "ok" } }
+    \\      }
+    \\    },
+    \\    "/markdown/raw": {
+    \\      "get": {
+    \\        "operationId": "markdown/render-raw",
+    \\        "responses": { "200": { "description": "ok" } }
+    \\      }
+    \\    }
+    \\  }
+    \\}
+;
+
 fn generateClient(allocator: std.mem.Allocator, spec: []const u8, args: cli.CliArgs) ![]const u8 {
     var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
     defer parsed.deinit(allocator);
@@ -85,4 +108,19 @@ test "operation ids that camel case to the same name stay distinct" {
 
     try testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(client: *Client) ") != null);
     try testing.expect(std.mem.indexOf(u8, code, "pub fn getPet_(client: *Client) ") != null);
+}
+
+test "operation names avoid the Raw and Result variants of other operations" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_variant_collision, .{ .input_path = "fixture.json" });
+    defer allocator.free(code);
+
+    // "markdown/render" already declares markdownRenderRaw, so the operation
+    // named after it has to move aside.
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn markdownRender(client: *Client) ") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn markdownRenderRaw(client: *Client) !RawResponse {") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn markdownRenderRaw_(client: *Client) ") != null);
 }
