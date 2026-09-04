@@ -118,8 +118,10 @@ pub const UnifiedApiGenerator = struct {
     /// `markdown/render` and `markdown/render-raw` are one such pair. The
     /// options struct type is left out: it is disambiguated against every
     /// top-level declaration by generateOptionsType, so an operation named
-    /// `fooOptions` need not move aside for one named `foo`.
-    const declaration_suffixes = [_][]const u8{ "", "Raw", "Result", "Stream", "StreamEvents", "Streaming" };
+    /// `fooOptions` need not move aside for one named `foo`. `Stream` and
+    /// `StreamEvents` are left out too -- those name wrapper and tag-client
+    /// methods, which live inside a struct rather than at file scope.
+    const declaration_suffixes = [_][]const u8{ "", "Raw", "Result", "Streaming", "StreamingEvents" };
 
     /// Assign a declaration name to every operation id in the document.
     /// Camel casing can collapse two distinct ids onto one name (e.g.

@@ -74,6 +74,37 @@ const spec_with_variant_collision =
     \\}
 ;
 
+// A streaming POST declares {op}Streaming and {op}StreamingEvents on top of the
+// usual functions, so those names are taken for any other operation too.
+const spec_with_streaming_collision =
+    \\{
+    \\  "openapi": "3.0.0",
+    \\  "info": { "title": "Naming", "version": "1.0.0" },
+    \\  "paths": {
+    \\    "/chat": {
+    \\      "post": {
+    \\        "operationId": "foo",
+    \\        "requestBody": {
+    \\          "content": { "application/json": { "schema": { "type": "object" } } }
+    \\        },
+    \\        "responses": {
+    \\          "200": {
+    \\            "description": "ok",
+    \\            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+    \\          }
+    \\        }
+    \\      }
+    \\    },
+    \\    "/other": {
+    \\      "get": {
+    \\        "operationId": "foo-streaming-events",
+    \\        "responses": { "200": { "description": "ok" } }
+    \\      }
+    \\    }
+    \\  }
+    \\}
+;
+
 fn generateClient(allocator: std.mem.Allocator, spec: []const u8, args: cli.CliArgs) ![]const u8 {
     var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
     defer parsed.deinit(allocator);
@@ -123,4 +154,18 @@ test "operation names avoid the Raw and Result variants of other operations" {
     try testing.expect(std.mem.indexOf(u8, code, "pub fn markdownRender(client: *Client) ") != null);
     try testing.expect(std.mem.indexOf(u8, code, "pub fn markdownRenderRaw(client: *Client) !RawResponse {") != null);
     try testing.expect(std.mem.indexOf(u8, code, "pub fn markdownRenderRaw_(client: *Client) ") != null);
+}
+
+test "operation names avoid the streaming helpers of other operations" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_streaming_collision, .{ .input_path = "fixture.json" });
+    defer allocator.free(code);
+
+    // The streaming POST declares fooStreaming and fooStreamingEvents, so the
+    // operation whose id camel cases onto the latter has to move aside.
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn fooStreamingEvents(comptime Event: type, client: *Client") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn fooStreamingEvents_(client: *Client) ") != null);
 }
