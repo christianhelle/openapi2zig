@@ -39,6 +39,9 @@ const Paths3 = @import("../../models/v3.0/paths.zig").Paths;
 
 pub const OpenApiConverter = struct {
     allocator: std.mem.Allocator,
+    /// Reusable parameters declared under `components.parameters`, so that a
+    /// parameter given as a `$ref` resolves to the parameter it points at.
+    component_parameters: ?*const std.StringHashMap(ParameterOrReference3) = null,
 
     pub fn init(allocator: std.mem.Allocator) OpenApiConverter {
         return OpenApiConverter{ .allocator = allocator };
@@ -47,6 +50,12 @@ pub const OpenApiConverter = struct {
     pub fn convert(self: *OpenApiConverter, openapi: OpenApiDocument) !UnifiedDocument {
         const version = openapi.openapi;
         const info = self.convertInfo(openapi.info);
+        if (openapi.components) |*components| {
+            if (components.parameters) |*component_parameters| {
+                self.component_parameters = component_parameters;
+            }
+        }
+        defer self.component_parameters = null;
         const paths = try self.convertPaths(openapi.paths);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -417,6 +426,11 @@ pub const OpenApiConverter = struct {
     fn convertParameterOrReference(self: *OpenApiConverter, paramOrRef: *const ParameterOrReference3) !Parameter {
         switch (paramOrRef.*) {
             .reference => |ref| {
+                if (self.resolveComponentParameter(ref.ref)) |resolved| {
+                    return self.convertParameter(resolved);
+                }
+                // Nothing to resolve against; fall back to the ref itself so the
+                // parameter still appears rather than silently disappearing.
                 return Parameter{
                     .name = ref.ref,
                     .location = .query,
@@ -427,6 +441,20 @@ pub const OpenApiConverter = struct {
                 return self.convertParameter(param);
             },
         }
+    }
+
+    /// Look up a `#/components/parameters/<name>` reference. Only direct
+    /// parameter references resolve; a component entry that is itself a
+    /// reference is left alone rather than chased.
+    fn resolveComponentParameter(self: *OpenApiConverter, ref: []const u8) ?Parameter3 {
+        const prefix = "#/components/parameters/";
+        if (!std.mem.startsWith(u8, ref, prefix)) return null;
+        const parameters = self.component_parameters orelse return null;
+        const entry = parameters.get(ref[prefix.len..]) orelse return null;
+        return switch (entry) {
+            .parameter => |param| param,
+            .reference => null,
+        };
     }
 
     fn convertParameter(self: *OpenApiConverter, parameter: Parameter3) !Parameter {
