@@ -2,7 +2,19 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.4...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.5...HEAD)
+
+**Implemented enhancements:**
+
+- Support large OpenAPI specifications [\#113](https://github.com/christianhelle/openapi2zig/pull/113) ([christianhelle](https://github.com/christianhelle))
+
+**Merged pull requests:**
+
+- Expand library usage examples [\#112](https://github.com/christianhelle/openapi2zig/pull/112) ([christianhelle](https://github.com/christianhelle))
+
+## [v0.5.5](https://github.com/christianhelle/openapi2zig/tree/v0.5.5) (2026-09-03)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.4...v0.5.5)
 
 **Implemented enhancements:**
 
