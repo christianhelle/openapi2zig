@@ -30,6 +30,7 @@ test "can deserialize petstore into OpenApiDocument" {
 test "can generate data structures from petstore OpenAPI specification" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     var parsed = try loadOpenApiDocument(allocator, "openapi/v3.0/petstore.json");
     defer parsed.deinit(allocator);
     // Model generation runs through the converter and the unified generator,
