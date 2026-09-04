@@ -18,6 +18,7 @@ const tag_filter_tests = @import("tests/tag_filter_tests.zig");
 const parameters_as_struct_tests = @import("tests/parameters_as_struct_tests.zig");
 const header_and_fixed_query_tests = @import("tests/header_and_fixed_query_tests.zig");
 const sse_cancel_tests = @import("tests/sse_cancel_tests.zig");
+const comment_sanitization_tests = @import("tests/comment_sanitization_tests.zig");
 const media_type = @import("media_type.zig");
 const generator = @import("generator.zig");
 const cli = @import("cli.zig");
@@ -43,6 +44,7 @@ comptime {
     _ = parameters_as_struct_tests;
     _ = header_and_fixed_query_tests;
     _ = sse_cancel_tests;
+    _ = comment_sanitization_tests;
     _ = media_type;
     _ = generator;
     _ = cli;
