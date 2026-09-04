@@ -130,7 +130,11 @@ pub fn toZigMethodNameAlloc(allocator: std.mem.Allocator, name: []const u8) ![]c
         }
         upper_next = false;
     }
-    if (out.items.len > 0 and !isIdentStart(out.items[0])) try out.insert(allocator, 0, '_');
+    if (out.items.len == 0) {
+        out.deinit(allocator);
+        return try allocator.dupe(u8, name);
+    }
+    if (!isIdentStart(out.items[0])) try out.insert(allocator, 0, '_');
     return try out.toOwnedSlice(allocator);
 }
 
@@ -252,4 +256,10 @@ test "toZigMethodNameAlloc prefixes names that would start with a digit" {
     const name = try toZigMethodNameAlloc(std.testing.allocator, "2fa/enable");
     defer std.testing.allocator.free(name);
     try std.testing.expectEqualStrings("_2faEnable", name);
+}
+
+test "toZigMethodNameAlloc falls back to the original id when nothing is usable" {
+    const name = try toZigMethodNameAlloc(std.testing.allocator, "///");
+    defer std.testing.allocator.free(name);
+    try std.testing.expectEqualStrings("///", name);
 }
