@@ -417,8 +417,22 @@ pub fn build(b: *std.Build) void {
     const run_generated_lmstudio_cmd = b.addSystemCommand(&.{ b.graph.zig_exe, "run", "generated/lmstudio_example.zig" });
     run_generated_lmstudio_cmd.step.dependOn(&run_generated_main_cmd.step);
 
-    const run_generated = b.step("run-generated", "Regenerate and run generated/main.zig and lmstudio_example.zig");
+    // The GitHub client is a library, not a runnable example, so it is compiled
+    // rather than run. Building it after regeneration proves the multi-file and
+    // tag-filtered output of a large specification still compiles.
+    const example_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/compile_examples.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_example_tests = b.addRunArtifact(example_tests);
+    run_example_tests.step.dependOn(&run_generate_github_multi_cmd.step);
+
+    const run_generated = b.step("run-generated", "Regenerate and run generated/main.zig and lmstudio_example.zig, and build the GitHub client");
     run_generated.dependOn(&run_generated_lmstudio_cmd.step);
+    run_generated.dependOn(&run_example_tests.step);
 
     const tests_mod = b.createModule(.{
         .root_source_file = b.path("src/tests.zig"),
