@@ -93,7 +93,7 @@ pub const ApiCodeGenerator = struct {
                         const data_type = converter.getDataType(field_name);
                         try parts.append(self.allocator, data_type);
                     },
-                    .reference => |_| {
+                    .reference => {
                         try parts.append(self.allocator, "[]const u8");
                     },
                 }

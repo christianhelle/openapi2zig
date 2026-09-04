@@ -21,6 +21,8 @@ const sse_cancel_tests = @import("tests/sse_cancel_tests.zig");
 const comment_sanitization_tests = @import("tests/comment_sanitization_tests.zig");
 const parameter_reference_tests = @import("tests/parameter_reference_tests.zig");
 const path_template_tests = @import("tests/path_template_tests.zig");
+const legacy_v2_apigenerator = @import("generators/v2.0/apigenerator.zig");
+const legacy_v3_apigenerator = @import("generators/v3.0/apigenerator.zig");
 const media_type = @import("media_type.zig");
 const generator = @import("generator.zig");
 const cli = @import("cli.zig");
@@ -49,6 +51,8 @@ comptime {
     _ = comment_sanitization_tests;
     _ = parameter_reference_tests;
     _ = path_template_tests;
+    _ = legacy_v2_apigenerator;
+    _ = legacy_v3_apigenerator;
     _ = media_type;
     _ = generator;
     _ = cli;
