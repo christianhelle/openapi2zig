@@ -27,36 +27,6 @@ All specifications are supported in JSON and YAML format.
 - Available as both CLI tool and Zig library
 - Unified document representation for all OpenAPI and Swagger versions
 
-## Prerequisites
-
-- [Zig](https://ziglang.org/download/) v0.16.0
-
-## Development Environment
-
-### Option 1: GitHub Codespaces (Recommended for Contributors)
-
-The fastest way to get started with development is using GitHub Codespaces, which provides a pre-configured development environment with Zig, ZLS (Zig Language Server), and all necessary VS Code extensions.
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/christianhelle/openapi2zig)
-
-1. Click the badge above or navigate to the repository on GitHub
-2. Click "Code" → "Codespaces" → "Create codespace"
-3. Wait for the environment to set up (2-3 minutes)
-4. Start coding! Everything is pre-configured.
-
-### Option 2: VS Code Dev Containers (Local)
-
-If you prefer local development with Docker:
-
-1. Install [VS Code](https://code.visualstudio.com/) and the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-2. Clone the repository and open it in VS Code
-3. When prompted, click "Reopen in Container"
-4. VS Code will build and configure the development environment automatically
-
-### Option 3: Manual Setup
-
-Install Zig locally following the official [installation guide](https://ziglang.org/download/).
-
 ## Installation
 
 ### Option 1: Quick Install Script (Recommended)
@@ -109,17 +79,7 @@ Install the latest build for Linux from the Snap Store:
 snap install --edge openapi2zig
 ```
 
-### Option 4: Build from Source
-
-Make sure you have Zig installed (version 0.16.0 or newer).
-
-```bash
-git clone https://github.com/christianhelle/openapi2zig.git
-cd openapi2zig
-zig build
-```
-
-### Option 5: Use Docker
+### Option 4: Use Docker
 
 The openapi2zig is available as a Docker image on Docker Hub at `christianhelle/openapi2zig`.
 
@@ -134,85 +94,39 @@ docker run --rm -v "$PWD:/app" christianhelle/openapi2zig \
 
 The image's entrypoint is the binary itself, so arguments are passed straight through and `docker run --rm christianhelle/openapi2zig` prints the usage text. Paths are resolved inside the container, relative to the `/app` working directory, so mount the directory holding your spec there. The container runs as UID 1001; on Linux the mounted directory must be writable by that user for the output to be written.
 
+### Option 5: Build from Source
+
+Requires [Zig](https://ziglang.org/download/) v0.16.0.
+
+```bash
+git clone https://github.com/christianhelle/openapi2zig.git
+cd openapi2zig
+zig build
+```
+
+The compiled binary will be available at `zig-out/bin/openapi2zig`. See [Development](#development) below for running the test suite and other contributor workflows.
+
 ## Quick Start
 
-### Building from Source
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/christianhelle/openapi2zig.git
-   cd openapi2zig
-   ```
-
-2. Build the project:
-
-   ```bash
-   zig build
-   ```
-
-3. Run tests to verify everything works:
-
-   ```bash
-   zig build test
-   ```
-
-4. The compiled binary will be available in `zig-out/bin/openapi2zig`
-
-### Development
-
-For development builds with debug information:
+Generate a Zig client from an OpenAPI spec:
 
 ```bash
-zig build -Doptimize=Debug
+openapi2zig generate -i openapi/v3.0/petstore.json -o api.zig
 ```
 
-To run tests during development:
+This writes a single self-contained `api.zig` file with the models, HTTP client, and endpoint functions. Then call it from your code:
 
-```bash
-zig build test
+```zig
+var client = api.Client.init(allocator, io, "");
+defer client.deinit();
+client.withBaseUrl("https://petstore3.swagger.io/api/v3");
+
+var pet = try api.getPetById(&client, 1);
+defer pet.deinit();
+std.debug.print("pet name: {s}\n", .{pet.value().name});
 ```
 
-To check code formatting:
-
-```bash
-zig fmt --check src/
-zig fmt --check build.zig
-```
-
-### Smoke tests
-
-Run the broad smoke-test script to validate code generation against every supported sample specification:
-
-```bash
-pwsh test/smoke-tests.ps1
-```
-
-What it does:
-
-- Validates all eligible JSON and YAML API specs under `openapi/v2.0`, `openapi/v3.0`, `openapi/v3.1`, and `openapi/v3.2`.
-- Runs each spec through every resource-wrapper mode: `none`, `tags`, `paths`, and `hybrid`, plus `PerTag` and `PerEndpoint` multiple-client modes when `-MultipleClients` is passed (default smoke runs use resource-wrapper modes only).
-- Ignores the meta-schema documents under `openapi/json-schema/`, which are outside the smoke-test discovery roots.
-- Writes generated outputs to `test/output/` (gitignored), with filenames shaped like `<basename>__<format>__<mode>.zig` so JSON/YAML sibling fixtures do not collide.
-- Continues through individual failures and prints a final summary listing every failing spec/mode combination, then exits non-zero if any case failed.
-- Honors a temporary denylist for known-unsupported spec/mode combinations so the PR gate can stay green while generator gaps are tracked explicitly.
-
-In CI, the same script runs in the `smoke-tests` job on pull requests and `main`, alongside the existing `zig build run-generate` + `zig run generated/main.zig` curated sample harness. The broad smoke discovery does not require JSON/YAML twins: YAML-only roots such as `openapi/v3.0/bot.paths.yaml` are still included when they live under the covered version folders. When the smoke-tests job fails, `test/output/` is uploaded as a workflow artifact for triage.
-
-### Cross-compilation
-
-Build for different targets:
-
-```bash
-# Windows
-zig build -Dtarget=x86_64-windows
-
-# macOS
-zig build -Dtarget=x86_64-macos
-
-# Linux ARM64
-zig build -Dtarget=aarch64-linux
-```
+See [Usage](#usage) below for the full set of CLI options, and [Using as a Library](#using-as-a-library) to call openapi2zig programmatically from Zig instead of shelling out to the CLI.
 
 ## Usage
 
@@ -400,35 +314,6 @@ detached PowerShell helper: it waits for the current process to exit, replaces t
 executable (resolving symlinks, e.g. winget `Links`), and removes the temporary upgrade
 files. The helper survives the parent process, so the new version is in place the next
 time the command is run.
-
-### Generated sample files
-
-The build script also includes curated sample-generation targets used by the checked-in generated harness:
-
-```bash
-zig build run-generate-v2   # openapi/v2.0/petstore.json  -> generated/generated_v2.zig
-zig build run-generate-v2-yaml  # openapi/v2.0/petstore.yaml -> generated/generated_v2_yaml.zig
-zig build run-generate-v3   # openapi/v3.0/petstore.json  -> generated/generated_v3.zig
-zig build run-generate-v3-yaml  # openapi/v3.0/petstore.yaml -> generated/generated_v3_yaml.zig
-zig build run-generate-v3-multiclient-tag  # petstore -> generated/generated_v3_multiclient_tag.zig (PerTag)
-zig build run-generate-v3-multiclient-endpoint  # petstore -> generated/generated_v3_multiclient_endpoint.zig (PerEndpoint)
-zig build run-generate-v3-multiclient-tag-multi  # petstore -> generated/multiple-clients/tag/ (PerTag, multi-file)
-zig build run-generate-v3-multiclient-endpoint-multi  # petstore -> generated/multiple-clients/endpoint/ (PerEndpoint, multi-file)
-zig build run-generate-v31  # openapi/v3.1/webhook-example.json -> generated/generated_v31.zig
-zig build run-generate-v31-yaml # openapi/v3.1/webhook-example.yaml -> generated/generated_v31_yaml.zig
-zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated_v32.zig
-zig build run-generate      # runs all of the above
-```
-
-This quick harness is intentionally selective: it covers the curated v2/v3 petstore JSON+YAML outputs, the v3.1 webhook JSON+YAML outputs, and the v3.2 JSON output. `openapi/v3.2` remains JSON-only here because the repository does not currently ship a v3.2 YAML root fixture. For broader JSON+YAML fixture coverage across the sample tree, use `pwsh test/smoke-tests.ps1`. `generated/main.zig` imports the curated v2/v3 JSON+YAML modules plus the v3.1 YAML module, initializes `Client` values, and exercises memory-managed endpoint calls. `generated/compile_generated.zig` extends compile coverage across all curated generated artifacts. When Zig is available, validate generated examples with:
-
-```bash
-zig build run-generate
-zig build test
-zig test generated/compile_generated.zig
-zig build-exe generated/main.zig -fno-emit-bin
-zig build test-package
-```
 
 ## Using as a Library
 
@@ -869,6 +754,132 @@ switch (result) {
 // Default path resource wrappers are also exported:
 var wrapped = try api.pet.get(&client, 1);
 defer wrapped.deinit();
+```
+
+## Development
+
+This section covers setting up the repository for development and contributing to openapi2zig. If you just want to use the CLI or library, see [Installation](#installation) and [Quick Start](#quick-start) above.
+
+### Prerequisites
+
+- [Zig](https://ziglang.org/download/) v0.16.0
+
+### Development Environment
+
+#### Option 1: GitHub Codespaces (Recommended for Contributors)
+
+The fastest way to get started with development is using GitHub Codespaces, which provides a pre-configured development environment with Zig, ZLS (Zig Language Server), and all necessary VS Code extensions.
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/christianhelle/openapi2zig)
+
+1. Click the badge above or navigate to the repository on GitHub
+2. Click "Code" → "Codespaces" → "Create codespace"
+3. Wait for the environment to set up (2-3 minutes)
+4. Start coding! Everything is pre-configured.
+
+#### Option 2: VS Code Dev Containers (Local)
+
+If you prefer local development with Docker:
+
+1. Install [VS Code](https://code.visualstudio.com/) and the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. Clone the repository and open it in VS Code
+3. When prompted, click "Reopen in Container"
+4. VS Code will build and configure the development environment automatically
+
+#### Option 3: Manual Setup
+
+Install Zig locally following the official [installation guide](https://ziglang.org/download/), then clone the repository:
+
+```bash
+git clone https://github.com/christianhelle/openapi2zig.git
+cd openapi2zig
+zig build
+```
+
+The compiled binary will be available in `zig-out/bin/openapi2zig`.
+
+### Building and testing
+
+For development builds with debug information:
+
+```bash
+zig build -Doptimize=Debug
+```
+
+To run tests during development:
+
+```bash
+zig build test
+```
+
+To check code formatting:
+
+```bash
+zig fmt --check src/
+zig fmt --check build.zig
+```
+
+### Smoke tests
+
+Run the broad smoke-test script to validate code generation against every supported sample specification:
+
+```bash
+pwsh test/smoke-tests.ps1
+```
+
+What it does:
+
+- Validates all eligible JSON and YAML API specs under `openapi/v2.0`, `openapi/v3.0`, `openapi/v3.1`, and `openapi/v3.2`.
+- Runs each spec through every resource-wrapper mode: `none`, `tags`, `paths`, and `hybrid`, plus `PerTag` and `PerEndpoint` multiple-client modes when `-MultipleClients` is passed (default smoke runs use resource-wrapper modes only).
+- Ignores the meta-schema documents under `openapi/json-schema/`, which are outside the smoke-test discovery roots.
+- Writes generated outputs to `test/output/` (gitignored), with filenames shaped like `<basename>__<format>__<mode>.zig` so JSON/YAML sibling fixtures do not collide.
+- Continues through individual failures and prints a final summary listing every failing spec/mode combination, then exits non-zero if any case failed.
+- Honors a temporary denylist for known-unsupported spec/mode combinations so the PR gate can stay green while generator gaps are tracked explicitly.
+
+In CI, the same script runs in the `smoke-tests` job on pull requests and `main`, alongside the existing `zig build run-generate` + `zig run generated/main.zig` curated sample harness. The broad smoke discovery does not require JSON/YAML twins: YAML-only roots such as `openapi/v3.0/bot.paths.yaml` are still included when they live under the covered version folders. When the smoke-tests job fails, `test/output/` is uploaded as a workflow artifact for triage.
+
+### Cross-compilation
+
+Build for different targets:
+
+```bash
+# Windows
+zig build -Dtarget=x86_64-windows
+
+# macOS
+zig build -Dtarget=x86_64-macos
+
+# Linux ARM64
+zig build -Dtarget=aarch64-linux
+```
+
+### Generated sample files
+
+The build script also includes curated sample-generation targets used by the checked-in generated harness:
+
+```bash
+zig build run-generate-v2   # openapi/v2.0/petstore.json  -> generated/generated_v2.zig
+zig build run-generate-v2-yaml  # openapi/v2.0/petstore.yaml -> generated/generated_v2_yaml.zig
+zig build run-generate-v3   # openapi/v3.0/petstore.json  -> generated/generated_v3.zig
+zig build run-generate-v3-yaml  # openapi/v3.0/petstore.yaml -> generated/generated_v3_yaml.zig
+zig build run-generate-v3-multiclient-tag  # petstore -> generated/generated_v3_multiclient_tag.zig (PerTag)
+zig build run-generate-v3-multiclient-endpoint  # petstore -> generated/generated_v3_multiclient_endpoint.zig (PerEndpoint)
+zig build run-generate-v3-multiclient-tag-multi  # petstore -> generated/multiple-clients/tag/ (PerTag, multi-file)
+zig build run-generate-v3-multiclient-endpoint-multi  # petstore -> generated/multiple-clients/endpoint/ (PerEndpoint, multi-file)
+zig build run-generate-v31  # openapi/v3.1/webhook-example.json -> generated/generated_v31.zig
+zig build run-generate-v31-yaml # openapi/v3.1/webhook-example.yaml -> generated/generated_v31_yaml.zig
+zig build run-generate-v32  # openapi/v3.2/petstore.json  -> generated/generated_v32.zig
+zig build run-generate      # runs all of the above
+```
+
+This quick harness is intentionally selective: it covers the curated v2/v3 petstore JSON+YAML outputs, the v3.1 webhook JSON+YAML outputs, and the v3.2 JSON output. `openapi/v3.2` remains JSON-only here because the repository does not currently ship a v3.2 YAML root fixture. For broader JSON+YAML fixture coverage across the sample tree, use `pwsh test/smoke-tests.ps1`. `generated/main.zig` imports the curated v2/v3 JSON+YAML modules plus the v3.1 YAML module, initializes `Client` values, and exercises memory-managed endpoint calls. `generated/compile_generated.zig` extends compile coverage across all curated generated artifacts. When Zig is available, validate generated examples with:
+
+```bash
+zig build run-generate
+zig build test
+zig test generated/compile_generated.zig
+zig build-exe generated/main.zig -fno-emit-bin
+zig build test-package
 ```
 
 ## Contributing
