@@ -540,3 +540,19 @@ test "InputSource discriminates between file_path and url correctly" {
     try std.testing.expect(std.meta.activeTag(file_source) == .file_path);
     try std.testing.expect(std.meta.activeTag(url_source) == .url);
 }
+
+test "loadFromFile loads a spec larger than 10MB" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer {
+        const deinit_status = gpa.deinit();
+        if (deinit_status == .leak) {
+            @panic("Memory leak detected in large spec test!");
+        }
+    }
+
+    const contents = try input_loader.loadFromFile(allocator, std.testing.io, "openapi/v3.0/github.json");
+    defer allocator.free(contents);
+
+    try std.testing.expect(contents.len > 10 * 1024 * 1024);
+}
