@@ -22,6 +22,7 @@ const comment_sanitization_tests = @import("tests/comment_sanitization_tests.zig
 const parameter_reference_tests = @import("tests/parameter_reference_tests.zig");
 const path_template_tests = @import("tests/path_template_tests.zig");
 const operation_id_naming_tests = @import("tests/operation_id_naming_tests.zig");
+const union_variant_tests = @import("tests/union_variant_tests.zig");
 const body_kind_generation_tests = @import("tests/body_kind_generation_tests.zig");
 const kitchen_sink_v20_tests = @import("tests/kitchen_sink_v20_tests.zig");
 const kitchen_sink_v30_tests = @import("tests/kitchen_sink_v30_tests.zig");
@@ -56,6 +57,7 @@ comptime {
     _ = parameter_reference_tests;
     _ = path_template_tests;
     _ = operation_id_naming_tests;
+    _ = union_variant_tests;
     _ = body_kind_generation_tests;
     _ = kitchen_sink_v20_tests;
     _ = kitchen_sink_v30_tests;
