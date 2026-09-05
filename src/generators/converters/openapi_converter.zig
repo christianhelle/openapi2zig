@@ -234,11 +234,17 @@ pub const OpenApiConverter = struct {
         }
     }
 
-    fn refName(ref: []const u8) []const u8 {
-        if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
-            return ref[last_slash + 1 ..];
-        }
-        return ref;
+    const component_schema_prefix = "#/components/schemas/";
+
+    /// The name a local component schema reference points at, or null for a
+    /// reference this converter cannot resolve - an external document, or a
+    /// pointer into anything other than `components.schemas`.
+    fn componentSchemaName(ref: []const u8) ?[]const u8 {
+        if (!std.mem.startsWith(u8, ref, component_schema_prefix)) return null;
+        const name = ref[component_schema_prefix.len..];
+        if (name.len == 0) return null;
+        if (std.mem.indexOfAny(u8, name, "/#") != null) return null;
+        return name;
     }
 
     /// Convert the schema a `$ref` points at, or null when it names something
@@ -246,14 +252,19 @@ pub const OpenApiConverter = struct {
     /// the same `allOf` chain.
     fn convertResolvedSchemaReference(self: *OpenApiConverter, ref: []const u8) anyerror!?Schema {
         const source_schemas = self.source_schemas orelse return null;
-        const name = refName(ref);
+        const name = componentSchemaName(ref) orelse return null;
         for (self.active_all_of_refs.items) |active| {
             if (std.mem.eql(u8, active, name)) return null;
         }
         const schema_or_ref = source_schemas.get(name) orelse return null;
         try self.active_all_of_refs.append(self.allocator, name);
         defer _ = self.active_all_of_refs.pop();
-        return try self.convertSchemaOrReference(schema_or_ref);
+        return switch (schema_or_ref) {
+            // A component that is itself a reference is an alias; follow it so
+            // the composing schema inherits the fields of the schema it names.
+            .reference => |alias| try self.convertResolvedSchemaReference(alias.ref),
+            .schema => |schema| try self.convertSchema(schema.*),
+        };
     }
 
     /// Append every name not already present, so the required lists of the
