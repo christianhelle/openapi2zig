@@ -45,6 +45,9 @@ pub const OpenApiConverter = struct {
     /// Schemas declared under `components.schemas`, so that an `allOf` member
     /// given as a `$ref` resolves to the schema it composes.
     source_schemas: ?*const std.StringHashMap(SchemaOrReference3) = null,
+    /// Names of the schemas whose `allOf` composition is currently being
+    /// resolved, so that a cycle between them stops instead of recursing.
+    active_all_of_refs: std.ArrayList([]const u8) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) OpenApiConverter {
         return OpenApiConverter{ .allocator = allocator };
@@ -63,6 +66,7 @@ pub const OpenApiConverter = struct {
         }
         defer self.component_parameters = null;
         defer self.source_schemas = null;
+        defer self.active_all_of_refs.deinit(self.allocator);
         const paths = try self.convertPaths(openapi.paths);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -238,10 +242,17 @@ pub const OpenApiConverter = struct {
     }
 
     /// Convert the schema a `$ref` points at, or null when it names something
-    /// absent from `components.schemas`.
+    /// absent from `components.schemas` or already being resolved further up
+    /// the same `allOf` chain.
     fn convertResolvedSchemaReference(self: *OpenApiConverter, ref: []const u8) anyerror!?Schema {
         const source_schemas = self.source_schemas orelse return null;
-        const schema_or_ref = source_schemas.get(refName(ref)) orelse return null;
+        const name = refName(ref);
+        for (self.active_all_of_refs.items) |active| {
+            if (std.mem.eql(u8, active, name)) return null;
+        }
+        const schema_or_ref = source_schemas.get(name) orelse return null;
+        try self.active_all_of_refs.append(self.allocator, name);
+        defer _ = self.active_all_of_refs.pop();
         return try self.convertSchemaOrReference(schema_or_ref);
     }
 

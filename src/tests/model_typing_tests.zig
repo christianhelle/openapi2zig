@@ -609,3 +609,41 @@ test "OpenAPI 3.0 allOf resolves a member given as a reference" {
     try std.testing.expect(thing.properties.?.contains("name"));
     try std.testing.expectEqual(@as(usize, 2), thing.required.?.len);
 }
+
+test "OpenAPI 3.0 allOf that references itself in a cycle terminates" {
+    const allocator = std.testing.allocator;
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "A": {
+        \\        "allOf": [
+        \\          { "$ref": "#/components/schemas/B" },
+        \\          { "type": "object", "properties": { "a": { "type": "string" } } }
+        \\        ]
+        \\      },
+        \\      "B": {
+        \\        "allOf": [
+        \\          { "$ref": "#/components/schemas/A" },
+        \\          { "type": "object", "properties": { "b": { "type": "string" } } }
+        \\        ]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const a = unified.schemas.?.get("A").?;
+    try std.testing.expect(a.properties.?.contains("a"));
+    try std.testing.expect(a.properties.?.contains("b"));
+}
