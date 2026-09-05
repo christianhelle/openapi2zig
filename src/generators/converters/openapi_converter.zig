@@ -27,6 +27,7 @@ const UnifiedSecurityScheme = @import("../../models/common/document.zig").Securi
 const Components3 = @import("../../models/v3.0/components.zig").Components;
 const SchemaOrReference3 = @import("../../models/v3.0/schema.zig").SchemaOrReference;
 const Schema3 = @import("../../models/v3.0/schema.zig").Schema;
+const AdditionalProperties3 = @import("../../models/v3.0/schema.zig").AdditionalProperties;
 const ParameterOrReference3 = @import("../../models/v3.0/parameter.zig").ParameterOrReference;
 const Parameter3 = @import("../../models/v3.0/parameter.zig").Parameter;
 const ResponseOrReference3 = @import("../../models/v3.0/response.zig").ResponseOrReference;
@@ -42,6 +43,12 @@ pub const OpenApiConverter = struct {
     /// Reusable parameters declared under `components.parameters`, so that a
     /// parameter given as a `$ref` resolves to the parameter it points at.
     component_parameters: ?*const std.StringHashMap(ParameterOrReference3) = null,
+    /// Schemas declared under `components.schemas`, so that an `allOf` member
+    /// given as a `$ref` resolves to the schema it composes.
+    source_schemas: ?*const std.StringHashMap(SchemaOrReference3) = null,
+    /// Names of the schemas whose `allOf` composition is currently being
+    /// resolved, so that a cycle between them stops instead of recursing.
+    active_all_of_refs: std.ArrayList([]const u8) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) OpenApiConverter {
         return OpenApiConverter{ .allocator = allocator };
@@ -54,8 +61,16 @@ pub const OpenApiConverter = struct {
             if (components.parameters) |*component_parameters| {
                 self.component_parameters = component_parameters;
             }
+            if (components.schemas) |*component_schemas| {
+                self.source_schemas = component_schemas;
+            }
         }
         defer self.component_parameters = null;
+        defer self.source_schemas = null;
+        defer {
+            self.active_all_of_refs.deinit(self.allocator);
+            self.active_all_of_refs = .empty;
+        }
         const paths = try self.convertPaths(openapi.paths);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -223,7 +238,153 @@ pub const OpenApiConverter = struct {
         }
     }
 
+    const component_schema_prefix = "#/components/schemas/";
+
+    /// The name a local component schema reference points at, or null for a
+    /// reference this converter cannot resolve — an external document, or a
+    /// pointer into anything other than `components.schemas`.
+    fn componentSchemaName(ref: []const u8) ?[]const u8 {
+        if (!std.mem.startsWith(u8, ref, component_schema_prefix)) return null;
+        const name = ref[component_schema_prefix.len..];
+        if (name.len == 0) return null;
+        if (std.mem.indexOfAny(u8, name, "/#") != null) return null;
+        return name;
+    }
+
+    /// Convert the schema a `$ref` points at, or null when it names something
+    /// absent from `components.schemas` or already being resolved further up
+    /// the same `allOf` chain.
+    fn convertResolvedSchemaReference(self: *OpenApiConverter, ref: []const u8) anyerror!?Schema {
+        const source_schemas = self.source_schemas orelse return null;
+        const name = componentSchemaName(ref) orelse return null;
+        for (self.active_all_of_refs.items) |active| {
+            if (std.mem.eql(u8, active, name)) return null;
+        }
+        const schema_or_ref = source_schemas.get(name) orelse return null;
+        try self.active_all_of_refs.append(self.allocator, name);
+        defer _ = self.active_all_of_refs.pop();
+        return switch (schema_or_ref) {
+            // A component that is itself a reference is an alias; follow it so
+            // the composing schema inherits the fields of the schema it names.
+            .reference => |alias| try self.convertResolvedSchemaReference(alias.ref),
+            .schema => |schema| try self.convertSchema(schema.*),
+        };
+    }
+
+    /// Append every name not already present, so the required lists of the
+    /// `allOf` members and their parent combine without duplicates.
+    fn mergeRequiredNames(self: *OpenApiConverter, required_list: *std.ArrayList([]const u8), names: []const []const u8) !void {
+        for (names) |name| {
+            var exists = false;
+            for (required_list.items) |existing| {
+                if (std.mem.eql(u8, existing, name)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) try required_list.append(self.allocator, name);
+        }
+    }
+
+    /// Move the properties of an `allOf` member into the merged map, leaving
+    /// the member without properties so the caller can deinitialize the rest
+    /// of it. A member later in the list wins on a name conflict.
+    fn takeProperties(self: *OpenApiConverter, merged: *std.StringHashMap(Schema), part: *Schema) !void {
+        var props = part.properties orelse return;
+        // Reserve before detaching the map, so the transfer itself cannot fail
+        // and leave entries owned by neither map.
+        try merged.ensureUnusedCapacity(props.count());
+        part.properties = null;
+        var iterator = props.iterator();
+        while (iterator.next()) |entry| {
+            if (merged.getEntry(entry.key_ptr.*)) |existing| {
+                existing.value_ptr.deinit(self.allocator);
+                existing.value_ptr.* = entry.value_ptr.*;
+                self.allocator.free(entry.key_ptr.*);
+            } else {
+                merged.putAssumeCapacity(entry.key_ptr.*, entry.value_ptr.*);
+            }
+        }
+        props.deinit();
+    }
+
+    fn convertAdditionalProperties(additional: ?AdditionalProperties3) ?bool {
+        const value = additional orelse return null;
+        return switch (value) {
+            .boolean => |allowed| allowed,
+            .schema_or_reference => true,
+        };
+    }
+
+    /// `allOf` conjoins its members, so a member that forbids additional
+    /// properties forbids them for the whole composition.
+    fn mergeAdditionalProperties(current: ?bool, incoming: ?bool) ?bool {
+        const next = incoming orelse return current;
+        const existing = current orelse return next;
+        return existing and next;
+    }
+
+    /// Flatten an `allOf` composition into a single object schema by merging
+    /// the properties and required lists of its members with the ones the
+    /// composing schema declares itself.
+    fn convertAllOfSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
+        var merged_properties = std.StringHashMap(Schema).init(self.allocator);
+        var required_list = std.ArrayList([]const u8).empty;
+        var additional_properties = convertAdditionalProperties(schema.additionalProperties);
+
+        if (schema.allOf) |all_of| {
+            for (all_of) |item| {
+                var converted = switch (item) {
+                    .reference => |ref| (try self.convertResolvedSchemaReference(ref.ref)) orelse Schema{ .type = .reference, .ref = ref.ref },
+                    .schema => |child| try self.convertSchema(child.*),
+                };
+                try self.takeProperties(&merged_properties, &converted);
+                if (converted.required) |required| try self.mergeRequiredNames(&required_list, required);
+                additional_properties = mergeAdditionalProperties(additional_properties, converted.additional_properties);
+                converted.deinit(self.allocator);
+            }
+        }
+
+        if (schema.properties) |props| {
+            var prop_iterator = props.iterator();
+            while (prop_iterator.next()) |entry| {
+                const prop_schema = try self.convertSchemaOrReference(entry.value_ptr.*);
+                if (merged_properties.getEntry(entry.key_ptr.*)) |existing| {
+                    existing.value_ptr.deinit(self.allocator);
+                    existing.value_ptr.* = prop_schema;
+                } else {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    try merged_properties.put(key, prop_schema);
+                }
+            }
+        }
+
+        if (schema.required) |required| try self.mergeRequiredNames(&required_list, required);
+
+        const required = if (required_list.items.len > 0) try required_list.toOwnedSlice(self.allocator) else null;
+        const has_properties = merged_properties.count() > 0;
+        if (!has_properties) merged_properties.deinit();
+
+        return Schema{
+            .type = .object,
+            .ref = null,
+            .title = schema.title,
+            .description = schema.description,
+            .format = schema.format,
+            .required = required,
+            .properties = if (has_properties) merged_properties else null,
+            .items = null,
+            .enum_values = null,
+            .default = schema.default,
+            .example = schema.example,
+            .additional_properties = additional_properties,
+            .nullable = schema.nullable orelse false,
+        };
+    }
+
     fn convertSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
+        if (schema.allOf != null) return try self.convertAllOfSchema(schema);
+
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
         const title = schema.title;
         const description = schema.description;
@@ -251,10 +412,7 @@ pub const OpenApiConverter = struct {
             items_ptr.* = items_schema;
             break :blk items_ptr;
         } else null;
-        const additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
-            .boolean => |b| b,
-            .schema_or_reference => true,
-        } else null;
+        const additional_properties = convertAdditionalProperties(schema.additionalProperties);
 
         return Schema{
             .type = schema_type,

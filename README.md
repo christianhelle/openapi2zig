@@ -1,12 +1,11 @@
-# openapi2zig
-
 [![CI](https://github.com/christianhelle/openapi2zig/actions/workflows/ci.yml/badge.svg)](https://github.com/christianhelle/openapi2zig/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/christianhelle/openapi2zig/graph/badge.svg?token=F7YxJ0hTqr)](https://codecov.io/gh/christianhelle/openapi2zig)
 [![Zig Version](https://img.shields.io/badge/zig-0.16.0%2B-orange.svg)](https://ziglang.org/download/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A CLI tool and Zig library that generates type-safe API client code from OpenAPI specifications.
+# openapi2zig
 
-> **Note**: This project provides both a CLI tool for generating Zig code from OpenAPI specs and a library for parsing and working with OpenAPI documents programmatically in Zig.
+A CLI tool and Zig library that generates type-safe models and API client code in Zig from OpenAPI specifications.
 
 ## Features
 
