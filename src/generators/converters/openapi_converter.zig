@@ -223,7 +223,95 @@ pub const OpenApiConverter = struct {
         }
     }
 
+    /// Append every name not already present, so the required lists of the
+    /// `allOf` members and their parent combine without duplicates.
+    fn mergeRequiredNames(self: *OpenApiConverter, required_list: *std.ArrayList([]const u8), names: []const []const u8) !void {
+        for (names) |name| {
+            var exists = false;
+            for (required_list.items) |existing| {
+                if (std.mem.eql(u8, existing, name)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) try required_list.append(self.allocator, name);
+        }
+    }
+
+    /// Move the properties of an `allOf` member into the merged map, leaving
+    /// the member without properties so the caller can deinitialize the rest
+    /// of it. A member later in the list wins on a name conflict.
+    fn takeProperties(self: *OpenApiConverter, merged: *std.StringHashMap(Schema), part: *Schema) !void {
+        var props = part.properties orelse return;
+        part.properties = null;
+        var iterator = props.iterator();
+        while (iterator.next()) |entry| {
+            if (merged.getEntry(entry.key_ptr.*)) |existing| {
+                existing.value_ptr.deinit(self.allocator);
+                existing.value_ptr.* = entry.value_ptr.*;
+                self.allocator.free(entry.key_ptr.*);
+            } else {
+                try merged.put(entry.key_ptr.*, entry.value_ptr.*);
+            }
+        }
+        props.deinit();
+    }
+
+    /// Flatten an `allOf` composition into a single object schema by merging
+    /// the properties and required lists of its members with the ones the
+    /// composing schema declares itself.
+    fn convertAllOfSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
+        var merged_properties = std.StringHashMap(Schema).init(self.allocator);
+        var required_list = std.ArrayList([]const u8).empty;
+
+        if (schema.allOf) |all_of| {
+            for (all_of) |item| {
+                var converted = try self.convertSchemaOrReference(item);
+                try self.takeProperties(&merged_properties, &converted);
+                if (converted.required) |required| try self.mergeRequiredNames(&required_list, required);
+                converted.deinit(self.allocator);
+            }
+        }
+
+        if (schema.properties) |props| {
+            var prop_iterator = props.iterator();
+            while (prop_iterator.next()) |entry| {
+                const prop_schema = try self.convertSchemaOrReference(entry.value_ptr.*);
+                if (merged_properties.getEntry(entry.key_ptr.*)) |existing| {
+                    existing.value_ptr.deinit(self.allocator);
+                    existing.value_ptr.* = prop_schema;
+                } else {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    try merged_properties.put(key, prop_schema);
+                }
+            }
+        }
+
+        if (schema.required) |required| try self.mergeRequiredNames(&required_list, required);
+
+        const required = if (required_list.items.len > 0) try required_list.toOwnedSlice(self.allocator) else null;
+        const has_properties = merged_properties.count() > 0;
+        if (!has_properties) merged_properties.deinit();
+
+        return Schema{
+            .type = .object,
+            .ref = null,
+            .title = schema.title,
+            .description = schema.description,
+            .format = schema.format,
+            .required = required,
+            .properties = if (has_properties) merged_properties else null,
+            .items = null,
+            .enum_values = null,
+            .default = schema.default,
+            .example = schema.example,
+            .nullable = schema.nullable orelse false,
+        };
+    }
+
     fn convertSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
+        if (schema.allOf != null) return try self.convertAllOfSchema(schema);
+
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
         const title = schema.title;
         const description = schema.description;
