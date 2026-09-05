@@ -189,3 +189,34 @@ test "multiple documents in one file are rejected" {
         yaml_loader.yamlToJson(allocator, yaml_content),
     );
 }
+
+test "a quoted scalar on its own line is left alone" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title:
+        \\    "a wrapped title"
+        \\  version: 1.0.0
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "a wrapped title");
+}
+
+test "block scalars escape tabs and quotes" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    // Written with escapes rather than a multiline literal so the tab survives.
+    const yaml_content = "openapi: 3.0.3\ninfo:\n  title: Blocks\n  version: 1.0.0\n  description: |\n    a \"quoted\" word\tand a tab\n";
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "a \\\"quoted\\\" word\\tand a tab");
+}
