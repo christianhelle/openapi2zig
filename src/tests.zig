@@ -23,6 +23,7 @@ const parameter_reference_tests = @import("tests/parameter_reference_tests.zig")
 const path_template_tests = @import("tests/path_template_tests.zig");
 const operation_id_naming_tests = @import("tests/operation_id_naming_tests.zig");
 const kitchen_sink_v31_tests = @import("tests/kitchen_sink_v31_tests.zig");
+const kitchen_sink_v32_tests = @import("tests/kitchen_sink_v32_tests.zig");
 const media_type = @import("media_type.zig");
 const generator = @import("generator.zig");
 const cli = @import("cli.zig");
@@ -53,6 +54,7 @@ comptime {
     _ = path_template_tests;
     _ = operation_id_naming_tests;
     _ = kitchen_sink_v31_tests;
+    _ = kitchen_sink_v32_tests;
     _ = media_type;
     _ = generator;
     _ = cli;
