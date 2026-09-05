@@ -85,6 +85,26 @@ test "optional struct fields keep their nullability and element types" {
     try expectContains(code, "    loose_items: ?[]const std.json.Value = null,");
 }
 
+test "union typed fields get their own named type or collapse to an optional" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    const code = try generateModels(allocator);
+    defer allocator.free(code);
+
+    try expectContains(code, "pub const UnionFields = struct {");
+    // A union of one type and null collapses to an optional of that type.
+    try expectContains(code, "    maybe_count: ?i64 = null,");
+    // A discriminated union field gets a named type of its own.
+    try expectContains(code, "    tagged: ?UnionFieldsTagged = null,");
+    try expectContains(code, "pub const UnionFieldsTagged = union(enum) {");
+    try expectContains(code, "    started: StartedEvent,");
+    try expectContains(code, "    stopped: StoppedEvent,");
+    // `items` without a `type` still means an array.
+    try expectContains(code, "    implicit_array: ?[]const []const u8 = null,");
+    // Items without a type of their own fall back to std.json.Value.
+    try expectContains(code, "    loose_array: ?[]const std.json.Value = null,");
+}
+
 test "extensible request schemas gain extra_body and a custom stringifier" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
