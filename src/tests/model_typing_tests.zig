@@ -525,7 +525,9 @@ test "model generator emits optional type for required nullable property" {
 }
 
 test "OpenAPI 3.0 allOf inline object members merge into one schema" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const source =
         \\{
         \\  "openapi": "3.0.0",
@@ -568,7 +570,9 @@ test "OpenAPI 3.0 allOf inline object members merge into one schema" {
 }
 
 test "OpenAPI 3.0 allOf resolves a member given as a reference" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const source =
         \\{
         \\  "openapi": "3.0.0",
@@ -611,7 +615,9 @@ test "OpenAPI 3.0 allOf resolves a member given as a reference" {
 }
 
 test "OpenAPI 3.0 allOf that references itself in a cycle terminates" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const source =
         \\{
         \\  "openapi": "3.0.0",
