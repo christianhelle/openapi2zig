@@ -1283,3 +1283,76 @@ test "parse accepts --runtime-only with --multiple-files and runtime file name" 
     try std.testing.expect(parsed.args.runtime_only);
     try std.testing.expectEqualStrings("http.zig", parsed.args.file_names.runtime.?);
 }
+
+test "parse reports a missing value for every option that takes one" {
+    const cases = [_][]const [:0]const u8{
+        &.{ "openapi2zig", "generate", "-o", "out", "-i" },
+        &.{ "openapi2zig", "generate", "-i", "openapi.json", "-o" },
+        &.{ "openapi2zig", "generate", "-i", "openapi.json", "--base-url" },
+        &.{ "openapi2zig", "generate", "-i", "openapi.json", "--resource-wrappers" },
+        &.{ "openapi2zig", "generate", "-i", "openapi.json", "--file-name" },
+    };
+
+    for (cases) |argv| {
+        try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, argv));
+    }
+}
+
+test "parse rejects an unknown resource wrapper mode" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--resource-wrappers",
+        "sideways",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse requires an input path unless generating only the runtime" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-o",
+        "out.zig",
+        "--models-only",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects colliding models and client names when reusing a runtime module" {
+    const argv = [_][:0]const u8{
+        "openapi2zig",
+        "generate",
+        "-i",
+        "openapi.json",
+        "--multiple-files",
+        "--runtime-module",
+        "shared/http.zig",
+        "--file-name",
+        "models=api.zig",
+        "--file-name",
+        "client=api.zig",
+    };
+
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse prints usage when the subcommand is missing" {
+    const argv = [_][:0]const u8{"openapi2zig"};
+
+    var parsed = try parse(std.testing.allocator, &argv);
+    defer parsed.deinit(std.testing.allocator);
+    try std.testing.expect(parsed.help);
+}
+
+test "parseResourceWrapperMode rejects an unknown mode" {
+    try std.testing.expectEqual(ResourceWrapperMode.none, parseResourceWrapperMode("none").?);
+    try std.testing.expectEqual(ResourceWrapperMode.tags, parseResourceWrapperMode("tags").?);
+    try std.testing.expectEqual(ResourceWrapperMode.paths, parseResourceWrapperMode("paths").?);
+    try std.testing.expectEqual(ResourceWrapperMode.hybrid, parseResourceWrapperMode("hybrid").?);
+    try std.testing.expect(parseResourceWrapperMode("sideways") == null);
+}
