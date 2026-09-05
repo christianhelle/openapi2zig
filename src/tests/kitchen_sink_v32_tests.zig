@@ -275,7 +275,7 @@ test "kitchen sink 3.2 parses schema keywords" {
     try std.testing.expectEqual(true, properties.get("secret").?.schema.writeOnly.?);
 
     const legacy = properties.get("legacy").?.schema;
-    try std.testing.expectEqual(true, legacy.nullable.?);
+    try std.testing.expectEqual(@as(usize, 2), legacy.type_array.?.len);
     try std.testing.expectEqualStrings("ex", legacy.xml.?.prefix.?);
     try std.testing.expectEqual(true, legacy.xml.?.attribute.?);
     try std.testing.expectEqualStrings("https://example.com/docs/legacy", legacy.externalDocs.?.url);
