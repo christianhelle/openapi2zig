@@ -1,0 +1,397 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Kitchen Sink",
+    "summary": "Every OpenAPI 3.1 construct in a single document",
+    "description": "A specification that exercises every model type in the parser.",
+    "termsOfService": "https://example.com/terms",
+    "contact": {
+      "name": "API Team",
+      "url": "https://example.com/support",
+      "email": "api@example.com"
+    },
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "1.0.0"
+  },
+  "externalDocs": {
+    "description": "Find out more",
+    "url": "https://example.com/docs"
+  },
+  "servers": [
+    {
+      "url": "https://{host}/v1",
+      "description": "Primary server",
+      "variables": {
+        "host": {
+          "default": "api.example.com",
+          "enum": ["api.example.com", "staging.example.com"],
+          "description": "Host name"
+        }
+      }
+    }
+  ],
+  "security": [
+    { "apiKeyAuth": [] },
+    { "oauth2Auth": ["read:items", "write:items"] }
+  ],
+  "tags": [
+    {
+      "name": "items",
+      "description": "Item operations",
+      "externalDocs": { "url": "https://example.com/docs/items" }
+    }
+  ],
+  "paths": {
+    "/items": {
+      "summary": "Item collection",
+      "description": "Operations on the item collection",
+      "servers": [{ "url": "https://items.example.com" }],
+      "parameters": [
+        { "name": "traceId", "in": "header", "schema": { "type": "string" } },
+        { "$ref": "#/components/parameters/PageSize" }
+      ],
+      "get": {
+        "tags": ["items"],
+        "summary": "List items",
+        "description": "Returns every item",
+        "operationId": "listItems",
+        "externalDocs": { "url": "https://example.com/docs/list-items" },
+        "deprecated": false,
+        "security": [{ "apiKeyAuth": [] }],
+        "servers": [{ "url": "https://read.example.com" }],
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Filter expression",
+            "required": false,
+            "deprecated": false,
+            "allowEmptyValue": true,
+            "style": "form",
+            "explode": true,
+            "allowReserved": false,
+            "schema": { "type": "string" },
+            "example": "name eq kettle",
+            "examples": {
+              "simple": { "summary": "Simple filter", "value": "name eq kettle" },
+              "shared": { "$ref": "#/components/examples/ItemExample" }
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of items",
+            "headers": {
+              "X-Rate-Limit": {
+                "description": "Requests left in the window",
+                "required": true,
+                "deprecated": false,
+                "allowEmptyValue": false,
+                "style": "simple",
+                "explode": false,
+                "allowReserved": false,
+                "schema": { "type": "integer" },
+                "example": 100,
+                "examples": { "typical": { "summary": "Typical", "value": 100 } }
+              },
+              "X-Cursor": {
+                "description": "Opaque cursor",
+                "content": {
+                  "application/json": { "schema": { "type": "string" } }
+                }
+              },
+              "X-Request-Id": { "$ref": "#/components/headers/RequestId" }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Item" } },
+                "example": [],
+                "examples": {
+                  "empty": { "summary": "No items", "description": "An empty page", "value": [] },
+                  "external": { "externalValue": "https://example.com/examples/items.json" },
+                  "shared": { "$ref": "#/components/examples/ItemExample" }
+                }
+              }
+            },
+            "links": {
+              "next": {
+                "operationId": "listItems",
+                "parameters": { "cursor": "$response.body#/next" },
+                "requestBody": { "refresh": true },
+                "description": "The next page of items",
+                "server": { "url": "https://items.example.com" }
+              },
+              "byId": { "$ref": "#/components/links/GetItemById" }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "default": { "description": "Unexpected error" }
+        },
+        "callbacks": {
+          "onData": {
+            "{$request.body#/callbackUrl}": {
+              "post": {
+                "requestBody": {
+                  "description": "Batch of items",
+                  "required": true,
+                  "content": { "application/json": { "schema": { "type": "object" } } }
+                },
+                "responses": { "200": { "description": "Acknowledged" } }
+              }
+            }
+          },
+          "onEvent": { "$ref": "#/components/callbacks/OnEvent" }
+        }
+      },
+      "post": {
+        "operationId": "createItem",
+        "requestBody": {
+          "description": "The item to create",
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" },
+                  "meta": { "type": "object" }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream",
+                  "style": "form",
+                  "explode": false,
+                  "allowReserved": false,
+                  "headers": {
+                    "X-Chunk": { "description": "Chunk index", "schema": { "type": "integer" } },
+                    "X-Request-Id": { "$ref": "#/components/headers/RequestId" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      },
+      "put": {
+        "operationId": "replaceItems",
+        "requestBody": { "$ref": "#/components/requestBodies/ItemBody" },
+        "responses": { "200": { "description": "Replaced" } }
+      },
+      "delete": {
+        "operationId": "deleteItems",
+        "responses": { "204": { "description": "Deleted" } }
+      },
+      "options": {
+        "operationId": "itemOptions",
+        "responses": { "200": { "description": "Allowed methods" } }
+      },
+      "head": {
+        "operationId": "itemHead",
+        "responses": { "200": { "description": "Headers only" } }
+      },
+      "patch": {
+        "operationId": "patchItems",
+        "responses": { "200": { "description": "Patched" } }
+      },
+      "trace": {
+        "operationId": "traceItems",
+        "responses": { "200": { "description": "Trace" } }
+      }
+    },
+    "/ping": { "$ref": "#/components/pathItems/Ping" }
+  },
+  "webhooks": {
+    "itemCreated": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+          }
+        },
+        "responses": { "200": { "description": "Acknowledged" } }
+      }
+    },
+    "sharedHook": { "$ref": "#/components/pathItems/Ping" }
+  },
+  "components": {
+    "schemas": {
+      "Item": {
+        "title": "Item",
+        "type": "object",
+        "description": "A purchasable item",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "readOnly": true },
+          "name": { "type": ["string", "null"] },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 10,
+            "minItems": 0,
+            "uniqueItems": true
+          },
+          "count": {
+            "type": "integer",
+            "multipleOf": 2,
+            "maximum": 100,
+            "exclusiveMaximum": false,
+            "minimum": 0,
+            "exclusiveMinimum": false
+          },
+          "code": { "type": "string", "maxLength": 10, "minLength": 1, "pattern": "^[a-z]+$" },
+          "extra": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "maxProperties": 5,
+            "minProperties": 1
+          },
+          "status": { "type": "string", "enum": ["new", "done"], "default": "new" },
+          "secret": { "type": "string", "writeOnly": true, "deprecated": true },
+          "legacy": {
+            "type": "string",
+            "nullable": true,
+            "example": "legacy value",
+            "externalDocs": { "url": "https://example.com/docs/legacy" },
+            "xml": {
+              "name": "legacy",
+              "namespace": "https://example.com/ns",
+              "prefix": "ex",
+              "attribute": true,
+              "wrapped": false
+            }
+          }
+        },
+        "xml": { "name": "item" }
+      },
+      "Named": {
+        "oneOf": [{ "$ref": "#/components/schemas/Item" }, { "type": "object" }],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": { "item": "#/components/schemas/Item" }
+        }
+      },
+      "Combo": {
+        "allOf": [{ "$ref": "#/components/schemas/Item" }],
+        "anyOf": [{ "type": "string" }],
+        "not": { "type": "boolean" }
+      },
+      "OpenMap": { "type": "object", "additionalProperties": true },
+      "ItemAlias": { "$ref": "#/components/schemas/Item" }
+    },
+    "responses": {
+      "NotFound": {
+        "description": "The item was not found",
+        "content": { "application/json": { "schema": { "type": "object" } } }
+      },
+      "NotFoundAlias": { "$ref": "#/components/responses/NotFound" }
+    },
+    "parameters": {
+      "PageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "description": "Items per page",
+        "schema": { "type": "integer" }
+      },
+      "PageSizeAlias": { "$ref": "#/components/parameters/PageSize" }
+    },
+    "examples": {
+      "ItemExample": {
+        "summary": "An item",
+        "description": "A fully populated item",
+        "value": { "id": "b0a1", "name": "Kettle" }
+      },
+      "ItemExampleAlias": { "$ref": "#/components/examples/ItemExample" }
+    },
+    "requestBodies": {
+      "ItemBody": {
+        "description": "An item payload",
+        "required": true,
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+        }
+      },
+      "ItemBodyAlias": { "$ref": "#/components/requestBodies/ItemBody" }
+    },
+    "headers": {
+      "RequestId": { "description": "Correlation id", "schema": { "type": "string" } },
+      "RequestIdAlias": { "$ref": "#/components/headers/RequestId" }
+    },
+    "securitySchemes": {
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "name": "X-API-Key",
+        "in": "header",
+        "description": "API key authentication"
+      },
+      "basicAuth": { "type": "http", "scheme": "basic", "description": "Basic authentication" },
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" },
+      "oauth2Auth": {
+        "type": "oauth2",
+        "description": "OAuth2 authentication",
+        "flows": {
+          "implicit": {
+            "authorizationUrl": "https://example.com/oauth/authorize",
+            "refreshUrl": "https://example.com/oauth/refresh",
+            "scopes": { "read:items": "Read items" }
+          },
+          "password": {
+            "tokenUrl": "https://example.com/oauth/token",
+            "refreshUrl": "https://example.com/oauth/refresh",
+            "scopes": { "read:items": "Read items" }
+          },
+          "clientCredentials": {
+            "tokenUrl": "https://example.com/oauth/token",
+            "refreshUrl": "https://example.com/oauth/refresh",
+            "scopes": { "write:items": "Write items" }
+          },
+          "authorizationCode": {
+            "authorizationUrl": "https://example.com/oauth/authorize",
+            "tokenUrl": "https://example.com/oauth/token",
+            "refreshUrl": "https://example.com/oauth/refresh",
+            "scopes": { "read:items": "Read items", "write:items": "Write items" }
+          }
+        }
+      },
+      "oidcAuth": {
+        "type": "openIdConnect",
+        "openIdConnectUrl": "https://example.com/.well-known/openid-configuration",
+        "description": "OpenID Connect authentication"
+      },
+      "apiKeyAuthAlias": { "$ref": "#/components/securitySchemes/apiKeyAuth" }
+    },
+    "links": {
+      "GetItemById": {
+        "operationRef": "#/paths/~1items/get",
+        "parameters": { "id": "$response.body#/id" },
+        "description": "Look the item up by id"
+      },
+      "GetItemByIdAlias": { "$ref": "#/components/links/GetItemById" }
+    },
+    "callbacks": {
+      "OnEvent": {
+        "{$request.body#/url}": {
+          "post": { "responses": { "200": { "description": "Acknowledged" } } }
+        }
+      },
+      "OnEventAlias": { "$ref": "#/components/callbacks/OnEvent" }
+    },
+    "pathItems": {
+      "Ping": { "get": { "operationId": "ping", "responses": { "200": { "description": "pong" } } } },
+      "PingAlias": { "$ref": "#/components/pathItems/Ping" }
+    }
+  }
+}
