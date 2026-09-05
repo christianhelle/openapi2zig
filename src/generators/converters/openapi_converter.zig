@@ -66,7 +66,10 @@ pub const OpenApiConverter = struct {
         }
         defer self.component_parameters = null;
         defer self.source_schemas = null;
-        defer self.active_all_of_refs.deinit(self.allocator);
+        defer {
+            self.active_all_of_refs.deinit(self.allocator);
+            self.active_all_of_refs = .empty;
+        }
         const paths = try self.convertPaths(openapi.paths);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
