@@ -566,3 +566,46 @@ test "OpenAPI 3.0 allOf inline object members merge into one schema" {
     try std.testing.expect(thing.required != null);
     try std.testing.expectEqual(@as(usize, 2), thing.required.?.len);
 }
+
+test "OpenAPI 3.0 allOf resolves a member given as a reference" {
+    const allocator = std.testing.allocator;
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Base": {
+        \\        "type": "object",
+        \\        "required": ["id"],
+        \\        "properties": { "id": { "type": "string" } }
+        \\      },
+        \\      "Thing": {
+        \\        "allOf": [
+        \\          { "$ref": "#/components/schemas/Base" },
+        \\          {
+        \\            "type": "object",
+        \\            "required": ["name"],
+        \\            "properties": { "name": { "type": "string" } }
+        \\          }
+        \\        ]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const thing = unified.schemas.?.get("Thing").?;
+    try std.testing.expect(thing.properties != null);
+    try std.testing.expect(thing.properties.?.contains("id"));
+    try std.testing.expect(thing.properties.?.contains("name"));
+    try std.testing.expectEqual(@as(usize, 2), thing.required.?.len);
+}

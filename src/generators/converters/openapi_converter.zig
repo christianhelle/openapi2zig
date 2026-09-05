@@ -42,6 +42,9 @@ pub const OpenApiConverter = struct {
     /// Reusable parameters declared under `components.parameters`, so that a
     /// parameter given as a `$ref` resolves to the parameter it points at.
     component_parameters: ?*const std.StringHashMap(ParameterOrReference3) = null,
+    /// Schemas declared under `components.schemas`, so that an `allOf` member
+    /// given as a `$ref` resolves to the schema it composes.
+    source_schemas: ?*const std.StringHashMap(SchemaOrReference3) = null,
 
     pub fn init(allocator: std.mem.Allocator) OpenApiConverter {
         return OpenApiConverter{ .allocator = allocator };
@@ -54,8 +57,12 @@ pub const OpenApiConverter = struct {
             if (components.parameters) |*component_parameters| {
                 self.component_parameters = component_parameters;
             }
+            if (components.schemas) |*component_schemas| {
+                self.source_schemas = component_schemas;
+            }
         }
         defer self.component_parameters = null;
+        defer self.source_schemas = null;
         const paths = try self.convertPaths(openapi.paths);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -223,6 +230,21 @@ pub const OpenApiConverter = struct {
         }
     }
 
+    fn refName(ref: []const u8) []const u8 {
+        if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
+            return ref[last_slash + 1 ..];
+        }
+        return ref;
+    }
+
+    /// Convert the schema a `$ref` points at, or null when it names something
+    /// absent from `components.schemas`.
+    fn convertResolvedSchemaReference(self: *OpenApiConverter, ref: []const u8) anyerror!?Schema {
+        const source_schemas = self.source_schemas orelse return null;
+        const schema_or_ref = source_schemas.get(refName(ref)) orelse return null;
+        return try self.convertSchemaOrReference(schema_or_ref);
+    }
+
     /// Append every name not already present, so the required lists of the
     /// `allOf` members and their parent combine without duplicates.
     fn mergeRequiredNames(self: *OpenApiConverter, required_list: *std.ArrayList([]const u8), names: []const []const u8) !void {
@@ -266,7 +288,10 @@ pub const OpenApiConverter = struct {
 
         if (schema.allOf) |all_of| {
             for (all_of) |item| {
-                var converted = try self.convertSchemaOrReference(item);
+                var converted = switch (item) {
+                    .reference => |ref| (try self.convertResolvedSchemaReference(ref.ref)) orelse Schema{ .type = .reference, .ref = ref.ref },
+                    .schema => |child| try self.convertSchema(child.*),
+                };
                 try self.takeProperties(&merged_properties, &converted);
                 if (converted.required) |required| try self.mergeRequiredNames(&required_list, required);
                 converted.deinit(self.allocator);
