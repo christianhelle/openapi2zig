@@ -1,0 +1,253 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Union Variants",
+    "description": "Every shape of oneOf/anyOf the model generator has to name and emit.",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "TextBlock": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "Color": {
+        "type": "string",
+        "enum": [
+          "red",
+          "green"
+        ]
+      },
+      "NullableString": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "IntegerAlias": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "integer"
+          }
+        ]
+      },
+      "NumberAlias": {
+        "oneOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "BooleanAlias": {
+        "oneOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "MixedPrimitive": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "ArrayVariants": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TextBlock"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TextBlock"
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "array",
+            "title": "Blobs"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "title": "Widget"
+            }
+          },
+          {
+            "type": "array"
+          }
+        ]
+      },
+      "ScalarVariants": {
+        "anyOf": [
+          {
+            "type": "string",
+            "title": "Text value"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
+      "TitledVariants": {
+        "oneOf": [
+          {
+            "title": "Alpha",
+            "properties": {
+              "a": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "title": "Beta",
+            "properties": {
+              "b": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "UntitledVariants": {
+        "oneOf": [
+          {
+            "properties": {
+              "a": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "properties": {
+              "b": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "EnumOrNumber": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Color"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "TaggedEvent": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StartedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/StoppedEvent"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "StartedEvent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "started"
+            ]
+          },
+          "at": {
+            "type": "string"
+          }
+        }
+      },
+      "StoppedEvent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "stopped"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

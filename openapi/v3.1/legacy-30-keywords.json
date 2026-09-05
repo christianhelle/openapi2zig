@@ -1,0 +1,30 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Legacy 3.0 Keywords",
+    "description": "A 3.1 document that still carries the 3.0-era `nullable` flag and boolean `exclusiveMaximum`/`exclusiveMinimum`. Neither is valid in 3.1, but real-world specs are often converted from 3.0 without rewriting them, so the parser accepts both. The conformant 3.1 spellings live in kitchen-sink.json.",
+    "version": "1.0.0",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "LegacyItem": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "nullable": true },
+          "count": {
+            "type": "integer",
+            "maximum": 100,
+            "exclusiveMaximum": false,
+            "minimum": 0,
+            "exclusiveMinimum": true
+          }
+        }
+      }
+    }
+  }
+}

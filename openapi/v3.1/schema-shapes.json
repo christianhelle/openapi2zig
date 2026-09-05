@@ -1,0 +1,121 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Schema Shapes",
+    "description": "One schema per Zig type the model generator can emit.",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Pet": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        }
+      },
+      "PetList": {
+        "type": "array",
+        "items": { "$ref": "#/components/schemas/Pet" }
+      },
+      "PetPage": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "cursor": { "type": "string" }
+          }
+        }
+      },
+      "Names": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "Matrix": {
+        "type": "array",
+        "items": { "type": "array", "items": { "type": "integer" } }
+      },
+      "NumberGrid": {
+        "type": "array",
+        "items": { "type": "array", "items": { "type": "number" } }
+      },
+      "FlagGrid": {
+        "type": "array",
+        "items": { "type": "array", "items": { "type": "boolean" } }
+      },
+      "RefGrid": {
+        "type": "array",
+        "items": { "type": "array", "items": { "$ref": "#/components/schemas/Pet" } }
+      },
+      "LooseList": { "type": "array" },
+      "Name": { "type": "string" },
+      "Count": { "type": "integer" },
+      "Ratio": { "type": "number" },
+      "Enabled": { "type": "boolean" },
+      "Nothing": { "type": "null" },
+      "AnythingAtAll": {},
+      "OpenObject": { "type": "object" },
+      "OptionalFields": {
+        "type": "object",
+        "properties": {
+          "maybe_text": { "type": ["string", "null"] },
+          "maybe_ratio": { "type": ["number", "null"] },
+          "nothing": { "type": "null" },
+          "untyped": {},
+          "deep": {
+            "type": "array",
+            "items": { "type": "array", "items": { "type": "string" } }
+          },
+          "loose_items": { "type": "array" }
+        }
+      },
+      "StartedEvent": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["started"] },
+          "at": { "type": "string" }
+        }
+      },
+      "StoppedEvent": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["stopped"] },
+          "reason": { "type": "string" }
+        }
+      },
+      "UnionFields": {
+        "type": "object",
+        "properties": {
+          "maybe_count": { "oneOf": [{ "type": "integer" }, { "type": "null" }] },
+          "tagged": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/StartedEvent" },
+              { "$ref": "#/components/schemas/StoppedEvent" }
+            ],
+            "discriminator": { "propertyName": "type" }
+          },
+          "implicit_array": { "items": { "type": "string" } },
+          "loose_array": { "type": "array", "items": {} }
+        }
+      },
+      "CreateChatCompletionRequest": {
+        "type": "object",
+        "required": ["model"],
+        "properties": {
+          "model": { "type": "string" },
+          "temperature": { "type": "number" }
+        }
+      },
+      "AwkwardLabel": {
+        "type": "string",
+        "enum": ["say \"hi\"", "back\\slash", "line\nbreak", "tab\there"]
+      },
+      "AwkwardOrNumber": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/AwkwardLabel" },
+          { "type": "number" }
+        ]
+      }
+    }
+  }
+}
