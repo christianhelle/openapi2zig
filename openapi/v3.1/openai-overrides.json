@@ -1,0 +1,88 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenAI Override Names",
+    "description": "The schema and field names the model generator hand-writes types for, so those overrides stay covered without parsing the full OpenAI specification.",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "ComparisonFilter": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "key": { "type": "string" }
+        }
+      },
+      "CompoundFilter": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "filters": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "ChatkitWorkflow": {
+        "type": "object",
+        "properties": {
+          "state_variables": { "type": "object" }
+        }
+      },
+      "EvalResponsesSource": {
+        "type": "object",
+        "properties": {
+          "metadata": { "type": "object" }
+        }
+      },
+      "EvalRunOutputItemResult": {
+        "type": "object",
+        "properties": {
+          "sample": { "type": "object" }
+        }
+      },
+      "AssignedRoleDetails": {
+        "type": "object",
+        "properties": {
+          "created_by_user_obj": { "type": "object" },
+          "metadata": { "type": "object" }
+        }
+      },
+      "MCPListToolsTool": {
+        "type": "object",
+        "properties": {
+          "annotations": { "type": "object" }
+        }
+      },
+      "MCPTool": {
+        "type": "object",
+        "properties": {
+          "headers": { "type": "object" }
+        }
+      },
+      "FunctionTool": {
+        "type": "object",
+        "properties": {
+          "parameters": { "type": "object" }
+        }
+      },
+      "RunObject": {
+        "type": "object",
+        "properties": {
+          "tool_choice": { "type": "object" }
+        }
+      },
+      "CreateRunRequest": {
+        "type": "object",
+        "properties": {
+          "tool_choice": { "type": "object" }
+        }
+      },
+      "CreateThreadAndRunRequest": {
+        "type": "object",
+        "properties": {
+          "tool_choice": { "type": "object" }
+        }
+      }
+    }
+  }
+}
