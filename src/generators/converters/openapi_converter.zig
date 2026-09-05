@@ -287,6 +287,9 @@ pub const OpenApiConverter = struct {
     /// of it. A member later in the list wins on a name conflict.
     fn takeProperties(self: *OpenApiConverter, merged: *std.StringHashMap(Schema), part: *Schema) !void {
         var props = part.properties orelse return;
+        // Reserve before detaching the map, so the transfer itself cannot fail
+        // and leave entries owned by neither map.
+        try merged.ensureUnusedCapacity(props.count());
         part.properties = null;
         var iterator = props.iterator();
         while (iterator.next()) |entry| {
@@ -295,7 +298,7 @@ pub const OpenApiConverter = struct {
                 existing.value_ptr.* = entry.value_ptr.*;
                 self.allocator.free(entry.key_ptr.*);
             } else {
-                try merged.put(entry.key_ptr.*, entry.value_ptr.*);
+                merged.putAssumeCapacity(entry.key_ptr.*, entry.value_ptr.*);
             }
         }
         props.deinit();
