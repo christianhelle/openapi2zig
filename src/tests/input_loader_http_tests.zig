@@ -28,11 +28,12 @@ const TestServer = struct {
 
     fn start(status: std.http.Status, body: []const u8) !*TestServer {
         const address: std.Io.net.IpAddress = .{ .ip4 = std.Io.net.Ip4Address.loopback(0) };
-        const server = try std.Io.net.IpAddress.listen(&address, std.testing.io, .{});
+        var server = try std.Io.net.IpAddress.listen(&address, std.testing.io, .{});
+        // The listener has to be closed even if the context allocation fails.
+        errdefer server.deinit(std.testing.io);
         const context = try std.testing.allocator.create(TestServer);
         errdefer std.testing.allocator.destroy(context);
         context.* = .{ .io = std.testing.io, .server = server, .status = status, .body = body };
-        errdefer context.server.deinit(std.testing.io);
         context.thread = try std.Thread.spawn(.{}, TestServer.serve, .{context});
         return context;
     }

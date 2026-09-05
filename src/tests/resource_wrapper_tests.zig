@@ -418,7 +418,9 @@ fn buildParameterNameCollisionFixture(allocator: std.mem.Allocator) !common.Unif
 }
 
 test "wrapper parameters that shadow a sibling declaration are suffixed" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
     var document = try buildParameterNameCollisionFixture(allocator);
     defer document.deinit(allocator);
 
