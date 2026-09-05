@@ -54,12 +54,10 @@ test "the v3.2 converter normalises locations, unknown types and non-JSON respon
     try expectSharedConversions(gpa.allocator(), "openapi/v3.2/converter-edge-cases.json");
 }
 
-test "the v3.1 converter merges allOf members into one schema" {
-    // Only the 3.1 converter implements allOf merging; the 3.0 and 3.2
-    // converters keep just the schema's own properties.
-    var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-    var document = try convert(allocator, "openapi/v3.1/converter-edge-cases.json");
+// The 3.0 and 3.1 converters merge allOf members; the 3.2 converter does not
+// implement allOf at all and keeps only the schema's own properties.
+fn expectMergedAllOf(allocator: std.mem.Allocator, path: []const u8) !void {
+    var document = try convert(allocator, path);
     defer document.deinit(allocator);
 
     const merged = document.schemas.?.get("Merged").?;
@@ -81,4 +79,26 @@ test "the v3.1 converter merges allOf members into one schema" {
     }
     try std.testing.expectEqual(@as(usize, 1), id_count);
     try std.testing.expectEqual(@as(usize, 2), merged.required.?.len);
+}
+
+test "the v3.0 converter merges allOf members into one schema" {
+    var gpa = test_utils.createTestAllocator();
+    try expectMergedAllOf(gpa.allocator(), "openapi/v3.0/converter-edge-cases.json");
+}
+
+test "the v3.1 converter merges allOf members into one schema" {
+    var gpa = test_utils.createTestAllocator();
+    try expectMergedAllOf(gpa.allocator(), "openapi/v3.1/converter-edge-cases.json");
+}
+
+test "the v3.2 converter does not implement allOf" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    var document = try convert(allocator, "openapi/v3.2/converter-edge-cases.json");
+    defer document.deinit(allocator);
+
+    const properties = document.schemas.?.get("Merged").?.properties.?;
+    try std.testing.expect(properties.get("own") != null);
+    try std.testing.expect(properties.get("id") == null);
+    try std.testing.expect(properties.get("inline_prop") == null);
 }
