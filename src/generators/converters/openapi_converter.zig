@@ -27,6 +27,7 @@ const UnifiedSecurityScheme = @import("../../models/common/document.zig").Securi
 const Components3 = @import("../../models/v3.0/components.zig").Components;
 const SchemaOrReference3 = @import("../../models/v3.0/schema.zig").SchemaOrReference;
 const Schema3 = @import("../../models/v3.0/schema.zig").Schema;
+const AdditionalProperties3 = @import("../../models/v3.0/schema.zig").AdditionalProperties;
 const ParameterOrReference3 = @import("../../models/v3.0/parameter.zig").ParameterOrReference;
 const Parameter3 = @import("../../models/v3.0/parameter.zig").Parameter;
 const ResponseOrReference3 = @import("../../models/v3.0/response.zig").ResponseOrReference;
@@ -240,7 +241,7 @@ pub const OpenApiConverter = struct {
     const component_schema_prefix = "#/components/schemas/";
 
     /// The name a local component schema reference points at, or null for a
-    /// reference this converter cannot resolve - an external document, or a
+    /// reference this converter cannot resolve — an external document, or a
     /// pointer into anything other than `components.schemas`.
     fn componentSchemaName(ref: []const u8) ?[]const u8 {
         if (!std.mem.startsWith(u8, ref, component_schema_prefix)) return null;
@@ -307,12 +308,29 @@ pub const OpenApiConverter = struct {
         props.deinit();
     }
 
+    fn convertAdditionalProperties(additional: ?AdditionalProperties3) ?bool {
+        const value = additional orelse return null;
+        return switch (value) {
+            .boolean => |allowed| allowed,
+            .schema_or_reference => true,
+        };
+    }
+
+    /// `allOf` conjoins its members, so a member that forbids additional
+    /// properties forbids them for the whole composition.
+    fn mergeAdditionalProperties(current: ?bool, incoming: ?bool) ?bool {
+        const next = incoming orelse return current;
+        const existing = current orelse return next;
+        return existing and next;
+    }
+
     /// Flatten an `allOf` composition into a single object schema by merging
     /// the properties and required lists of its members with the ones the
     /// composing schema declares itself.
     fn convertAllOfSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
         var merged_properties = std.StringHashMap(Schema).init(self.allocator);
         var required_list = std.ArrayList([]const u8).empty;
+        var additional_properties = convertAdditionalProperties(schema.additionalProperties);
 
         if (schema.allOf) |all_of| {
             for (all_of) |item| {
@@ -322,6 +340,7 @@ pub const OpenApiConverter = struct {
                 };
                 try self.takeProperties(&merged_properties, &converted);
                 if (converted.required) |required| try self.mergeRequiredNames(&required_list, required);
+                additional_properties = mergeAdditionalProperties(additional_properties, converted.additional_properties);
                 converted.deinit(self.allocator);
             }
         }
@@ -358,6 +377,7 @@ pub const OpenApiConverter = struct {
             .enum_values = null,
             .default = schema.default,
             .example = schema.example,
+            .additional_properties = additional_properties,
             .nullable = schema.nullable orelse false,
         };
     }
@@ -392,10 +412,7 @@ pub const OpenApiConverter = struct {
             items_ptr.* = items_schema;
             break :blk items_ptr;
         } else null;
-        const additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
-            .boolean => |b| b,
-            .schema_or_reference => true,
-        } else null;
+        const additional_properties = convertAdditionalProperties(schema.additionalProperties);
 
         return Schema{
             .type = schema_type,
