@@ -523,3 +523,251 @@ test "model generator emits optional type for required nullable property" {
     try std.testing.expect(std.mem.indexOf(u8, code, "container: ?std.json.Value,") != null);
     try std.testing.expect(std.mem.indexOf(u8, code, "container: std.json.Value,") == null);
 }
+
+test "OpenAPI 3.0 allOf inline object members merge into one schema" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Thing": {
+        \\        "allOf": [
+        \\          {
+        \\            "type": "object",
+        \\            "required": ["id"],
+        \\            "properties": { "id": { "type": "string" } }
+        \\          },
+        \\          {
+        \\            "type": "object",
+        \\            "required": ["name"],
+        \\            "properties": { "name": { "type": "string" } }
+        \\          }
+        \\        ]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const thing = unified.schemas.?.get("Thing").?;
+    try std.testing.expect(thing.properties != null);
+    try std.testing.expect(thing.properties.?.contains("id"));
+    try std.testing.expect(thing.properties.?.contains("name"));
+    try std.testing.expect(thing.required != null);
+    try std.testing.expectEqual(@as(usize, 2), thing.required.?.len);
+}
+
+test "OpenAPI 3.0 allOf resolves a member given as a reference" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Base": {
+        \\        "type": "object",
+        \\        "required": ["id"],
+        \\        "properties": { "id": { "type": "string" } }
+        \\      },
+        \\      "Thing": {
+        \\        "allOf": [
+        \\          { "$ref": "#/components/schemas/Base" },
+        \\          {
+        \\            "type": "object",
+        \\            "required": ["name"],
+        \\            "properties": { "name": { "type": "string" } }
+        \\          }
+        \\        ]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const thing = unified.schemas.?.get("Thing").?;
+    try std.testing.expect(thing.properties != null);
+    try std.testing.expect(thing.properties.?.contains("id"));
+    try std.testing.expect(thing.properties.?.contains("name"));
+    try std.testing.expectEqual(@as(usize, 2), thing.required.?.len);
+}
+
+test "OpenAPI 3.0 allOf that references itself in a cycle terminates" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "A": {
+        \\        "allOf": [
+        \\          { "$ref": "#/components/schemas/B" },
+        \\          { "type": "object", "properties": { "a": { "type": "string" } } }
+        \\        ]
+        \\      },
+        \\      "B": {
+        \\        "allOf": [
+        \\          { "$ref": "#/components/schemas/A" },
+        \\          { "type": "object", "properties": { "b": { "type": "string" } } }
+        \\        ]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const a = unified.schemas.?.get("A").?;
+    try std.testing.expect(a.properties.?.contains("a"));
+    try std.testing.expect(a.properties.?.contains("b"));
+}
+
+test "OpenAPI 3.0 allOf does not resolve an external reference against local schemas" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Base": {
+        \\        "type": "object",
+        \\        "properties": { "id": { "type": "string" } }
+        \\      },
+        \\      "Thing": {
+        \\        "allOf": [
+        \\          { "$ref": "https://example.com/schemas/Base" },
+        \\          { "type": "object", "properties": { "name": { "type": "string" } } }
+        \\        ]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const thing = unified.schemas.?.get("Thing").?;
+    try std.testing.expect(thing.properties.?.contains("name"));
+    try std.testing.expect(!thing.properties.?.contains("id"));
+}
+
+test "OpenAPI 3.0 allOf follows a component that is itself a reference" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Base": {
+        \\        "type": "object",
+        \\        "properties": { "id": { "type": "string" } }
+        \\      },
+        \\      "Alias": { "$ref": "#/components/schemas/Base" },
+        \\      "Thing": {
+        \\        "allOf": [
+        \\          { "$ref": "#/components/schemas/Alias" },
+        \\          { "type": "object", "properties": { "name": { "type": "string" } } }
+        \\        ]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const thing = unified.schemas.?.get("Thing").?;
+    try std.testing.expect(thing.properties.?.contains("id"));
+    try std.testing.expect(thing.properties.?.contains("name"));
+}
+
+test "OpenAPI 3.0 allOf keeps the additionalProperties constraint" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const source =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "fixture", "version": "1.0.0" },
+        \\  "paths": {},
+        \\  "components": {
+        \\    "schemas": {
+        \\      "Closed": {
+        \\        "additionalProperties": false,
+        \\        "allOf": [
+        \\          { "type": "object", "properties": { "id": { "type": "string" } } }
+        \\        ]
+        \\      },
+        \\      "ClosedMember": {
+        \\        "allOf": [
+        \\          { "type": "object", "additionalProperties": false, "properties": { "id": { "type": "string" } } }
+        \\        ]
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, source);
+    defer parsed.deinit(allocator);
+
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    try std.testing.expectEqual(@as(?bool, false), unified.schemas.?.get("Closed").?.additional_properties);
+    try std.testing.expectEqual(@as(?bool, false), unified.schemas.?.get("ClosedMember").?.additional_properties);
+}
