@@ -42,7 +42,9 @@ WORKDIR /app
 RUN zig build test-coverage --summary all
 # kcov relies on ptrace to instrument the test binary; this coverage-only build is intentionally
 # scoped to the generated test executable and is enabled only for the temporary builder container.
-RUN --security=insecure kcov --clean --cobertura-only --include-pattern=src/ coverage zig-out/bin/test
+# --include-pattern=src/ also matches vendor/zig-yaml/src/, so the vendored
+# dependency has to be excluded explicitly to keep the report to our own code.
+RUN --security=insecure kcov --clean --cobertura-only --include-pattern=src/ --exclude-pattern=vendor/ coverage zig-out/bin/test
 RUN [ -f coverage/cov.xml ]
 
 RUN mkdir -p /output
