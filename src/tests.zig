@@ -22,6 +22,7 @@ const comment_sanitization_tests = @import("tests/comment_sanitization_tests.zig
 const parameter_reference_tests = @import("tests/parameter_reference_tests.zig");
 const path_template_tests = @import("tests/path_template_tests.zig");
 const operation_id_naming_tests = @import("tests/operation_id_naming_tests.zig");
+const yaml_scalar_tests = @import("tests/yaml_scalar_tests.zig");
 const lib_api_tests = @import("tests/lib_api_tests.zig");
 const union_variant_tests = @import("tests/union_variant_tests.zig");
 const body_kind_generation_tests = @import("tests/body_kind_generation_tests.zig");
@@ -58,6 +59,7 @@ comptime {
     _ = parameter_reference_tests;
     _ = path_template_tests;
     _ = operation_id_naming_tests;
+    _ = yaml_scalar_tests;
     _ = lib_api_tests;
     _ = union_variant_tests;
     _ = body_kind_generation_tests;
