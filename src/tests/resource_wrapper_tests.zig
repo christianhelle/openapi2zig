@@ -392,3 +392,46 @@ test "root alias avoids colliding with an inlined model of the same name" {
     try testing.expect(std.mem.indexOf(u8, code, "const _root = @This();") == null);
     try testing.expect(std.mem.indexOf(u8, code, " = @This();") != null);
 }
+
+fn buildParameterNameCollisionFixture(allocator: std.mem.Allocator) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    // "listPets" produces the wrapper method name "list", so a parameter of the
+    // same name would shadow the sibling declaration.
+    const params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "list", .location = .query, .required = true, .schema = .{ .type = .string } },
+    });
+    try paths.put(try allocator.dupe(u8, "/pets"), .{
+        .get = .{
+            .operationId = "listPets",
+            .parameters = params,
+            .responses = try responseMap(allocator, true),
+        },
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+test "wrapper parameters that shadow a sibling declaration are suffixed" {
+    const allocator = std.testing.allocator;
+    var document = try buildParameterNameCollisionFixture(allocator);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .paths,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn list(client: *Client, list_param: []const u8)") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "return listPets(client, list_param);") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn listResult(client: *Client, list_param: []const u8)") != null);
+}
