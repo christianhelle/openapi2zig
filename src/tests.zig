@@ -22,6 +22,7 @@ const comment_sanitization_tests = @import("tests/comment_sanitization_tests.zig
 const parameter_reference_tests = @import("tests/parameter_reference_tests.zig");
 const path_template_tests = @import("tests/path_template_tests.zig");
 const operation_id_naming_tests = @import("tests/operation_id_naming_tests.zig");
+const model_parse_edge_case_tests = @import("tests/model_parse_edge_case_tests.zig");
 const manual_override_tests = @import("tests/manual_override_tests.zig");
 const direct_operation_tests = @import("tests/direct_operation_tests.zig");
 const converter_edge_case_tests = @import("tests/converter_edge_case_tests.zig");
@@ -65,6 +66,7 @@ comptime {
     _ = parameter_reference_tests;
     _ = path_template_tests;
     _ = operation_id_naming_tests;
+    _ = model_parse_edge_case_tests;
     _ = manual_override_tests;
     _ = direct_operation_tests;
     _ = converter_edge_case_tests;
