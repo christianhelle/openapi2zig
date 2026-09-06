@@ -90,7 +90,7 @@ Requires [Zig](https://ziglang.org/download/) v0.16.0.
 ```bash
 git clone https://github.com/christianhelle/openapi2zig.git
 cd openapi2zig
-zig build
+zig build install-release
 ```
 
 The compiled binary will be available at `zig-out/bin/openapi2zig`. See [Development](#development) below for running the test suite and other contributor workflows.
