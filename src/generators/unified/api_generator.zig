@@ -409,3 +409,22 @@ test "BodyKind :: classifyBody routes media types correctly" {
     try t.expectEqual(BodyKind.text, classifyBody("text/plain; charset=utf-8"));
     try t.expectEqual(BodyKind.form, classifyBody("multipart/form-data; boundary=abc"));
 }
+
+test "escapeZigString escapes ASCII control characters" {
+    const t = std.testing;
+    // A raw control byte inside a Zig string literal is a tokenizer error, so
+    // every one of them has to leave here as a \xNN escape. Spec-supplied
+    // strings (header names, query names, path literals) reach this function.
+    const escaped = try escapeZigString(t.allocator, "a\x01b\x7fc");
+    defer t.allocator.free(escaped);
+    try t.expectEqualStrings("a\\x01b\\x7fc", escaped);
+
+    const nul = try escapeZigString(t.allocator, &.{ 'x', 0, 'y' });
+    defer t.allocator.free(nul);
+    try t.expectEqualStrings("x\\x00y", nul);
+
+    // The escapes that were already handled must keep their short form.
+    const known = try escapeZigString(t.allocator, "q\"b\\n\t\r\n");
+    defer t.allocator.free(known);
+    try t.expectEqualStrings("q\\\"b\\\\n\\t\\r\\n", known);
+}

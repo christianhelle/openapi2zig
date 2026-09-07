@@ -41,7 +41,19 @@ pub fn escapeZigString(allocator: std.mem.Allocator, input: []const u8) ![]const
             '\n' => try buf.appendSlice(allocator, "\\n"),
             '\r' => try buf.appendSlice(allocator, "\\r"),
             '\t' => try buf.appendSlice(allocator, "\\t"),
-            else => try buf.append(allocator, c),
+            else => {
+                // A raw control byte is a tokenizer error inside a Zig string
+                // literal, so emit it as \xNN, the same way ident_utils escapes
+                // control characters in escaped identifiers.
+                if (std.ascii.isControl(c)) {
+                    const hex = "0123456789abcdef";
+                    try buf.appendSlice(allocator, "\\x");
+                    try buf.append(allocator, hex[c >> 4]);
+                    try buf.append(allocator, hex[c & 0x0f]);
+                } else {
+                    try buf.append(allocator, c);
+                }
+            },
         }
     }
     return try buf.toOwnedSlice(allocator);
