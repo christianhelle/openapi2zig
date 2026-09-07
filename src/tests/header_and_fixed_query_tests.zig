@@ -552,3 +552,77 @@ test "operation with empty security emits no auth header" {
     // The operation's raw function should exist and not trigger auth
     try std.testing.expect(std.mem.indexOf(u8, code, "pub fn noAuthOpRaw") != null);
 }
+
+// A query parameter name is embedded verbatim into a Zig string literal in the
+// generated `appendQueryParam` call. Header names are escaped there but query
+// names were not, so a name containing a quote or backslash produced Zig that
+// does not parse. Both the operationId path and the no-operationId
+// ("direct") path build that call, so both are covered.
+
+fn buildQuoteNamedQueryFixture(allocator: std.mem.Allocator, operation_id: ?[]const u8) !common.UnifiedDocument {
+    var paths = std.StringHashMap(common.PathItem).init(allocator);
+    errdefer paths.deinit();
+
+    const params = try allocator.dupe(common.Parameter, &.{
+        .{ .name = "q\"uote", .location = .query, .required = true, .schema = .{ .type = .string } },
+        .{ .name = "back\\slash", .location = .query, .required = false, .schema = .{ .type = .string } },
+    });
+    try paths.put(try allocator.dupe(u8, "/search"), .{
+        .get = .{
+            .operationId = operation_id,
+            .parameters = params,
+            .responses = try responseMap(allocator),
+        },
+    });
+
+    return .{
+        .version = "3.0.0",
+        .info = .{ .title = "fixture", .version = "1.0.0" },
+        .paths = paths,
+    };
+}
+
+test "query parameter names are escaped in the generated string literal" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildQuoteNamedQueryFixture(allocator, "search");
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "&first_query, \"q\\\"uote\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "&first_query, \"back\\\\slash\"") != null);
+    // The unescaped forms would terminate the literal early.
+    try std.testing.expect(std.mem.indexOf(u8, code, "&first_query, \"q\"uote\"") == null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "&first_query, \"back\\slash\"") == null);
+}
+
+test "query parameter names are escaped for operations without an operationId" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var document = try buildQuoteNamedQueryFixture(allocator, null);
+    defer document.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{
+        .input_path = "fixture.json",
+        .resource_wrappers = .none,
+    });
+    defer generator.deinit();
+
+    const code = try generator.generate(document);
+    defer allocator.free(code);
+
+    try std.testing.expect(std.mem.indexOf(u8, code, "&first_query, \"q\\\"uote\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "&first_query, \"back\\\\slash\"") != null);
+}

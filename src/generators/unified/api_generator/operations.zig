@@ -535,9 +535,11 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
         if (operation.parameters) |parameters| {
             for (parameters, 0..) |parameter, i| {
                 if (parameter.location != .query) continue;
+                const escaped_query_name = try escapeZigString(self.allocator, parameter.name);
+                defer self.allocator.free(escaped_query_name);
                 if (parameter.required) {
                     try self.buffer.appendSlice(self.allocator, "    try appendQueryParam(&uri_buf.writer, &first_query, \"");
-                    try self.buffer.appendSlice(self.allocator, parameter.name);
+                    try self.buffer.appendSlice(self.allocator, escaped_query_name);
                     try self.buffer.appendSlice(self.allocator, "\", ");
                     try self.appendParamReference(operation, method, path, i, parameter);
                     try self.buffer.appendSlice(self.allocator, ");\n");
@@ -546,7 +548,7 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
                     try self.appendParamReference(operation, method, path, i, parameter);
                     try self.buffer.appendSlice(self.allocator, ") |value| {\n");
                     try self.buffer.appendSlice(self.allocator, "        try appendQueryParam(&uri_buf.writer, &first_query, \"");
-                    try self.buffer.appendSlice(self.allocator, parameter.name);
+                    try self.buffer.appendSlice(self.allocator, escaped_query_name);
                     try self.buffer.appendSlice(self.allocator, "\", value);\n");
                     try self.buffer.appendSlice(self.allocator, "    }\n");
                 }
