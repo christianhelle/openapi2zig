@@ -79,6 +79,11 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
                 printError("OpenAPI spec path or URL required\n", .{});
                 return error.InvalidArguments;
             }
+            if (input_path != null) {
+                printUsage();
+                printError("duplicate --input\n", .{});
+                return error.InvalidArguments;
+            }
             input_path = args[i];
         } else if (std.mem.eql(u8, arg, "-o") or std.mem.eql(u8, arg, "--output")) {
             i += 1;
@@ -87,12 +92,22 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
                 printError("output path required\n", .{});
                 return error.InvalidArguments;
             }
+            if (output_path != null) {
+                printUsage();
+                printError("duplicate --output\n", .{});
+                return error.InvalidArguments;
+            }
             output_path = args[i];
         } else if (std.mem.eql(u8, arg, "--base-url")) {
             i += 1;
             if (i >= args.len) {
                 printUsage();
                 printError("base URL required\n", .{});
+                return error.InvalidArguments;
+            }
+            if (base_url != null) {
+                printUsage();
+                printError("duplicate --base-url\n", .{});
                 return error.InvalidArguments;
             }
             base_url = args[i];
@@ -202,6 +217,16 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             runtime_only = true;
         } else if (std.mem.eql(u8, arg, "--parameters-as-struct")) {
             parameters_as_struct = true;
+        } else if (std.mem.eql(u8, arg, "--sse-buffer")) {
+            // Retired flag. Still accepted, with its value, so existing command
+            // lines keep working; it no longer affects generation.
+            if (i + 1 < args.len and !std.mem.startsWith(u8, args[i + 1], "-")) i += 1;
+        } else {
+            // Without this, a typo such as --modelsonly fell through unnoticed
+            // and produced output the user did not ask for.
+            printUsage();
+            printError("unrecognized argument '{s}'\n", .{arg});
+            return error.InvalidArguments;
         }
     }
 

@@ -1356,3 +1356,45 @@ test "parseResourceWrapperMode rejects an unknown mode" {
     try std.testing.expectEqual(ResourceWrapperMode.hybrid, parseResourceWrapperMode("hybrid").?);
     try std.testing.expect(parseResourceWrapperMode("sideways") == null);
 }
+
+// An unrecognized argument used to fall through the parser silently, so a
+// typo such as --modelsonly generated a full client instead of models only,
+// with no diagnostic. Retired flags stay tolerated by name.
+
+test "parse rejects an unknown flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig", "generate", "-i", "openapi.json", "--no-such-flag",
+    };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects a misspelled known flag" {
+    const argv = [_][:0]const u8{
+        "openapi2zig", "generate", "-i", "openapi.json", "--modelsonly",
+    };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects a stray positional argument" {
+    const argv = [_][:0]const u8{
+        "openapi2zig", "generate", "-i", "openapi.json", "extra.json",
+    };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}
+
+test "parse rejects duplicate value flags" {
+    const dup_input = [_][:0]const u8{
+        "openapi2zig", "generate", "-i", "a.json", "-i", "b.json",
+    };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &dup_input));
+
+    const dup_output = [_][:0]const u8{
+        "openapi2zig", "generate", "-i", "a.json", "-o", "a.zig", "--output", "b.zig",
+    };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &dup_output));
+
+    const dup_base_url = [_][:0]const u8{
+        "openapi2zig", "generate", "-i", "a.json", "--base-url", "http://a", "--base-url", "http://b",
+    };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &dup_base_url));
+}
