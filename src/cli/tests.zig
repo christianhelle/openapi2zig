@@ -1341,14 +1341,6 @@ test "parse rejects colliding models and client names when reusing a runtime mod
     try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
-test "parse prints usage when the subcommand is missing" {
-    const argv = [_][:0]const u8{"openapi2zig"};
-
-    var parsed = try parse(std.testing.allocator, &argv);
-    defer parsed.deinit(std.testing.allocator);
-    try std.testing.expect(parsed.help);
-}
-
 test "parseResourceWrapperMode rejects an unknown mode" {
     try std.testing.expectEqual(ResourceWrapperMode.none, parseResourceWrapperMode("none").?);
     try std.testing.expectEqual(ResourceWrapperMode.tags, parseResourceWrapperMode("tags").?);
@@ -1397,4 +1389,38 @@ test "parse rejects duplicate value flags" {
         "openapi2zig", "generate", "-i", "a.json", "--base-url", "http://a", "--base-url", "http://b",
     };
     try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &dup_base_url));
+}
+
+// A bad command line and an explicit help request both print usage, but only
+// the first is a failure. Reporting them identically made `openapi2zig` and
+// `openapi2zig bogus` exit 0.
+
+test "parse flags a missing subcommand as a usage error, not help" {
+    const argv = [_][:0]const u8{"openapi2zig"};
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expect(parsed.usage_error);
+    try std.testing.expect(!parsed.help);
+}
+
+test "parse flags an unknown subcommand as a usage error" {
+    const argv = [_][:0]const u8{ "openapi2zig", "bogus", "-i", "a.json" };
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expect(parsed.usage_error);
+    try std.testing.expect(!parsed.help);
+}
+
+test "parse treats an explicit help request as help" {
+    for ([_][:0]const u8{ "help", "--help", "-h" }) |word| {
+        const argv = [_][:0]const u8{ "openapi2zig", word };
+        const parsed = try parse(std.testing.allocator, &argv);
+        try std.testing.expect(parsed.help);
+        try std.testing.expect(!parsed.usage_error);
+    }
+}
+
+test "parse does not flag a valid command line as a usage error" {
+    const argv = [_][:0]const u8{ "openapi2zig", "generate", "-i", "a.json" };
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expect(!parsed.usage_error);
+    try std.testing.expect(!parsed.help);
 }

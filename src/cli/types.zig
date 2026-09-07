@@ -111,7 +111,12 @@ pub const CliArgs = struct {
 pub const ParsedArgs = struct {
     args: CliArgs,
     upgrade: bool = false,
+    /// The caller asked for usage text and should exit successfully.
     help: bool = false,
+    /// Usage text was printed because the command line was wrong. Distinct
+    /// from `help` so the process can exit non-zero, which scripts and CI
+    /// depend on to notice a bad invocation.
+    usage_error: bool = false,
 
     pub fn deinit(self: *ParsedArgs, allocator: std.mem.Allocator) void {
         self.args.deinit(allocator);

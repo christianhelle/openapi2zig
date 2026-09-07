@@ -10,6 +10,12 @@ pub fn main(init: std.process.Init) !void {
 
     var parsed_args = cli.parse(init.arena.allocator(), args) catch std.process.exit(1);
     defer parsed_args.deinit(init.arena.allocator());
+    if (parsed_args.usage_error) {
+        // Usage text was printed for a bad command line. Exiting 0 here made
+        // a mistyped invocation look successful to scripts and CI.
+        std.process.exit(2);
+    }
+
     if (parsed_args.help) {
         return;
     }

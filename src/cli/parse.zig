@@ -42,10 +42,20 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     }
 
     const min_args: usize = if (has_runtime_only) 3 else 4;
-    if (args.len < min_args or (args.len >= 1 and !std.mem.eql(u8, args[1], "generate"))) {
+    const wants_help = args.len >= 2 and (std.mem.eql(u8, args[1], "help") or
+        std.mem.eql(u8, args[1], "--help") or std.mem.eql(u8, args[1], "-h"));
+    if (wants_help) {
         printUsage();
         return .{
             .help = true,
+            .args = .{ .input_path = "" },
+        };
+    }
+
+    if (args.len < min_args or (args.len >= 1 and !std.mem.eql(u8, args[1], "generate"))) {
+        printUsage();
+        return .{
+            .usage_error = true,
             .args = .{ .input_path = "" },
         };
     }
