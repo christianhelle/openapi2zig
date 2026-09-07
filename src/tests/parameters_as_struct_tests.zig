@@ -222,7 +222,7 @@ test "path parameters are read from the options struct" {
     const code = try generator.generate(document);
     defer allocator.free(code);
 
-    try std.testing.expect(std.mem.indexOf(u8, code, "try uri_buf.writer.print(\"{s}/pets/{d}\", .{ client.base_url, options.petId });") != null);
+    try std.testing.expect(std.mem.indexOf(u8, code, "try uri_buf.writer.print(\"{s}/pets/{f}\", .{ client.base_url, pathComponent(options.petId) });") != null);
 }
 
 test "optional header parameters are nullable fields in the options struct" {

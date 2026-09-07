@@ -156,6 +156,58 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
     try self.buffer.appendSlice(self.allocator,
         \\};
         \\
+        \\/// RFC 3986 `pchar` minus the sub-delims that carry meaning inside a path
+        \\/// segment. A path parameter value is a single segment, so '/' must be
+        \\/// encoded: leaving it raw let a value silently add segments to the
+        \\/// request target.
+        \\fn isPathChar(c: u8) bool {
+        \\    return std.ascii.isAlphanumeric(c) or switch (c) {
+        \\        '-', '.', '_', '~' => true,
+        \\        else => false,
+        \\    };
+        \\}
+        \\
+        \\fn writePathComponent(writer: *std.Io.Writer, value: []const u8) !void {
+        \\    try std.Uri.Component.percentEncode(writer, value, isPathChar);
+        \\}
+        \\
+        \\/// Mirrors writeQueryValue: strings and enum tags are percent-encoded,
+        \\/// numbers and booleans are printed as-is (they cannot contain reserved
+        \\/// characters), anything else is JSON-encoded.
+        \\fn writePathValue(writer: *std.Io.Writer, value: anytype) !void {
+        \\    const T = @TypeOf(value);
+        \\    switch (@typeInfo(T)) {
+        \\        .pointer => |ptr| {
+        \\            if (ptr.size == .slice and ptr.child == u8) {
+        \\                try writePathComponent(writer, value);
+        \\            } else {
+        \\                try std.json.Stringify.value(value, .{}, writer);
+        \\            }
+        \\        },
+        \\        .int, .comptime_int, .float, .comptime_float, .bool => try writer.print("{}", .{value}),
+        \\        .@"enum" => try writePathComponent(writer, @tagName(value)),
+        \\        .optional => {
+        \\            if (value) |inner| try writePathValue(writer, inner);
+        \\        },
+        \\        else => try std.json.Stringify.value(value, .{}, writer),
+        \\    }
+        \\}
+        \\
+        \\/// `{f}` formatter so a path parameter stays a single print argument.
+        \\fn PathComponent(comptime T: type) type {
+        \\    return struct {
+        \\        value: T,
+        \\
+        \\        pub fn format(self: @This(), writer: *std.Io.Writer) !void {
+        \\            try writePathValue(writer, self.value);
+        \\        }
+        \\    };
+        \\}
+        \\
+        \\fn pathComponent(value: anytype) PathComponent(@TypeOf(value)) {
+        \\    return .{ .value = value };
+        \\}
+        \\
         \\fn isQueryChar(c: u8) bool {
         \\    return std.ascii.isAlphanumeric(c) or switch (c) {
         \\        '-', '.', '_', '~' => true,

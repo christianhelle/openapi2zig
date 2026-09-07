@@ -461,16 +461,9 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
         for (parameters) |parameter| {
             if (parameter.location != .path) continue;
             const param = parameter.name;
-            const path_type = if (parameter.schema) |schema|
-                schema.type orelse .string
-            else
-                parameter.type orelse .string;
-            const param_type = switch (path_type) {
-                .string => "s",
-                .integer => "d",
-                .number => "d",
-                else => "any",
-            };
+            // Every path value goes through the pathComponent formatter, which
+            // percent-encodes strings and enum tags and prints numbers as-is.
+            const param_type = "f";
             // Substitute the braced placeholder rather than the bare name: a
             // parameter such as `repo` also occurs inside literal segments like
             // `/repos/`, which replacing the bare name would rewrite as well.
@@ -520,8 +513,9 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
     if (operation.parameters) |parameters| {
         for (parameters, 0..) |parameter, i| {
             if (parameter.location != .path) continue;
-            try self.buffer.appendSlice(self.allocator, ", ");
+            try self.buffer.appendSlice(self.allocator, ", pathComponent(");
             try self.appendParamReference(operation, method, path, i, parameter);
+            try self.buffer.appendSlice(self.allocator, ")");
         }
     }
     if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");

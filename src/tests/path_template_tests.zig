@@ -69,7 +69,7 @@ test "path parameters substitute only their placeholder, not literal segments" {
     // The `repo` parameter name also occurs inside the literal `repos` segment.
     // Substituting the bare name rather than the `{repo}` placeholder rewrote
     // that segment too, producing "/ss/" in place of "/repos/".
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/repos/{s}/{s}/stacks/{d}\"") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/repos/{f}/{f}/stacks/{f}\"") != null);
 }
 
 test "path placeholders substitute correctly for operations without an operationId" {
@@ -80,5 +80,41 @@ test "path placeholders substitute correctly for operations without an operation
     const code = try generateClient(allocator, spec_without_operation_id);
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/repos/{s}/{s}/stacks/{d}\"") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/repos/{f}/{f}/stacks/{f}\"") != null);
+}
+
+// Path parameter values are interpolated into the request URI. Query values go
+// through percentEncode; path values did not, so a value containing '/', '?' or
+// '#' silently changed the request target. Every path parameter now goes through
+// the pathComponent formatter regardless of its declared type.
+
+test "path parameter values are percent-encoded" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_operation_id);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "pathComponent(owner)") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pathComponent(repo)") != null);
+    // Integers are routed through the same formatter, so there is no bare {d}.
+    try testing.expect(std.mem.indexOf(u8, code, "pathComponent(stack_number)") != null);
+
+    // The runtime helpers the format string depends on must be emitted.
+    try testing.expect(std.mem.indexOf(u8, code, "fn isPathChar(") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "fn writePathValue(") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "fn pathComponent(") != null);
+}
+
+test "path parameter values are percent-encoded without an operationId" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_without_operation_id);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "pathComponent(owner)") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pathComponent(stack_number)") != null);
 }
