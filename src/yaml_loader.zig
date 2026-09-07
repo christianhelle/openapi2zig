@@ -182,10 +182,18 @@ fn foldDoubleQuotedContinuations(allocator: std.mem.Allocator, yaml_content: []c
     return try out.toOwnedSlice(allocator);
 }
 
+/// True when `line` ends inside an open double-quoted scalar, meaning the
+/// scalar continues on the following line.
+///
+/// A `#` that starts an inline comment ends the scan: counting quotes through
+/// the comment made a comment such as `# use " for quoting` look like an open
+/// scalar, so the next line was folded into it and the document failed to
+/// parse. A `#` inside an open quote is ordinary content, not a comment, so
+/// the quote state has to be tracked while scanning.
 fn hasUnclosedDoubleQuote(line: []const u8) bool {
     var quote_count: usize = 0;
     var escaped = false;
-    for (line) |char| {
+    for (line, 0..) |char, index| {
         if (escaped) {
             escaped = false;
             continue;
@@ -194,7 +202,16 @@ fn hasUnclosedDoubleQuote(line: []const u8) bool {
             escaped = true;
             continue;
         }
-        if (char == '"') quote_count += 1;
+        if (char == '"') {
+            quote_count += 1;
+            continue;
+        }
+        const in_quotes = quote_count % 2 == 1;
+        if (!in_quotes and char == '#' and
+            (index == 0 or line[index - 1] == ' ' or line[index - 1] == '\t'))
+        {
+            break;
+        }
     }
     return quote_count % 2 == 1;
 }
@@ -559,4 +576,27 @@ fn isJsonNumber(value: []const u8) bool {
     }
 
     return index == value.len;
+}
+
+test "hasUnclosedDoubleQuote ignores quotes inside an inline comment" {
+    const t = std.testing;
+    // Counting through the comment made this look like an open scalar, so the
+    // next line was folded into it.
+    try t.expect(!hasUnclosedDoubleQuote("  title: quote test   # use \" for quoting"));
+    try t.expect(!hasUnclosedDoubleQuote("# a lone \" in a full-line comment"));
+}
+
+test "hasUnclosedDoubleQuote still detects a real continuation" {
+    const t = std.testing;
+    try t.expect(hasUnclosedDoubleQuote("  title: \"first"));
+    try t.expect(!hasUnclosedDoubleQuote("  title: \"first\""));
+    try t.expect(!hasUnclosedDoubleQuote("  title: plain"));
+}
+
+test "hasUnclosedDoubleQuote treats a hash inside quotes as content" {
+    const t = std.testing;
+    // Inside an open scalar a # is ordinary text, so the scan must not stop
+    // there and miss the closing quote.
+    try t.expect(!hasUnclosedDoubleQuote("  color: \"#ff0000\""));
+    try t.expect(hasUnclosedDoubleQuote("  color: \"#ff0000"));
 }
