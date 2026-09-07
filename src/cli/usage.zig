@@ -64,3 +64,29 @@ pub fn printError(comptime fmt: []const u8, args: anytype) void {
     if (@import("builtin").is_test) return;
     std.debug.print("\nError: " ++ fmt, args);
 }
+
+/// One-line explanation for the failures `openapi2zig generate` can surface.
+/// Returning the raw error from `main` makes Zig print a stack trace through
+/// std internals, which is noise for an ordinary mistake like a missing file.
+pub fn describeError(err: anyerror) []const u8 {
+    return switch (err) {
+        error.FileNotFound => "input spec not found",
+        error.AccessDenied => "permission denied reading the input spec",
+        error.IsDir => "input path is a directory, not a spec file",
+        error.BadPathName, error.NameTooLong => "input path is not a usable file name",
+        error.SyntaxError, error.UnexpectedToken, error.UnexpectedEndOfInput => "input spec is not valid JSON",
+        error.ParseFailure => "input spec is not valid YAML",
+        error.EmptyYamlDocument => "input spec is an empty YAML document",
+        error.MultipleYamlDocumentsUnsupported => "input spec has more than one YAML document",
+        error.UnsupportedExtension => "input path must end in .json, .yaml or .yml",
+        error.UnsupportedOpenAPIVersion, error.UnsupportedApiVersion => "unsupported OpenAPI or Swagger version",
+        error.InvalidUrl => "input URL is not a valid http or https URL",
+        error.HttpNotFound => "input URL returned HTTP 404",
+        error.HttpRequestFailed, error.InvalidResponse => "input URL request failed",
+        error.HttpTimeout => "input URL request timed out",
+        error.ConnectionFailed => "could not connect to the input URL",
+        error.InvalidArguments => "the requested combination of options is not valid",
+        error.OutOfMemory => "ran out of memory",
+        else => "code generation failed",
+    };
+}

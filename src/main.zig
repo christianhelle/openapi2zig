@@ -26,7 +26,9 @@ pub fn main(init: std.process.Init) !void {
     }
 
     generator.generateCode(allocator, io, parsed_args.args) catch |err| {
-        std.debug.print("Error generating OpenAPI code: {}\n", .{err});
-        return err;
+        // Print one line and exit rather than returning the error, which makes
+        // Zig dump a stack trace through std internals for ordinary mistakes.
+        cli.printError("{s} ({t})\n", .{ cli.describeError(err), err });
+        std.process.exit(1);
     };
 }

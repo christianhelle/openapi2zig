@@ -1424,3 +1424,29 @@ test "parse does not flag a valid command line as a usage error" {
     try std.testing.expect(!parsed.usage_error);
     try std.testing.expect(!parsed.help);
 }
+
+// Returning the error from main makes Zig print a stack trace through std
+// internals for ordinary user mistakes such as a missing file. Every error
+// the generate pipeline can surface needs a one-line explanation instead.
+
+test "describeError explains the errors a user can actually cause" {
+    const t = std.testing;
+    try t.expectEqualStrings("input spec not found", cli.describeError(error.FileNotFound));
+    try t.expectEqualStrings("input spec is not valid JSON", cli.describeError(error.SyntaxError));
+    try t.expectEqualStrings(
+        "input path must end in .json, .yaml or .yml",
+        cli.describeError(error.UnsupportedExtension),
+    );
+    try t.expectEqualStrings(
+        "unsupported OpenAPI or Swagger version",
+        cli.describeError(error.UnsupportedOpenAPIVersion),
+    );
+    try t.expectEqualStrings("input URL returned HTTP 404", cli.describeError(error.HttpNotFound));
+}
+
+test "describeError falls back for errors it does not know" {
+    try std.testing.expectEqualStrings(
+        "code generation failed",
+        cli.describeError(error.SomethingNobodyMapped),
+    );
+}

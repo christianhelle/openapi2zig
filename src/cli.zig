@@ -5,6 +5,7 @@ const ident = @import("generators/unified/ident_utils.zig");
 const usage = @import("cli/usage.zig");
 pub const printUsage = usage.printUsage;
 pub const printError = usage.printError;
+pub const describeError = usage.describeError;
 const types = @import("cli/types.zig");
 pub const ResourceWrapperMode = types.ResourceWrapperMode;
 pub const MultipleClientsMode = types.MultipleClientsMode;
