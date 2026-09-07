@@ -12,6 +12,7 @@ const SwaggerConverter = @import("generators/converters/swagger_converter.zig").
 const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").UnifiedModelGenerator;
 const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
 const RuntimeGenerator = @import("generators/unified/runtime_generator.zig").RuntimeGenerator;
+const endsWithIgnoreCase = @import("generators/unified/api_generator/helpers.zig").endsWithIgnoreCase;
 
 const openapi2zig = @import("lib.zig");
 
@@ -29,15 +30,16 @@ pub const GeneratorErrors = error{
     UnsupportedOpenAPIVersion,
 };
 
+/// Only the extension matters, so compare the suffix in place. Lowercasing
+/// the whole path into a fixed [max_path_bytes]u8 buffer overflowed it for a
+/// longer command-line path, and release builds are ReleaseSmall, where the
+/// buffer's bounds assert is compiled out.
 pub fn validateExtension(input_file_path: []const u8) !Extension {
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const lowercase = std.ascii.lowerString(&buf, input_file_path);
-
-    if (std.mem.endsWith(u8, lowercase, ".yaml") or std.mem.endsWith(u8, lowercase, ".yml")) {
+    if (endsWithIgnoreCase(input_file_path, ".yaml") or endsWithIgnoreCase(input_file_path, ".yml")) {
         return Extension.YAML;
     }
 
-    if (std.mem.endsWith(u8, lowercase, ".json")) {
+    if (endsWithIgnoreCase(input_file_path, ".json")) {
         return Extension.JSON;
     }
 

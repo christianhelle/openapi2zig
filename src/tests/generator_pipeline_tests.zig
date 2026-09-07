@@ -237,3 +237,33 @@ test "generateCode writes separate files in multiple-files mode" {
     try std.testing.expect(std.mem.indexOf(u8, client_code, "pub fn listPets") != null);
     try std.testing.expect(runtime_code.len > 0);
 }
+
+test "validateExtension handles paths longer than max_path_bytes" {
+    // The input path comes straight from the command line. Copying it into a
+    // fixed [max_path_bytes]u8 stack buffer to lowercase it overflows that
+    // buffer for a longer path, and release builds are ReleaseSmall, where
+    // the bounds assert is compiled out. Only the extension matters here.
+    const allocator = std.testing.allocator;
+    const len = std.fs.max_path_bytes + 1;
+
+    const json_path = try allocator.alloc(u8, len + ".json".len);
+    defer allocator.free(json_path);
+    @memset(json_path[0..len], 'a');
+    @memcpy(json_path[len..], ".json");
+    try std.testing.expectEqual(try generator.validateExtension(json_path), .JSON);
+
+    const yaml_path = try allocator.alloc(u8, len + ".YAML".len);
+    defer allocator.free(yaml_path);
+    @memset(yaml_path[0..len], 'a');
+    @memcpy(yaml_path[len..], ".YAML");
+    try std.testing.expectEqual(try generator.validateExtension(yaml_path), .YAML);
+
+    const bad_path = try allocator.alloc(u8, len + ".txt".len);
+    defer allocator.free(bad_path);
+    @memset(bad_path[0..len], 'a');
+    @memcpy(bad_path[len..], ".txt");
+    try std.testing.expectError(
+        generator.GeneratorErrors.UnsupportedExtension,
+        generator.validateExtension(bad_path),
+    );
+}
