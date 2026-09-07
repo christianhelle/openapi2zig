@@ -215,7 +215,18 @@ pub const UnifiedModelGenerator = struct {
                 '\n' => try self.buffer.appendSlice(self.allocator, "\\n"),
                 '\r' => try self.buffer.appendSlice(self.allocator, "\\r"),
                 '\t' => try self.buffer.appendSlice(self.allocator, "\\t"),
-                else => try self.buffer.append(self.allocator, c),
+                else => {
+                    // A raw control byte is a tokenizer error inside a Zig
+                    // string literal, so emit it as \xNN.
+                    if (std.ascii.isControl(c)) {
+                        const hex = "0123456789abcdef";
+                        try self.buffer.appendSlice(self.allocator, "\\x");
+                        try self.buffer.append(self.allocator, hex[c >> 4]);
+                        try self.buffer.append(self.allocator, hex[c & 0x0f]);
+                    } else {
+                        try self.buffer.append(self.allocator, c);
+                    }
+                },
             }
         }
         try self.buffer.append(self.allocator, '"');
@@ -245,3 +256,19 @@ pub const UnifiedModelGenerator = struct {
         return try out.toOwnedSlice(self.allocator);
     }
 };
+
+test "appendStringLiteral escapes ASCII control characters" {
+    const t = std.testing;
+    // Discriminator property names and oneOf tag values come straight from
+    // the spec and land inside a Zig string literal, where a raw control byte
+    // is a tokenizer error.
+    var gen = UnifiedModelGenerator.init(t.allocator);
+    defer gen.deinit();
+
+    try gen.appendStringLiteral("a\x01b\x7fc");
+    try t.expectEqualStrings("\"a\\x01b\\x7fc\"", gen.buffer.items);
+
+    gen.buffer.clearRetainingCapacity();
+    try gen.appendStringLiteral("q\"b\\n\t");
+    try t.expectEqualStrings("\"q\\\"b\\\\n\\t\"", gen.buffer.items);
+}
