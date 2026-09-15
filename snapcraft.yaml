@@ -11,7 +11,7 @@ description: |
   - Support for complex OpenAPI schemas and operations
   - Cross-platform support (Linux, macOS, Windows)
 
-icon: docs/icon.png
+icon: resources/openapi2zig.png
 
 grade: stable
 confinement: strict
