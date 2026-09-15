@@ -620,6 +620,7 @@ fn getPackageSnapshotFiles(allocator: std.mem.Allocator, io: std.Io) ?[]const u8
         "build.zig",
         "build.zig.zon",
         "src",
+        "resources",
         "openapi",
         "generated",
         "vendor/zig-yaml",
