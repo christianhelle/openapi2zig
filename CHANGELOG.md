@@ -10,6 +10,7 @@
 
 **Merged pull requests:**
 
+- Embed the application icon into the openapi2zig binary [\#117](https://github.com/christianhelle/openapi2zig/pull/117) ([christianhelle](https://github.com/christianhelle))
 - Raise code coverage from 85.5% to 97% [\#116](https://github.com/christianhelle/openapi2zig/pull/116) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.5.6](https://github.com/christianhelle/openapi2zig/tree/v0.5.6) (2026-09-04)
