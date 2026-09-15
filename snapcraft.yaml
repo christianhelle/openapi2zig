@@ -11,6 +11,8 @@ description: |
   - Support for complex OpenAPI schemas and operations
   - Cross-platform support (Linux, macOS, Windows)
 
+icon: docs/icon.png
+
 grade: stable
 confinement: strict
 
