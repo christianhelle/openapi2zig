@@ -29,6 +29,7 @@ pub fn build(b: *std.Build) void {
     });
     exe_root_module.addOptions("build_info", build_info);
     exe_root_module.addImport("yaml", yaml_dep.module("yaml"));
+    addApplicationIcon(b, exe_root_module);
     const exe = b.addExecutable(.{
         .name = "openapi2zig",
         .root_module = exe_root_module,
@@ -92,6 +93,7 @@ pub fn build(b: *std.Build) void {
         cross_exe_module.addOptions("build_info", createBuildInfoOptions(b, run_integration_tests));
         cross_exe_module.addImport("yaml", target_yaml_dep.module("yaml"));
         cross_exe_module.addImport("openapi2zig", cross_lib_module);
+        addApplicationIcon(b, cross_exe_module);
 
         const cross_exe = b.addExecutable(.{
             .name = "openapi2zig",
@@ -657,6 +659,7 @@ fn addOpenApi2ZigExecutable(
     });
     root_module.addOptions("build_info", build_info);
     root_module.addImport("yaml", yaml_dep.module("yaml"));
+    addApplicationIcon(b, root_module);
 
     const exe = b.addExecutable(.{
         .name = name,
@@ -674,6 +677,12 @@ fn addOpenApi2ZigExecutable(
     root_module.addImport("openapi2zig", openapi2zig_mod);
 
     return exe;
+}
+
+/// Embeds the application icon into the executable. Only PE/COFF binaries
+/// have a resource table, so Zig ignores this for Linux and macOS targets.
+fn addApplicationIcon(b: *std.Build, module: *std.Build.Module) void {
+    module.addWin32ResourceFile(.{ .file = b.path("resources/openapi2zig.rc") });
 }
 
 fn getInstallPrefix(b: *std.Build) []const u8 {
