@@ -1,7 +1,6 @@
 const std = @import("std");
 const UnifiedDocument = @import("../../../models/common/document.zig").UnifiedDocument;
 const Schema = @import("../../../models/common/document.zig").Schema;
-const ident = @import("../ident_utils.zig");
 const model_generator = @import("../model_generator.zig");
 const UnifiedModelGenerator = model_generator.UnifiedModelGenerator;
 const isExtensibleRequest = model_generator.isExtensibleRequest;

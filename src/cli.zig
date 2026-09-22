@@ -1,6 +1,4 @@
 const std = @import("std");
-const version_info = @import("build_info");
-const ident = @import("generators/unified/ident_utils.zig");
 
 const usage = @import("cli/usage.zig");
 pub const printUsage = usage.printUsage;
