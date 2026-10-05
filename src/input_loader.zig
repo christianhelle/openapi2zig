@@ -86,7 +86,7 @@ pub fn loadFromUrl(allocator: std.mem.Allocator, io: std.Io, url: []const u8) ![
             std.log.info("HTTP 404: Resource not found at '{s}'", .{url});
             return LoadError.HttpNotFound;
         }
-        std.log.info("HTTP request failed with status {}: {s}", .{ @intFromEnum(status), url });
+        std.log.info("HTTP request failed with status {}: {s}", .{ @backingInt(status), url });
         return LoadError.HttpRequestFailed;
     }
 
