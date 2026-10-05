@@ -502,7 +502,7 @@ fn createBuildInfoOptions(b: *std.Build, run_integration_tests: bool) *std.Build
     // its own directory as the working directory, so read the version and the
     // git metadata from the package root rather than from wherever the build
     // was started; otherwise generated headers claim the consumer's version.
-    const build_root = b.build_root.path orelse ".";
+    const build_root = b.root.toString(b.allocator) catch @panic("OOM");
     const package_version = getPackageVersion(b, io) orelse "unknown";
     // Only ask git when the package root is a checkout of its own. A fetched
     // package is unpacked inside the dependent's project, where git would
