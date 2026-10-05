@@ -5,7 +5,8 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const run_integration_tests = b.option(bool, "run-integration", "Run network integration tests") orelse false;
     const build_info = createBuildInfoOptions(b, run_integration_tests);
-    const package_snapshot_step = createPackageSnapshotStep(b);
+    const build_tools = addBuildTools(b);
+    const package_snapshot_step = createPackageSnapshotStep(b, build_tools);
     const yaml_dep = b.dependency("yaml", .{
         .target = target,
         .optimize = optimize,
@@ -531,45 +532,23 @@ fn createBuildInfoOptions(b: *std.Build, run_integration_tests: bool) *std.Build
     return options;
 }
 
-fn createPackageSnapshotStep(b: *std.Build) *std.Build.Step {
-    const step = b.allocator.create(std.Build.Step) catch @panic("OOM");
-    step.* = std.Build.Step.init(.{
-        .id = .custom,
-        .name = "prepare-package-snapshot",
-        .owner = b,
-        .makeFn = makePackageSnapshot,
+fn addBuildTools(b: *std.Build) *std.Build.Step.Compile {
+    return b.addExecutable(.{
+        .name = "build_tools",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/build_tools.zig"),
+            .target = b.graph.host,
+        }),
     });
-    return step;
 }
 
-fn makePackageSnapshot(step: *std.Build.Step, options: std.Build.Step.MakeOptions) !void {
-    _ = options;
-    const b = step.owner;
-    const allocator = b.allocator;
-    const io = b.graph.io;
-    const cwd = std.Io.Dir.cwd();
-    const snapshot_root = ".zig-cache/package-snapshot";
-
-    try cwd.deleteTree(io, snapshot_root);
-    try cwd.createDirPath(io, snapshot_root);
-
-    const repo_files = getPackageSnapshotFiles(allocator, io) orelse return error.UnableToPreparePackageSnapshot;
-    defer allocator.free(repo_files);
-
-    var lines = std.mem.tokenizeScalar(u8, repo_files, '\n');
-    while (lines.next()) |line| {
-        const repo_path = std.mem.trimEnd(u8, line, "\r");
-        if (repo_path.len == 0) continue;
-
-        const destination_path = try std.fs.path.join(allocator, &.{ snapshot_root, repo_path });
-        defer allocator.free(destination_path);
-
-        if (std.fs.path.dirname(destination_path)) |dest_dir| {
-            try cwd.createDirPath(io, dest_dir);
-        }
-
-        try cwd.copyFile(repo_path, cwd, destination_path, io, .{});
-    }
+fn createPackageSnapshotStep(b: *std.Build, build_tools: *std.Build.Step.Compile) *std.Build.Step {
+    const run = b.addRunArtifact(build_tools);
+    run.setName("prepare-package-snapshot");
+    run.setCwd(b.path("."));
+    run.addArgs(&.{ "package-snapshot", ".zig-cache/package-snapshot" });
+    run.addArgs(&package_snapshot_paths);
+    return &run.step;
 }
 
 fn getBuildDate(allocator: std.mem.Allocator, io: std.Io) ?[]const u8 {
@@ -610,26 +589,19 @@ fn getPackageVersion(b: *std.Build, io: std.Io) ?[]const u8 {
     return content[version_start..version_end];
 }
 
-fn getPackageSnapshotFiles(allocator: std.mem.Allocator, io: std.Io) ?[]const u8 {
-    return getGitOutput(allocator, io, &.{
-        "git",
-        "ls-files",
-        "--cached",
-        "--others",
-        "--exclude-standard",
-        "--",
-        "build.zig",
-        "build.zig.zon",
-        "src",
-        "resources",
-        "openapi",
-        "generated",
-        "vendor/zig-yaml",
-        "LICENSE",
-        "README.md",
-        "examples/package_consumer",
-    });
-}
+const package_snapshot_paths = [_][]const u8{
+    "build.zig",
+    "build.zig.zon",
+    "src",
+    "tools",
+    "resources",
+    "openapi",
+    "generated",
+    "vendor/zig-yaml",
+    "LICENSE",
+    "README.md",
+    "examples/package_consumer",
+};
 
 fn addInstallStep(
     b: *std.Build,

@@ -73,6 +73,7 @@
         "build.zig",
         "build.zig.zon",
         "src",
+        "tools",
         "resources",
         "openapi",
         "generated",
