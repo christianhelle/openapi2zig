@@ -31,7 +31,7 @@ fn logResponse(ctx: ?*anyopaque, method: std.http.Method, url: []const u8, statu
     const ms = @as(f64, @floatFromInt(duration_ns)) / 1_000_000.0;
     std.debug.print("=== RESPONSE ===\n", .{});
     std.debug.print("{s} {s}\n", .{ @tagName(method), url });
-    std.debug.print("Status: {d} ({s})\n", .{ @intFromEnum(status), @tagName(status) });
+    std.debug.print("Status: {d} ({s})\n", .{ @backingInt(status), @tagName(status) });
     std.debug.print("Duration: {d:.2}ms\n", .{ms});
     std.debug.print("Headers:\n", .{});
     for (headers) |h| {

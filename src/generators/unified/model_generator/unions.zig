@@ -270,7 +270,7 @@ pub fn variantFieldNameAlloc(self: *UnifiedModelGenerator, variant: Schema, inde
     if (self.schemaVariantTag(variant, "type")) |tag| return try self.sanitizeIdentifierAlloc(tag);
     if (variant.ref) |ref| return try self.sanitizeIdentifierAlloc(refName(ref));
     if (variant.title) |title| {
-        if (std.ascii.indexOfIgnoreCase(title, "text") != null and variant.type == .string) return try self.allocator.dupe(u8, "text");
+        if (std.ascii.findIgnoreCase(title, "text") != null and variant.type == .string) return try self.allocator.dupe(u8, "text");
         return try self.sanitizeIdentifierAlloc(title);
     }
     if (variant.type) |schema_type| {

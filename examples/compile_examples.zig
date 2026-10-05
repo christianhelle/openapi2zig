@@ -10,7 +10,7 @@ const github_runtime = @import("github/runtime.zig");
 fn refAllDeclsRecursive(comptime T: type) void {
     if (!@import("builtin").is_test) return;
     inline for (comptime std.meta.declarations(T)) |decl| {
-        const field = @field(T, decl.name);
+        const field = @field(T, decl);
         if (@TypeOf(field) == type) {
             switch (@typeInfo(field)) {
                 .@"struct", .@"enum", .@"union", .@"opaque" => refAllDeclsRecursive(field),

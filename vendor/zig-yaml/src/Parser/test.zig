@@ -10,8 +10,8 @@ const Tree = @import("../Tree.zig");
 
 fn expectNodeScope(tree: Tree, node: Node.Index, from: usize, to: usize) !void {
     const scope = tree.nodeScope(node);
-    try testing.expectEqual(from, @intFromEnum(scope.start));
-    try testing.expectEqual(to, @intFromEnum(scope.end));
+    try testing.expectEqual(from, @backingInt(scope.start));
+    try testing.expectEqual(to, @backingInt(scope.end));
 }
 
 fn expectValueMapEntry(tree: Tree, entry_data: Map.Entry, exp_key: []const u8, exp_value: []const u8) !void {
