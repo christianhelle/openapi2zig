@@ -580,7 +580,7 @@ fn isGitCheckout(b: *std.Build, dir: []const u8) bool {
 
 fn getPackageVersion(b: *std.Build, io: std.Io) ?[]const u8 {
     const allocator = b.allocator;
-    const path = b.pathFromRoot("build.zig.zon");
+    const path = b.root.joinString(allocator, "build.zig.zon") catch return null;
     const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(64 * 1024)) catch return null;
     const marker = ".version = \"";
     const start = std.mem.indexOf(u8, content, marker) orelse return null;
