@@ -108,8 +108,8 @@ fn addString(self: *Parser, gpa: Allocator, string: []const u8) Allocator.Error!
 }
 
 fn addExtra(self: *Parser, gpa: Allocator, extra: anytype) Allocator.Error!u32 {
-    const fields = std.meta.fields(@TypeOf(extra));
-    try self.extra.ensureUnusedCapacity(gpa, fields.len);
+    const field_names = @typeInfo(@TypeOf(extra)).@"struct".field_names;
+    try self.extra.ensureUnusedCapacity(gpa, field_names.len);
     return self.addExtraAssumeCapacity(extra);
 }
 
@@ -119,15 +119,15 @@ fn addExtraAssumeCapacity(self: *Parser, extra: anytype) u32 {
     return result;
 }
 
-fn payloadToExtraItems(data: anytype) [@typeInfo(@TypeOf(data)).@"struct".fields.len]u32 {
-    const fields = @typeInfo(@TypeOf(data)).@"struct".fields;
-    var result: [fields.len]u32 = undefined;
-    inline for (&result, fields) |*val, field| {
-        val.* = switch (field.type) {
-            u32 => @field(data, field.name),
-            i32 => @bitCast(@field(data, field.name)),
-            Node.Index, Node.OptionalIndex, Token.Index => @intFromEnum(@field(data, field.name)),
-            else => @compileError("bad field type: " ++ @typeName(field.type)),
+fn payloadToExtraItems(data: anytype) [@typeInfo(@TypeOf(data)).@"struct".field_names.len]u32 {
+    const info = @typeInfo(@TypeOf(data)).@"struct";
+    var result: [info.field_names.len]u32 = undefined;
+    inline for (&result, info.field_names, info.field_types) |*val, field_name, field_type| {
+        val.* = switch (field_type) {
+            u32 => @field(data, field_name),
+            i32 => @bitCast(@field(data, field_name)),
+            Node.Index, Node.OptionalIndex, Token.Index => @intFromEnum(@field(data, field_name)),
+            else => @compileError("bad field type: " ++ @typeName(field_type)),
         };
     }
     return result;
