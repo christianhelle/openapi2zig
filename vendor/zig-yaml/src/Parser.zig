@@ -28,9 +28,7 @@ string_bytes: std.ArrayListUnmanaged(u8) = .empty,
 errors: ErrorBundle.Wip,
 
 pub fn init(gpa: Allocator, source: []const u8) Allocator.Error!Parser {
-    var self: Parser = .{ .source = source, .errors = undefined };
-    try self.errors.init(gpa);
-    return self;
+    return .{ .source = source, .errors = try .init(gpa) };
 }
 
 pub fn deinit(self: *Parser, gpa: Allocator) void {
