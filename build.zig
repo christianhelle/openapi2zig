@@ -106,10 +106,10 @@ pub fn build(b: *std.Build) void {
         build_all_step.dependOn(&install_cross_exe.step);
     }
 
-    addInstallStep(b, target, build_info, yaml_dep, build_tools, "install-release", "Build ReleaseSmall and install to $HOME/.local/bin", .ReleaseSmall);
-    addInstallStep(b, target, build_info, yaml_dep, build_tools, "install-release-safe", "Build ReleaseSafe and install to $HOME/.local/bin", .ReleaseSafe);
-    addInstallStep(b, target, build_info, yaml_dep, build_tools, "install-release-fast", "Build ReleaseFast and install to $HOME/.local/bin", .ReleaseFast);
-    addInstallStep(b, target, build_info, yaml_dep, build_tools, "install-debug", "Build Debug and install to $HOME/.local/bin", .Debug);
+    addInstallStep(b, target, build_info, yaml_dep, build_tools, "install-release", "Build ReleaseSmall and install to $HOME/.local/bin", .small);
+    addInstallStep(b, target, build_info, yaml_dep, build_tools, "install-release-safe", "Build ReleaseSafe and install to $HOME/.local/bin", .safe);
+    addInstallStep(b, target, build_info, yaml_dep, build_tools, "install-release-fast", "Build ReleaseFast and install to $HOME/.local/bin", .fast);
+    addInstallStep(b, target, build_info, yaml_dep, build_tools, "install-debug", "Build Debug and install to $HOME/.local/bin", .debug);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
@@ -611,7 +611,7 @@ fn addInstallStep(
     build_tools: *std.Build.Step.Compile,
     step_name: []const u8,
     description: []const u8,
-    optimize: std.builtin.OptimizeMode,
+    optimize: std.lang.Optimize,
 ) void {
     const exe = addOpenApi2ZigExecutable(b, "openapi2zig", target, optimize, build_info, yaml_dep);
     const install_step = b.step(step_name, description);
@@ -628,7 +628,7 @@ fn addOpenApi2ZigExecutable(
     b: *std.Build,
     name: []const u8,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
+    optimize: std.lang.Optimize,
     build_info: *std.Build.Step.Options,
     yaml_dep: *std.Build.Dependency,
 ) *std.Build.Step.Compile {
