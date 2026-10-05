@@ -498,6 +498,9 @@ pub fn build(b: *std.Build) void {
 fn createBuildInfoOptions(b: *std.Build, run_integration_tests: bool) *std.Build.Step.Options {
     const options = b.addOptions();
     const io = b.graph.io;
+    // The git metadata and build date below change without any tracked input
+    // changing, so the configuration must not be served from the cache.
+    b.graph.poisonCache();
     // Everything here describes *this* package. A dependent's build runs with
     // its own directory as the working directory, so read the version and the
     // git metadata from the package root rather than from wherever the build
