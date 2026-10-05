@@ -23,35 +23,35 @@ pub fn deinit(self: *Tree, gpa: Allocator) void {
 }
 
 pub fn nodeTag(tree: Tree, node: Node.Index) Node.Tag {
-    return tree.nodes.items(.tag)[@intFromEnum(node)];
+    return tree.nodes.items(.tag)[@backingInt(node)];
 }
 
 pub fn nodeData(tree: Tree, node: Node.Index) Node.Data {
-    return tree.nodes.items(.data)[@intFromEnum(node)];
+    return tree.nodes.items(.data)[@backingInt(node)];
 }
 
 pub fn nodeScope(tree: Tree, node: Node.Index) Node.Scope {
-    return tree.nodes.items(.scope)[@intFromEnum(node)];
+    return tree.nodes.items(.scope)[@backingInt(node)];
 }
 
 /// Returns the requested data, as well as the new index which is at the start of the
 /// trailers for the object.
 pub fn extraData(tree: Tree, comptime T: type, index: Extra) struct { data: T, end: Extra } {
     const info = @typeInfo(T).@"struct";
-    var i = @intFromEnum(index);
+    var i = @backingInt(index);
     var result: T = undefined;
     inline for (info.field_names, info.field_types) |field_name, field_type| {
         @field(result, field_name) = switch (field_type) {
             u32 => tree.extra[i],
             i32 => @bitCast(tree.extra[i]),
-            Node.Index, Node.OptionalIndex, Token.Index => @enumFromInt(tree.extra[i]),
+            Node.Index, Node.OptionalIndex, Token.Index => @fromBackingInt(@intCast(tree.extra[i])),
             else => @compileError("bad field type: " ++ @typeName(field_type)),
         };
         i += 1;
     }
     return .{
         .data = result,
-        .end = @enumFromInt(i),
+        .end = @fromBackingInt(@intCast(i)),
     };
 }
 
@@ -76,7 +76,7 @@ pub fn rawString(self: Tree, start: Token.Index, end: Token.Index) []const u8 {
 }
 
 pub fn token(self: Tree, index: Token.Index) Token {
-    return self.tokens.items(.token)[@intFromEnum(index)];
+    return self.tokens.items(.token)[@backingInt(index)];
 }
 
 pub const Node = struct {
@@ -176,7 +176,7 @@ pub const Node = struct {
         _,
 
         pub fn toOptional(ind: Index) OptionalIndex {
-            const result: OptionalIndex = @enumFromInt(@intFromEnum(ind));
+            const result: OptionalIndex = @fromBackingInt(@intCast(@backingInt(ind)));
             assert(result != .none);
             return result;
         }
@@ -188,7 +188,7 @@ pub const Node = struct {
 
         pub fn unwrap(opt: OptionalIndex) ?Index {
             if (opt == .none) return null;
-            return @enumFromInt(@intFromEnum(opt));
+            return @fromBackingInt(@intCast(@backingInt(opt)));
         }
     };
 
@@ -235,7 +235,7 @@ pub const String = struct {
     };
 
     pub fn slice(str: String, tree: Tree) []const u8 {
-        return tree.string_bytes[@intFromEnum(str.index)..][0..str.len];
+        return tree.string_bytes[@backingInt(str.index)..][0..str.len];
     }
 };
 
