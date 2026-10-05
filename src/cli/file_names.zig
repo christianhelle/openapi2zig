@@ -115,7 +115,7 @@ pub fn resolveRuntimeModulePath(allocator: std.mem.Allocator, client_name: []con
         if (part.len == 0) continue;
         if (std.mem.eql(u8, part, ".")) continue;
         if (std.mem.eql(u8, part, "..")) {
-            if (segments.items.len > 0 and !std.mem.eql(u8, segments.getLast(), "..")) {
+            if (segments.items.len > 0 and !std.mem.eql(u8, segments.last().?, "..")) {
                 _ = segments.pop();
             } else {
                 try segments.append(allocator, "..");
