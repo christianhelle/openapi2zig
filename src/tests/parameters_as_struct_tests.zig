@@ -760,5 +760,6 @@ test "options type and field name caches release memory when allocation fails" {
     var document = try buildFixture(gpa.allocator());
     defer document.deinit(gpa.allocator());
 
-    try std.testing.checkAllAllocationFailures(std.testing.allocator, checkOptionsCacheGeneration, .{document});
+    var no_resize: test_utils.NoResizeAllocator = .{ .child = std.testing.allocator };
+    try std.testing.checkAllAllocationFailures(no_resize.allocator(), checkOptionsCacheGeneration, .{document});
 }
