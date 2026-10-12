@@ -15,9 +15,10 @@ fn operationMatchesAnyTag(operation: common.Operation, include_tags: []const []c
 /// Deinitialize and null out every operation on the path item that does not
 /// carry at least one of the requested tags.
 fn removeNonMatchingOperations(allocator: std.mem.Allocator, path_item: *common.PathItem, include_tags: []const []const u8) void {
-    inline for (std.meta.fields(common.PathItem)) |field| {
-        if (field.type != ?common.Operation) continue;
-        const op_ptr = &@field(path_item, field.name);
+    const path_item_info = @typeInfo(common.PathItem).@"struct";
+    inline for (path_item_info.field_names, path_item_info.field_types) |field_name, field_type| {
+        if (field_type != ?common.Operation) continue;
+        const op_ptr = &@field(path_item, field_name);
         if (op_ptr.*) |*op| {
             if (!operationMatchesAnyTag(op.*, include_tags)) {
                 op.deinit(allocator);
@@ -28,9 +29,10 @@ fn removeNonMatchingOperations(allocator: std.mem.Allocator, path_item: *common.
 }
 
 fn pathItemHasOperations(path_item: common.PathItem) bool {
-    inline for (std.meta.fields(common.PathItem)) |field| {
-        if (field.type != ?common.Operation) continue;
-        if (@field(path_item, field.name) != null) return true;
+    const path_item_info = @typeInfo(common.PathItem).@"struct";
+    inline for (path_item_info.field_names, path_item_info.field_types) |field_name, field_type| {
+        if (field_type != ?common.Operation) continue;
+        if (@field(path_item, field_name) != null) return true;
     }
     return false;
 }
@@ -94,9 +96,10 @@ fn collectPathItemRefs(allocator: std.mem.Allocator, schemas: ?*const std.String
             if (param.schema) |schema| try collectSchemaRefs(allocator, schemas, keep, schema);
         }
     }
-    inline for (std.meta.fields(common.PathItem)) |field| {
-        if (field.type != ?common.Operation) continue;
-        if (@field(path_item, field.name)) |operation| {
+    const path_item_info = @typeInfo(common.PathItem).@"struct";
+    inline for (path_item_info.field_names, path_item_info.field_types) |field_name, field_type| {
+        if (field_type != ?common.Operation) continue;
+        if (@field(path_item, field_name)) |operation| {
             try collectOperationRefs(allocator, schemas, keep, operation);
         }
     }
