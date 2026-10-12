@@ -337,7 +337,7 @@ test "generated endpoint parsing is loose" {
 }
 
 test "options struct parameters accept partial literals with null defaults" {
-    const Options = @typeInfo(@TypeOf(v3_params_struct.findPetsByStatus)).@"fn".params[1].type.?;
+    const Options = @typeInfo(@TypeOf(v3_params_struct.findPetsByStatus)).@"fn".param_types[1].?;
 
     const all_defaults: Options = .{};
     try std.testing.expect(all_defaults.status == null);
@@ -347,7 +347,7 @@ test "options struct parameters accept partial literals with null defaults" {
 }
 
 test "options struct parameters require required fields" {
-    const Options = @typeInfo(@TypeOf(v3_params_struct.getPetById)).@"fn".params[1].type.?;
+    const Options = @typeInfo(@TypeOf(v3_params_struct.getPetById)).@"fn".param_types[1].?;
 
     const required: Options = .{ .petId = 1 };
     try std.testing.expectEqual(@as(i64, 1), required.petId);

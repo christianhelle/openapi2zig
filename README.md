@@ -1,6 +1,6 @@
 [![CI](https://github.com/christianhelle/openapi2zig/actions/workflows/ci.yml/badge.svg)](https://github.com/christianhelle/openapi2zig/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/christianhelle/openapi2zig/graph/badge.svg?token=F7YxJ0hTqr)](https://codecov.io/gh/christianhelle/openapi2zig)
-[![Zig Version](https://img.shields.io/badge/zig-0.16.0%2B-orange.svg)](https://ziglang.org/download/)
+[![Zig Version](https://img.shields.io/badge/zig-0.17.0%2B-orange.svg)](https://ziglang.org/download/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # openapi2zig
@@ -85,7 +85,7 @@ The image's entrypoint is the binary itself, so arguments are passed straight th
 
 ### Option 5: Build from Source
 
-Requires [Zig](https://ziglang.org/download/) v0.16.0.
+Requires [Zig](https://ziglang.org/download/) v0.17.0.
 
 ```bash
 git clone https://github.com/christianhelle/openapi2zig.git
@@ -769,7 +769,7 @@ This section covers setting up the repository for development and contributing t
 
 ### Prerequisites
 
-- [Zig](https://ziglang.org/download/) v0.16.0
+- [Zig](https://ziglang.org/download/) v0.17.0
 
 ### Development Environment
 

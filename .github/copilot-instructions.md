@@ -9,31 +9,31 @@ This is a CLI tool written in Zig that generates type-safe Zig API client code f
 ## Working Effectively
 
 ### Prerequisites and Installation
-Install Zig 0.16.0 or newer:
+Install Zig 0.17.0 or newer:
 
 **Option 1: GitHub Codespaces (RECOMMENDED for development)**
 ```bash
 # Navigate to repository on GitHub → Code → Codespaces → Create codespace
-# Everything is pre-configured with Zig 0.16.0, takes 2-3 minutes to set up
+# Everything is pre-configured with Zig 0.17.0, takes 2-3 minutes to set up
 ```
 
 **Option 2: Dev Containers (local with Docker)**
 ```bash
 # Install VS Code + Dev Containers extension
 # Open project in VS Code → "Reopen in Container"
-# Uses .devcontainer/devcontainer.json with Zig 0.16.0
+# Uses .devcontainer/devcontainer.json with Zig 0.17.0
 ```
 
 **Option 3: Manual Installation**
 ```bash
-# Download Zig 0.16.0 from https://ziglang.org/download/0.16.0/
+# Download Zig 0.17.0 from https://ziglang.org/download/0.17.0/
 # Linux x86_64:
-wget https://ziglang.org/download/0.16.0/zig-linux-x86_64-0.16.0.tar.xz
-tar -xf zig-linux-x86_64-0.16.0.tar.xz
-export PATH="$PWD/zig-linux-x86_64-0.16.0:$PATH"
+wget https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz
+tar -xf zig-x86_64-linux-0.17.0.tar.xz
+export PATH="$PWD/zig-x86_64-linux-0.17.0:$PATH"
 
 # Verify installation
-zig version  # Must output "0.16.0" or newer
+zig version  # Must output "0.17.0" or newer
 ```
 
 ### Bootstrap, Build, and Test the Repository
@@ -362,9 +362,9 @@ generated/
 ## Troubleshooting
 
 ### Installation Issues
-- **"zig: command not found"**: Install Zig 0.16.0 or newer using methods above
-- **Wrong Zig version**: Install Zig 0.16.0 or newer
-- **Build failures**: Ensure you're using Zig 0.16.0+; anything below 0.16.0 is unsupported
+- **"zig: command not found"**: Install Zig 0.17.0 or newer using methods above
+- **Wrong Zig version**: Install Zig 0.17.0 or newer
+- **Build failures**: Ensure you're using Zig 0.17.0+; anything below 0.17.0 is unsupported
 - **Docker issues**: Use GitHub Codespaces or dev containers instead
 
 ### Build and Test Issues  
