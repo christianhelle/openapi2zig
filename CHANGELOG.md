@@ -2,16 +2,21 @@
 
 ## [Unreleased](https://github.com/christianhelle/openapi2zig/tree/HEAD)
 
-[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.6...HEAD)
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.7...HEAD)
 
 **Implemented enhancements:**
 
+- Upgrade to Zig 0.17.0 [\#119](https://github.com/christianhelle/openapi2zig/pull/119) ([christianhelle](https://github.com/christianhelle))
+- Embed the application icon into the openapi2zig binary [\#117](https://github.com/christianhelle/openapi2zig/pull/117) ([christianhelle](https://github.com/christianhelle))
 - Honour allOf in the OpenAPI 3.0 converter [\#115](https://github.com/christianhelle/openapi2zig/pull/115) ([christianhelle](https://github.com/christianhelle))
 
 **Merged pull requests:**
 
-- Embed the application icon into the openapi2zig binary [\#117](https://github.com/christianhelle/openapi2zig/pull/117) ([christianhelle](https://github.com/christianhelle))
 - Raise code coverage from 85.5% to 97% [\#116](https://github.com/christianhelle/openapi2zig/pull/116) ([christianhelle](https://github.com/christianhelle))
+
+## [v0.5.7](https://github.com/christianhelle/openapi2zig/tree/v0.5.7) (2026-10-12)
+
+[Full Changelog](https://github.com/christianhelle/openapi2zig/compare/v0.5.6...v0.5.7)
 
 ## [v0.5.6](https://github.com/christianhelle/openapi2zig/tree/v0.5.6) (2026-09-04)
 
