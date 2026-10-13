@@ -13,8 +13,6 @@ const UnifiedModelGenerator = @import("generators/unified/model_generator.zig").
 const UnifiedApiGenerator = @import("generators/unified/api_generator.zig").UnifiedApiGenerator;
 const RuntimeGenerator = @import("generators/unified/runtime_generator.zig").RuntimeGenerator;
 
-const openapi2zig = @import("lib.zig");
-
 const default_output_file: []const u8 = "generated.zig";
 pub const default_output_dir: []const u8 = "generated";
 const default_runtime_only_file: []const u8 = "runtime.zig";
