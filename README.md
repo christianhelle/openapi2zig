@@ -404,6 +404,20 @@ pub fn main(init: std.process.Init) !void {
 
 #### Generate clients from a build step
 
+To invoke the CLI from a dependency, use its named executable path. The executable and static library both have the artifact name `openapi2zig`, so `artifact("openapi2zig")` is ambiguous. Target the host when running the generator during a build.
+
+```zig
+const dep = b.dependency("openapi2zig", .{
+    .target = b.graph.host,
+    .optimize = .ReleaseSafe,
+});
+const generate = b.addRunFile(dep.namedLazyPath("openapi2zig-cli"));
+generate.addArgs(&.{ "generate", "-i" });
+generate.addFileArg(b.path("openapi/api.json"));
+generate.addArg("-o");
+const generated = generate.addOutputFileArg("api.zig");
+```
+
 For generated clients that are committed to your repository, keep regeneration opt-in so ordinary builds and tests do not fetch or run the generator. This pattern mirrors `puny`'s [`regenerate-providers` build step](https://github.com/christianhelle/puny/blob/main/build.zig) and [generation tool](https://github.com/christianhelle/puny/blob/main/tools/generate_providers.zig).
 
 First, mark the dependency as lazy in `build.zig.zon`. Omit `.lazy = true` when application source imports `openapi2zig` and therefore needs it on every build.
@@ -569,7 +583,7 @@ Generated files are self-contained Zig source files. The current unified generat
   - `operationResult(...) !ApiResult(T)` for parsed success plus preserved API/parse-error bodies.
 - Generic helpers such as `requestRaw`, `getRaw`, `postJsonRaw`, `getJsonResult`, and `postJsonResult`.
 - Query parameter helpers that percent-encode names and string values with `std.Uri.Component.percentEncode`; optional query parameters are nullable.
-- Bounded SSE parsing helpers: `parseSseBytes`, `parseSseReader`, `parseSseBytesTyped`, and `parseSseReaderTyped`. SSE buffer size is fixed at 256KB for lines and 1MB for events. Stream helpers are generated for every POST operation whose response declares `text/event-stream` content — the function name is `{operationId}Streaming` (with an `Events` variant for typed JSON events). Setting `Client.cancel_check` enables prompt cancellation even while a socket read is stalled when the watcher thread starts successfully: the watcher polls every 10 ms, interrupts the socket, and marks the HTTP connection as closing during synchronized cleanup. No watcher thread is spawned when `cancel_check` is null, and a failed thread spawn falls back to read-boundary cancellation.
+- Bounded SSE parsing helpers: `parseSseBytes`, `parseSseReader`, `parseSseBytesTyped`, and `parseSseReaderTyped`. SSE buffer size is fixed at 256KB for lines and 1MB for events. Stream helpers are generated for POST operations with a `text/event-stream` response or a boolean `stream` field in the request body — the function name is `{operationId}Streaming` (with an `Events` variant for typed JSON events). Setting `Client.cancel_check` enables prompt cancellation even while a socket read is stalled when the watcher thread starts successfully: the watcher polls every 10 ms, interrupts the socket, and marks the HTTP connection as closing during synchronized cleanup. No watcher thread is spawned when `cancel_check` is null, and a failed thread spawn falls back to read-boundary cancellation.
 - Resource wrapper namespaces by default, for example `pet.get(...)` and `store.order.get(...)`, derived from paths unless `--resource-wrappers` changes the mode. Wrapper names are sanitized generated conveniences, not hand-designed SDK names.
 
 Parsed JSON responses use `.ignore_unknown_fields = true` so compatible providers can add response fields without breaking callers. Ambiguous or intentionally open-ended schemas use `std.json.Value`. For OpenAPI 3.1, the converter has stronger composite-schema handling for object/ref `allOf`, preserved `oneOf`/`anyOf` metadata, and nullable type arrays; do not assume every converter has identical composite support.
@@ -589,6 +603,16 @@ Schemas map to Zig types as follows:
 | free-form object, `oneOf`/`anyOf` without a usable discriminator, unknown schema | `std.json.Value`                                                       |
 
 Fields not listed in `required` are emitted as optionals defaulting to `null`.
+
+Component names remain unchanged so `$ref` references keep their meaning. When an inline helper name conflicts with a component or another helper, the generator adds a numeric suffix and uses that name consistently.
+
+Objects with named properties and explicit `additionalProperties: true` or a schema-valued `additionalProperties` use `std.json.Value` when a closed Zig struct would discard unknown keys. This preserves arbitrary JSON schema keywords, including those in Anthropic's `InputSchema`. These values are not validated against the declared property types. The existing extensible OpenAI request structs retain their `extra_body` support.
+
+For OpenAPI 3.1 specifications without `info.version`, the CLI prints a warning and uses `"unknown"` metadata. A present version must be a string. The generator still processes the entire specification; missing metadata does not filter operations or schemas.
+
+Ordinary and streaming requests forward declared header parameters. Passing `null`, or leaving an optional field unset with `--parameters-as-struct`, keeps the client default header. Explicit values replace defaults without regard to header-name case. Suffix-style operation IDs also get short resource names, e.g. `resources.messages.create` for `messages_post` and `resources.models.list` for `models_list`.
+
+Generated HTTP calls do not follow redirects, so credentials are not forwarded to a redirect destination. Raw calls retain the 3xx status and response body. Streaming calls return `error.ResponseError` for redirects. Non-streaming response bodies are currently buffered without a size limit; callers should only use trusted endpoints and allow for their response sizes.
 
 ### Request body content types
 

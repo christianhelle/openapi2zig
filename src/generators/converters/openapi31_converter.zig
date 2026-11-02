@@ -56,6 +56,7 @@ pub const OpenApi31Converter = struct {
         const externalDocs = if (openapi.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
         const schemas = if (openapi.components) |components| try self.convertSchemas(components) else null;
         const security_schemes = if (openapi.components) |components| try self.convertSecuritySchemes(components) else null;
+        @import("../../models/common/streaming.zig").detectRequestStreaming(paths, schemas);
         return UnifiedDocument{
             .version = version,
             .info = info,
@@ -295,6 +296,7 @@ pub const OpenApi31Converter = struct {
             .discriminator_property = discriminator_property,
             .one_of = one_of,
             .any_of = any_of,
+            .additional_properties = schema.additional_properties,
             .nullable = schema.nullable,
         };
     }
@@ -332,6 +334,10 @@ pub const OpenApi31Converter = struct {
     fn convertAllOfSchema(self: *OpenApi31Converter, schema: Schema31) anyerror!Schema {
         var merged_properties = std.StringHashMap(Schema).init(self.allocator);
         var required_list = std.ArrayList([]const u8).empty;
+        var additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
+            .boolean => |allow| allow,
+            .schema_or_reference => true,
+        } else null;
 
         if (schema.allOf) |all_of| {
             for (all_of) |item| {
@@ -341,6 +347,9 @@ pub const OpenApi31Converter = struct {
                 };
                 try self.mergeProperties(&merged_properties, converted);
                 try self.mergeRequired(&required_list, converted.required);
+                if (converted.additional_properties) |allow| {
+                    if (additional_properties != false) additional_properties = allow;
+                }
                 converted.deinit(self.allocator);
             }
         }
@@ -377,6 +386,7 @@ pub const OpenApi31Converter = struct {
             .format = schema.format,
             .required = required,
             .properties = if (has_properties) merged_properties else null,
+            .additional_properties = additional_properties,
             .items = null,
             .enum_values = schema.enum_values,
             .default = schema.default,

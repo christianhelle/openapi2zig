@@ -224,6 +224,7 @@ pub fn generateFunctionRaw(self: *UnifiedApiGenerator, method: []const u8, path:
     try self.buffer.appendSlice(self.allocator, "    defer response_body.deinit();\n");
     try self.buffer.appendSlice(self.allocator, "    const start = std.Io.Clock.awake.now(client.io);\n");
     try self.buffer.appendSlice(self.allocator, "    const result = client.http.fetch(.{\n");
+    try self.buffer.appendSlice(self.allocator, "        .redirect_behavior = .unhandled,\n");
     try self.buffer.appendSlice(self.allocator, "        .location = .{ .uri = uri },\n");
     try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
     try self.buffer.appendSlice(self.allocator, method);
@@ -257,6 +258,8 @@ pub fn generateFunctionRaw(self: *UnifiedApiGenerator, method: []const u8, path:
 }
 
 pub fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path: []const u8, operation: Operation, document: UnifiedDocument) !void {
+    const stream_parameters = @import("streaming.zig");
+    if (stream_parameters.hasParameters(operation)) return stream_parameters.generateFunction(self, name, path, operation, document);
     const scheme = authSchemeForOperation(document, operation);
     if (scheme) |s| {
         switch (s) {
@@ -614,6 +617,7 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
     try self.buffer.appendSlice(self.allocator, "        .extra_headers = ");
     try self.buffer.appendSlice(self.allocator, header_local_names.headers);
     try self.buffer.appendSlice(self.allocator, ".items,\n");
+    try self.buffer.appendSlice(self.allocator, "        .redirect_behavior = .unhandled,\n");
     if (has_body_param) {
         try self.buffer.appendSlice(self.allocator, "        .payload = payload,\n");
     }

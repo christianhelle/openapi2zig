@@ -21,7 +21,7 @@ pub fn arrayChildSchema(schema: Schema) ?Schema {
 }
 
 pub fn canGenerateNamedArrayItemType(self: *UnifiedModelGenerator, schema: Schema) !bool {
-    if (schema.ref != null) return false;
+    if (schema.ref != null or schema.additional_properties == true) return false;
     if (unionVariants(schema)) |variants| {
         if (schema.discriminator_property) |discriminator_property| {
             return try self.discriminatorVariantsAreSafe(variants, discriminator_property);
@@ -33,7 +33,7 @@ pub fn canGenerateNamedArrayItemType(self: *UnifiedModelGenerator, schema: Schem
 }
 
 pub fn canGenerateNamedFieldType(self: *UnifiedModelGenerator, schema: Schema) !bool {
-    if (schema.ref != null) return false;
+    if (schema.ref != null or schema.additional_properties == true) return false;
     if (arrayChildSchema(schema) != null) return try self.canGenerateNamedArrayItemType(arrayChildSchema(schema).?);
     if (unionVariants(schema)) |variants| {
         var non_null_count: usize = 0;

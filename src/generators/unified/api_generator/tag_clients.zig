@@ -1,4 +1,5 @@
 const std = @import("std");
+const stream_parameters = @import("streaming.zig");
 const UnifiedDocument = @import("../../../models/common/document.zig").UnifiedDocument;
 const Operation = @import("../../../models/common/document.zig").Operation;
 const ident = @import("../ident_utils.zig");
@@ -314,10 +315,12 @@ pub fn generateEndpointClient(self: *UnifiedApiGenerator, struct_name: []const u
 
             try self.buffer.appendSlice(self.allocator, "    pub fn executeStreaming(self: *");
             try self.buffer.appendSlice(self.allocator, struct_name);
-            try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+            try stream_parameters.appendParameters(self, operation, op_ref.path);
+            try self.buffer.appendSlice(self.allocator, ", callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
             try self.appendIdentifier(stream_operation_name);
-            try self.buffer.appendSlice(self.allocator, "(self.client, requestBody, callback, cancellation_token);\n");
+            try stream_parameters.appendCall(self, operation, "self.client", false);
+            try self.buffer.appendSlice(self.allocator, ";\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
             const stream_events_operation_name = try std.fmt.allocPrint(self.allocator, "{s}StreamingEvents", .{op_id});
@@ -325,10 +328,12 @@ pub fn generateEndpointClient(self: *UnifiedApiGenerator, struct_name: []const u
 
             try self.buffer.appendSlice(self.allocator, "    pub fn executeStreamingEvents(comptime Event: type, self: *");
             try self.buffer.appendSlice(self.allocator, struct_name);
-            try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+            try stream_parameters.appendParameters(self, operation, op_ref.path);
+            try self.buffer.appendSlice(self.allocator, ", callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
             try self.appendIdentifier(stream_events_operation_name);
-            try self.buffer.appendSlice(self.allocator, "(Event, self.client, requestBody, callback, cancellation_token);\n");
+            try stream_parameters.appendCall(self, operation, "self.client", true);
+            try self.buffer.appendSlice(self.allocator, ";\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
         }
     }
@@ -583,11 +588,13 @@ pub fn generateTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const 
             try self.buffer.appendSlice(self.allocator, stream_method_name);
             try self.buffer.appendSlice(self.allocator, "(self: *");
             try self.buffer.appendSlice(self.allocator, struct_name);
-            try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+            try stream_parameters.appendParameters(self, operation, op_ref.path);
+            try self.buffer.appendSlice(self.allocator, ", callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
             if (needs_alias) try self.buffer.appendSlice(self.allocator, "_");
             try self.appendIdentifier(stream_operation_name);
-            try self.buffer.appendSlice(self.allocator, "(self.client, requestBody, callback, cancellation_token);\n");
+            try stream_parameters.appendCall(self, operation, "self.client", false);
+            try self.buffer.appendSlice(self.allocator, ";\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
 
             const stream_events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{method_name});
@@ -599,11 +606,13 @@ pub fn generateTagClientMethod(self: *UnifiedApiGenerator, struct_name: []const 
             try self.buffer.appendSlice(self.allocator, stream_events_method_name);
             try self.buffer.appendSlice(self.allocator, "(comptime Event: type, self: *");
             try self.buffer.appendSlice(self.allocator, struct_name);
-            try self.buffer.appendSlice(self.allocator, ", requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+            try stream_parameters.appendParameters(self, operation, op_ref.path);
+            try self.buffer.appendSlice(self.allocator, ", callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
             try self.buffer.appendSlice(self.allocator, "        return ");
             if (needs_events_alias) try self.buffer.appendSlice(self.allocator, "_");
             try self.appendIdentifier(stream_events_operation_name);
-            try self.buffer.appendSlice(self.allocator, "(Event, self.client, requestBody, callback, cancellation_token);\n");
+            try stream_parameters.appendCall(self, operation, "self.client", true);
+            try self.buffer.appendSlice(self.allocator, ";\n");
             try self.buffer.appendSlice(self.allocator, "    }\n\n");
         }
     }

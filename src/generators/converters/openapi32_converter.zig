@@ -54,6 +54,7 @@ pub const OpenApi32Converter = struct {
         const externalDocs = if (openapi.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
         const schemas = if (openapi.components) |components| try self.convertSchemas(components) else null;
         const security_schemes = if (openapi.components) |components| try self.convertSecuritySchemes(components) else null;
+        @import("../../models/common/streaming.zig").detectRequestStreaming(paths, schemas);
         return UnifiedDocument{
             .version = version,
             .info = info,

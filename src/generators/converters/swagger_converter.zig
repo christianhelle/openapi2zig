@@ -52,6 +52,7 @@ pub const SwaggerConverter = struct {
         const schemas = if (swagger.definitions) |definitions| try self.convertDefinitions(definitions) else null;
         const parameters = if (swagger.parameters) |params| try self.convertGlobalParameters(params) else null;
         const responses = if (swagger.responses) |resps| try self.convertGlobalResponses(resps) else null;
+        @import("../../models/common/streaming.zig").detectRequestStreaming(paths, schemas);
         return UnifiedDocument{
             .version = version,
             .info = info,

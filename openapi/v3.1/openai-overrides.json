@@ -59,6 +59,8 @@
           "headers": { "type": "object" }
         }
       },
+      "FunctionParameters": { "type": "object", "additionalProperties": true },
+      "AssistantsApiToolChoiceOption": { "type": "object", "additionalProperties": true },
       "FunctionTool": {
         "type": "object",
         "properties": {

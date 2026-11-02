@@ -54,9 +54,18 @@ pub const Info = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Info {
         const obj = value.object;
+        // Some provider specifications omit this required OpenAPI metadata.
+        // Keep generation usable without inventing an API version.
+        const version = if (obj.get("version")) |val| switch (val) {
+            .string => |text| text,
+            else => return error.InvalidInfoVersion,
+        } else blk: {
+            if (!@import("builtin").is_test) std.log.warn("OpenAPI info.version is missing; using 'unknown' metadata", .{});
+            break :blk "unknown";
+        };
         return Info{
             .title = try allocator.dupe(u8, obj.get("title").?.string),
-            .version = try allocator.dupe(u8, obj.get("version").?.string),
+            .version = try allocator.dupe(u8, version),
             .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .termsOfService = if (obj.get("termsOfService")) |val| try allocator.dupe(u8, val.string) else null,

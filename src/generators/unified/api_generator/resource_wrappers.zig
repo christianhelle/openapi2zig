@@ -2,6 +2,7 @@ const std = @import("std");
 const UnifiedDocument = @import("../../../models/common/document.zig").UnifiedDocument;
 const Operation = @import("../../../models/common/document.zig").Operation;
 const ident = @import("../ident_utils.zig");
+const stream_parameters = @import("streaming.zig");
 const helpers = @import("helpers.zig");
 const OperationRef = helpers.OperationRef;
 const ResourceWrapper = helpers.ResourceWrapper;
@@ -332,22 +333,29 @@ pub fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: Resour
     try self.appendIndent(indent);
     try self.buffer.appendSlice(self.allocator, "pub fn ");
     try self.buffer.appendSlice(self.allocator, stream_method_name);
-    try self.buffer.appendSlice(self.allocator, "(client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+    try self.buffer.appendSlice(self.allocator, "(client: *Client");
+    try stream_parameters.appendParameters(self, wrapper.operation, wrapper.path);
+    try self.buffer.appendSlice(self.allocator, ", callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
     try self.appendIndent(indent + 1);
     try self.buffer.appendSlice(self.allocator, "return ");
     try self.buffer.appendSlice(self.allocator, stream_name);
-    try self.buffer.appendSlice(self.allocator, "(client, requestBody, callback, cancellation_token);\n");
+    try stream_parameters.appendCall(self, wrapper.operation, "client", false);
+    try self.buffer.appendSlice(self.allocator, ";\n");
     try self.appendIndent(indent);
     try self.buffer.appendSlice(self.allocator, "}\n");
 
     try self.appendIndent(indent);
     try self.buffer.appendSlice(self.allocator, "pub fn ");
     try self.buffer.appendSlice(self.allocator, events_method_name);
-    try self.buffer.appendSlice(self.allocator, "(comptime Event: type, client: *Client, requestBody: anytype, callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
+    try self.buffer.appendSlice(self.allocator, "(comptime Event: type, client: *Client");
+    try stream_parameters.appendParameters(self, wrapper.operation, wrapper.path);
+    try self.buffer.appendSlice(self.allocator, ", callback: anytype, cancellation_token: ?*CancellationToken) !void {\n");
     try self.appendIndent(indent + 1);
     try self.buffer.appendSlice(self.allocator, "return ");
     try self.buffer.appendSlice(self.allocator, stream_name);
-    try self.buffer.appendSlice(self.allocator, "Events(Event, client, requestBody, callback, cancellation_token);\n");
+    try self.buffer.appendSlice(self.allocator, "Events");
+    try stream_parameters.appendCall(self, wrapper.operation, "client", true);
+    try self.buffer.appendSlice(self.allocator, ";\n");
     try self.appendIndent(indent);
     try self.buffer.appendSlice(self.allocator, "}\n");
 }
@@ -542,7 +550,22 @@ pub fn resourceSegmentsFromPath(self: *UnifiedApiGenerator, path: []const u8) ![
 }
 
 pub fn resourceMethodName(self: *UnifiedApiGenerator, operation_id: []const u8, method: []const u8) ![]const u8 {
-    _ = method;
+    // Suffix-style operation ids (messages_post, models_list) are common
+    // outside camelCase APIs. Keep the flat id and offer a short resource name.
+    if (std.mem.lastIndexOfScalar(u8, operation_id, '_')) |separator| {
+        const suffix = operation_id[separator + 1 ..];
+        const suffix_verbs = .{
+            .{ "post", "POST", "create" },
+            .{ "list", "GET", "list" },
+            .{ "get", "GET", "retrieve" },
+            .{ "delete", "DELETE", "delete" },
+            .{ "patch", "PATCH", "update" },
+            .{ "put", "PUT", "update" },
+        };
+        inline for (suffix_verbs) |verb| {
+            if (std.mem.eql(u8, suffix, verb[0]) and std.mem.eql(u8, method, verb[1])) return self.allocator.dupe(u8, verb[2]);
+        }
+    }
     const verbs = [_]struct { prefix: []const u8, name: []const u8 }{
         .{ .prefix = "create", .name = "create" },
         .{ .prefix = "list", .name = "list" },
