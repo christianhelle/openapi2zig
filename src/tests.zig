@@ -11,6 +11,7 @@ const resource_wrapper_tests = @import("tests/resource_wrapper_tests.zig");
 const multiple_clients_tests = @import("tests/multiple_clients_tests.zig");
 const model_typing_tests = @import("tests/model_typing_tests.zig");
 const provider_schema_tests = @import("tests/provider_schema_tests.zig");
+const parameter_collision_tests = @import("tests/parameter_collision_tests.zig");
 const binary_payload_tests = @import("tests/binary_payload_tests.zig");
 const schema_bounds_parsing_tests = @import("tests/schema_bounds_parsing_tests.zig");
 const generated_header_tests = @import("tests/generated_header_tests.zig");
@@ -57,6 +58,7 @@ comptime {
     _ = multiple_clients_tests;
     _ = model_typing_tests;
     _ = provider_schema_tests;
+    _ = parameter_collision_tests;
     _ = binary_payload_tests;
     _ = schema_bounds_parsing_tests;
     _ = generated_header_tests;

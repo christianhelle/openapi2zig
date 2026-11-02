@@ -124,7 +124,9 @@ pub const UnifiedModelGenerator = struct {
     pub fn generateSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) anyerror!void {
         // Closed Zig structs cannot retain unknown keys. Keep already-lossless
         // free-form models unchanged, but do not drop keys on open typed objects.
-        if (schema.additional_properties == true and schema.properties != null and schema.properties.?.count() > 0 and !isExtensibleRequest(name)) {
+        if (@import("model_generator/unions.zig").requiresLosslessComposition(schema) or
+            (schema.additional_properties == true and schema.properties != null and schema.properties.?.count() > 0 and !isExtensibleRequest(name)))
+        {
             try self.buffer.appendSlice(self.allocator, "pub const ");
             try self.appendIdentifier(name);
             try self.buffer.appendSlice(self.allocator, " = std.json.Value;\n\n");

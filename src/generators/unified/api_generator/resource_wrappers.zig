@@ -159,7 +159,7 @@ fn reserveRootAliasAlloc(self: *UnifiedApiGenerator, wrappers: []const ResourceW
             try std.fmt.allocPrint(self.allocator, "_root{d}", .{suffix});
         errdefer self.allocator.free(candidate);
 
-        if (!self.isInlinedModelName(candidate) and !wrapperDeclaresName(wrappers, candidate)) {
+        if (!self.isInlinedModelName(candidate) and !self.flat_parameter_names.contains(candidate) and !wrapperDeclaresName(wrappers, candidate)) {
             return candidate;
         }
         self.allocator.free(candidate);
@@ -233,6 +233,10 @@ pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWra
             }
         }
     }
+
+    const outer_scope = self.parameter_scope_names;
+    self.parameter_scope_names = declarations.items;
+    defer self.parameter_scope_names = outer_scope;
 
     for (wrappers) |wrapper| {
         if (wrapper.segments.len == depth) {
@@ -381,8 +385,11 @@ pub fn appendOperationParameters(self: *UnifiedApiGenerator, operation: Operatio
         }
         for (params) |param| {
             try self.buffer.appendSlice(self.allocator, ", ");
-            const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
-            try self.appendParameterName(name, forbidden_names);
+            if (param.location == .body) {
+                try self.buffer.appendSlice(self.allocator, "requestBody");
+            } else {
+                try self.appendParameterName(param.name, forbidden_names);
+            }
             try self.buffer.appendSlice(self.allocator, ": ");
             if ((param.location == .query or param.location == .header) and !param.required) {
                 try self.buffer.appendSlice(self.allocator, "?");
@@ -405,22 +412,21 @@ pub fn appendWrapperCallArguments(self: *UnifiedApiGenerator, operation: Operati
         for (params) |param| {
             if (self.args.parameters_as_struct and param.location != .body) continue;
             try self.buffer.appendSlice(self.allocator, ", ");
-            const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
-            try self.appendParameterName(name, forbidden_names);
+            if (param.location == .body) {
+                try self.buffer.appendSlice(self.allocator, "requestBody");
+            } else {
+                try self.appendParameterName(param.name, forbidden_names);
+            }
         }
     }
     try self.buffer.appendSlice(self.allocator, ")");
 }
 
 pub fn appendParameterName(self: *UnifiedApiGenerator, name: []const u8, forbidden_names: []const []const u8) !void {
-    if (containsString(forbidden_names, name)) {
-        const safe_name = try self.sanitizeIdentifierAlloc(name);
-        defer self.allocator.free(safe_name);
-        try self.buffer.appendSlice(self.allocator, safe_name);
-        try self.buffer.appendSlice(self.allocator, "_param");
-    } else {
-        try self.appendFlatParamIdentifier(name);
-    }
+    const outer_scope = self.parameter_scope_names;
+    self.parameter_scope_names = forbidden_names;
+    defer self.parameter_scope_names = outer_scope;
+    try self.appendFlatParamIdentifier(name);
 }
 
 pub fn resourceAliasConflicts(self: *UnifiedApiGenerator, alias: []const u8, document: UnifiedDocument) bool {

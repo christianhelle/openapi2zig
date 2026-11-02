@@ -6,7 +6,17 @@ const model_generator = @import("../model_generator.zig");
 const UnifiedModelGenerator = model_generator.UnifiedModelGenerator;
 const isExtensibleRequest = model_generator.isExtensibleRequest;
 
+/// A union is only one constraint in these intersections. Emitting its
+/// variants alone loses base fields (or the other union's fields).
+pub fn requiresLosslessComposition(schema: Schema) bool {
+    if (schema.one_of != null and schema.any_of != null) return true;
+    if (schema.one_of == null and schema.any_of == null) return false;
+    if (schema.properties) |properties| return properties.count() > 0;
+    return false;
+}
+
 pub fn unionVariants(schema: Schema) ?[]Schema {
+    if (requiresLosslessComposition(schema)) return null;
     if (schema.one_of) |variants| return variants;
     if (schema.any_of) |variants| return variants;
     return null;
@@ -168,7 +178,7 @@ pub fn generateInlineVariantTypes(self: *UnifiedModelGenerator, union_name: []co
             }
         }
         if (variant.properties) |properties| {
-            if (properties.count() > 0 and variant.additional_properties != true) {
+            if (properties.count() > 0 and variant.additional_properties != true and !requiresLosslessComposition(variant)) {
                 try self.generateFieldHelpers(type_name, properties);
                 try self.buffer.appendSlice(self.allocator, "pub const ");
                 try self.appendIdentifier(type_name);

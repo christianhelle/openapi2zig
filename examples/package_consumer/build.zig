@@ -9,8 +9,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // Use the named executable path rather than the ambiguous exe/library artifact name.
-    const generate_runtime = b.addRunFile(openapi2zig_dep.namedLazyPath("openapi2zig-cli"));
+    // Run a host executable while keeping the imported library on the application target.
+    const generator_dep = b.dependency("openapi2zig", .{
+        .target = b.graph.host,
+        .optimize = optimize,
+    });
+    const generate_runtime = b.addRunFile(generator_dep.namedLazyPath("openapi2zig-cli"));
     generate_runtime.addArgs(&.{ "generate", "--runtime-only", "-o" });
     const runtime = generate_runtime.addOutputFileArg("runtime.zig");
     b.getInstallStep().dependOn(&b.addInstallFile(runtime, "runtime.zig").step);

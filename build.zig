@@ -495,6 +495,57 @@ pub fn build(b: *std.Build) void {
         test_step.dependOn(&b.addRunArtifact(provider_tests).step);
     }
 
+    const composition_fixture = b.addRunArtifact(exe);
+    composition_fixture.addArgs(&.{ "generate", "-i" });
+    composition_fixture.addFileArg(b.path("openapi/v3.1/regression-streaming-composition.json"));
+    composition_fixture.addArg("-o");
+    const composition_source = composition_fixture.addOutputFileArg("compositions.zig");
+    const composition_module = b.createModule(.{
+        .root_source_file = b.path("src/tests/compile_streaming_composition_fixture.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    composition_module.addImport("composition_fixture", b.createModule(.{
+        .root_source_file = composition_source,
+        .target = target,
+        .optimize = optimize,
+    }));
+    const composition_tests = b.addTest(.{ .root_module = composition_module });
+    const composition_test_step = b.step("test-streaming-composition", "Compile and round-trip generated mixed composition models");
+    composition_test_step.dependOn(&b.addRunArtifact(composition_tests).step);
+    test_step.dependOn(composition_test_step);
+
+    const collision_test_step = b.step("test-parameter-collisions", "Compile and exercise collision-safe parameters over loopback HTTP");
+    test_step.dependOn(collision_test_step);
+    for ([_]bool{ false, true }) |options_mode| {
+        for ([_]?[]const u8{ null, "PerTag", "PerEndpoint" }) |clients_mode| {
+            const collision_fixture = b.addRunArtifact(exe);
+            collision_fixture.addArg("generate");
+            if (options_mode) collision_fixture.addArg("--parameters-as-struct");
+            if (clients_mode) |mode| {
+                collision_fixture.addArgs(&.{ "--resource-wrappers", "none", "--multiple-clients", mode });
+            } else {
+                collision_fixture.addArgs(&.{ "--resource-wrappers", "paths" });
+            }
+            collision_fixture.addArg("-i");
+            collision_fixture.addFileArg(b.path("openapi/v3.1/regression-parameter-collisions.json"));
+            collision_fixture.addArg("-o");
+            const collision_source = collision_fixture.addOutputFileArg("collisions.zig");
+            const collision_module = b.createModule(.{
+                .root_source_file = b.path("src/tests/compile_parameter_collision_fixture.zig"),
+                .target = target,
+                .optimize = optimize,
+            });
+            collision_module.addImport("collision_fixture", b.createModule(.{
+                .root_source_file = collision_source,
+                .target = target,
+                .optimize = optimize,
+            }));
+            const collision_tests = b.addTest(.{ .root_module = collision_module });
+            collision_test_step.dependOn(&b.addRunArtifact(collision_tests).step);
+        }
+    }
+
     const multi_generated_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("generated/compile_multi_generated.zig"),
