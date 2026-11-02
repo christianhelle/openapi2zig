@@ -7,6 +7,7 @@
 **Implemented enhancements:**
 
 - Fix provider schema generation and streaming parameters [\#120](https://github.com/christianhelle/openapi2zig/pull/120) ([h0rv](https://github.com/h0rv))
+- Remove unused code [\#118](https://github.com/christianhelle/openapi2zig/pull/118) ([christianhelle](https://github.com/christianhelle))
 
 ## [v0.6.0](https://github.com/christianhelle/openapi2zig/tree/v0.6.0) (2026-10-12)
 
