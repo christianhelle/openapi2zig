@@ -54,7 +54,7 @@ pub const OpenApi32Converter = struct {
         const externalDocs = if (openapi.externalDocs) |ext_docs| try self.convertExternalDocs(ext_docs) else null;
         const schemas = if (openapi.components) |components| try self.convertSchemas(components) else null;
         const security_schemes = if (openapi.components) |components| try self.convertSecuritySchemes(components) else null;
-        return UnifiedDocument{
+        var document = UnifiedDocument{
             .version = version,
             .info = info,
             .paths = paths,
@@ -67,6 +67,9 @@ pub const OpenApi32Converter = struct {
             .parameters = null,
             .responses = null,
         };
+        errdefer document.deinit(self.allocator);
+        try @import("../../models/common/streaming.zig").detectRequestStreaming(self.allocator, paths, schemas);
+        return document;
     }
 
     fn convertSecuritySchemes(self: *OpenApi32Converter, components: Components32) std.mem.Allocator.Error!?*std.StringHashMap(UnifiedSecurityScheme) {

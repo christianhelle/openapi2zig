@@ -12,6 +12,7 @@ const isNullableSchema = unions.isNullableSchema;
 const isNullSchema = unions.isNullSchema;
 
 pub fn arrayChildSchema(schema: Schema) ?Schema {
+    if (unions.requiresLosslessComposition(schema)) return null;
     if (schema.type == .array or schema.items != null) {
         if (schema.items) |items| return items.*;
         return null;
@@ -21,7 +22,7 @@ pub fn arrayChildSchema(schema: Schema) ?Schema {
 }
 
 pub fn canGenerateNamedArrayItemType(self: *UnifiedModelGenerator, schema: Schema) !bool {
-    if (schema.ref != null) return false;
+    if (schema.ref != null or schema.additional_properties == true or unions.requiresLosslessComposition(schema)) return false;
     if (unionVariants(schema)) |variants| {
         if (schema.discriminator_property) |discriminator_property| {
             return try self.discriminatorVariantsAreSafe(variants, discriminator_property);
@@ -33,7 +34,7 @@ pub fn canGenerateNamedArrayItemType(self: *UnifiedModelGenerator, schema: Schem
 }
 
 pub fn canGenerateNamedFieldType(self: *UnifiedModelGenerator, schema: Schema) !bool {
-    if (schema.ref != null) return false;
+    if (schema.ref != null or schema.additional_properties == true or unions.requiresLosslessComposition(schema)) return false;
     if (arrayChildSchema(schema) != null) return try self.canGenerateNamedArrayItemType(arrayChildSchema(schema).?);
     if (unionVariants(schema)) |variants| {
         var non_null_count: usize = 0;
@@ -185,6 +186,10 @@ pub fn generateJsonStringify(self: *UnifiedModelGenerator, properties: std.Strin
 }
 
 pub fn appendZigType(self: *UnifiedModelGenerator, schema: Schema) !void {
+    if (unions.requiresLosslessComposition(schema)) {
+        try self.buffer.appendSlice(self.allocator, "std.json.Value");
+        return;
+    }
     if (schema.discriminator_property == null and self.isStringLikeSchema(schema)) {
         if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
         try self.buffer.appendSlice(self.allocator, "[]const u8");
@@ -263,6 +268,10 @@ pub fn appendZigType(self: *UnifiedModelGenerator, schema: Schema) !void {
 }
 
 pub fn appendArrayItemType(self: *UnifiedModelGenerator, schema: Schema) !void {
+    if (unions.requiresLosslessComposition(schema)) {
+        try self.buffer.appendSlice(self.allocator, "std.json.Value");
+        return;
+    }
     if (schema.ref) |ref| {
         if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
             try self.appendIdentifier(ref[last_slash + 1 ..]);

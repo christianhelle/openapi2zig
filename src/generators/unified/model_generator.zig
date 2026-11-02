@@ -12,6 +12,12 @@ pub const UnifiedModelGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
     source_schemas: ?*const std.StringHashMap(Schema) = null,
+    declaration_names: std.StringHashMap(void),
+    helper_names: std.StringHashMap([]const u8),
+
+    pub const helperNameAlloc = @import("model_generator/names.zig").helperNameAlloc;
+    pub const arrayItemTypeNameAlloc = @import("model_generator/names.zig").arrayItemTypeNameAlloc;
+    pub const clearNames = @import("model_generator/names.zig").clearNames;
 
     pub const unionVariants = @import("model_generator/unions.zig").unionVariants;
     pub const isNullSchema = @import("model_generator/unions.zig").isNullSchema;
@@ -59,15 +65,21 @@ pub const UnifiedModelGenerator = struct {
         return UnifiedModelGenerator{
             .allocator = allocator,
             .buffer = std.ArrayList(u8).empty,
+            .declaration_names = std.StringHashMap(void).init(allocator),
+            .helper_names = std.StringHashMap([]const u8).init(allocator),
         };
     }
 
     pub fn deinit(self: *UnifiedModelGenerator) void {
         self.buffer.deinit(self.allocator);
+        self.clearNames();
+        self.declaration_names.deinit();
+        self.helper_names.deinit();
     }
 
     pub fn generate(self: *UnifiedModelGenerator, document: UnifiedDocument) ![]const u8 {
         self.buffer.clearRetainingCapacity();
+        self.clearNames();
         try self.generateHeader();
 
         if (document.schemas) |schemas| {
@@ -97,6 +109,10 @@ pub const UnifiedModelGenerator = struct {
     }
 
     pub fn generateSchemas(self: *UnifiedModelGenerator, schemas: std.StringHashMap(Schema)) !void {
+        // Reserve every component before emitting any inline helpers, regardless
+        // of the hash map's iteration order.
+        var names = schemas.keyIterator();
+        while (names.next()) |name| try self.declaration_names.put(name.*, {});
         var schema_iterator = schemas.iterator();
         while (schema_iterator.next()) |entry| {
             const schema_name = entry.key_ptr.*;
@@ -106,6 +122,16 @@ pub const UnifiedModelGenerator = struct {
     }
 
     pub fn generateSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) anyerror!void {
+        // Closed Zig structs cannot retain unknown keys. Keep already-lossless
+        // free-form models unchanged, but do not drop keys on open typed objects.
+        if (@import("model_generator/unions.zig").requiresLosslessComposition(schema) or
+            (schema.additional_properties == true and schema.properties != null and schema.properties.?.count() > 0 and !isExtensibleRequest(name)))
+        {
+            try self.buffer.appendSlice(self.allocator, "pub const ");
+            try self.appendIdentifier(name);
+            try self.buffer.appendSlice(self.allocator, " = std.json.Value;\n\n");
+            return;
+        }
         if (try self.generateManualSchema(name, schema)) return;
         if (schema.type == .reference) return;
 
@@ -154,7 +180,7 @@ pub const UnifiedModelGenerator = struct {
                     try self.buffer.appendSlice(self.allocator, ";\n\n");
                     return;
                 } else if (try self.canGenerateNamedArrayItemType(items.*)) {
-                    const item_type_name = try std.fmt.allocPrint(self.allocator, "{s}Item", .{name});
+                    const item_type_name = try self.arrayItemTypeNameAlloc(name);
                     defer self.allocator.free(item_type_name);
                     try self.generateSchema(item_type_name, items.*);
                     try self.buffer.appendSlice(self.allocator, "pub const ");

@@ -1,0 +1,58 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Parameter collisions", "version": "1" },
+  "paths": {
+    "/widgets/{client}": {
+      "post": {
+        "operationId": "createWidget",
+        "tags": ["widgets"],
+        "parameters": [
+          { "name": "client", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "callback", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "callback_param", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "callback_param1", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "cancellation_token", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "Event", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "self", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "allocator", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "requestBody", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "uri_buf", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "first_query", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "auth_header", "in": "header", "required": true, "schema": { "type": "string" } },
+          { "name": "header_value", "in": "header", "required": true, "schema": { "type": "string" } },
+          { "name": "value", "in": "query", "schema": { "type": "string" } },
+          { "name": "create", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "create_param", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "widgets", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "widgets_param", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "Widget", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "Widget_param", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "helper", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "createWidget", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "execute", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "operation_headers", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "operation_headers_", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "operation_header_values__", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "payload", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "result", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "WidgetsClient", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "CreateWidget", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "std", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Request" } } } },
+        "responses": {
+          "200": { "description": "JSON or events", "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/Widget" } },
+            "text/event-stream": { "schema": { "type": "string" } }
+          } }
+        }
+      }
+    },
+    "/helper": { "get": { "operationId": "helper", "responses": { "204": { "description": "No content" } } } }
+  },
+  "components": { "schemas": {
+    "Request": { "type": "object", "required": ["stream"], "properties": { "stream": { "type": "boolean" } } },
+    "Widget": { "type": "object", "properties": { "text": { "type": "string" } } },
+    "callback_param2": { "type": "boolean" }
+  } }
+}

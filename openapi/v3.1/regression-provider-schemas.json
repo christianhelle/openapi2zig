@@ -1,0 +1,88 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Provider schema regression" },
+  "paths": {
+    "/v1/messages": {
+      "post": {
+        "operationId": "messages_post",
+        "parameters": [
+          { "name": "anthropic-version", "in": "header", "required": false, "schema": { "type": "string" } },
+          { "name": "anthropic-user-profile-id", "in": "header", "required": false, "schema": { "type": "string" } },
+          { "name": "anthropic-workspace-id", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateMessageParams" } } } },
+        "responses": { "200": { "description": "ok", "content": { "application/json": { "schema": { "type": "object" } } } } }
+      }
+    },
+    "/v1/models": { "get": { "operationId": "models_list", "responses": { "200": { "description": "ok" } } } }
+  },
+  "components": {
+    "schemas": {
+      "CreateMessageParams": { "type": "object", "properties": { "stream": { "type": "boolean" }, "model": { "type": "string" } } },
+      "FunctionTool": { "type": "object", "properties": { "parameters": { "type": "object", "additionalProperties": true } } },
+      "BetaTelemetryDestination": {
+        "type": "object",
+        "required": ["traces"],
+        "properties": {
+          "traces": { "allOf": [{ "$ref": "#/components/schemas/BetaTelemetryDestinationTraces" }] }
+        }
+      },
+      "BetaTelemetryDestinationTraces": {
+        "type": "object",
+        "required": ["enabled"],
+        "properties": { "enabled": { "type": "boolean" } }
+      },
+      "BetaDream": {
+        "type": "object",
+        "required": ["usage"],
+        "properties": { "usage": { "allOf": [{ "$ref": "#/components/schemas/BetaDreamUsage" }] } }
+      },
+      "BetaDreamUsage": {
+        "type": "object",
+        "required": ["input_tokens"],
+        "properties": { "input_tokens": { "type": "integer" } }
+      },
+      "Owner": {
+        "type": "object",
+        "required": ["foo-bar", "foo_bar", "list", "component"],
+        "properties": {
+          "foo-bar": { "type": "object", "properties": { "first": { "type": "string" } } },
+          "foo_bar": { "type": "object", "properties": { "second": { "type": "integer" } } },
+          "list": { "type": "array", "items": { "type": "object", "properties": { "nested": { "type": "boolean" } } } },
+          "component": { "$ref": "#/components/schemas/OwnerFooBar" }
+        }
+      },
+      "OwnerFooBar": { "type": "integer" },
+      "OwnerFooBar_2": { "type": "boolean" },
+      "OwnerListItem": { "type": "string" },
+      "Collection": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" } } } },
+      "CollectionItem": { "type": "boolean" },
+      "Variant": { "oneOf": [{ "type": "object", "properties": { "label": { "type": "string" } } }, { "type": "integer" }] },
+      "VariantVariant0": { "type": "boolean" },
+      "InputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["type"],
+        "properties": {
+          "type": { "type": "string", "const": "object" },
+          "properties": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "TypedOpen": {
+        "type": "object",
+        "additionalProperties": { "type": "string" },
+        "properties": { "id": { "type": "string" } }
+      },
+      "OpenBase": {
+        "type": "object", "additionalProperties": true,
+        "properties": { "base": { "type": "string" } }
+      },
+      "OpenDerived": { "allOf": [{ "$ref": "#/components/schemas/OpenBase" }] },
+      "Container": {
+        "type": "object",
+        "required": ["schema"],
+        "properties": { "schema": { "type": "object", "additionalProperties": true, "properties": { "type": { "type": "string" } } } }
+      }
+    }
+  }
+}

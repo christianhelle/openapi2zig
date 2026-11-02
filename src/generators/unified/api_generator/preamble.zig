@@ -255,6 +255,7 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\
         \\    const start = std.Io.Clock.awake.now(client.io);
         \\    const result = client.http.fetch(.{
+        \\        .redirect_behavior = .unhandled,
         \\        .location = .{ .uri = uri },
         \\        .method = method,
         \\        .extra_headers = headers.items,
@@ -298,6 +299,7 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\
         \\    const start = std.Io.Clock.awake.now(client.io);
         \\    const result = client.http.fetch(.{
+        \\        .redirect_behavior = .unhandled,
         \\        .location = .{ .uri = uri },
         \\        .method = method,
         \\        .extra_headers = headers.items,

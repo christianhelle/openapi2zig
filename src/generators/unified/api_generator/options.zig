@@ -19,8 +19,11 @@ pub fn appendFlatCallArguments(self: *UnifiedApiGenerator, operation: Operation)
         for (params) |param| {
             if (self.args.parameters_as_struct and param.location != .body) continue;
             try self.buffer.appendSlice(self.allocator, ", ");
-            const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
-            try self.appendFlatParamIdentifier(name);
+            if (param.location == .body) {
+                try self.buffer.appendSlice(self.allocator, "requestBody");
+            } else {
+                try self.appendFlatParamIdentifier(param.name);
+            }
         }
     }
     try self.buffer.appendSlice(self.allocator, ")");
@@ -273,8 +276,11 @@ pub fn appendFlatOperationParameters(self: *UnifiedApiGenerator, operation: Oper
         }
         for (params) |param| {
             try self.buffer.appendSlice(self.allocator, ", ");
-            const name: []const u8 = if (param.location == .body) "requestBody" else param.name;
-            try self.appendFlatParamIdentifier(name);
+            if (param.location == .body) {
+                try self.buffer.appendSlice(self.allocator, "requestBody");
+            } else {
+                try self.appendFlatParamIdentifier(param.name);
+            }
             try self.buffer.appendSlice(self.allocator, ": ");
             if ((param.location == .query or param.location == .header) and !param.required) try self.buffer.appendSlice(self.allocator, "?");
             try self.appendParamBaseType(param);

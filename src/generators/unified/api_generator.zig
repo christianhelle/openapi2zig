@@ -65,6 +65,12 @@ pub const UnifiedApiGenerator = struct {
     /// parameter names matching one of these get a suffix. Only set for
     /// single-file output; multi-file keeps models behind `model_prefix`.
     inlined_model_names: ?*const std.StringHashMap(Schema) = null,
+    /// Owned reservations shared by signatures, request references and forwarding
+    /// calls. Raw names are reserved separately so aliases cannot steal a name
+    /// such as callback_param from another parameter.
+    flat_parameter_names: std.StringHashMap(void),
+    flat_reserved_names: std.StringHashMap(void),
+    parameter_scope_names: []const []const u8 = &.{},
     model_prefix: []const u8 = "",
     emit_imports: bool = true,
     models_import: []const u8 = "models.zig",
@@ -82,6 +88,8 @@ pub const UnifiedApiGenerator = struct {
             .options_type_names = std.StringHashMap([]const u8).init(allocator),
             .options_field_names = std.StringHashMap([]const u8).init(allocator),
             .operation_names = std.StringHashMap([]const u8).init(allocator),
+            .flat_parameter_names = std.StringHashMap(void).init(allocator),
+            .flat_reserved_names = std.StringHashMap(void).init(allocator),
         };
     }
 
@@ -200,6 +208,9 @@ pub const UnifiedApiGenerator = struct {
         self.options_field_names.deinit();
         self.clearOperationNames(self.allocator);
         self.operation_names.deinit();
+        self.clearFlatParameterNames();
+        self.flat_parameter_names.deinit();
+        self.flat_reserved_names.deinit();
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
@@ -213,6 +224,7 @@ pub const UnifiedApiGenerator = struct {
         self.has_streaming_operations = documentHasStreamingOperations(document);
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeader();
+        try self.reserveFlatParameterNames(document);
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
@@ -235,6 +247,7 @@ pub const UnifiedApiGenerator = struct {
         self.has_streaming_operations = documentHasStreamingOperations(document);
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeaderMulti();
+        try self.reserveFlatParameterNames(document);
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
@@ -267,17 +280,110 @@ pub const UnifiedApiGenerator = struct {
         return schemas.contains(name);
     }
 
-    /// Append a flat parameter identifier, renaming it when the spec's parameter
-    /// name collides with a model type sharing the output file.
-    pub fn appendFlatParamIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
-        if (!self.isInlinedModelName(name)) {
-            try self.appendIdentifier(name);
-            return;
+    fn clearFlatParameterNames(self: *UnifiedApiGenerator) void {
+        for ([_]*std.StringHashMap(void){ &self.flat_parameter_names, &self.flat_reserved_names }) |names| {
+            var keys = names.keyIterator();
+            while (keys.next()) |key| self.allocator.free(key.*);
+            names.clearRetainingCapacity();
         }
-        const safe_name = try self.sanitizeIdentifierAlloc(name);
-        defer self.allocator.free(safe_name);
-        try self.buffer.appendSlice(self.allocator, safe_name);
-        try self.buffer.appendSlice(self.allocator, "_param");
+    }
+
+    fn reserveFlatName(self: *UnifiedApiGenerator, names: *std.StringHashMap(void), name: []const u8) !void {
+        if (names.contains(name)) return;
+        const owned = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(owned);
+        try names.put(owned, {});
+    }
+
+    /// Reserve document-wide names before emitting any operation. Container
+    /// declarations are also reserved in their enclosing scope during emission.
+    /// Reading declarations from the already emitted preamble keeps runtime
+    /// imports/helpers in this set without maintaining a second list of them.
+    pub fn reserveFlatParameterNames(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
+        self.clearFlatParameterNames();
+        const locals = [_][]const u8{
+            "client",  "self",          "allocator",   "options",      "requestBody", "callback", "cancellation_token", "Event",
+            "uri_buf", "first_query",   "auth_header", "header_value", "value",       "item",     "str",                "payload",
+            "uri",     "response_body", "start",       "result",       "elapsed_ns",  "body",     "parsed",             "raw",
+            "ok",      "err",           "obs",         "cb",           "resources",   "_root",    "std",
+        };
+        for (locals) |name| try self.reserveFlatName(&self.flat_reserved_names, name);
+        const source = try self.allocator.dupeSentinel(u8, self.buffer.items, 0);
+        defer self.allocator.free(source);
+        var ast = try std.zig.Ast.parse(self.allocator, source, .{ .mode = .zig });
+        defer ast.deinit(self.allocator);
+        for (ast.rootDecls()) |node| {
+            const token = ast.nodeMainToken(node);
+            switch (ast.tokenTag(token)) {
+                .keyword_fn, .keyword_const, .keyword_var => try self.reserveFlatName(&self.flat_reserved_names, ast.tokenSlice(token + 1)),
+                else => {},
+            }
+        }
+        if (self.inlined_model_names) |schemas| {
+            var names = schemas.keyIterator();
+            while (names.next()) |name| try self.reserveFlatName(&self.flat_reserved_names, name.*);
+        }
+        var operations = std.ArrayList(OperationRef).empty;
+        defer operations.deinit(self.allocator);
+        try collectOperationRefs(&operations, self.allocator, document);
+        for (operations.items) |op_ref| {
+            if (op_ref.operation.parameters) |params| {
+                for (params) |param| {
+                    if (param.location != .body) try self.reserveFlatName(&self.flat_parameter_names, param.name);
+                }
+            }
+            const header_names = try self.headerLocalNamesAlloc(op_ref.operation);
+            defer header_names.deinit(self.allocator);
+            try self.reserveFlatName(&self.flat_reserved_names, header_names.headers);
+            try self.reserveFlatName(&self.flat_reserved_names, header_names.values);
+            const name = if (self.operationNameOf(op_ref.operation)) |name|
+                try self.allocator.dupe(u8, name)
+            else
+                try std.fmt.allocPrint(self.allocator, "operation{s}", .{op_ref.path[1..]});
+            defer self.allocator.free(name);
+            for (declaration_suffixes) |suffix| {
+                const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
+                defer self.allocator.free(declaration);
+                try self.reserveFlatName(&self.flat_reserved_names, declaration);
+                const alias = try std.fmt.allocPrint(self.allocator, "_{s}", .{declaration});
+                defer self.allocator.free(alias);
+                try self.reserveFlatName(&self.flat_reserved_names, alias);
+            }
+            // Client type names may acquire underscore suffixes. The conflict
+            // predicate reserves that whole family, including the unsuffixed name.
+            const client_name = switch (self.args.multiple_clients orelse continue) {
+                .per_tag => try self.tagClientNameAlloc(op_ref.operation),
+                .per_endpoint => if (op_ref.operation.operationId) |id|
+                    try toPascalCaseAlloc(self.allocator, id)
+                else
+                    try self.endpointFallbackNameAlloc(op_ref.method, op_ref.path),
+            };
+            defer self.allocator.free(client_name);
+            try self.reserveFlatName(&self.flat_reserved_names, client_name);
+        }
+    }
+
+    fn flatNameConflicts(self: *UnifiedApiGenerator, name: []const u8) bool {
+        const base = std.mem.trimEnd(u8, name, "_");
+        return self.isInlinedModelName(name) or self.flat_reserved_names.contains(name) or
+            self.flat_reserved_names.contains(base) or containsString(self.parameter_scope_names, name);
+    }
+
+    /// Preserve the raw identifier unless it shadows a generated declaration.
+    /// Aliases use injective identifier escaping, never lossy lowercasing, and
+    /// skip every original parameter name before choosing a numeric suffix.
+    pub fn appendFlatParamIdentifier(self: *UnifiedApiGenerator, name: []const u8) !void {
+        if (!self.flatNameConflicts(name)) return self.appendIdentifier(name);
+        var counter: usize = 0;
+        while (true) : (counter += 1) {
+            const candidate = if (counter == 0)
+                try std.fmt.allocPrint(self.allocator, "{s}_param", .{name})
+            else
+                try std.fmt.allocPrint(self.allocator, "{s}_param{d}", .{ name, counter });
+            defer self.allocator.free(candidate);
+            if (self.flat_parameter_names.contains(candidate) or self.flatNameConflicts(candidate)) continue;
+            return self.appendIdentifier(candidate);
+        }
     }
 
     pub fn appendLineComment(self: *UnifiedApiGenerator, text: []const u8) !void {

@@ -1,0 +1,135 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Streaming composition regression", "version": "1" },
+  "paths": {
+    "/referenced": { "post": {
+      "requestBody": { "$ref": "#/components/requestBodies/Alias" },
+      "responses": { "200": { "description": "JSON response only" } }
+    } },
+    "/inline-allof": { "post": {
+      "requestBody": { "content": { "application/json": { "schema": {
+        "allOf": [{ "$ref": "#/components/schemas/BaseAlias" }],
+        "properties": { "prompt": { "type": "string" } }
+      } } } },
+      "responses": { "200": { "description": "JSON response only" } }
+    } },
+    "/mixed-one": { "post": {
+      "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MixedOne" } } } },
+      "responses": { "200": { "description": "ok" } }
+    } },
+    "/mixed-any": { "post": {
+      "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MixedAny" } } } },
+      "responses": { "200": { "description": "ok" } }
+    } },
+    "/boolean-allof": { "post": {
+      "requestBody": { "content": { "application/json": { "schema": {
+        "properties": { "stream": { "allOf": [{ "$ref": "#/components/schemas/Boolean" }] } }
+      } } } },
+      "responses": { "200": { "description": "ok" } }
+    } },
+    "/false-allof": { "post": {
+      "requestBody": { "content": { "application/json": { "schema": {
+        "properties": { "stream": { "allOf": [{ "$ref": "#/components/schemas/Boolean" }, { "enum": [false] }] } }
+      } } } },
+      "responses": { "200": { "description": "ok" } }
+    } },
+    "/false": { "post": {
+      "requestBody": { "content": { "application/json": { "schema": {
+        "properties": { "stream": { "type": "boolean", "enum": [false] } }
+      } } } },
+      "responses": { "200": { "description": "ok" } }
+    } },
+    "/true": { "post": {
+      "requestBody": { "content": { "application/json": { "schema": {
+        "properties": { "stream": { "type": "boolean", "enum": [true] } }
+      } } } },
+      "responses": { "200": { "description": "ok" } }
+    } },
+    "/sse": { "post": {
+      "requestBody": { "content": { "application/json": { "schema": {
+        "properties": { "stream": { "type": "boolean", "enum": [false] } }
+      } } } },
+      "responses": { "200": { "description": "ok", "content": { "text/event-stream": {} } } }
+    } },
+    "/cyclic-body": { "post": {
+      "requestBody": { "$ref": "#/components/requestBodies/CycleA" },
+      "responses": { "200": { "description": "ok" } }
+    } },
+    "/external-body": { "post": {
+      "requestBody": { "$ref": "other.json#/components/requestBodies/Body" },
+      "responses": { "200": { "description": "ok" } }
+    } }
+  },
+  "components": {
+    "requestBodies": {
+      "Alias": { "$ref": "#/components/requestBodies/Body" },
+      "Body": {
+        "required": true,
+        "description": "Reusable request",
+        "content": { "application/vnd.fixture+json": { "schema": {
+          "allOf": [{ "$ref": "#/components/schemas/BaseAlias" }],
+          "properties": { "prompt": { "type": "string" } }
+        } } }
+      },
+      "CycleA": { "$ref": "#/components/requestBodies/CycleB" },
+      "CycleB": { "$ref": "#/components/requestBodies/CycleA" }
+    },
+    "schemas": {
+      "Boolean": { "type": "boolean" },
+      "BaseAlias": { "$ref": "#/components/schemas/BaseStream" },
+      "BaseStream": {
+        "type": "object",
+        "required": ["stream"],
+        "properties": { "stream": { "type": "boolean" } }
+      },
+      "MixedOne": {
+        "type": "object",
+        "required": ["base"],
+        "properties": { "base": { "type": "string" } },
+        "oneOf": [{
+          "type": "object",
+          "properties": { "stream": { "type": "boolean" }, "variant": { "type": "integer" } }
+        }]
+      },
+      "MixedAny": {
+        "type": "object",
+        "properties": { "base": { "type": "string" } },
+        "anyOf": [{
+          "type": "object",
+          "properties": { "stream": { "type": "boolean" }, "variant": { "type": "integer" } }
+        }]
+      },
+      "MixedBoth": {
+        "oneOf": [{ "properties": { "one": { "type": "string" } } }],
+        "anyOf": [{ "properties": { "any": { "type": "integer" } } }]
+      },
+      "VariantWrapper": {
+        "oneOf": [{
+          "type": "object",
+          "properties": { "base": { "type": "string" } },
+          "oneOf": [{ "properties": { "variant": { "type": "integer" } } }]
+        }, { "type": "integer" }]
+      },
+      "Envelope": {
+        "type": "object",
+        "required": ["one", "any", "list"],
+        "properties": {
+          "one": {
+            "type": "object",
+            "properties": { "base": { "type": "string" } },
+            "oneOf": [{ "properties": { "variant": { "type": "integer" } } }]
+          },
+          "any": {
+            "type": "object",
+            "properties": { "base": { "type": "string" } },
+            "anyOf": [{ "properties": { "variant": { "type": "integer" } } }]
+          },
+          "list": { "type": "array", "items": {
+            "properties": { "base": { "type": "string" } },
+            "oneOf": [{ "properties": { "variant": { "type": "integer" } } }]
+          } }
+        }
+      }
+    }
+  }
+}
