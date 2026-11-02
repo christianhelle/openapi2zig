@@ -3,8 +3,6 @@ const cli = @import("../cli.zig");
 const generator = @import("../generator.zig");
 const openapi2zig = @import("../lib.zig");
 const generated_header = @import("../generators/generated_header.zig");
-const models = @import("../models.zig");
-const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
 const validateExtension = generator.validateExtension;
 const generateCode = generator.generateCode;
 const generateCodeFromJsonContents = generator.generateCodeFromJsonContents;
@@ -37,45 +35,6 @@ test "unsupported OpenAPI versions return a distinct generator error" {
             .input_path = "unsupported.json",
         }),
     );
-}
-
-fn buildPetstoreUnified(allocator: std.mem.Allocator) !@import("../models/common/document.zig").UnifiedDocument {
-    const json =
-        \\{
-        \\  "openapi": "3.0.0",
-        \\  "info": { "title": "fixture", "version": "1.0.0" },
-        \\  "paths": {
-        \\    "/pets": {
-        \\      "post": {
-        \\        "operationId": "addPet",
-        \\        "requestBody": {
-        \\          "required": true,
-        \\          "content": {
-        \\            "application/json": {
-        \\              "schema": { "$ref": "#/components/schemas/Pet" }
-        \\            }
-        \\          }
-        \\        },
-        \\        "responses": {
-        \\          "200": { "description": "ok" }
-        \\        }
-        \\      }
-        \\    }
-        \\  },
-        \\  "components": {
-        \\    "schemas": {
-        \\      "Pet": {
-        \\        "type": "object",
-        \\        "properties": { "name": { "type": "string" } }
-        \\      }
-        \\    }
-        \\  }
-        \\}
-    ;
-    var openapi = try models.OpenApiDocument.parseFromJson(allocator, json);
-    defer openapi.deinit(allocator);
-    var converter = OpenApiConverter.init(allocator);
-    return try converter.convert(openapi);
 }
 
 test "generateMultipleFiles writes custom file names with derived import aliases" {
