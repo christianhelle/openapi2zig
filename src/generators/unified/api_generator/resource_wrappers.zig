@@ -244,6 +244,8 @@ pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWra
         const events_decl_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.method_name});
         try allocated_declarations.append(self.allocator, events_decl_name);
         if (containsString(declarations.items, stream_decl_name) or containsString(declarations.items, events_decl_name)) continue;
+        // Declaring an inlined model's name here would make it ambiguous inside the wrappers.
+        if (self.isInlinedModelName(stream_decl_name) or self.isInlinedModelName(events_decl_name)) continue;
         try declarations.append(self.allocator, stream_decl_name);
         try declarations.append(self.allocator, events_decl_name);
         try stream_aliases.append(self.allocator, stream_decl_name);

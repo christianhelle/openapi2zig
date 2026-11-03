@@ -7,6 +7,9 @@ comptime {
 test "fresh provider model declarations compile with collision references intact" {
     std.testing.refAllDecls(fixture);
     _ = fixture.resources.models.list;
+    // An inlined model owns the short stream name, so only the long one is kept.
+    try std.testing.expect(!@hasDecl(fixture.resources.widgets, "cancelStream"));
+    try std.testing.expect(@hasDecl(fixture.resources.widgets, "cancelWidgetStream"));
     try std.testing.expect(@FieldType(fixture.FunctionTool, "parameters") == ?std.json.Value);
     try std.testing.expect(fixture.OwnerFooBar == i64);
     try std.testing.expect(fixture.OwnerFooBar_2 == bool);
