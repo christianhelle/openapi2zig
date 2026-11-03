@@ -312,6 +312,12 @@ pub const OpenApi32Converter = struct {
         map.deinit();
     }
 
+    fn freeItems(allocator: std.mem.Allocator, items: ?*Schema) void {
+        const schema = items orelse return;
+        schema.deinit(allocator);
+        allocator.destroy(schema);
+    }
+
     fn convertAdditionalProperties(additional: ?AdditionalProperties32) ?bool {
         const value = additional orelse return null;
         return switch (value) {
@@ -340,6 +346,9 @@ pub const OpenApi32Converter = struct {
         const declared_type = self.declaredSchemaType(schema);
         var boolean_type = declared_type == .boolean;
         var enum_values = schema.enum_values;
+        var array_member = false;
+        var items: ?*Schema = null;
+        errdefer freeItems(self.allocator, items);
 
         if (schema.allOf) |all_of| {
             for (all_of) |item| {
@@ -352,6 +361,14 @@ pub const OpenApi32Converter = struct {
                 if (converted.required) |required| try self.mergeRequiredNames(&required_list, required);
                 additional_properties = mergeAdditionalProperties(additional_properties, converted.additional_properties);
                 if (converted.type == .boolean) boolean_type = true;
+                if (converted.type == .array) {
+                    array_member = true;
+                    if (converted.items) |member_items| {
+                        freeItems(self.allocator, items);
+                        items = member_items;
+                        converted.items = null;
+                    }
+                }
                 // Preserve an enum that rules true out when flattening a
                 // boolean allOf. This is not a general satisfiability solver.
                 if (converted.enum_values) |values| {
@@ -382,15 +399,15 @@ pub const OpenApi32Converter = struct {
 
         if (schema.required) |required| try self.mergeRequiredNames(&required_list, required);
 
-        const items = try self.convertSchemaItems(schema);
-        errdefer if (items) |item| {
-            item.deinit(self.allocator);
-            self.allocator.destroy(item);
-        };
+        if (try self.convertSchemaItems(schema)) |own_items| {
+            freeItems(self.allocator, items);
+            items = own_items;
+        }
         const required = if (required_list.items.len > 0) try required_list.toOwnedSlice(self.allocator) else null;
         const has_properties = merged_properties.count() > 0;
         if (!has_properties) merged_properties.deinit();
-        const merged_type: SchemaType = if (boolean_type and !has_properties) .boolean else declared_type orelse .object;
+        const member_type: SchemaType = if (boolean_type and !has_properties) .boolean else if (array_member and !has_properties) .array else .object;
+        const merged_type: SchemaType = if (member_type == .boolean) .boolean else declared_type orelse member_type;
 
         return Schema{
             .type = merged_type,
@@ -766,7 +783,8 @@ test "schema conversion frees partial results when allocation fails" {
     const source =
         \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
         \\"Base":{"type":"object","required":["id"],"properties":{"id":{"type":"string"},"nested":{"type":"object","required":["x"],"properties":{"x":{"type":"array","items":{"type":"string"}}}}}},
-        \\"Derived":{"type":"array","items":{"type":"string"},"required":["own"],"allOf":[{"$ref":"#/components/schemas/Base"},{"type":"object","required":["id","name"],"properties":{"id":{"type":"integer"},"name":{"type":"string"}}}],"properties":{"own":{"type":"string"},"name":{"type":"integer"}}}
+        \\"Names":{"type":"array","items":{"type":"string"}},
+        \\"Derived":{"type":"array","items":{"type":"string"},"required":["own"],"allOf":[{"$ref":"#/components/schemas/Names"},{"$ref":"#/components/schemas/Base"},{"type":"object","required":["id","name"],"properties":{"id":{"type":"integer"},"name":{"type":"string"}}}],"properties":{"own":{"type":"string"},"name":{"type":"integer"}}}
         \\}}}
     ;
     var document = try OpenApi32Document.parseFromJson(std.testing.allocator, source);

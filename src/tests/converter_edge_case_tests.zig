@@ -159,6 +159,36 @@ test "the v3.2 converter resolves allOf conflicts, aliases and closed members" {
     try std.testing.expectEqual(true, document.schemas.?.get("Open").?.additional_properties.?);
 }
 
+test "the v3.2 converter takes the array type and items of an allOf member" {
+    const allocator = std.testing.allocator;
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
+        \\"Names":{"type":"array","items":{"type":"string"}},
+        \\"FromRef":{"description":"d","allOf":[{"$ref":"#/components/schemas/Names"}]},
+        \\"FromInline":{"allOf":[{"type":"array","items":{"type":"integer"}},{"description":"d"}]},
+        \\"OwnItems":{"items":{"type":"boolean"},"allOf":[{"$ref":"#/components/schemas/Names"}]},
+        \\"WithProperties":{"allOf":[{"$ref":"#/components/schemas/Names"},{"type":"object","properties":{"a":{"type":"string"}}}]}
+        \\}}}
+    ;
+    var document = try openapi2zig.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+    const schemas = document.schemas.?;
+
+    const from_ref = schemas.get("FromRef").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.array, from_ref.type.?);
+    try std.testing.expectEqual(openapi2zig.SchemaType.string, from_ref.items.?.type.?);
+
+    const from_inline = schemas.get("FromInline").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.array, from_inline.type.?);
+    try std.testing.expectEqual(openapi2zig.SchemaType.integer, from_inline.items.?.type.?);
+
+    // The composing schema's own items win over a member's.
+    try std.testing.expectEqual(openapi2zig.SchemaType.boolean, schemas.get("OwnItems").?.items.?.type.?);
+
+    // Named properties still make the composition an object.
+    try std.testing.expectEqual(openapi2zig.SchemaType.object, schemas.get("WithProperties").?.type.?);
+}
+
 test "the v3.2 converter merges allOf" {
     var gpa = test_utils.createTestAllocator();
     try expectMergedAllOf(gpa.allocator(), "openapi/v3.2/converter-edge-cases.json");
