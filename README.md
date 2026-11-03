@@ -614,7 +614,7 @@ For OpenAPI 3.1 specifications without `info.version`, the CLI prints a warning 
 
 Ordinary and streaming requests forward declared header parameters. Passing `null`, or leaving an optional field unset with `--parameters-as-struct`, keeps the client default header. Explicit values replace defaults without regard to header-name case. Suffix-style operation IDs also get short resource names, e.g. `resources.messages.create` for `messages_post` and `resources.models.list` for `models_list`.
 
-Generated HTTP calls do not follow redirects, so credentials are not forwarded to a redirect destination. Raw calls retain the 3xx status and response body. Streaming calls return `error.ResponseError` for redirects. Non-streaming response bodies are currently buffered without a size limit; callers should only use trusted endpoints and allow for their response sizes.
+Generated calls without a request body follow up to three redirects, like `std.http.Client.fetch`, and return `error.TooManyHttpRedirects` beyond that. Credentials and other caller headers, including `default_headers`, are only sent while the scheme, host and port stay the same, so a redirect to another origin never receives them. Calls with a request body do not follow redirects: raw calls retain the 3xx status and response body, and streaming calls return `error.ResponseError`. Non-streaming response bodies are currently buffered without a size limit; callers should only use trusted endpoints and allow for their response sizes.
 
 ### Request body content types
 
