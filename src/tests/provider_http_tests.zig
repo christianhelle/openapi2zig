@@ -230,7 +230,7 @@ fn initRedirectClient(hop: *RedirectHop, url_buffer: []u8) !sdk.Client {
     return client;
 }
 
-fn expectRedirectKeepsCredentials(call: *const fn (*sdk.Client) anyerror!void) !void {
+fn expectRedirectKeepsCredentials(call: *const fn (*sdk.Client) anyerror!void, require_authorization: bool) !void {
     var origin: RedirectHop = .{ .listener = try listenLoopback(), .location = "/moved", .redirects = 1, .requests = 2 };
     defer origin.listener.deinit(std.testing.io);
     var url_buffer: [64]u8 = undefined;
@@ -244,6 +244,7 @@ fn expectRedirectKeepsCredentials(call: *const fn (*sdk.Client) anyerror!void) !
     };
     try std.testing.expect(origin.saw_default_header[0] and origin.saw_default_header[1]);
     try std.testing.expectEqual(origin.saw_authorization[0], origin.saw_authorization[1]);
+    if (require_authorization) try std.testing.expect(origin.saw_authorization[0]);
 }
 
 fn expectRedirectDropsCredentials(target_host: []const u8, call: *const fn (*sdk.Client) anyerror!void) !void {
@@ -274,17 +275,16 @@ fn expectRawOk(raw: anytype) !void {
     try std.testing.expectEqual(std.http.Status.ok, response.status);
 }
 
+fn requestRawCall(client: *sdk.Client) anyerror!void {
+    const url = try std.fmt.allocPrint(client.allocator, "{s}/v1/models", .{client.base_url});
+    defer client.allocator.free(url);
+    try expectRawOk(try sdk.requestRaw(client, .GET, url, null));
+}
+
 const redirect_calls = [_]*const fn (*sdk.Client) anyerror!void{
     struct {
         fn call(client: *sdk.Client) anyerror!void {
             try expectRawOk(try sdk.models_listRaw(client));
-        }
-    }.call,
-    struct {
-        fn call(client: *sdk.Client) anyerror!void {
-            const url = try std.fmt.allocPrint(client.allocator, "{s}/v1/models", .{client.base_url});
-            defer client.allocator.free(url);
-            try expectRawOk(try sdk.requestRaw(client, .GET, url, null));
         }
     }.call,
     struct {
@@ -301,15 +301,19 @@ const redirect_calls = [_]*const fn (*sdk.Client) anyerror!void{
 };
 
 test "generated GET calls follow redirects and keep credentials on the same origin" {
-    for (redirect_calls) |call| try expectRedirectKeepsCredentials(call);
+    for (redirect_calls) |call| try expectRedirectKeepsCredentials(call, true);
+    // A raw request carries no operation security, so only the default header is sent.
+    try expectRedirectKeepsCredentials(requestRawCall, false);
 }
 
 test "generated GET calls drop credentials when a redirect changes host" {
     for (redirect_calls) |call| try expectRedirectDropsCredentials("localhost", call);
+    try expectRedirectDropsCredentials("localhost", requestRawCall);
 }
 
 test "generated GET calls drop credentials when a redirect changes port" {
     for (redirect_calls) |call| try expectRedirectDropsCredentials("127.0.0.1", call);
+    try expectRedirectDropsCredentials("127.0.0.1", requestRawCall);
 }
 
 test "origins compare effective ports, schemes and hosts" {
