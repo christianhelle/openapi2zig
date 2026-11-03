@@ -125,9 +125,9 @@ test "generated requests and streams forward optional headers over HTTP" {
         } else if (mode == 2) {
             var callback: TypedCallback = .{};
             if (comptime @hasDecl(sdk, "messages_postOptions")) {
-                try sdk.resources.messages.messages_postStreamEvents(Event, &client, .{ .@"anthropic-version" = "fixture-version", .@"anthropic-user-profile-id" = "profile", .@"anthropic-workspace-id" = "workspace" }, .{ .stream = false }, &callback, null);
+                try sdk.resources.messages.createStreamEvents(Event, &client, .{ .@"anthropic-version" = "fixture-version", .@"anthropic-user-profile-id" = "profile", .@"anthropic-workspace-id" = "workspace" }, .{ .stream = false }, &callback, null);
             } else {
-                try sdk.resources.messages.messages_postStreamEvents(Event, &client, "fixture-version", "profile", "workspace", .{ .stream = false }, &callback, null);
+                try sdk.resources.messages.createStreamEvents(Event, &client, "fixture-version", "profile", "workspace", .{ .stream = false }, &callback, null);
             }
             try std.testing.expectEqual(@as(usize, 1), callback.count);
         } else if (mode == 3) {

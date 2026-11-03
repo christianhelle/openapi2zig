@@ -234,6 +234,21 @@ pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWra
         }
     }
 
+    var stream_aliases = std.ArrayList([]const u8).empty;
+    defer stream_aliases.deinit(self.allocator);
+    for (wrappers) |wrapper| {
+        if (wrapper.segments.len != depth or wrapper.collides or std.mem.eql(u8, wrapper.method_name, wrapper.operation_id)) continue;
+        if (!wrapper.operation.streaming or !std.mem.eql(u8, wrapper.method, "POST")) continue;
+        const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.method_name});
+        try allocated_declarations.append(self.allocator, stream_decl_name);
+        const events_decl_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.method_name});
+        try allocated_declarations.append(self.allocator, events_decl_name);
+        if (containsString(declarations.items, stream_decl_name) or containsString(declarations.items, events_decl_name)) continue;
+        try declarations.append(self.allocator, stream_decl_name);
+        try declarations.append(self.allocator, events_decl_name);
+        try stream_aliases.append(self.allocator, stream_decl_name);
+    }
+
     const outer_scope = self.parameter_scope_names;
     self.parameter_scope_names = declarations.items;
     defer self.parameter_scope_names = outer_scope;
@@ -247,7 +262,12 @@ pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWra
             if (wrapper.operation.streaming and std.mem.eql(u8, wrapper.method, "POST")) {
                 const stream_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{wrapper.operation_id});
                 defer self.allocator.free(stream_name);
-                try self.generateResourceStreamMethods(wrapper, stream_name, indent);
+                try self.generateResourceStreamMethods(wrapper, wrapper.operation_id, stream_name, indent);
+                const alias_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.method_name});
+                defer self.allocator.free(alias_name);
+                if (containsString(stream_aliases.items, alias_name)) {
+                    try self.generateResourceStreamMethods(wrapper, wrapper.method_name, stream_name, indent);
+                }
             }
         }
     }
@@ -328,10 +348,10 @@ pub fn resourceWrapperNameAlloc(self: *UnifiedApiGenerator, wrapper: ResourceWra
     return try std.fmt.allocPrint(self.allocator, "{s}_", .{collision_name});
 }
 
-pub fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, stream_name: []const u8, indent: usize) !void {
-    const stream_method_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
+pub fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, name_prefix: []const u8, stream_name: []const u8, indent: usize) !void {
+    const stream_method_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{name_prefix});
     defer self.allocator.free(stream_method_name);
-    const events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.operation_id});
+    const events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{name_prefix});
     defer self.allocator.free(events_method_name);
 
     try self.appendIndent(indent);

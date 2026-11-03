@@ -45,3 +45,10 @@ test "objects with schema-valued additional properties keep typed field access" 
     defer parsed.deinit();
     try std.testing.expectEqualStrings("one", parsed.value.id.?);
 }
+
+test "stream wrappers offer the short resource name and keep the operation id name" {
+    const messages = fixture.resources.messages;
+    for ([_]bool{ @hasDecl(messages, "create"), @hasDecl(messages, "createStream"), @hasDecl(messages, "createStreamEvents"), @hasDecl(messages, "messages_postStream"), @hasDecl(messages, "messages_postStreamEvents") }) |declared| {
+        try std.testing.expect(declared);
+    }
+}
