@@ -95,7 +95,7 @@ test "helper name registry cleans up every allocation failure" {
     try std.testing.checkAllAllocationFailures(std.testing.allocator, exerciseHelperNames, .{});
 }
 
-test "generated HTTP call sites explicitly disable redirects" {
+test "generated streaming requests do not follow redirects" {
     const allocator = std.testing.allocator;
     const source = try readFixture();
     defer allocator.free(source);
@@ -105,7 +105,7 @@ test "generated HTTP call sites explicitly disable redirects" {
     defer generator.deinit();
     const code = try generator.generate(document);
     defer allocator.free(code);
-    for ([_][]const u8{ "client.http.fetch(.{", "client.http.request(.POST, uri, .{" }) |call| {
+    for ([_][]const u8{"client.http.request(.POST, uri, .{"}) |call| {
         var offset: usize = 0;
         var count: usize = 0;
         while (std.mem.indexOfPos(u8, code, offset, call)) |start| {

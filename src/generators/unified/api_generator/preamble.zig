@@ -229,6 +229,80 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    try headers.append(allocator, .{ .name = name, .value = value });
         \\}
         \\
+        \\/// Only bodiless requests can be replayed. Credentials and other caller
+        \\/// headers stay on the original origin, because std.http.Client keeps
+        \\/// extra_headers across hosts and never sends privileged_headers.
+        \\fn fetchFollowingRedirects(client: *Client, method: std.http.Method, uri: std.Uri, headers: []const std.http.Header, payload: ?[]const u8, response_writer: ?*std.Io.Writer) !std.http.Client.FetchResult {
+        \\    if (payload != null) return client.http.fetch(.{
+        \\        .redirect_behavior = .unhandled,
+        \\        .location = .{ .uri = uri },
+        \\        .method = method,
+        \\        .extra_headers = headers,
+        \\        .payload = payload,
+        \\        .response_writer = response_writer,
+        \\    });
+        \\
+        \\    var location_storage: [8 * 1024]u8 = undefined;
+        \\    var location_buffer: []u8 = &location_storage;
+        \\    var current_uri = uri;
+        \\    var current_method = method;
+        \\    var current_headers = headers;
+        \\    var remaining_redirects: u8 = 3;
+        \\    while (true) {
+        \\        var req = try client.http.request(current_method, current_uri, .{ .redirect_behavior = .unhandled, .extra_headers = current_headers });
+        \\        defer req.deinit();
+        \\        try req.sendBodiless();
+        \\        var response = try req.receiveHead(&.{});
+        \\        const status = response.head.status;
+        \\        const location = switch (status) {
+        \\            .moved_permanently, .found, .see_other, .temporary_redirect, .permanent_redirect => response.head.location,
+        \\            else => null,
+        \\        };
+        \\        if (location) |target| {
+        \\            if (remaining_redirects == 0) return error.TooManyHttpRedirects;
+        \\            remaining_redirects -= 1;
+        \\            if (target.len > location_buffer.len) return error.HttpRedirectLocationOversize;
+        \\            @memcpy(location_buffer[0..target.len], target);
+        \\            const next_uri = try current_uri.resolveInPlace(target.len, &location_buffer);
+        \\            if (!isSameOrigin(current_uri, next_uri)) current_headers = &.{};
+        \\            if (status == .see_other or (current_method == .POST and status != .temporary_redirect and status != .permanent_redirect)) current_method = .GET;
+        \\            current_uri = next_uri;
+        \\            continue;
+        \\        }
+        \\
+        \\        const writer = response_writer orelse {
+        \\            const reader = response.reader(&.{});
+        \\            _ = reader.discardRemaining() catch |err| switch (err) {
+        \\                error.ReadFailed => return response.bodyErr().?,
+        \\            };
+        \\            return .{ .status = status };
+        \\        };
+        \\        const decompress_buffer: []u8 = switch (response.head.content_encoding) {
+        \\            .identity => &.{},
+        \\            .zstd => try client.allocator.alloc(u8, std.compress.zstd.default_window_len),
+        \\            .deflate, .gzip => try client.allocator.alloc(u8, std.compress.flate.max_window_len),
+        \\            .compress => return error.UnsupportedCompressionMethod,
+        \\        };
+        \\        defer client.allocator.free(decompress_buffer);
+        \\        var transfer_buffer: [64]u8 = undefined;
+        \\        var decompress: std.http.Decompress = undefined;
+        \\        const reader = response.readerDecompressing(&transfer_buffer, &decompress, decompress_buffer);
+        \\        _ = reader.streamRemaining(writer) catch |err| switch (err) {
+        \\            error.ReadFailed => return response.bodyErr().?,
+        \\            else => |e| return e,
+        \\        };
+        \\        return .{ .status = status };
+        \\    }
+        \\}
+        \\
+        \\fn isSameOrigin(left: std.Uri, right: std.Uri) bool {
+        \\    var left_buffer: [std.Io.net.HostName.max_len]u8 = undefined;
+        \\    var right_buffer: [std.Io.net.HostName.max_len]u8 = undefined;
+        \\    const left_host = std.Io.net.HostName.fromUri(left, &left_buffer) catch return false;
+        \\    const right_host = std.Io.net.HostName.fromUri(right, &right_buffer) catch return false;
+        \\    return std.ascii.eqlIgnoreCase(left.scheme, right.scheme) and left_host.eql(right_host) and left.port == right.port;
+        \\}
+        \\
         \\pub fn requestRaw(client: *Client, method: std.http.Method, url: []const u8, payload: ?[]const u8) !RawResponse {
         \\    return requestRawWithContentType(client, method, url, payload, "application/json");
         \\}
@@ -254,14 +328,7 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    defer response_body.deinit();
         \\
         \\    const start = std.Io.Clock.awake.now(client.io);
-        \\    const result = client.http.fetch(.{
-        \\        .redirect_behavior = .unhandled,
-        \\        .location = .{ .uri = uri },
-        \\        .method = method,
-        \\        .extra_headers = headers.items,
-        \\        .payload = payload,
-        \\        .response_writer = &response_body.writer,
-        \\    }) catch |err| {
+        \\    const result = fetchFollowingRedirects(client, method, uri, headers.items, payload, &response_body.writer) catch |err| {
         \\        if (client.http_observer) |obs| {
         \\            if (obs.onError) |cb| cb(obs.ctx, method, url, @errorName(err));
         \\        }
@@ -298,14 +365,7 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    defer response_body.deinit();
         \\
         \\    const start = std.Io.Clock.awake.now(client.io);
-        \\    const result = client.http.fetch(.{
-        \\        .redirect_behavior = .unhandled,
-        \\        .location = .{ .uri = uri },
-        \\        .method = method,
-        \\        .extra_headers = headers.items,
-        \\        .payload = payload,
-        \\        .response_writer = &response_body.writer,
-        \\    }) catch |err| {
+        \\    const result = fetchFollowingRedirects(client, method, uri, headers.items, payload, &response_body.writer) catch |err| {
         \\        if (client.http_observer) |obs| {
         \\            if (obs.onError) |cb| cb(obs.ctx, method, url, @errorName(err));
         \\        }

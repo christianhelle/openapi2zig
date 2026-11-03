@@ -14,7 +14,9 @@
         "responses": { "200": { "description": "ok", "content": { "application/json": { "schema": { "type": "object" } } } } }
       }
     },
-    "/v1/models": { "get": { "operationId": "models_list", "responses": { "200": { "description": "ok" } } } }
+    "/v1/models": { "get": { "operationId": "models_list", "responses": { "200": { "description": "ok" } } } },
+    "/v1/direct-empty": { "get": { "responses": { "200": { "description": "ok" } } } },
+    "/v1/direct-body": { "get": { "responses": { "200": { "description": "ok", "content": { "application/json": { "schema": { "type": "object" } } } } } } }
   },
   "components": {
     "schemas": {

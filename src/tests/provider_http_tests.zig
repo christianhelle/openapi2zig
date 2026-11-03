@@ -160,3 +160,162 @@ test "generated requests and streams forward optional headers over HTTP" {
         if (context.failure) |err| return err;
     }
 }
+
+const RedirectHop = struct {
+    listener: std.Io.net.Server,
+    location: ?[]const u8 = null,
+    /// Requests answered with `location` before a final 200 response.
+    redirects: usize = 0,
+    requests: usize = 1,
+    saw_authorization: [8]bool = @splat(false),
+    saw_default_header: [8]bool = @splat(false),
+    failure: ?anyerror = null,
+
+    fn serve(self: *RedirectHop) void {
+        for (0..self.requests) |index| {
+            self.handle(index) catch |err| {
+                self.failure = err;
+                return;
+            };
+        }
+    }
+
+    fn handle(self: *RedirectHop, index: usize) !void {
+        const io = std.testing.io;
+        var connection = try self.listener.accept(io);
+        defer connection.close(io);
+        var in_buffer: [8192]u8 = undefined;
+        var out_buffer: [8192]u8 = undefined;
+        var input = connection.reader(io, &in_buffer);
+        var output = connection.writer(io, &out_buffer);
+        var server = std.http.Server.init(&input.interface, &output.interface);
+        var request = try server.receiveHead();
+        var headers = request.iterateHeaders();
+        while (headers.next()) |header| {
+            if (std.ascii.eqlIgnoreCase(header.name, "authorization")) self.saw_authorization[index] = true;
+            if (std.ascii.eqlIgnoreCase(header.name, "x-provider-key")) self.saw_default_header[index] = true;
+        }
+        if (index < self.redirects) {
+            try request.respond("", .{
+                .status = .moved_permanently,
+                .keep_alive = false,
+                .extra_headers = &.{.{ .name = "Location", .value = self.location.? }},
+            });
+            return;
+        }
+        try request.respond("{}", .{
+            .keep_alive = false,
+            .extra_headers = &.{.{ .name = "Content-Type", .value = "application/json" }},
+        });
+    }
+};
+
+fn unblockAccept(hop: *RedirectHop) void {
+    const stream = hop.listener.socket.address.connect(std.testing.io, .{ .mode = .stream }) catch return;
+    stream.close(std.testing.io);
+}
+
+fn listenLoopback() !std.Io.net.Server {
+    const address: std.Io.net.IpAddress = .{ .ip4 = std.Io.net.Ip4Address.loopback(0) };
+    return address.listen(std.testing.io, .{});
+}
+
+fn initRedirectClient(hop: *RedirectHop, url_buffer: []u8) !sdk.Client {
+    var client = sdk.Client.init(std.testing.allocator, std.testing.io, "fixture-key");
+    client.withBaseUrl(try std.fmt.bufPrint(url_buffer, "http://127.0.0.1:{d}", .{hop.listener.socket.address.getPort()}));
+    client.default_headers = &.{.{ .name = "X-Provider-Key", .value = "fixture-secret" }};
+    return client;
+}
+
+fn expectRedirectKeepsCredentials(call: *const fn (*sdk.Client) anyerror!void) !void {
+    var origin: RedirectHop = .{ .listener = try listenLoopback(), .location = "/moved", .redirects = 1, .requests = 2 };
+    defer origin.listener.deinit(std.testing.io);
+    var url_buffer: [64]u8 = undefined;
+    var client = try initRedirectClient(&origin, &url_buffer);
+    defer client.deinit();
+    const thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
+    defer thread.join();
+    call(&client) catch |err| {
+        unblockAccept(&origin);
+        return err;
+    };
+    try std.testing.expect(origin.saw_default_header[0] and origin.saw_default_header[1]);
+    try std.testing.expectEqual(origin.saw_authorization[0], origin.saw_authorization[1]);
+}
+
+fn expectRedirectDropsCredentials(target_host: []const u8, call: *const fn (*sdk.Client) anyerror!void) !void {
+    var target: RedirectHop = .{ .listener = try listenLoopback() };
+    defer target.listener.deinit(std.testing.io);
+    var location_buffer: [64]u8 = undefined;
+    const location = try std.fmt.bufPrint(&location_buffer, "http://{s}:{d}/moved", .{ target_host, target.listener.socket.address.getPort() });
+    var origin: RedirectHop = .{ .listener = try listenLoopback(), .location = location, .redirects = 1 };
+    defer origin.listener.deinit(std.testing.io);
+    var url_buffer: [64]u8 = undefined;
+    var client = try initRedirectClient(&origin, &url_buffer);
+    defer client.deinit();
+    const origin_thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
+    defer origin_thread.join();
+    const target_thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&target});
+    defer target_thread.join();
+    call(&client) catch |err| {
+        unblockAccept(&target);
+        return err;
+    };
+    try std.testing.expect(origin.saw_default_header[0]);
+    try std.testing.expect(!target.saw_authorization[0] and !target.saw_default_header[0]);
+}
+
+fn expectRawOk(raw: anytype) !void {
+    var response = raw;
+    defer response.deinit();
+    try std.testing.expectEqual(std.http.Status.ok, response.status);
+}
+
+const redirect_calls = [_]*const fn (*sdk.Client) anyerror!void{
+    struct {
+        fn call(client: *sdk.Client) anyerror!void {
+            try expectRawOk(try sdk.models_listRaw(client));
+        }
+    }.call,
+    struct {
+        fn call(client: *sdk.Client) anyerror!void {
+            const url = try std.fmt.allocPrint(client.allocator, "{s}/v1/models", .{client.base_url});
+            defer client.allocator.free(url);
+            try expectRawOk(try sdk.requestRaw(client, .GET, url, null));
+        }
+    }.call,
+    struct {
+        fn call(client: *sdk.Client) anyerror!void {
+            try sdk.@"operationv1/direct-empty"(client);
+        }
+    }.call,
+    struct {
+        fn call(client: *sdk.Client) anyerror!void {
+            var response = try sdk.@"operationv1/direct-body"(client);
+            response.deinit();
+        }
+    }.call,
+};
+
+test "generated GET calls follow redirects and keep credentials on the same origin" {
+    for (redirect_calls) |call| try expectRedirectKeepsCredentials(call);
+}
+
+test "generated GET calls drop credentials when a redirect changes host" {
+    for (redirect_calls) |call| try expectRedirectDropsCredentials("localhost", call);
+}
+
+test "generated GET calls drop credentials when a redirect changes port" {
+    for (redirect_calls) |call| try expectRedirectDropsCredentials("127.0.0.1", call);
+}
+
+test "generated GET calls give up after three redirects" {
+    var origin: RedirectHop = .{ .listener = try listenLoopback(), .location = "/moved", .redirects = 4, .requests = 4 };
+    defer origin.listener.deinit(std.testing.io);
+    var url_buffer: [64]u8 = undefined;
+    var client = try initRedirectClient(&origin, &url_buffer);
+    defer client.deinit();
+    const thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
+    defer thread.join();
+    try std.testing.expectError(error.TooManyHttpRedirects, sdk.models_listRaw(&client));
+}
