@@ -166,7 +166,9 @@ const RedirectHop = struct {
     location: ?[]const u8 = null,
     /// Requests answered with `location` before a final 200 response.
     redirects: usize = 0,
+    redirect_status: std.http.Status = .moved_permanently,
     requests: usize = 1,
+    saw_method: [8]?std.http.Method = @splat(null),
     saw_authorization: [8]bool = @splat(false),
     saw_default_header: [8]bool = @splat(false),
     failure: ?anyerror = null,
@@ -190,6 +192,7 @@ const RedirectHop = struct {
         var output = connection.writer(io, &out_buffer);
         var server = std.http.Server.init(&input.interface, &output.interface);
         var request = try server.receiveHead();
+        self.saw_method[index] = request.head.method;
         var headers = request.iterateHeaders();
         while (headers.next()) |header| {
             if (std.ascii.eqlIgnoreCase(header.name, "authorization")) self.saw_authorization[index] = true;
@@ -197,7 +200,7 @@ const RedirectHop = struct {
         }
         if (index < self.redirects) {
             try request.respond("", .{
-                .status = .moved_permanently,
+                .status = self.redirect_status,
                 .keep_alive = false,
                 .extra_headers = &.{.{ .name = "Location", .value = self.location.? }},
             });
@@ -307,6 +310,34 @@ test "generated GET calls drop credentials when a redirect changes host" {
 
 test "generated GET calls drop credentials when a redirect changes port" {
     for (redirect_calls) |call| try expectRedirectDropsCredentials("127.0.0.1", call);
+}
+
+test "a 303 redirect keeps a HEAD request as HEAD" {
+    var origin: RedirectHop = .{ .listener = try listenLoopback(), .location = "/moved", .redirects = 1, .redirect_status = .see_other, .requests = 2 };
+    defer origin.listener.deinit(std.testing.io);
+    var url_buffer: [64]u8 = undefined;
+    var client = try initRedirectClient(&origin, &url_buffer);
+    defer client.deinit();
+    const thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
+    defer thread.join();
+    const url = try std.fmt.allocPrint(client.allocator, "{s}/v1/models", .{client.base_url});
+    defer client.allocator.free(url);
+    try expectRawOk(try sdk.requestRaw(&client, .HEAD, url, null));
+    try std.testing.expectEqual(std.http.Method.HEAD, origin.saw_method[1].?);
+}
+
+test "a 303 redirect turns other bodiless methods into GET" {
+    var origin: RedirectHop = .{ .listener = try listenLoopback(), .location = "/moved", .redirects = 1, .redirect_status = .see_other, .requests = 2 };
+    defer origin.listener.deinit(std.testing.io);
+    var url_buffer: [64]u8 = undefined;
+    var client = try initRedirectClient(&origin, &url_buffer);
+    defer client.deinit();
+    const thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
+    defer thread.join();
+    const url = try std.fmt.allocPrint(client.allocator, "{s}/v1/models", .{client.base_url});
+    defer client.allocator.free(url);
+    try expectRawOk(try sdk.requestRaw(&client, .DELETE, url, null));
+    try std.testing.expectEqual(std.http.Method.GET, origin.saw_method[1].?);
 }
 
 test "generated GET calls give up after three redirects" {

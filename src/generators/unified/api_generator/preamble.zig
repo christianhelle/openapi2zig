@@ -265,7 +265,7 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\            @memcpy(location_buffer[0..target.len], target);
         \\            const next_uri = try current_uri.resolveInPlace(target.len, &location_buffer);
         \\            if (!isSameOrigin(current_uri, next_uri)) current_headers = &.{};
-        \\            if (status == .see_other or (current_method == .POST and status != .temporary_redirect and status != .permanent_redirect)) current_method = .GET;
+        \\            if (current_method != .HEAD and status == .see_other or (current_method == .POST and status != .temporary_redirect and status != .permanent_redirect)) current_method = .GET;
         \\            current_uri = next_uri;
         \\            continue;
         \\        }
