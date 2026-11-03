@@ -423,10 +423,7 @@ test "every OpenAPI version tolerates a missing info version and rejects a non-s
 
         const invalid = try std.mem.concat(allocator, u8, &.{ "{", header, ",\"info\":{\"title\":\"t\",\"version\":42},\"paths\":{}}" });
         defer allocator.free(invalid);
-        // Document parsers do not unwind earlier fields when a later field fails.
-        var arena = std.heap.ArenaAllocator.init(allocator);
-        defer arena.deinit();
-        try std.testing.expectError(error.InvalidInfoVersion, api.parseToUnified(arena.allocator(), invalid));
+        try std.testing.expectError(error.InvalidInfoVersion, api.parseToUnified(allocator, invalid));
     }
 }
 

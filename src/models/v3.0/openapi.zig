@@ -53,6 +53,7 @@ pub const OpenApiDocument = struct {
         defer parsed.deinit();
         const root = parsed.value;
         const openapi_str = try allocator.dupe(u8, root.object.get("openapi").?.string);
+        errdefer allocator.free(openapi_str);
         const info = try Info.parseFromJson(allocator, root.object.get("info").?);
         const paths = try Paths.parseFromJson(allocator, root.object.get("paths").?);
         const externalDocs = if (root.object.get("externalDocs")) |val| try ExternalDocumentation.parseFromJson(allocator, val) else null;

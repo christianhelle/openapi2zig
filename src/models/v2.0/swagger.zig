@@ -103,6 +103,7 @@ pub const SwaggerDocument = struct {
         defer parsed.deinit();
         const root = parsed.value;
         const swagger_str = try allocator.dupe(u8, root.object.get("swagger").?.string);
+        errdefer allocator.free(swagger_str);
         const info = try Info.parseFromJson(allocator, root.object.get("info").?);
         const paths = try Paths.parseFromJson(allocator, root.object.get("paths").?);
         const host = if (root.object.get("host")) |val| try allocator.dupe(u8, val.string) else null;
