@@ -312,6 +312,27 @@ test "generated GET calls drop credentials when a redirect changes port" {
     for (redirect_calls) |call| try expectRedirectDropsCredentials("127.0.0.1", call);
 }
 
+test "origins compare effective ports, schemes and hosts" {
+    const same = [_][2][]const u8{
+        .{ "https://api.example/a", "https://api.example:443/b" },
+        .{ "http://api.example:80/a", "http://api.example/b" },
+        .{ "https://api.example:8443/a", "https://API.example:8443/b" },
+    };
+    for (same) |pair| {
+        try std.testing.expect(sdk.isSameOrigin(try std.Uri.parse(pair[0]), try std.Uri.parse(pair[1])));
+    }
+    const different = [_][2][]const u8{
+        .{ "https://api.example/a", "http://api.example/a" },
+        .{ "https://api.example/a", "http://api.example:443/a" },
+        .{ "https://api.example/a", "https://api.example:8443/a" },
+        .{ "http://api.example/a", "http://api.example:443/a" },
+        .{ "https://api.example/a", "https://other.example/a" },
+    };
+    for (different) |pair| {
+        try std.testing.expect(!sdk.isSameOrigin(try std.Uri.parse(pair[0]), try std.Uri.parse(pair[1])));
+    }
+}
+
 test "a 303 redirect keeps a HEAD request as HEAD" {
     var origin: RedirectHop = .{ .listener = try listenLoopback(), .location = "/moved", .redirects = 1, .redirect_status = .see_other, .requests = 2 };
     defer origin.listener.deinit(std.testing.io);

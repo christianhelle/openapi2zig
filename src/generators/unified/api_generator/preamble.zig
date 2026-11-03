@@ -295,12 +295,22 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    }
         \\}
         \\
-        \\fn isSameOrigin(left: std.Uri, right: std.Uri) bool {
+        \\/// A URI that omits its port uses the default of its scheme.
+        \\fn originPort(uri: std.Uri) ?u16 {
+        \\    if (uri.port) |port| return port;
+        \\    const protocol = std.http.Client.Protocol.fromUri(uri) orelse return null;
+        \\    return switch (protocol) {
+        \\        .plain => 80,
+        \\        .tls => 443,
+        \\    };
+        \\}
+        \\
+        \\pub fn isSameOrigin(left: std.Uri, right: std.Uri) bool {
         \\    var left_buffer: [std.Io.net.HostName.max_len]u8 = undefined;
         \\    var right_buffer: [std.Io.net.HostName.max_len]u8 = undefined;
         \\    const left_host = std.Io.net.HostName.fromUri(left, &left_buffer) catch return false;
         \\    const right_host = std.Io.net.HostName.fromUri(right, &right_buffer) catch return false;
-        \\    return std.ascii.eqlIgnoreCase(left.scheme, right.scheme) and left_host.eql(right_host) and left.port == right.port;
+        \\    return std.ascii.eqlIgnoreCase(left.scheme, right.scheme) and left_host.eql(right_host) and originPort(left) == originPort(right);
         \\}
         \\
         \\pub fn requestRaw(client: *Client, method: std.http.Method, url: []const u8, payload: ?[]const u8) !RawResponse {
