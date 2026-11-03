@@ -216,21 +216,22 @@ pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWra
 
     for (wrappers) |wrapper| {
         if (wrapper.segments.len == depth) {
+            try allocated_declarations.ensureUnusedCapacity(self.allocator, 4);
             const name = try self.resourceWrapperNameAlloc(wrapper);
-            try allocated_declarations.append(self.allocator, name);
+            allocated_declarations.appendAssumeCapacity(name);
             try declarations.append(self.allocator, name);
             if (self.hasReturnValue(wrapper.method, wrapper.operation)) {
                 const result_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{name});
-                try allocated_declarations.append(self.allocator, result_name);
+                allocated_declarations.appendAssumeCapacity(result_name);
                 try declarations.append(self.allocator, result_name);
             }
             if (wrapper.operation.streaming and std.mem.eql(u8, wrapper.method, "POST")) {
                 const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
+                allocated_declarations.appendAssumeCapacity(stream_decl_name);
                 try declarations.append(self.allocator, stream_decl_name);
-                try allocated_declarations.append(self.allocator, stream_decl_name);
                 const events_decl_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.operation_id});
+                allocated_declarations.appendAssumeCapacity(events_decl_name);
                 try declarations.append(self.allocator, events_decl_name);
-                try allocated_declarations.append(self.allocator, events_decl_name);
             }
         }
     }
@@ -240,10 +241,11 @@ pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWra
     for (wrappers) |wrapper| {
         if (wrapper.segments.len != depth or wrapper.collides or std.mem.eql(u8, wrapper.method_name, wrapper.operation_id)) continue;
         if (!wrapper.operation.streaming or !std.mem.eql(u8, wrapper.method, "POST")) continue;
+        try allocated_declarations.ensureUnusedCapacity(self.allocator, 2);
         const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.method_name});
-        try allocated_declarations.append(self.allocator, stream_decl_name);
+        allocated_declarations.appendAssumeCapacity(stream_decl_name);
         const events_decl_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.method_name});
-        try allocated_declarations.append(self.allocator, events_decl_name);
+        allocated_declarations.appendAssumeCapacity(events_decl_name);
         if (containsString(declarations.items, stream_decl_name) or containsString(declarations.items, events_decl_name)) continue;
         // Declaring an inlined model's name here would make it ambiguous inside the wrappers.
         if (self.isInlinedModelName(stream_decl_name) or self.isInlinedModelName(events_decl_name)) continue;

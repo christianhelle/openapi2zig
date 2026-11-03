@@ -3,6 +3,7 @@ const api = @import("../lib.zig");
 const Info = @import("../models/v3.1/info.zig").Info;
 const common = @import("../models/common/document.zig");
 const detection = @import("../models/common/streaming.zig");
+const test_utils = @import("test_utils.zig");
 
 fn readFixture() ![]u8 {
     return std.Io.Dir.cwd().readFileAlloc(std.testing.io, "openapi/v3.1/regression-provider-schemas.json", std.testing.allocator, .limited(1024 * 1024));
@@ -256,6 +257,25 @@ fn exerciseStreamingWorklist(allocator: std.mem.Allocator) !void {
     schemas.getPtr(names[count - 1]).?.* = .{};
     try std.testing.expect(!try detectForSchema(allocator, .{ .properties = properties }, schemas));
     try std.testing.expect(!try detectForSchema(allocator, .{ .ref = refs[0] }, schemas));
+}
+
+fn exerciseResourceWrapperGeneration(allocator: std.mem.Allocator, document: common.UnifiedDocument) !void {
+    var generator = api.UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    defer generator.deinit();
+    const code = try generator.generate(document);
+    allocator.free(code);
+}
+
+test "resource wrapper generation frees declaration names when allocation fails" {
+    const source =
+        \\{"openapi":"3.1.0","info":{"title":"t","version":"1"},"paths":{"/v1/messages":{"post":{"operationId":"messages_post",
+        \\"requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"stream":{"type":"boolean"}}}}}},
+        \\"responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"type":"object"}}}}}}}}}
+    ;
+    var document = try api.parseToUnified(std.testing.allocator, source);
+    defer document.deinit(std.testing.allocator);
+    var no_resize: test_utils.NoResizeAllocator = .{ .child = std.testing.allocator };
+    try std.testing.checkAllAllocationFailures(no_resize.allocator(), exerciseResourceWrapperGeneration, .{document});
 }
 
 test "stream traversal handles deep shared DAGs for body and boolean queries" {
