@@ -345,6 +345,7 @@ test "a 303 redirect keeps a HEAD request as HEAD" {
     defer client.deinit();
     const thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
     defer thread.join();
+    defer unblockAccept(&origin);
     const url = try std.fmt.allocPrint(client.allocator, "{s}/v1/models", .{client.base_url});
     defer client.allocator.free(url);
     try expectRawOk(try sdk.requestRaw(&client, .HEAD, url, null));
@@ -359,6 +360,7 @@ test "a 303 redirect turns other bodiless methods into GET" {
     defer client.deinit();
     const thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
     defer thread.join();
+    defer unblockAccept(&origin);
     const url = try std.fmt.allocPrint(client.allocator, "{s}/v1/models", .{client.base_url});
     defer client.allocator.free(url);
     try expectRawOk(try sdk.requestRaw(&client, .DELETE, url, null));
