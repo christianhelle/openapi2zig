@@ -409,3 +409,34 @@ test "every OpenAPI version tolerates a missing info version and rejects a non-s
         try std.testing.expectError(error.InvalidInfoVersion, api.parseToUnified(arena.allocator(), invalid));
     }
 }
+
+const stream_detection_versions = [_][]const u8{ "3.0.3", "3.1.0", "3.2.0" };
+
+fn expectStreamDetection(version: []const u8, path: []const u8, expected: bool) !void {
+    const allocator = std.testing.allocator;
+    const source = try std.mem.concat(allocator, u8, &.{ "{\"openapi\":\"", version, stream_detection_document });
+    defer allocator.free(source);
+    var document = try api.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+    try std.testing.expectEqual(expected, document.paths.get(path).?.post.?.streaming);
+}
+
+const stream_detection_document =
+    \\","info":{"title":"t","version":"1"},
+    \\"paths":{
+    \\"/direct":{"post":{"operationId":"direct_ref","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Streamable"}}}},"responses":{"200":{"description":"ok"}}}},
+    \\"/reusable":{"post":{"operationId":"reusable_body","requestBody":{"$ref":"#/components/requestBodies/Body"},"responses":{"200":{"description":"ok"}}}},
+    \\"/alias":{"post":{"operationId":"alias_body","requestBody":{"$ref":"#/components/requestBodies/Alias"},"responses":{"200":{"description":"ok"}}}},
+    \\"/allof":{"post":{"operationId":"inline_allof","requestBody":{"content":{"application/json":{"schema":{"allOf":[{"$ref":"#/components/schemas/Streamable"},{"type":"object","properties":{"extra":{"type":"string"}}}]}}}},"responses":{"200":{"description":"ok"}}}},
+    \\"/never":{"post":{"operationId":"never_streams","requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"stream":{"type":"boolean","enum":[false]}}}}}},"responses":{"200":{"description":"ok"}}}}
+    \\},
+    \\"components":{"schemas":{"Streamable":{"type":"object","properties":{"stream":{"type":"boolean"}}}},
+    \\"requestBodies":{"Body":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Streamable"}}}},"Alias":{"$ref":"#/components/requestBodies/Body"}}}}
+;
+
+test "stream fields whose enum excludes true do not stream in any version" {
+    for (stream_detection_versions) |version| {
+        try expectStreamDetection(version, "/direct", true);
+        try expectStreamDetection(version, "/never", false);
+    }
+}

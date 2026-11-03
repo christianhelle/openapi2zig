@@ -424,7 +424,7 @@ pub const OpenApiConverter = struct {
             .required = required,
             .properties = properties,
             .items = items,
-            .enum_values = null,
+            .enum_values = if (schema_type == .boolean) schema.enum_values else null,
             .default = schema.default,
             .example = schema.example,
             .additional_properties = additional_properties,
