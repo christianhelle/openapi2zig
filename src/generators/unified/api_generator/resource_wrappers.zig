@@ -55,7 +55,8 @@ pub fn generateResourceWrappers(self: *UnifiedApiGenerator, document: UnifiedDoc
             self.allocator.free(segments);
         }
 
-        try wrappers.append(self.allocator, .{
+        try wrappers.ensureUnusedCapacity(self.allocator, 1);
+        wrappers.appendAssumeCapacity(.{
             .segments = segments,
             .method_name = try self.resourceMethodName(operation_id, op_ref.method),
             .operation_id = operation_id,
@@ -572,7 +573,8 @@ pub fn resourceSegmentsFromPath(self: *UnifiedApiGenerator, path: []const u8) ![
     var iterator = std.mem.splitScalar(u8, path, '/');
     while (iterator.next()) |raw_segment| {
         if (raw_segment.len == 0 or isVersionSegment(raw_segment) or isPathParam(raw_segment)) continue;
-        try segments.append(self.allocator, try self.sanitizeIdentifierAlloc(raw_segment));
+        try segments.ensureUnusedCapacity(self.allocator, 1);
+        segments.appendAssumeCapacity(try self.sanitizeIdentifierAlloc(raw_segment));
     }
     return try segments.toOwnedSlice(self.allocator);
 }
