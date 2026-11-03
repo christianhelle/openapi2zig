@@ -325,6 +325,9 @@ pub const OpenApi32Converter = struct {
         var merged_properties = std.StringHashMap(Schema).init(self.allocator);
         var required_list = std.ArrayList([]const u8).empty;
         var additional_properties = convertAdditionalProperties(schema.additionalProperties);
+        const declared_type = self.declaredSchemaType(schema);
+        var boolean_type = declared_type == .boolean;
+        var enum_values = schema.enum_values;
 
         if (schema.allOf) |all_of| {
             for (all_of) |item| {
@@ -335,6 +338,16 @@ pub const OpenApi32Converter = struct {
                 try self.takeProperties(&merged_properties, &converted);
                 if (converted.required) |required| try self.mergeRequiredNames(&required_list, required);
                 additional_properties = mergeAdditionalProperties(additional_properties, converted.additional_properties);
+                if (converted.type == .boolean) boolean_type = true;
+                // Preserve an enum that rules true out when flattening a
+                // boolean allOf. This is not a general satisfiability solver.
+                if (converted.enum_values) |values| {
+                    var permits_true = false;
+                    for (values) |value| {
+                        if (value == .bool and value.bool) permits_true = true;
+                    }
+                    if (!permits_true or enum_values == null) enum_values = values;
+                }
                 converted.deinit(self.allocator);
             }
         }
@@ -355,52 +368,63 @@ pub const OpenApi32Converter = struct {
 
         if (schema.required) |required| try self.mergeRequiredNames(&required_list, required);
 
+        const items = try self.convertSchemaItems(schema);
         const required = if (required_list.items.len > 0) try required_list.toOwnedSlice(self.allocator) else null;
         const has_properties = merged_properties.count() > 0;
         if (!has_properties) merged_properties.deinit();
+        const merged_type: SchemaType = if (boolean_type and !has_properties) .boolean else declared_type orelse .object;
 
         return Schema{
-            .type = .object,
+            .type = merged_type,
             .ref = null,
             .title = schema.title,
             .description = schema.description,
             .format = schema.format,
             .required = required,
             .properties = if (has_properties) merged_properties else null,
-            .items = null,
-            .enum_values = null,
+            .items = items,
+            .enum_values = if (merged_type == .boolean) enum_values else null,
             .default = schema.default,
             .example = schema.example,
             .additional_properties = additional_properties,
-            .nullable = schema.nullable orelse false,
+            .nullable = isNullable(schema),
         };
+    }
+
+    /// Handle type_array (e.g. ["string", "null"]) by using the first non-null type
+    fn declaredSchemaType(self: *OpenApi32Converter, schema: Schema32) ?SchemaType {
+        if (schema.type) |type_str| return self.convertSchemaType(type_str);
+        if (schema.type_array) |type_arr| {
+            for (type_arr) |t| {
+                if (!std.mem.eql(u8, t, "null")) return self.convertSchemaType(t);
+            }
+        }
+        return null;
+    }
+
+    fn isNullable(schema: Schema32) bool {
+        if (schema.nullable) |nullable| return nullable;
+        if (schema.type_array) |type_arr| {
+            for (type_arr) |t| {
+                if (std.mem.eql(u8, t, "null")) return true;
+            }
+        }
+        return false;
+    }
+
+    fn convertSchemaItems(self: *OpenApi32Converter, schema: Schema32) anyerror!?*Schema {
+        const items_ref = schema.items orelse return null;
+        const items_schema = try self.convertSchemaOrReference(items_ref);
+        const items_ptr = try self.allocator.create(Schema);
+        items_ptr.* = items_schema;
+        return items_ptr;
     }
 
     fn convertSchema(self: *OpenApi32Converter, schema: Schema32) anyerror!Schema {
         if (schema.allOf != null) return try self.convertAllOfSchema(schema);
 
-        // Handle type_array (e.g. ["string", "null"]) by using the first non-null type
-        const schema_type = blk: {
-            if (schema.type) |type_str| {
-                break :blk self.convertSchemaType(type_str);
-            }
-            if (schema.type_array) |type_arr| {
-                for (type_arr) |t| {
-                    if (!std.mem.eql(u8, t, "null")) {
-                        break :blk self.convertSchemaType(t);
-                    }
-                }
-            }
-            break :blk null;
-        };
-        const nullable = schema.nullable orelse blk: {
-            if (schema.type_array) |type_arr| {
-                for (type_arr) |t| {
-                    if (std.mem.eql(u8, t, "null")) break :blk true;
-                }
-            }
-            break :blk false;
-        };
+        const schema_type = self.declaredSchemaType(schema);
+        const nullable = isNullable(schema);
         const title = schema.title;
         const description = schema.description;
         const format = schema.format;
@@ -421,12 +445,7 @@ pub const OpenApi32Converter = struct {
             }
             break :blk props_map;
         } else null;
-        const items = if (schema.items) |items_ref| blk: {
-            const items_schema = try self.convertSchemaOrReference(items_ref);
-            const items_ptr = try self.allocator.create(Schema);
-            items_ptr.* = items_schema;
-            break :blk items_ptr;
-        } else null;
+        const items = try self.convertSchemaItems(schema);
         const additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
             .boolean => |b| b,
             .schema_or_reference => null,

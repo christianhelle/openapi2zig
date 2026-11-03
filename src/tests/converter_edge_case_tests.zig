@@ -91,6 +91,49 @@ test "the v3.1 converter merges allOf members into one schema" {
     try expectMergedAllOf(gpa.allocator(), "openapi/v3.1/converter-edge-cases.json");
 }
 
+test "the v3.2 converter keeps declared metadata next to allOf" {
+    const allocator = std.testing.allocator;
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},
+        \\"paths":{"/on":{"post":{"requestBody":{"content":{"application/json":{"schema":{"properties":{"stream":{"type":"boolean","allOf":[{"description":"d"}]}}}}}},"responses":{"200":{"description":"ok"}}}},
+        \\"/off":{"post":{"requestBody":{"content":{"application/json":{"schema":{"properties":{"stream":{"allOf":[{"type":"boolean","enum":[false]}]}}}}}},"responses":{"200":{"description":"ok"}}}}},
+        \\"components":{"schemas":{
+        \\"Tags":{"type":"array","items":{"type":"string"},"allOf":[{"description":"d"}]},
+        \\"Flag":{"type":"boolean","allOf":[{"description":"d"}]},
+        \\"OnlyFalse":{"allOf":[{"type":"boolean","enum":[false]}]},
+        \\"Maybe":{"type":["object","null"],"allOf":[{"type":"object","properties":{"a":{"type":"string"}}}]},
+        \\"MaybeTags":{"type":["array","null"],"items":{"type":"string"},"allOf":[{"description":"d"}]}
+        \\}}}
+    ;
+    var document = try openapi2zig.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+    const schemas = document.schemas.?;
+
+    const tags = schemas.get("Tags").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.array, tags.type.?);
+    try std.testing.expectEqual(openapi2zig.SchemaType.string, tags.items.?.type.?);
+    try std.testing.expect(!tags.nullable);
+
+    try std.testing.expectEqual(openapi2zig.SchemaType.boolean, schemas.get("Flag").?.type.?);
+
+    const only_false = schemas.get("OnlyFalse").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.boolean, only_false.type.?);
+    try std.testing.expectEqual(false, only_false.enum_values.?[0].bool);
+
+    const maybe = schemas.get("Maybe").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.object, maybe.type.?);
+    try std.testing.expect(maybe.nullable);
+    try std.testing.expect(maybe.properties.?.contains("a"));
+
+    const maybe_tags = schemas.get("MaybeTags").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.array, maybe_tags.type.?);
+    try std.testing.expect(maybe_tags.nullable);
+    try std.testing.expect(maybe_tags.items != null);
+
+    try std.testing.expect(document.paths.get("/on").?.post.?.streaming);
+    try std.testing.expect(!document.paths.get("/off").?.post.?.streaming);
+}
+
 test "the v3.2 converter merges allOf" {
     var gpa = test_utils.createTestAllocator();
     try expectMergedAllOf(gpa.allocator(), "openapi/v3.2/converter-edge-cases.json");
