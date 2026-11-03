@@ -134,6 +134,27 @@ test "the v3.2 converter keeps declared metadata next to allOf" {
     try std.testing.expect(!document.paths.get("/off").?.post.?.streaming);
 }
 
+test "the v3.2 converter resolves allOf conflicts, aliases and closed members" {
+    const allocator = std.testing.allocator;
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
+        \\"Base":{"type":"object","additionalProperties":true,"properties":{"value":{"type":"string"},"base":{"type":"string"}}},
+        \\"Alias":{"$ref":"#/components/schemas/Base"},
+        \\"Derived":{"allOf":[{"$ref":"#/components/schemas/Alias"},{"type":"object","additionalProperties":false,"properties":{"value":{"type":"integer"}}}]},
+        \\"Open":{"allOf":[{"$ref":"#/components/schemas/Base"},{"type":"object","additionalProperties":true}]}
+        \\}}}
+    ;
+    var document = try openapi2zig.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+
+    const derived = document.schemas.?.get("Derived").?;
+    try std.testing.expect(derived.properties.?.contains("base"));
+    // A member later in the list wins, and any closed member closes the whole.
+    try std.testing.expectEqual(openapi2zig.SchemaType.integer, derived.properties.?.get("value").?.type.?);
+    try std.testing.expectEqual(false, derived.additional_properties.?);
+    try std.testing.expectEqual(true, document.schemas.?.get("Open").?.additional_properties.?);
+}
+
 test "the v3.2 converter merges allOf" {
     var gpa = test_utils.createTestAllocator();
     try expectMergedAllOf(gpa.allocator(), "openapi/v3.2/converter-edge-cases.json");
