@@ -215,12 +215,15 @@ pub const OpenApi32Converter = struct {
 
     fn convertSchemas(self: *OpenApi32Converter, components: Components32) !std.StringHashMap(Schema) {
         var schemas = std.StringHashMap(Schema).init(self.allocator);
+        errdefer deinitSchemaMap(self.allocator, &schemas);
         if (components.schemas) |schemas_map| {
             var schema_iterator = schemas_map.iterator();
             while (schema_iterator.next()) |entry| {
+                try schemas.ensureUnusedCapacity(1);
                 const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                errdefer self.allocator.free(key);
                 const schema = try self.convertSchemaOrReference(entry.value_ptr.*);
-                try schemas.put(key, schema);
+                schemas.putAssumeCapacity(key, schema);
             }
         }
         return schemas;
@@ -772,11 +775,8 @@ fn exerciseSchemaConversion(allocator: std.mem.Allocator, document: *const OpenA
     defer converter.active_all_of_refs.deinit(allocator);
     const schemas = document.components.?.schemas.?;
     converter.source_schemas = &schemas;
-    var iterator = schemas.iterator();
-    while (iterator.next()) |entry| {
-        var converted = try converter.convertSchema(entry.value_ptr.schema.*);
-        converted.deinit(allocator);
-    }
+    var converted = try converter.convertSchemas(document.components.?);
+    OpenApi32Converter.deinitSchemaMap(allocator, &converted);
 }
 
 test "schema conversion frees partial results when allocation fails" {
