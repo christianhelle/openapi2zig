@@ -390,3 +390,22 @@ test "named properties with schema-valued additionalProperties stay typed in eve
         try std.testing.expect(std.mem.indexOf(u8, code, "permissions: ?std.json.Value") == null);
     }
 }
+
+test "every OpenAPI version tolerates a missing info version and rejects a non-string one" {
+    const allocator = std.testing.allocator;
+    const headers = [_][]const u8{ "\"openapi\":\"3.0.3\"", "\"openapi\":\"3.1.0\"", "\"openapi\":\"3.2.0\"", "\"swagger\":\"2.0\"" };
+    for (headers) |header| {
+        const missing = try std.mem.concat(allocator, u8, &.{ "{", header, ",\"info\":{\"title\":\"t\"},\"paths\":{}}" });
+        defer allocator.free(missing);
+        var document = try api.parseToUnified(allocator, missing);
+        defer document.deinit(allocator);
+        try std.testing.expectEqualStrings("unknown", document.info.version);
+
+        const invalid = try std.mem.concat(allocator, u8, &.{ "{", header, ",\"info\":{\"title\":\"t\",\"version\":42},\"paths\":{}}" });
+        defer allocator.free(invalid);
+        // Document parsers do not unwind earlier fields when a later field fails.
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        try std.testing.expectError(error.InvalidInfoVersion, api.parseToUnified(arena.allocator(), invalid));
+    }
+}
