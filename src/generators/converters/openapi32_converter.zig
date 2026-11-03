@@ -25,6 +25,7 @@ const UnifiedSecurityScheme = @import("../../models/common/document.zig").Securi
 const Components32 = @import("../../models/v3.2/components.zig").Components;
 const SchemaOrReference32 = @import("../../models/v3.2/schema.zig").SchemaOrReference;
 const Schema32 = @import("../../models/v3.2/schema.zig").Schema;
+const AdditionalProperties32 = @import("../../models/v3.2/schema.zig").AdditionalProperties;
 const ParameterOrReference32 = @import("../../models/v3.2/parameter.zig").ParameterOrReference;
 const Parameter32 = @import("../../models/v3.2/parameter.zig").Parameter;
 const ResponseOrReference32 = @import("../../models/v3.2/response.zig").ResponseOrReference;
@@ -35,11 +36,18 @@ const Operation32 = @import("../../models/v3.2/operation.zig").Operation;
 const PathItem32 = @import("../../models/v3.2/paths.zig").PathItem;
 const Paths32 = @import("../../models/v3.2/paths.zig").Paths;
 
+const component_schema_prefix = "#/components/schemas/";
 pub const OpenApi32Converter = struct {
     allocator: std.mem.Allocator,
     /// Bodies declared under `components.requestBodies`, so that a request body
     /// given as a `$ref` keeps the schema it points at.
     source_request_bodies: ?*const std.StringHashMap(RequestBodyOrReference32) = null,
+    /// Schemas declared under `components.schemas`, so that an `allOf` member
+    /// given as a `$ref` resolves to the schema it composes.
+    source_schemas: ?*const std.StringHashMap(SchemaOrReference32) = null,
+    /// Names of the schemas whose `allOf` composition is currently being
+    /// resolved, so that a cycle between them stops instead of recursing.
+    active_all_of_refs: std.ArrayList([]const u8) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) OpenApi32Converter {
         return OpenApi32Converter{ .allocator = allocator };
@@ -50,8 +58,14 @@ pub const OpenApi32Converter = struct {
         const info = self.convertInfo(openapi.info);
         if (openapi.components) |*components| {
             if (components.requestBodies) |*bodies| self.source_request_bodies = bodies;
+            if (components.schemas) |*component_schemas| self.source_schemas = component_schemas;
         }
         defer self.source_request_bodies = null;
+        defer self.source_schemas = null;
+        defer {
+            self.active_all_of_refs.deinit(self.allocator);
+            self.active_all_of_refs = .empty;
+        }
         const paths = if (openapi.paths) |p| try self.convertPaths(p) else std.StringHashMap(PathItem).init(self.allocator);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -223,7 +237,148 @@ pub const OpenApi32Converter = struct {
         }
     }
 
+    fn componentSchemaName(ref: []const u8) ?[]const u8 {
+        if (!std.mem.startsWith(u8, ref, component_schema_prefix)) return null;
+        const name = ref[component_schema_prefix.len..];
+        if (name.len == 0) return null;
+        if (std.mem.indexOfAny(u8, name, "/#") != null) return null;
+        return name;
+    }
+
+    /// Convert the schema a `$ref` points at, or null when it names something
+    /// absent from `components.schemas` or already being resolved further up
+    /// the same `allOf` chain.
+    fn convertResolvedSchemaReference(self: *OpenApi32Converter, ref: []const u8) anyerror!?Schema {
+        const source_schemas = self.source_schemas orelse return null;
+        const name = componentSchemaName(ref) orelse return null;
+        for (self.active_all_of_refs.items) |active| {
+            if (std.mem.eql(u8, active, name)) return null;
+        }
+        const schema_or_ref = source_schemas.get(name) orelse return null;
+        try self.active_all_of_refs.append(self.allocator, name);
+        defer _ = self.active_all_of_refs.pop();
+        return switch (schema_or_ref) {
+            // A component that is itself a reference is an alias; follow it so
+            // the composing schema inherits the fields of the schema it names.
+            .reference => |alias| try self.convertResolvedSchemaReference(alias.ref),
+            .schema => |schema| try self.convertSchema(schema.*),
+        };
+    }
+
+    /// Append every name not already present, so the required lists of the
+    /// `allOf` members and their parent combine without duplicates.
+    fn mergeRequiredNames(self: *OpenApi32Converter, required_list: *std.ArrayList([]const u8), names: []const []const u8) !void {
+        for (names) |name| {
+            var exists = false;
+            for (required_list.items) |existing| {
+                if (std.mem.eql(u8, existing, name)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) try required_list.append(self.allocator, name);
+        }
+    }
+
+    /// Move the properties of an `allOf` member into the merged map, leaving
+    /// the member without properties so the caller can deinitialize the rest
+    /// of it. A member later in the list wins on a name conflict.
+    fn takeProperties(self: *OpenApi32Converter, merged: *std.StringHashMap(Schema), part: *Schema) !void {
+        var props = part.properties orelse return;
+        // Reserve before detaching the map, so the transfer itself cannot fail
+        // and leave entries owned by neither map.
+        try merged.ensureUnusedCapacity(props.count());
+        part.properties = null;
+        var iterator = props.iterator();
+        while (iterator.next()) |entry| {
+            if (merged.getEntry(entry.key_ptr.*)) |existing| {
+                existing.value_ptr.deinit(self.allocator);
+                existing.value_ptr.* = entry.value_ptr.*;
+                self.allocator.free(entry.key_ptr.*);
+            } else {
+                merged.putAssumeCapacity(entry.key_ptr.*, entry.value_ptr.*);
+            }
+        }
+        props.deinit();
+    }
+
+    fn convertAdditionalProperties(additional: ?AdditionalProperties32) ?bool {
+        const value = additional orelse return null;
+        return switch (value) {
+            .boolean => |allowed| allowed,
+            .schema_or_reference => null,
+        };
+    }
+
+    /// `allOf` conjoins its members, so a member that forbids additional
+    /// properties forbids them for the whole composition.
+    fn mergeAdditionalProperties(current: ?bool, incoming: ?bool) ?bool {
+        const next = incoming orelse return current;
+        const existing = current orelse return next;
+        return existing and next;
+    }
+
+    /// Flatten an `allOf` composition into a single object schema by merging
+    /// the properties and required lists of its members with the ones the
+    /// composing schema declares itself.
+    fn convertAllOfSchema(self: *OpenApi32Converter, schema: Schema32) anyerror!Schema {
+        var merged_properties = std.StringHashMap(Schema).init(self.allocator);
+        var required_list = std.ArrayList([]const u8).empty;
+        var additional_properties = convertAdditionalProperties(schema.additionalProperties);
+
+        if (schema.allOf) |all_of| {
+            for (all_of) |item| {
+                var converted = switch (item) {
+                    .reference => |ref| (try self.convertResolvedSchemaReference(ref.ref)) orelse Schema{ .type = .reference, .ref = ref.ref },
+                    .schema => |child| try self.convertSchema(child.*),
+                };
+                try self.takeProperties(&merged_properties, &converted);
+                if (converted.required) |required| try self.mergeRequiredNames(&required_list, required);
+                additional_properties = mergeAdditionalProperties(additional_properties, converted.additional_properties);
+                converted.deinit(self.allocator);
+            }
+        }
+
+        if (schema.properties) |props| {
+            var prop_iterator = props.iterator();
+            while (prop_iterator.next()) |entry| {
+                const prop_schema = try self.convertSchemaOrReference(entry.value_ptr.*);
+                if (merged_properties.getEntry(entry.key_ptr.*)) |existing| {
+                    existing.value_ptr.deinit(self.allocator);
+                    existing.value_ptr.* = prop_schema;
+                } else {
+                    const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                    try merged_properties.put(key, prop_schema);
+                }
+            }
+        }
+
+        if (schema.required) |required| try self.mergeRequiredNames(&required_list, required);
+
+        const required = if (required_list.items.len > 0) try required_list.toOwnedSlice(self.allocator) else null;
+        const has_properties = merged_properties.count() > 0;
+        if (!has_properties) merged_properties.deinit();
+
+        return Schema{
+            .type = .object,
+            .ref = null,
+            .title = schema.title,
+            .description = schema.description,
+            .format = schema.format,
+            .required = required,
+            .properties = if (has_properties) merged_properties else null,
+            .items = null,
+            .enum_values = null,
+            .default = schema.default,
+            .example = schema.example,
+            .additional_properties = additional_properties,
+            .nullable = schema.nullable orelse false,
+        };
+    }
+
     fn convertSchema(self: *OpenApi32Converter, schema: Schema32) anyerror!Schema {
+        if (schema.allOf != null) return try self.convertAllOfSchema(schema);
+
         // Handle type_array (e.g. ["string", "null"]) by using the first non-null type
         const schema_type = blk: {
             if (schema.type) |type_str| {

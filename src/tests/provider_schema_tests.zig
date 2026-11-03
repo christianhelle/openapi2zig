@@ -447,3 +447,26 @@ test "reusable request bodies and their aliases stream in every version" {
         try expectStreamDetection(version, "/alias", true);
     }
 }
+
+test "inline allOf request bodies stream in every version" {
+    for (stream_detection_versions) |version| {
+        try expectStreamDetection(version, "/allof", true);
+    }
+}
+
+test "OpenAPI 3.2 flattens allOf into the composing schema" {
+    const allocator = std.testing.allocator;
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
+        \\"Base":{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}},
+        \\"Derived":{"allOf":[{"$ref":"#/components/schemas/Base"},{"type":"object","properties":{"name":{"type":"string"}}}]},
+        \\"Cycle":{"allOf":[{"$ref":"#/components/schemas/Cycle"}]}
+        \\}}}
+    ;
+    var document = try api.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+    const derived = document.schemas.?.get("Derived").?;
+    try std.testing.expect(derived.properties.?.contains("id"));
+    try std.testing.expect(derived.properties.?.contains("name"));
+    try std.testing.expectEqualStrings("id", derived.required.?[0]);
+}

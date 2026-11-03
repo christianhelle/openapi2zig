@@ -91,14 +91,7 @@ test "the v3.1 converter merges allOf members into one schema" {
     try expectMergedAllOf(gpa.allocator(), "openapi/v3.1/converter-edge-cases.json");
 }
 
-test "the v3.2 converter does not implement allOf" {
+test "the v3.2 converter merges allOf" {
     var gpa = test_utils.createTestAllocator();
-    const allocator = gpa.allocator();
-    var document = try convert(allocator, "openapi/v3.2/converter-edge-cases.json");
-    defer document.deinit(allocator);
-
-    const properties = document.schemas.?.get("Merged").?.properties.?;
-    try std.testing.expect(properties.get("own") != null);
-    try std.testing.expect(properties.get("id") == null);
-    try std.testing.expect(properties.get("inline_prop") == null);
+    try expectMergedAllOf(gpa.allocator(), "openapi/v3.2/converter-edge-cases.json");
 }
