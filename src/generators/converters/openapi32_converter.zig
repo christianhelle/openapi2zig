@@ -15,6 +15,7 @@ const Response = @import("../../models/common/document.zig").Response;
 const Operation = @import("../../models/common/document.zig").Operation;
 const PathItem = @import("../../models/common/document.zig").PathItem;
 const mime = @import("../../media_type.zig");
+const test_utils = @import("../../tests/test_utils.zig");
 const OpenApi32Document = @import("../../models/v3.2/openapi.zig").OpenApi32Document;
 const Info32 = @import("../../models/v3.2/info.zig").Info;
 const ExternalDocs32 = @import("../../models/v3.2/externaldocs.zig").ExternalDocumentation;
@@ -302,6 +303,15 @@ pub const OpenApi32Converter = struct {
         props.deinit();
     }
 
+    fn deinitSchemaMap(allocator: std.mem.Allocator, map: *std.StringHashMap(Schema)) void {
+        var iterator = map.iterator();
+        while (iterator.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            entry.value_ptr.deinit(allocator);
+        }
+        map.deinit();
+    }
+
     fn convertAdditionalProperties(additional: ?AdditionalProperties32) ?bool {
         const value = additional orelse return null;
         return switch (value) {
@@ -323,7 +333,9 @@ pub const OpenApi32Converter = struct {
     /// composing schema declares itself.
     fn convertAllOfSchema(self: *OpenApi32Converter, schema: Schema32) anyerror!Schema {
         var merged_properties = std.StringHashMap(Schema).init(self.allocator);
+        errdefer deinitSchemaMap(self.allocator, &merged_properties);
         var required_list = std.ArrayList([]const u8).empty;
+        errdefer required_list.deinit(self.allocator);
         var additional_properties = convertAdditionalProperties(schema.additionalProperties);
         const declared_type = self.declaredSchemaType(schema);
         var boolean_type = declared_type == .boolean;
@@ -335,6 +347,7 @@ pub const OpenApi32Converter = struct {
                     .reference => |ref| (try self.convertResolvedSchemaReference(ref.ref)) orelse Schema{ .type = .reference, .ref = ref.ref },
                     .schema => |child| try self.convertSchema(child.*),
                 };
+                defer converted.deinit(self.allocator);
                 try self.takeProperties(&merged_properties, &converted);
                 if (converted.required) |required| try self.mergeRequiredNames(&required_list, required);
                 additional_properties = mergeAdditionalProperties(additional_properties, converted.additional_properties);
@@ -348,20 +361,21 @@ pub const OpenApi32Converter = struct {
                     }
                     if (!permits_true or enum_values == null) enum_values = values;
                 }
-                converted.deinit(self.allocator);
             }
         }
 
         if (schema.properties) |props| {
             var prop_iterator = props.iterator();
             while (prop_iterator.next()) |entry| {
-                const prop_schema = try self.convertSchemaOrReference(entry.value_ptr.*);
+                var prop_schema = try self.convertSchemaOrReference(entry.value_ptr.*);
+                errdefer prop_schema.deinit(self.allocator);
                 if (merged_properties.getEntry(entry.key_ptr.*)) |existing| {
                     existing.value_ptr.deinit(self.allocator);
                     existing.value_ptr.* = prop_schema;
                 } else {
+                    try merged_properties.ensureUnusedCapacity(1);
                     const key = try self.allocator.dupe(u8, entry.key_ptr.*);
-                    try merged_properties.put(key, prop_schema);
+                    merged_properties.putAssumeCapacity(key, prop_schema);
                 }
             }
         }
@@ -369,6 +383,10 @@ pub const OpenApi32Converter = struct {
         if (schema.required) |required| try self.mergeRequiredNames(&required_list, required);
 
         const items = try self.convertSchemaItems(schema);
+        errdefer if (items) |item| {
+            item.deinit(self.allocator);
+            self.allocator.destroy(item);
+        };
         const required = if (required_list.items.len > 0) try required_list.toOwnedSlice(self.allocator) else null;
         const has_properties = merged_properties.count() > 0;
         if (!has_properties) merged_properties.deinit();
@@ -414,7 +432,8 @@ pub const OpenApi32Converter = struct {
 
     fn convertSchemaItems(self: *OpenApi32Converter, schema: Schema32) anyerror!?*Schema {
         const items_ref = schema.items orelse return null;
-        const items_schema = try self.convertSchemaOrReference(items_ref);
+        var items_schema = try self.convertSchemaOrReference(items_ref);
+        errdefer items_schema.deinit(self.allocator);
         const items_ptr = try self.allocator.create(Schema);
         items_ptr.* = items_schema;
         return items_ptr;
@@ -435,16 +454,21 @@ pub const OpenApi32Converter = struct {
             }
             break :blk req_array;
         } else null;
-        const properties = if (schema.properties) |props| blk: {
+        errdefer if (required) |req_array| self.allocator.free(req_array);
+        var properties = if (schema.properties) |props| blk: {
             var props_map = std.StringHashMap(Schema).init(self.allocator);
+            errdefer deinitSchemaMap(self.allocator, &props_map);
             var prop_iterator = props.iterator();
             while (prop_iterator.next()) |entry| {
+                try props_map.ensureUnusedCapacity(1);
                 const key = try self.allocator.dupe(u8, entry.key_ptr.*);
+                errdefer self.allocator.free(key);
                 const prop_schema = try self.convertSchemaOrReference(entry.value_ptr.*);
-                try props_map.put(key, prop_schema);
+                props_map.putAssumeCapacity(key, prop_schema);
             }
             break :blk props_map;
         } else null;
+        errdefer if (properties) |*props_map| deinitSchemaMap(self.allocator, props_map);
         const items = try self.convertSchemaItems(schema);
         const additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
             .boolean => |b| b,
@@ -724,4 +748,29 @@ fn hasEventStreamContent(resp_or_ref: ResponseOrReference32) bool {
             return false;
         },
     }
+}
+
+fn exerciseSchemaConversion(allocator: std.mem.Allocator, document: *const OpenApi32Document) !void {
+    var converter = OpenApi32Converter.init(allocator);
+    defer converter.active_all_of_refs.deinit(allocator);
+    const schemas = document.components.?.schemas.?;
+    converter.source_schemas = &schemas;
+    var iterator = schemas.iterator();
+    while (iterator.next()) |entry| {
+        var converted = try converter.convertSchema(entry.value_ptr.schema.*);
+        converted.deinit(allocator);
+    }
+}
+
+test "schema conversion frees partial results when allocation fails" {
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
+        \\"Base":{"type":"object","required":["id"],"properties":{"id":{"type":"string"},"nested":{"type":"object","required":["x"],"properties":{"x":{"type":"array","items":{"type":"string"}}}}}},
+        \\"Derived":{"type":"array","items":{"type":"string"},"required":["own"],"allOf":[{"$ref":"#/components/schemas/Base"},{"type":"object","required":["id","name"],"properties":{"id":{"type":"integer"},"name":{"type":"string"}}}],"properties":{"own":{"type":"string"},"name":{"type":"integer"}}}
+        \\}}}
+    ;
+    var document = try OpenApi32Document.parseFromJson(std.testing.allocator, source);
+    defer document.deinit(std.testing.allocator);
+    var no_resize: test_utils.NoResizeAllocator = .{ .child = std.testing.allocator };
+    try std.testing.checkAllAllocationFailures(no_resize.allocator(), exerciseSchemaConversion, .{&document});
 }
