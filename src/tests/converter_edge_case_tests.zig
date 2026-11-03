@@ -96,7 +96,9 @@ test "the v3.1 converter merges allOf members into one schema" {
 }
 
 test "the v3.2 converter keeps declared metadata next to allOf" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
     const source =
         \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},
         \\"paths":{"/on":{"post":{"requestBody":{"content":{"application/json":{"schema":{"properties":{"stream":{"type":"boolean","allOf":[{"description":"d"}]}}}}}},"responses":{"200":{"description":"ok"}}}},
@@ -139,7 +141,9 @@ test "the v3.2 converter keeps declared metadata next to allOf" {
 }
 
 test "the v3.2 converter resolves allOf conflicts, aliases and closed members" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
     const source =
         \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
         \\"Base":{"type":"object","additionalProperties":true,"properties":{"value":{"type":"string"},"base":{"type":"string"}}},
@@ -160,7 +164,9 @@ test "the v3.2 converter resolves allOf conflicts, aliases and closed members" {
 }
 
 test "the v3.2 converter takes the array type and items of an allOf member" {
-    const allocator = std.testing.allocator;
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
     const source =
         \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
         \\"Names":{"type":"array","items":{"type":"string"}},
