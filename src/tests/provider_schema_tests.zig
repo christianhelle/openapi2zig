@@ -440,3 +440,10 @@ test "stream fields whose enum excludes true do not stream in any version" {
         try expectStreamDetection(version, "/never", false);
     }
 }
+
+test "reusable request bodies and their aliases stream in every version" {
+    for (stream_detection_versions) |version| {
+        try expectStreamDetection(version, "/reusable", true);
+        try expectStreamDetection(version, "/alias", true);
+    }
+}

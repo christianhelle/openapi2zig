@@ -37,6 +37,9 @@ const Paths32 = @import("../../models/v3.2/paths.zig").Paths;
 
 pub const OpenApi32Converter = struct {
     allocator: std.mem.Allocator,
+    /// Bodies declared under `components.requestBodies`, so that a request body
+    /// given as a `$ref` keeps the schema it points at.
+    source_request_bodies: ?*const std.StringHashMap(RequestBodyOrReference32) = null,
 
     pub fn init(allocator: std.mem.Allocator) OpenApi32Converter {
         return OpenApi32Converter{ .allocator = allocator };
@@ -45,6 +48,10 @@ pub const OpenApi32Converter = struct {
     pub fn convert(self: *OpenApi32Converter, openapi: OpenApi32Document) !UnifiedDocument {
         const version = openapi.openapi;
         const info = self.convertInfo(openapi.info);
+        if (openapi.components) |*components| {
+            if (components.requestBodies) |*bodies| self.source_request_bodies = bodies;
+        }
+        defer self.source_request_bodies = null;
         const paths = if (openapi.paths) |p| try self.convertPaths(p) else std.StringHashMap(PathItem).init(self.allocator);
         const servers = if (openapi.servers) |servers_list| try self.convertServers(servers_list) else null;
         const security = if (openapi.security) |security_list| try self.convertSecurityRequirements(security_list) else null;
@@ -390,6 +397,24 @@ pub const OpenApi32Converter = struct {
     fn convertRequestBodyOrReference(self: *OpenApi32Converter, requestBodyOrRef: *const RequestBodyOrReference32) !Parameter {
         switch (requestBodyOrRef.*) {
             .reference => |ref| {
+                // Follow component aliases iteratively; a local visited set
+                // handles cycles without restricting valid alias-chain depth.
+                var visited = std.StringHashMap(void).init(self.allocator);
+                defer visited.deinit();
+                var current = ref.ref;
+                while (std.mem.startsWith(u8, current, "#/components/requestBodies/")) {
+                    if ((try visited.getOrPut(current)).found_existing) break;
+                    const bodies = self.source_request_bodies orelse break;
+                    const target = bodies.get(current["#/components/requestBodies/".len..]) orelse break;
+                    switch (target) {
+                        .reference => |alias| current = alias.ref,
+                        .request_body => |*body| {
+                            var parameter = try self.convertRequestBody(body);
+                            parameter.name = ref.ref;
+                            return parameter;
+                        },
+                    }
+                }
                 return Parameter{
                     .name = ref.ref,
                     .location = .body,
