@@ -408,6 +408,7 @@ test "named properties with schema-valued additionalProperties stay typed in eve
         defer allocator.free(code);
         try std.testing.expect(std.mem.indexOf(u8, code, "pub const Permissions = struct {") != null);
         try std.testing.expect(std.mem.indexOf(u8, code, "permissions: ?std.json.Value") == null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "permissions: ?IntegrationPermissions") != null);
     }
 }
 
