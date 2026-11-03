@@ -599,8 +599,8 @@ Schemas map to Zig types as follows:
 | `type: boolean`                                                                  | `bool`                                                                 |
 | `type: array` with a known `items` type                                          | `[]const T`                                                            |
 | `type: array` with no usable `items` type                                        | `[]const std.json.Value`                                               |
-| schema with `properties`, no composition, and no explicit open `additionalProperties` | a generated `struct`, even when `type` is omitted                  |
-| `properties` with explicit `additionalProperties: true` or a schema              | `std.json.Value`, except the extensible request structs described below |
+| schema with `properties`, no composition, and `additionalProperties` absent, `false` or a schema | a generated `struct`, even when `type` is omitted       |
+| `properties` with explicit `additionalProperties: true`                            | `std.json.Value`, except the extensible request structs described below |
 | `properties` with `oneOf`/`anyOf`, or both composition keywords together           | `std.json.Value` to retain all fields                                  |
 | free-form object, `oneOf`/`anyOf` without a usable discriminator, unknown schema | `std.json.Value`                                                       |
 
@@ -608,7 +608,7 @@ Fields not listed in `required` are emitted as optionals defaulting to `null`.
 
 Component names remain unchanged so `$ref` references keep their meaning. When an inline helper name conflicts with a component or another helper, the generator adds a numeric suffix and uses that name consistently.
 
-Objects with named properties and explicit `additionalProperties: true` or a schema-valued `additionalProperties` use `std.json.Value` when a closed Zig struct would discard unknown keys. This preserves arbitrary JSON schema keywords, including those in Anthropic's `InputSchema`. These values are not validated against the declared property types. The existing extensible OpenAI request structs retain their `extra_body` support.
+Objects with named properties and explicit `additionalProperties: true` use `std.json.Value` when a closed Zig struct would discard unknown keys. Schema-valued `additionalProperties` keep a typed struct so the named fields stay accessible, and keys outside the named properties are ignored when parsing. This preserves arbitrary JSON schema keywords, including those in Anthropic's `InputSchema`. These values are not validated against the declared property types. The existing extensible OpenAI request structs retain their `extra_body` support.
 
 For OpenAPI 3.1 specifications without `info.version`, the CLI prints a warning and uses `"unknown"` metadata. A present version must be a string. The generator still processes the entire specification; missing metadata does not filter operations or schemas.
 
