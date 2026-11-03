@@ -54,8 +54,6 @@ test "the v3.2 converter normalises locations, unknown types and non-JSON respon
     try expectSharedConversions(gpa.allocator(), "openapi/v3.2/converter-edge-cases.json");
 }
 
-// The 3.0 and 3.1 converters merge allOf members; the 3.2 converter does not
-// implement allOf at all and keeps only the schema's own properties.
 fn expectMergedAllOf(allocator: std.mem.Allocator, path: []const u8) !void {
     var document = try convert(allocator, path);
     defer document.deinit(allocator);
@@ -79,6 +77,12 @@ fn expectMergedAllOf(allocator: std.mem.Allocator, path: []const u8) !void {
     }
     try std.testing.expectEqual(@as(usize, 1), id_count);
     try std.testing.expectEqual(@as(usize, 2), merged.required.?.len);
+
+    var has_shared = false;
+    for (merged.required.?) |name| {
+        if (std.mem.eql(u8, name, "shared")) has_shared = true;
+    }
+    try std.testing.expect(has_shared);
 }
 
 test "the v3.0 converter merges allOf members into one schema" {
