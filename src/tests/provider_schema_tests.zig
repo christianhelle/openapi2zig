@@ -65,7 +65,7 @@ test "OpenAPI 3.1 preserves explicit open objects through allOf and cloning" {
     defer allocator.free(source);
     var document = try api.parseToUnified(allocator, source);
     defer document.deinit(allocator);
-    for ([_][]const u8{ "InputSchema", "TypedOpen", "OpenBase", "OpenDerived" }) |name| {
+    for ([_][]const u8{ "InputSchema", "OpenBase", "OpenDerived" }) |name| {
         try std.testing.expectEqual(@as(?bool, true), document.schemas.?.get(name).?.additional_properties);
     }
     var generator = api.UnifiedModelGenerator.init(allocator);
@@ -362,5 +362,31 @@ test "mixed properties and compositions retain both constraints and generate los
         const encoded = try std.json.Stringify.valueAlloc(allocator, parsed.value, .{});
         defer allocator.free(encoded);
         try std.testing.expectEqualStrings(payload, encoded);
+    }
+}
+
+test "named properties with schema-valued additionalProperties stay typed in every version" {
+    const allocator = std.testing.allocator;
+    const schemas =
+        \\"Integration": {"type": "object", "properties": {"permissions": {"type": "object", "additionalProperties": {"type": "string"}, "properties": {"issues": {"type": "string"}}}}},
+        \\"Permissions": {"type": "object", "additionalProperties": {"type": "string"}, "properties": {"issues": {"type": "string"}}}
+    ;
+    const documents = [_][2][]const u8{
+        .{ "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{", "}}}" },
+        .{ "{\"openapi\":\"3.1.0\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{", "}}}" },
+        .{ "{\"openapi\":\"3.2.0\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{", "}}}" },
+        .{ "{\"swagger\":\"2.0\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"definitions\":{", "}}" },
+    };
+    for (documents) |parts| {
+        const source = try std.mem.concat(allocator, u8, &.{ parts[0], schemas, parts[1] });
+        defer allocator.free(source);
+        var document = try api.parseToUnified(allocator, source);
+        defer document.deinit(allocator);
+        var generator = api.UnifiedModelGenerator.init(allocator);
+        defer generator.deinit();
+        const code = try generator.generate(document);
+        defer allocator.free(code);
+        try std.testing.expect(std.mem.indexOf(u8, code, "pub const Permissions = struct {") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "permissions: ?std.json.Value") == null);
     }
 }

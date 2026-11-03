@@ -313,7 +313,7 @@ pub const OpenApiConverter = struct {
         const value = additional orelse return null;
         return switch (value) {
             .boolean => |allowed| allowed,
-            .schema_or_reference => true,
+            .schema_or_reference => null,
         };
     }
 

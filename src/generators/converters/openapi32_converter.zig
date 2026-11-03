@@ -267,7 +267,7 @@ pub const OpenApi32Converter = struct {
         } else null;
         const additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
             .boolean => |b| b,
-            .schema_or_reference => true,
+            .schema_or_reference => null,
         } else null;
 
         return Schema{

@@ -31,11 +31,17 @@ test "open generated schema models round-trip arbitrary JSON schema keywords" {
     const source =
         \\{"type":"object","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"name":{"type":"string","minLength":2}},"required":["name"],"$defs":{"extra":{"oneOf":[{"type":"string"},{"type":"integer"}]}},"x-provider":{"nested":[true,null,1]}}
     ;
-    inline for (.{ fixture.InputSchema, fixture.TypedOpen, fixture.OpenDerived, @FieldType(fixture.Container, "schema") }) |T| {
+    inline for (.{ fixture.InputSchema, fixture.OpenDerived, @FieldType(fixture.Container, "schema") }) |T| {
         const parsed = try std.json.parseFromSlice(T, allocator, source, .{});
         defer parsed.deinit();
         const encoded = try std.json.Stringify.valueAlloc(allocator, parsed.value, .{});
         defer allocator.free(encoded);
         try std.testing.expectEqualStrings(source, encoded);
     }
+}
+
+test "objects with schema-valued additional properties keep typed field access" {
+    const parsed = try std.json.parseFromSlice(fixture.TypedOpen, std.testing.allocator, "{\"id\":\"one\",\"other\":\"ignored\"}", .{ .ignore_unknown_fields = true });
+    defer parsed.deinit();
+    try std.testing.expectEqualStrings("one", parsed.value.id.?);
 }
