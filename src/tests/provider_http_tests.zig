@@ -164,6 +164,8 @@ test "generated requests and streams forward optional headers over HTTP" {
 const RedirectHop = struct {
     listener: std.Io.net.Server,
     location: ?[]const u8 = null,
+    /// Per-redirect targets, used instead of `location` for a chain of redirects.
+    locations: ?[]const []const u8 = null,
     /// Requests answered with `location` before a final 200 response.
     redirects: usize = 0,
     redirect_status: std.http.Status = .moved_permanently,
@@ -202,7 +204,7 @@ const RedirectHop = struct {
             try request.respond("", .{
                 .status = self.redirect_status,
                 .keep_alive = false,
-                .extra_headers = &.{.{ .name = "Location", .value = self.location.? }},
+                .extra_headers = &.{.{ .name = "Location", .value = if (self.locations) |locations| locations[index] else self.location.? }},
             });
             return;
         }
@@ -314,6 +316,30 @@ test "generated GET calls drop credentials when a redirect changes host" {
 test "generated GET calls drop credentials when a redirect changes port" {
     for (redirect_calls) |call| try expectRedirectDropsCredentials("127.0.0.1", call);
     try expectRedirectDropsCredentials("127.0.0.1", requestRawCall);
+}
+
+test "generated GET calls drop credentials when a later redirect changes origin" {
+    var target: RedirectHop = .{ .listener = try listenLoopback() };
+    defer target.listener.deinit(std.testing.io);
+    var location_buffer: [64]u8 = undefined;
+    const cross_origin = try std.fmt.bufPrint(&location_buffer, "http://127.0.0.1:{d}/moved", .{target.listener.socket.address.getPort()});
+    const locations = [_][]const u8{ "/same-origin", cross_origin };
+    var origin: RedirectHop = .{ .listener = try listenLoopback(), .locations = &locations, .redirects = 2, .requests = 2 };
+    defer origin.listener.deinit(std.testing.io);
+    var url_buffer: [64]u8 = undefined;
+    var client = try initRedirectClient(&origin, &url_buffer);
+    defer client.deinit();
+    const origin_thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
+    defer origin_thread.join();
+    defer unblockAccept(&origin);
+    const target_thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&target});
+    defer target_thread.join();
+    defer unblockAccept(&target);
+    try expectRawOk(try sdk.models_listRaw(&client));
+    try std.testing.expect(origin.saw_authorization[0] and origin.saw_authorization[1]);
+    try std.testing.expect(origin.saw_default_header[0] and origin.saw_default_header[1]);
+    try std.testing.expectEqual(std.http.Method.GET, target.saw_method[0].?);
+    try std.testing.expect(!target.saw_authorization[0] and !target.saw_default_header[0]);
 }
 
 test "origins compare effective ports, schemes and hosts" {
