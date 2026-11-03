@@ -6,6 +6,8 @@
 
 **Implemented enhancements:**
 
+- Pass method parameters as struct instead of individual arguments. [\#83](https://github.com/christianhelle/openapi2zig/issues/83)
+- Follow redirects safely and close provider generation gaps [\#121](https://github.com/christianhelle/openapi2zig/pull/121) ([christianhelle](https://github.com/christianhelle))
 - Fix provider schema generation and streaming parameters [\#120](https://github.com/christianhelle/openapi2zig/pull/120) ([h0rv](https://github.com/h0rv))
 - Remove unused code [\#118](https://github.com/christianhelle/openapi2zig/pull/118) ([christianhelle](https://github.com/christianhelle))
 
