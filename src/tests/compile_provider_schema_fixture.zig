@@ -7,6 +7,9 @@ comptime {
 test "fresh provider model declarations compile with collision references intact" {
     std.testing.refAllDecls(fixture);
     _ = fixture.resources.models.list;
+    // An inlined model owns the short stream name, so only the long one is kept.
+    try std.testing.expect(!@hasDecl(fixture.resources.widgets, "cancelStream"));
+    try std.testing.expect(@hasDecl(fixture.resources.widgets, "cancelWidgetStream"));
     try std.testing.expect(@FieldType(fixture.FunctionTool, "parameters") == ?std.json.Value);
     try std.testing.expect(fixture.OwnerFooBar == i64);
     try std.testing.expect(fixture.OwnerFooBar_2 == bool);
@@ -31,11 +34,24 @@ test "open generated schema models round-trip arbitrary JSON schema keywords" {
     const source =
         \\{"type":"object","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"name":{"type":"string","minLength":2}},"required":["name"],"$defs":{"extra":{"oneOf":[{"type":"string"},{"type":"integer"}]}},"x-provider":{"nested":[true,null,1]}}
     ;
-    inline for (.{ fixture.InputSchema, fixture.TypedOpen, fixture.OpenDerived, @FieldType(fixture.Container, "schema") }) |T| {
+    inline for (.{ fixture.InputSchema, fixture.OpenDerived, @FieldType(fixture.Container, "schema") }) |T| {
         const parsed = try std.json.parseFromSlice(T, allocator, source, .{});
         defer parsed.deinit();
         const encoded = try std.json.Stringify.valueAlloc(allocator, parsed.value, .{});
         defer allocator.free(encoded);
         try std.testing.expectEqualStrings(source, encoded);
+    }
+}
+
+test "objects with schema-valued additional properties keep typed field access" {
+    const parsed = try std.json.parseFromSlice(fixture.TypedOpen, std.testing.allocator, "{\"id\":\"one\",\"other\":\"ignored\"}", .{ .ignore_unknown_fields = true });
+    defer parsed.deinit();
+    try std.testing.expectEqualStrings("one", parsed.value.id.?);
+}
+
+test "stream wrappers offer the short resource name and keep the operation id name" {
+    const messages = fixture.resources.messages;
+    for ([_]bool{ @hasDecl(messages, "create"), @hasDecl(messages, "createStream"), @hasDecl(messages, "createStreamEvents"), @hasDecl(messages, "messages_postStream"), @hasDecl(messages, "messages_postStreamEvents") }) |declared| {
+        try std.testing.expect(declared);
     }
 }

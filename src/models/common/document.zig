@@ -108,6 +108,7 @@ pub const Schema = struct {
     discriminator_property: ?[]const u8 = null,
     one_of: ?[]Schema = null,
     any_of: ?[]Schema = null,
+    /// Explicit `additionalProperties` boolean. A schema value leaves this null.
     additional_properties: ?bool = null,
     nullable: bool = false,
     pub fn deinit(self: *Schema, allocator: std.mem.Allocator) void {

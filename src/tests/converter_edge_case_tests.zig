@@ -54,8 +54,6 @@ test "the v3.2 converter normalises locations, unknown types and non-JSON respon
     try expectSharedConversions(gpa.allocator(), "openapi/v3.2/converter-edge-cases.json");
 }
 
-// The 3.0 and 3.1 converters merge allOf members; the 3.2 converter does not
-// implement allOf at all and keeps only the schema's own properties.
 fn expectMergedAllOf(allocator: std.mem.Allocator, path: []const u8) !void {
     var document = try convert(allocator, path);
     defer document.deinit(allocator);
@@ -79,6 +77,12 @@ fn expectMergedAllOf(allocator: std.mem.Allocator, path: []const u8) !void {
     }
     try std.testing.expectEqual(@as(usize, 1), id_count);
     try std.testing.expectEqual(@as(usize, 2), merged.required.?.len);
+
+    var has_shared = false;
+    for (merged.required.?) |name| {
+        if (std.mem.eql(u8, name, "shared")) has_shared = true;
+    }
+    try std.testing.expect(has_shared);
 }
 
 test "the v3.0 converter merges allOf members into one schema" {
@@ -91,14 +95,107 @@ test "the v3.1 converter merges allOf members into one schema" {
     try expectMergedAllOf(gpa.allocator(), "openapi/v3.1/converter-edge-cases.json");
 }
 
-test "the v3.2 converter does not implement allOf" {
+test "the v3.2 converter keeps declared metadata next to allOf" {
     var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
-    var document = try convert(allocator, "openapi/v3.2/converter-edge-cases.json");
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},
+        \\"paths":{"/on":{"post":{"requestBody":{"content":{"application/json":{"schema":{"properties":{"stream":{"type":"boolean","allOf":[{"description":"d"}]}}}}}},"responses":{"200":{"description":"ok"}}}},
+        \\"/off":{"post":{"requestBody":{"content":{"application/json":{"schema":{"properties":{"stream":{"allOf":[{"type":"boolean","enum":[false]}]}}}}}},"responses":{"200":{"description":"ok"}}}}},
+        \\"components":{"schemas":{
+        \\"Tags":{"type":"array","items":{"type":"string"},"allOf":[{"description":"d"}]},
+        \\"Flag":{"type":"boolean","allOf":[{"description":"d"}]},
+        \\"OnlyFalse":{"allOf":[{"type":"boolean","enum":[false]}]},
+        \\"Maybe":{"type":["object","null"],"allOf":[{"type":"object","properties":{"a":{"type":"string"}}}]},
+        \\"MaybeTags":{"type":["array","null"],"items":{"type":"string"},"allOf":[{"description":"d"}]}
+        \\}}}
+    ;
+    var document = try openapi2zig.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+    const schemas = document.schemas.?;
+
+    const tags = schemas.get("Tags").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.array, tags.type.?);
+    try std.testing.expectEqual(openapi2zig.SchemaType.string, tags.items.?.type.?);
+    try std.testing.expect(!tags.nullable);
+
+    try std.testing.expectEqual(openapi2zig.SchemaType.boolean, schemas.get("Flag").?.type.?);
+
+    const only_false = schemas.get("OnlyFalse").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.boolean, only_false.type.?);
+    try std.testing.expectEqual(false, only_false.enum_values.?[0].bool);
+
+    const maybe = schemas.get("Maybe").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.object, maybe.type.?);
+    try std.testing.expect(maybe.nullable);
+    try std.testing.expect(maybe.properties.?.contains("a"));
+
+    const maybe_tags = schemas.get("MaybeTags").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.array, maybe_tags.type.?);
+    try std.testing.expect(maybe_tags.nullable);
+    try std.testing.expect(maybe_tags.items != null);
+
+    try std.testing.expect(document.paths.get("/on").?.post.?.streaming);
+    try std.testing.expect(!document.paths.get("/off").?.post.?.streaming);
+}
+
+test "the v3.2 converter resolves allOf conflicts, aliases and closed members" {
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
+        \\"Base":{"type":"object","additionalProperties":true,"properties":{"value":{"type":"string"},"base":{"type":"string"}}},
+        \\"Alias":{"$ref":"#/components/schemas/Base"},
+        \\"Derived":{"allOf":[{"$ref":"#/components/schemas/Alias"},{"type":"object","additionalProperties":false,"properties":{"value":{"type":"integer"}}}]},
+        \\"Open":{"allOf":[{"$ref":"#/components/schemas/Base"},{"type":"object","additionalProperties":true}]}
+        \\}}}
+    ;
+    var document = try openapi2zig.parseToUnified(allocator, source);
     defer document.deinit(allocator);
 
-    const properties = document.schemas.?.get("Merged").?.properties.?;
-    try std.testing.expect(properties.get("own") != null);
-    try std.testing.expect(properties.get("id") == null);
-    try std.testing.expect(properties.get("inline_prop") == null);
+    const derived = document.schemas.?.get("Derived").?;
+    try std.testing.expect(derived.properties.?.contains("base"));
+    // A member later in the list wins, and any closed member closes the whole.
+    try std.testing.expectEqual(openapi2zig.SchemaType.integer, derived.properties.?.get("value").?.type.?);
+    try std.testing.expectEqual(false, derived.additional_properties.?);
+    try std.testing.expectEqual(true, document.schemas.?.get("Open").?.additional_properties.?);
+}
+
+test "the v3.2 converter takes the array type and items of an allOf member" {
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
+        \\"Names":{"type":"array","items":{"type":"string"}},
+        \\"FromRef":{"description":"d","allOf":[{"$ref":"#/components/schemas/Names"}]},
+        \\"FromInline":{"allOf":[{"type":"array","items":{"type":"integer"}},{"description":"d"}]},
+        \\"OwnItems":{"items":{"type":"boolean"},"allOf":[{"$ref":"#/components/schemas/Names"}]},
+        \\"WithProperties":{"allOf":[{"$ref":"#/components/schemas/Names"},{"type":"object","properties":{"a":{"type":"string"}}}]}
+        \\}}}
+    ;
+    var document = try openapi2zig.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+    const schemas = document.schemas.?;
+
+    const from_ref = schemas.get("FromRef").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.array, from_ref.type.?);
+    try std.testing.expectEqual(openapi2zig.SchemaType.string, from_ref.items.?.type.?);
+
+    const from_inline = schemas.get("FromInline").?;
+    try std.testing.expectEqual(openapi2zig.SchemaType.array, from_inline.type.?);
+    try std.testing.expectEqual(openapi2zig.SchemaType.integer, from_inline.items.?.type.?);
+
+    // The composing schema's own items win over a member's.
+    try std.testing.expectEqual(openapi2zig.SchemaType.boolean, schemas.get("OwnItems").?.items.?.type.?);
+
+    // Named properties still make the composition an object.
+    try std.testing.expectEqual(openapi2zig.SchemaType.object, schemas.get("WithProperties").?.type.?);
+}
+
+test "the v3.2 converter merges allOf" {
+    var gpa = test_utils.createTestAllocator();
+    try expectMergedAllOf(gpa.allocator(), "openapi/v3.2/converter-edge-cases.json");
 }

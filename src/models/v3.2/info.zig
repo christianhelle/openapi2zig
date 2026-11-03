@@ -1,4 +1,5 @@
 const std = @import("std");
+const info_version = @import("../common/info_version.zig");
 const json = std.json;
 
 pub const Contact = struct {
@@ -54,9 +55,10 @@ pub const Info = struct {
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Info {
         const obj = value.object;
+        const version = try info_version.parse(obj);
         return Info{
             .title = try allocator.dupe(u8, obj.get("title").?.string),
-            .version = try allocator.dupe(u8, obj.get("version").?.string),
+            .version = try allocator.dupe(u8, version),
             .summary = if (obj.get("summary")) |val| try allocator.dupe(u8, val.string) else null,
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .termsOfService = if (obj.get("termsOfService")) |val| try allocator.dupe(u8, val.string) else null,

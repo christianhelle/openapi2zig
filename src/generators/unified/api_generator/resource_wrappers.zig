@@ -55,7 +55,8 @@ pub fn generateResourceWrappers(self: *UnifiedApiGenerator, document: UnifiedDoc
             self.allocator.free(segments);
         }
 
-        try wrappers.append(self.allocator, .{
+        try wrappers.ensureUnusedCapacity(self.allocator, 1);
+        wrappers.appendAssumeCapacity(.{
             .segments = segments,
             .method_name = try self.resourceMethodName(operation_id, op_ref.method),
             .operation_id = operation_id,
@@ -215,23 +216,42 @@ pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWra
 
     for (wrappers) |wrapper| {
         if (wrapper.segments.len == depth) {
+            try allocated_declarations.ensureUnusedCapacity(self.allocator, 4);
             const name = try self.resourceWrapperNameAlloc(wrapper);
-            try allocated_declarations.append(self.allocator, name);
+            allocated_declarations.appendAssumeCapacity(name);
             try declarations.append(self.allocator, name);
             if (self.hasReturnValue(wrapper.method, wrapper.operation)) {
                 const result_name = try std.fmt.allocPrint(self.allocator, "{s}Result", .{name});
-                try allocated_declarations.append(self.allocator, result_name);
+                allocated_declarations.appendAssumeCapacity(result_name);
                 try declarations.append(self.allocator, result_name);
             }
             if (wrapper.operation.streaming and std.mem.eql(u8, wrapper.method, "POST")) {
                 const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
+                allocated_declarations.appendAssumeCapacity(stream_decl_name);
                 try declarations.append(self.allocator, stream_decl_name);
-                try allocated_declarations.append(self.allocator, stream_decl_name);
                 const events_decl_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.operation_id});
+                allocated_declarations.appendAssumeCapacity(events_decl_name);
                 try declarations.append(self.allocator, events_decl_name);
-                try allocated_declarations.append(self.allocator, events_decl_name);
             }
         }
+    }
+
+    var stream_aliases = std.ArrayList([]const u8).empty;
+    defer stream_aliases.deinit(self.allocator);
+    for (wrappers) |wrapper| {
+        if (wrapper.segments.len != depth or wrapper.collides or std.mem.eql(u8, wrapper.method_name, wrapper.operation_id)) continue;
+        if (!wrapper.operation.streaming or !std.mem.eql(u8, wrapper.method, "POST")) continue;
+        try allocated_declarations.ensureUnusedCapacity(self.allocator, 2);
+        const stream_decl_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.method_name});
+        allocated_declarations.appendAssumeCapacity(stream_decl_name);
+        const events_decl_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.method_name});
+        allocated_declarations.appendAssumeCapacity(events_decl_name);
+        if (containsString(declarations.items, stream_decl_name) or containsString(declarations.items, events_decl_name)) continue;
+        // Declaring an inlined model's name here would make it ambiguous inside the wrappers.
+        if (self.isInlinedModelName(stream_decl_name) or self.isInlinedModelName(events_decl_name)) continue;
+        try declarations.append(self.allocator, stream_decl_name);
+        try declarations.append(self.allocator, events_decl_name);
+        try stream_aliases.append(self.allocator, stream_decl_name);
     }
 
     const outer_scope = self.parameter_scope_names;
@@ -247,7 +267,12 @@ pub fn generateResourceLevel(self: *UnifiedApiGenerator, wrappers: []ResourceWra
             if (wrapper.operation.streaming and std.mem.eql(u8, wrapper.method, "POST")) {
                 const stream_name = try std.fmt.allocPrint(self.allocator, "{s}Streaming", .{wrapper.operation_id});
                 defer self.allocator.free(stream_name);
-                try self.generateResourceStreamMethods(wrapper, stream_name, indent);
+                try self.generateResourceStreamMethods(wrapper, wrapper.operation_id, stream_name, indent);
+                const alias_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.method_name});
+                defer self.allocator.free(alias_name);
+                if (containsString(stream_aliases.items, alias_name)) {
+                    try self.generateResourceStreamMethods(wrapper, wrapper.method_name, stream_name, indent);
+                }
             }
         }
     }
@@ -328,10 +353,10 @@ pub fn resourceWrapperNameAlloc(self: *UnifiedApiGenerator, wrapper: ResourceWra
     return try std.fmt.allocPrint(self.allocator, "{s}_", .{collision_name});
 }
 
-pub fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, stream_name: []const u8, indent: usize) !void {
-    const stream_method_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{wrapper.operation_id});
+pub fn generateResourceStreamMethods(self: *UnifiedApiGenerator, wrapper: ResourceWrapper, name_prefix: []const u8, stream_name: []const u8, indent: usize) !void {
+    const stream_method_name = try std.fmt.allocPrint(self.allocator, "{s}Stream", .{name_prefix});
     defer self.allocator.free(stream_method_name);
-    const events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{wrapper.operation_id});
+    const events_method_name = try std.fmt.allocPrint(self.allocator, "{s}StreamEvents", .{name_prefix});
     defer self.allocator.free(events_method_name);
 
     try self.appendIndent(indent);
@@ -550,7 +575,8 @@ pub fn resourceSegmentsFromPath(self: *UnifiedApiGenerator, path: []const u8) ![
     var iterator = std.mem.splitScalar(u8, path, '/');
     while (iterator.next()) |raw_segment| {
         if (raw_segment.len == 0 or isVersionSegment(raw_segment) or isPathParam(raw_segment)) continue;
-        try segments.append(self.allocator, try self.sanitizeIdentifierAlloc(raw_segment));
+        try segments.ensureUnusedCapacity(self.allocator, 1);
+        segments.appendAssumeCapacity(try self.sanitizeIdentifierAlloc(raw_segment));
     }
     return try segments.toOwnedSlice(self.allocator);
 }

@@ -356,7 +356,7 @@ pub const OpenApi31Converter = struct {
         var enum_values = schema.enum_values;
         var additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
             .boolean => |allow| allow,
-            .schema_or_reference => true,
+            .schema_or_reference => null,
         } else null;
 
         if (schema.allOf) |all_of| {
@@ -511,7 +511,7 @@ pub const OpenApi31Converter = struct {
         } else null;
         const additional_properties: ?bool = if (schema.additionalProperties) |ap| switch (ap) {
             .boolean => |b| b,
-            .schema_or_reference => true,
+            .schema_or_reference => null,
         } else null;
 
         var converted = Schema{

@@ -609,22 +609,14 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
     try self.buffer.appendSlice(self.allocator, "    }\n");
 
     try self.buffer.appendSlice(self.allocator, "    const start = std.Io.Clock.awake.now(client.io);\n");
-    try self.buffer.appendSlice(self.allocator, "    const result = client.http.fetch(.{\n");
-    try self.buffer.appendSlice(self.allocator, "        .location = .{ .uri = uri },\n");
-    try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
+    try self.buffer.appendSlice(self.allocator, "    const result = fetchFollowingRedirects(client, std.http.Method.");
     try self.buffer.appendSlice(self.allocator, method);
-    try self.buffer.appendSlice(self.allocator, ",\n");
-    try self.buffer.appendSlice(self.allocator, "        .extra_headers = ");
+    try self.buffer.appendSlice(self.allocator, ", uri, ");
     try self.buffer.appendSlice(self.allocator, header_local_names.headers);
-    try self.buffer.appendSlice(self.allocator, ".items,\n");
-    try self.buffer.appendSlice(self.allocator, "        .redirect_behavior = .unhandled,\n");
-    if (has_body_param) {
-        try self.buffer.appendSlice(self.allocator, "        .payload = payload,\n");
-    }
-    if (has_return_value) {
-        try self.buffer.appendSlice(self.allocator, "        .response_writer = &response_body.writer,\n");
-    }
-    try self.buffer.appendSlice(self.allocator, "    }) catch |err| {\n");
+    try self.buffer.appendSlice(self.allocator, ".items, ");
+    try self.buffer.appendSlice(self.allocator, if (has_body_param) "payload, " else "null, ");
+    try self.buffer.appendSlice(self.allocator, if (has_return_value) "&response_body.writer" else "null");
+    try self.buffer.appendSlice(self.allocator, ") catch |err| {\n");
     try self.buffer.appendSlice(self.allocator, "        if (client.http_observer) |obs| {\n");
     try self.buffer.appendSlice(self.allocator, "            if (obs.onError) |cb| cb(obs.ctx, std.http.Method.");
     try self.buffer.appendSlice(self.allocator, method);

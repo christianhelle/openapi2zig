@@ -3,6 +3,7 @@ const api = @import("../lib.zig");
 const Info = @import("../models/v3.1/info.zig").Info;
 const common = @import("../models/common/document.zig");
 const detection = @import("../models/common/streaming.zig");
+const test_utils = @import("test_utils.zig");
 
 fn readFixture() ![]u8 {
     return std.Io.Dir.cwd().readFileAlloc(std.testing.io, "openapi/v3.1/regression-provider-schemas.json", std.testing.allocator, .limited(1024 * 1024));
@@ -65,7 +66,7 @@ test "OpenAPI 3.1 preserves explicit open objects through allOf and cloning" {
     defer allocator.free(source);
     var document = try api.parseToUnified(allocator, source);
     defer document.deinit(allocator);
-    for ([_][]const u8{ "InputSchema", "TypedOpen", "OpenBase", "OpenDerived" }) |name| {
+    for ([_][]const u8{ "InputSchema", "OpenBase", "OpenDerived" }) |name| {
         try std.testing.expectEqual(@as(?bool, true), document.schemas.?.get(name).?.additional_properties);
     }
     var generator = api.UnifiedModelGenerator.init(allocator);
@@ -95,7 +96,7 @@ test "helper name registry cleans up every allocation failure" {
     try std.testing.checkAllAllocationFailures(std.testing.allocator, exerciseHelperNames, .{});
 }
 
-test "generated HTTP call sites explicitly disable redirects" {
+test "generated streaming requests do not follow redirects" {
     const allocator = std.testing.allocator;
     const source = try readFixture();
     defer allocator.free(source);
@@ -105,7 +106,7 @@ test "generated HTTP call sites explicitly disable redirects" {
     defer generator.deinit();
     const code = try generator.generate(document);
     defer allocator.free(code);
-    for ([_][]const u8{ "client.http.fetch(.{", "client.http.request(.POST, uri, .{" }) |call| {
+    for ([_][]const u8{"client.http.request(.POST, uri, .{"}) |call| {
         var offset: usize = 0;
         var count: usize = 0;
         while (std.mem.indexOfPos(u8, code, offset, call)) |start| {
@@ -258,6 +259,25 @@ fn exerciseStreamingWorklist(allocator: std.mem.Allocator) !void {
     try std.testing.expect(!try detectForSchema(allocator, .{ .ref = refs[0] }, schemas));
 }
 
+fn exerciseResourceWrapperGeneration(allocator: std.mem.Allocator, document: common.UnifiedDocument) !void {
+    var generator = api.UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    defer generator.deinit();
+    const code = try generator.generate(document);
+    allocator.free(code);
+}
+
+test "resource wrapper generation frees declaration names when allocation fails" {
+    const source =
+        \\{"openapi":"3.1.0","info":{"title":"t","version":"1"},"paths":{"/v1/messages":{"post":{"operationId":"messages_post",
+        \\"requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"stream":{"type":"boolean"}}}}}},
+        \\"responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"type":"object"}}}}}}}}}
+    ;
+    var document = try api.parseToUnified(std.testing.allocator, source);
+    defer document.deinit(std.testing.allocator);
+    var no_resize: test_utils.NoResizeAllocator = .{ .child = std.testing.allocator };
+    try std.testing.checkAllAllocationFailures(no_resize.allocator(), exerciseResourceWrapperGeneration, .{document});
+}
+
 test "stream traversal handles deep shared DAGs for body and boolean queries" {
     try exerciseStreamingWorklist(std.testing.allocator);
 }
@@ -363,4 +383,108 @@ test "mixed properties and compositions retain both constraints and generate los
         defer allocator.free(encoded);
         try std.testing.expectEqualStrings(payload, encoded);
     }
+}
+
+test "named properties with schema-valued additionalProperties stay typed in every version" {
+    const allocator = std.testing.allocator;
+    const schemas =
+        \\"Integration": {"type": "object", "properties": {"permissions": {"type": "object", "additionalProperties": {"type": "string"}, "properties": {"issues": {"type": "string"}}}}},
+        \\"Permissions": {"type": "object", "additionalProperties": {"type": "string"}, "properties": {"issues": {"type": "string"}}}
+    ;
+    const documents = [_][2][]const u8{
+        .{ "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{", "}}}" },
+        .{ "{\"openapi\":\"3.1.0\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{", "}}}" },
+        .{ "{\"openapi\":\"3.2.0\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{", "}}}" },
+        .{ "{\"swagger\":\"2.0\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"definitions\":{", "}}" },
+    };
+    for (documents) |parts| {
+        const source = try std.mem.concat(allocator, u8, &.{ parts[0], schemas, parts[1] });
+        defer allocator.free(source);
+        var document = try api.parseToUnified(allocator, source);
+        defer document.deinit(allocator);
+        var generator = api.UnifiedModelGenerator.init(allocator);
+        defer generator.deinit();
+        const code = try generator.generate(document);
+        defer allocator.free(code);
+        try std.testing.expect(std.mem.indexOf(u8, code, "pub const Permissions = struct {") != null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "permissions: ?std.json.Value") == null);
+        try std.testing.expect(std.mem.indexOf(u8, code, "permissions: ?IntegrationPermissions") != null);
+    }
+}
+
+test "every OpenAPI version tolerates a missing info version and rejects a non-string one" {
+    const allocator = std.testing.allocator;
+    const headers = [_][]const u8{ "\"openapi\":\"3.0.3\"", "\"openapi\":\"3.1.0\"", "\"openapi\":\"3.2.0\"", "\"swagger\":\"2.0\"" };
+    for (headers) |header| {
+        const missing = try std.mem.concat(allocator, u8, &.{ "{", header, ",\"info\":{\"title\":\"t\"},\"paths\":{}}" });
+        defer allocator.free(missing);
+        var document = try api.parseToUnified(allocator, missing);
+        defer document.deinit(allocator);
+        try std.testing.expectEqualStrings("unknown", document.info.version);
+
+        const invalid = try std.mem.concat(allocator, u8, &.{ "{", header, ",\"info\":{\"title\":\"t\",\"version\":42},\"paths\":{}}" });
+        defer allocator.free(invalid);
+        try std.testing.expectError(error.InvalidInfoVersion, api.parseToUnified(allocator, invalid));
+    }
+}
+
+const stream_detection_versions = [_][]const u8{ "3.0.3", "3.1.0", "3.2.0" };
+
+fn expectStreamDetection(version: []const u8, path: []const u8, expected: bool) !void {
+    const allocator = std.testing.allocator;
+    const source = try std.mem.concat(allocator, u8, &.{ "{\"openapi\":\"", version, stream_detection_document });
+    defer allocator.free(source);
+    var document = try api.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+    try std.testing.expectEqual(expected, document.paths.get(path).?.post.?.streaming);
+}
+
+const stream_detection_document =
+    \\","info":{"title":"t","version":"1"},
+    \\"paths":{
+    \\"/direct":{"post":{"operationId":"direct_ref","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Streamable"}}}},"responses":{"200":{"description":"ok"}}}},
+    \\"/reusable":{"post":{"operationId":"reusable_body","requestBody":{"$ref":"#/components/requestBodies/Body"},"responses":{"200":{"description":"ok"}}}},
+    \\"/alias":{"post":{"operationId":"alias_body","requestBody":{"$ref":"#/components/requestBodies/Alias"},"responses":{"200":{"description":"ok"}}}},
+    \\"/allof":{"post":{"operationId":"inline_allof","requestBody":{"content":{"application/json":{"schema":{"allOf":[{"$ref":"#/components/schemas/Streamable"},{"type":"object","properties":{"extra":{"type":"string"}}}]}}}},"responses":{"200":{"description":"ok"}}}},
+    \\"/never":{"post":{"operationId":"never_streams","requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"stream":{"type":"boolean","enum":[false]}}}}}},"responses":{"200":{"description":"ok"}}}}
+    \\},
+    \\"components":{"schemas":{"Streamable":{"type":"object","properties":{"stream":{"type":"boolean"}}}},
+    \\"requestBodies":{"Body":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Streamable"}}}},"Alias":{"$ref":"#/components/requestBodies/Body"}}}}
+;
+
+test "stream fields whose enum excludes true do not stream in any version" {
+    for (stream_detection_versions) |version| {
+        try expectStreamDetection(version, "/direct", true);
+        try expectStreamDetection(version, "/never", false);
+    }
+}
+
+test "reusable request bodies and their aliases stream in every version" {
+    for (stream_detection_versions) |version| {
+        try expectStreamDetection(version, "/reusable", true);
+        try expectStreamDetection(version, "/alias", true);
+    }
+}
+
+test "inline allOf request bodies stream in every version" {
+    for (stream_detection_versions) |version| {
+        try expectStreamDetection(version, "/allof", true);
+    }
+}
+
+test "OpenAPI 3.2 flattens allOf into the composing schema" {
+    const allocator = std.testing.allocator;
+    const source =
+        \\{"openapi":"3.2.0","info":{"title":"t","version":"1"},"paths":{},"components":{"schemas":{
+        \\"Base":{"type":"object","required":["id"],"properties":{"id":{"type":"string"}}},
+        \\"Derived":{"allOf":[{"$ref":"#/components/schemas/Base"},{"type":"object","properties":{"name":{"type":"string"}}}]},
+        \\"Cycle":{"allOf":[{"$ref":"#/components/schemas/Cycle"}]}
+        \\}}}
+    ;
+    var document = try api.parseToUnified(allocator, source);
+    defer document.deinit(allocator);
+    const derived = document.schemas.?.get("Derived").?;
+    try std.testing.expect(derived.properties.?.contains("id"));
+    try std.testing.expect(derived.properties.?.contains("name"));
+    try std.testing.expectEqualStrings("id", derived.required.?[0]);
 }

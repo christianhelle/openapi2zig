@@ -14,10 +14,20 @@
         "responses": { "200": { "description": "ok", "content": { "application/json": { "schema": { "type": "object" } } } } }
       }
     },
-    "/v1/models": { "get": { "operationId": "models_list", "responses": { "200": { "description": "ok" } } } }
+    "/v1/widgets": {
+      "post": {
+        "operationId": "cancelWidget",
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "stream": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "ok", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/cancelStream" } } } } }
+      }
+    },
+    "/v1/models": { "get": { "operationId": "models_list", "responses": { "200": { "description": "ok" } } } },
+    "/v1/direct-empty": { "get": { "responses": { "200": { "description": "ok" } } } },
+    "/v1/direct-body": { "get": { "responses": { "200": { "description": "ok", "content": { "application/json": { "schema": { "type": "object" } } } } } } }
   },
   "components": {
     "schemas": {
+      "cancelStream": { "type": "object", "properties": { "id": { "type": "string" } } },
       "CreateMessageParams": { "type": "object", "properties": { "stream": { "type": "boolean" }, "model": { "type": "string" } } },
       "FunctionTool": { "type": "object", "properties": { "parameters": { "type": "object", "additionalProperties": true } } },
       "BetaTelemetryDestination": {
