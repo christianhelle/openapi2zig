@@ -1,5 +1,6 @@
 const std = @import("std");
 const sdk = @import("provider_fixture");
+const test_utils = @import("test_utils.zig");
 
 const Server = struct {
     listener: std.Io.net.Server,
@@ -456,7 +457,9 @@ fn expectBodilessResponseReturnsPromptly(
     const thread = try std.Thread.spawn(.{}, BodilessResponseServer.serve, .{&server});
     defer thread.join();
 
-    var client = sdk.Client.init(std.testing.allocator, io, "fixture-key");
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var client = sdk.Client.init(gpa.allocator(), io, "fixture-key");
     defer client.deinit();
     var url_buffer: [64]u8 = undefined;
     const url = try std.fmt.bufPrint(&url_buffer, "http://127.0.0.1:{d}/item", .{server.listener.socket.address.getPort()});
@@ -517,7 +520,9 @@ test "the connection is reused after a 204 response" {
     const thread = try std.Thread.spawn(.{}, BodilessResponseServer.serve, .{&server});
     defer thread.join();
 
-    var client = sdk.Client.init(std.testing.allocator, io, "fixture-key");
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var client = sdk.Client.init(gpa.allocator(), io, "fixture-key");
     defer client.deinit();
     var url_buffer: [64]u8 = undefined;
     const url = try std.fmt.bufPrint(&url_buffer, "http://127.0.0.1:{d}/item", .{server.listener.socket.address.getPort()});
