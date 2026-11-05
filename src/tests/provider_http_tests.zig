@@ -430,11 +430,13 @@ const BodilessResponseServer = struct {
         var input = connection.reader(io, &in_buffer);
         var output = connection.writer(io, &out_buffer);
         var server = std.http.Server.init(&input.interface, &output.interface);
-        while (self.served < self.requests) : (self.served += 1) {
+        while (self.served < self.requests) {
             var request = try server.receiveHead();
             if (request.head.content_length) |length| {
                 _ = try (try request.readerExpectContinue(&.{})).discard(.limited64(length));
             }
+            // Count before answering, because the client returns as soon as it has the head.
+            self.served += 1;
             try output.interface.writeAll(self.response);
             try output.interface.flush();
         }
