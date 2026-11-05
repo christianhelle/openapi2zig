@@ -484,8 +484,34 @@ test "a 304 response returns without waiting for the connection to close" {
     try expectBodilessResponseReturnsPromptly("HTTP/1.1 304 Not Modified\r\n\r\n", .not_modified, .GET, null);
 }
 
+/// Fails the run if a call never returns. The reuse test's server waits for a
+/// second request, so a client that waits for the connection to close, or that
+/// opens a new connection, would otherwise block the test suite forever.
+const Watchdog = struct {
+    finished: std.atomic.Value(bool) = .init(false),
+
+    const poll_ms = 10;
+    const limit_ms = 30 * std.time.ms_per_s;
+
+    fn watch(self: *Watchdog) void {
+        var waited_ms: u32 = 0;
+        while (waited_ms < limit_ms) : (waited_ms += poll_ms) {
+            if (self.finished.load(.acquire)) return;
+            std.testing.io.sleep(.fromMilliseconds(poll_ms), .awake) catch return;
+        }
+        std.debug.panic("a generated call did not return within {d} ms", .{limit_ms});
+    }
+};
+
 test "the connection is reused after a 204 response" {
     const io = std.testing.io;
+    var watchdog: Watchdog = .{};
+    const watchdog_thread = try std.Thread.spawn(.{}, Watchdog.watch, .{&watchdog});
+    defer {
+        watchdog.finished.store(true, .release);
+        watchdog_thread.join();
+    }
+
     var server: BodilessResponseServer = .{ .listener = try listenLoopback(), .response = "HTTP/1.1 204 No Content\r\n\r\n", .requests = 2 };
     defer server.listener.deinit(io);
     const thread = try std.Thread.spawn(.{}, BodilessResponseServer.serve, .{&server});
