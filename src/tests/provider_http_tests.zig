@@ -501,3 +501,45 @@ test "the connection is reused after a 204 response" {
     }
     try std.testing.expectEqual(@as(usize, 2), server.served);
 }
+
+const CorruptGzipServer = struct {
+    listener: std.Io.net.Server,
+    failure: ?anyerror = null,
+
+    fn serve(self: *CorruptGzipServer) void {
+        self.handle() catch |err| {
+            self.failure = err;
+        };
+    }
+
+    fn handle(self: *CorruptGzipServer) !void {
+        const io = std.testing.io;
+        var connection = try self.listener.accept(io);
+        defer connection.close(io);
+        var in_buffer: [8192]u8 = undefined;
+        var out_buffer: [8192]u8 = undefined;
+        var input = connection.reader(io, &in_buffer);
+        var output = connection.writer(io, &out_buffer);
+        var server = std.http.Server.init(&input.interface, &output.interface);
+        var request = try server.receiveHead();
+        // A valid gzip header followed by a deflate block of the reserved type.
+        try request.respond("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03\xff\xff\xff\xff", .{
+            .keep_alive = false,
+            .extra_headers = &.{.{ .name = "Content-Encoding", .value = "gzip" }},
+        });
+    }
+};
+
+test "generated GET calls return an error for a corrupt gzip response" {
+    var context: CorruptGzipServer = .{ .listener = try listenLoopback() };
+    defer context.listener.deinit(std.testing.io);
+    var url_buffer: [64]u8 = undefined;
+    const url = try std.fmt.bufPrint(&url_buffer, "http://127.0.0.1:{d}", .{context.listener.socket.address.getPort()});
+    var client = sdk.Client.init(std.testing.allocator, std.testing.io, "");
+    defer client.deinit();
+    const thread = try std.Thread.spawn(.{}, CorruptGzipServer.serve, .{&context});
+    const result = sdk.requestRaw(&client, .GET, url, null);
+    thread.join();
+    if (context.failure) |err| return err;
+    try std.testing.expectError(error.ReadFailed, result);
+}

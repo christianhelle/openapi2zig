@@ -290,7 +290,7 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    const writer = response_writer orelse {
         \\        const reader = response.reader(&.{});
         \\        _ = reader.discardRemaining() catch |err| switch (err) {
-        \\            error.ReadFailed => return response.bodyErr().?,
+        \\            error.ReadFailed => return response.bodyErr() orelse err,
         \\        };
         \\        return .{ .status = status };
         \\    };
@@ -305,7 +305,7 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    var decompress: std.http.Decompress = undefined;
         \\    const reader = response.readerDecompressing(&transfer_buffer, &decompress, decompress_buffer);
         \\    _ = reader.streamRemaining(writer) catch |err| switch (err) {
-        \\        error.ReadFailed => return response.bodyErr().?,
+        \\        error.ReadFailed => return response.bodyErr() orelse err,
         \\        else => |e| return e,
         \\    };
         \\    return .{ .status = status };

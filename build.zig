@@ -58,7 +58,8 @@ pub fn build(b: *std.Build) void {
     const supported_targets = [_][]const u8{
         "x86_64-linux",
         "aarch64-linux",
-        "x86_64-windows",
+        "x86_64-windows-gnu",
+        "aarch64-windows-gnu",
         "x86_64-macos",
         "aarch64-macos",
     };
