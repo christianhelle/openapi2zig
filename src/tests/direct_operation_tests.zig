@@ -120,7 +120,7 @@ test "an operation without an operationId sends a JSON body directly" {
     try expectContains(fixture.code, "try std.json.Stringify.value(requestBody");
     try expectContains(fixture.code, "const payload = str.written();");
     try expectContains(fixture.code, "\"application/json\", \"application/json\");");
-    try expectContains(fixture.code, "        .payload = payload,");
+    try expectContains(fixture.code, "req.transfer_encoding = .{ .content_length = body.len };");
     try expectContains(fixture.code, "\"x-trace-id\"");
 }
 

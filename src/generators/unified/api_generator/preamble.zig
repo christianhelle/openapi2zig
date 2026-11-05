@@ -233,15 +233,6 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\/// headers stay on the original origin, because std.http.Client keeps
         \\/// extra_headers across hosts and never sends privileged_headers.
         \\fn fetchFollowingRedirects(client: *Client, method: std.http.Method, uri: std.Uri, headers: []const std.http.Header, payload: ?[]const u8, response_writer: ?*std.Io.Writer) !std.http.Client.FetchResult {
-        \\    if (payload != null) return client.http.fetch(.{
-        \\        .redirect_behavior = .unhandled,
-        \\        .location = .{ .uri = uri },
-        \\        .method = method,
-        \\        .extra_headers = headers,
-        \\        .payload = payload,
-        \\        .response_writer = response_writer,
-        \\    });
-        \\
         \\    var location_storage: [8 * 1024]u8 = undefined;
         \\    var location_buffer: []u8 = &location_storage;
         \\    var current_uri = uri;
@@ -251,10 +242,18 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    while (true) {
         \\        var req = try client.http.request(current_method, current_uri, .{ .redirect_behavior = .unhandled, .extra_headers = current_headers });
         \\        defer req.deinit();
-        \\        try req.sendBodiless();
+        \\        if (payload) |body| {
+        \\            req.transfer_encoding = .{ .content_length = body.len };
+        \\            var body_writer = try req.sendBodyUnflushed(&.{});
+        \\            try body_writer.writer.writeAll(body);
+        \\            try body_writer.end();
+        \\            try req.connection.?.flush();
+        \\        } else {
+        \\            try req.sendBodiless();
+        \\        }
         \\        var response = try req.receiveHead(&.{});
         \\        const status = response.head.status;
-        \\        const location = switch (status) {
+        \\        const location = if (payload != null) null else switch (status) {
         \\            .moved_permanently, .found, .see_other, .temporary_redirect, .permanent_redirect => response.head.location,
         \\            else => null,
         \\        };
@@ -268,6 +267,14 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\            if (current_method != .HEAD and status == .see_other or (current_method == .POST and status != .temporary_redirect and status != .permanent_redirect)) current_method = .GET;
         \\            current_uri = next_uri;
         \\            continue;
+        \\        }
+        \\
+        \\        // A 204 or 304 response ends at its headers. std.http reads a response with
+        \\        // no length until the server closes the connection, both here and when the
+        \\        // request is released, so mark the response as finished before reading it.
+        \\        if (status == .no_content or status == .not_modified) {
+        \\            req.reader.state = .ready;
+        \\            return .{ .status = status };
         \\        }
         \\
         \\        const writer = response_writer orelse {

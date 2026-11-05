@@ -1,5 +1,6 @@
 const std = @import("std");
 const sdk = @import("provider_fixture");
+const test_utils = @import("test_utils.zig");
 
 const Server = struct {
     listener: std.Io.net.Server,
@@ -402,6 +403,136 @@ test "generated GET calls give up after three redirects" {
     const thread = try std.Thread.spawn(.{}, RedirectHop.serve, .{&origin});
     defer thread.join();
     try std.testing.expectError(error.TooManyHttpRedirects, sdk.models_listRaw(&client));
+}
+
+/// Answers without a Content-Length, then holds the connection open, which is
+/// how GitHub behaves. A client that reads to the end of the connection stalls.
+const BodilessResponseServer = struct {
+    listener: std.Io.net.Server,
+    response: []const u8,
+    requests: usize = 1,
+    served: usize = 0,
+    failure: ?anyerror = null,
+
+    const hold_open: std.Io.Duration = .fromSeconds(2);
+
+    fn serve(self: *BodilessResponseServer) void {
+        self.handle() catch |err| {
+            self.failure = err;
+        };
+    }
+
+    fn handle(self: *BodilessResponseServer) !void {
+        const io = std.testing.io;
+        var connection = try self.listener.accept(io);
+        defer connection.close(io);
+        var in_buffer: [8192]u8 = undefined;
+        var out_buffer: [8192]u8 = undefined;
+        var input = connection.reader(io, &in_buffer);
+        var output = connection.writer(io, &out_buffer);
+        var server = std.http.Server.init(&input.interface, &output.interface);
+        while (self.served < self.requests) {
+            var request = try server.receiveHead();
+            if (request.head.content_length) |length| {
+                _ = try (try request.readerExpectContinue(&.{})).discard(.limited64(length));
+            }
+            // Count before answering, because the client returns as soon as it has the head.
+            self.served += 1;
+            try output.interface.writeAll(self.response);
+            try output.interface.flush();
+        }
+        try io.sleep(hold_open, .awake);
+    }
+};
+
+fn expectBodilessResponseReturnsPromptly(
+    response: []const u8,
+    expected: std.http.Status,
+    method: std.http.Method,
+    payload: ?[]const u8,
+) !void {
+    const io = std.testing.io;
+    var server: BodilessResponseServer = .{ .listener = try listenLoopback(), .response = response };
+    defer server.listener.deinit(io);
+    const thread = try std.Thread.spawn(.{}, BodilessResponseServer.serve, .{&server});
+    defer thread.join();
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var client = sdk.Client.init(gpa.allocator(), io, "fixture-key");
+    defer client.deinit();
+    var url_buffer: [64]u8 = undefined;
+    const url = try std.fmt.bufPrint(&url_buffer, "http://127.0.0.1:{d}/item", .{server.listener.socket.address.getPort()});
+
+    const start = std.Io.Clock.awake.now(io);
+    var raw = try sdk.requestRaw(&client, method, url, payload);
+    defer raw.deinit();
+    const elapsed = start.untilNow(io, .awake);
+
+    try std.testing.expectEqual(expected, raw.status);
+    try std.testing.expectEqualStrings("", raw.body);
+    try std.testing.expect(elapsed.nanoseconds < BodilessResponseServer.hold_open.nanoseconds / 2);
+}
+
+test "a 204 response to a request without a body returns without waiting for the connection to close" {
+    try expectBodilessResponseReturnsPromptly("HTTP/1.1 204 No Content\r\n\r\n", .no_content, .GET, null);
+    try expectBodilessResponseReturnsPromptly("HTTP/1.1 204 No Content\r\n\r\n", .no_content, .DELETE, null);
+}
+
+test "a 204 response to a request with a body returns without waiting for the connection to close" {
+    try expectBodilessResponseReturnsPromptly("HTTP/1.1 204 No Content\r\n\r\n", .no_content, .PUT, "{}");
+}
+
+test "a 304 response returns without waiting for the connection to close" {
+    try expectBodilessResponseReturnsPromptly("HTTP/1.1 304 Not Modified\r\n\r\n", .not_modified, .GET, null);
+}
+
+/// Fails the run if a call never returns. The reuse test's server waits for a
+/// second request, so a client that waits for the connection to close, or that
+/// opens a new connection, would otherwise block the test suite forever.
+const Watchdog = struct {
+    finished: std.atomic.Value(bool) = .init(false),
+
+    const poll_ms = 10;
+    const limit_ms = 30 * std.time.ms_per_s;
+
+    fn watch(self: *Watchdog) void {
+        var waited_ms: u32 = 0;
+        while (waited_ms < limit_ms) : (waited_ms += poll_ms) {
+            if (self.finished.load(.acquire)) return;
+            std.testing.io.sleep(.fromMilliseconds(poll_ms), .awake) catch return;
+        }
+        std.debug.panic("a generated call did not return within {d} ms", .{limit_ms});
+    }
+};
+
+test "the connection is reused after a 204 response" {
+    const io = std.testing.io;
+    var watchdog: Watchdog = .{};
+    const watchdog_thread = try std.Thread.spawn(.{}, Watchdog.watch, .{&watchdog});
+    defer {
+        watchdog.finished.store(true, .release);
+        watchdog_thread.join();
+    }
+
+    var server: BodilessResponseServer = .{ .listener = try listenLoopback(), .response = "HTTP/1.1 204 No Content\r\n\r\n", .requests = 2 };
+    defer server.listener.deinit(io);
+    const thread = try std.Thread.spawn(.{}, BodilessResponseServer.serve, .{&server});
+    defer thread.join();
+
+    var gpa = test_utils.createTestAllocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var client = sdk.Client.init(gpa.allocator(), io, "fixture-key");
+    defer client.deinit();
+    var url_buffer: [64]u8 = undefined;
+    const url = try std.fmt.bufPrint(&url_buffer, "http://127.0.0.1:{d}/item", .{server.listener.socket.address.getPort()});
+
+    for (0..2) |_| {
+        var raw = try sdk.requestRaw(&client, .GET, url, null);
+        defer raw.deinit();
+        try std.testing.expectEqual(std.http.Status.no_content, raw.status);
+    }
+    try std.testing.expectEqual(@as(usize, 2), server.served);
 }
 
 const CorruptGzipServer = struct {

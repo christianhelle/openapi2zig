@@ -223,18 +223,11 @@ pub fn generateFunctionRaw(self: *UnifiedApiGenerator, method: []const u8, path:
     try self.buffer.appendSlice(self.allocator, "    var response_body: std.Io.Writer.Allocating = .init(allocator);\n");
     try self.buffer.appendSlice(self.allocator, "    defer response_body.deinit();\n");
     try self.buffer.appendSlice(self.allocator, "    const start = std.Io.Clock.awake.now(client.io);\n");
-    try self.buffer.appendSlice(self.allocator, "    const result = client.http.fetch(.{\n");
-    try self.buffer.appendSlice(self.allocator, "        .redirect_behavior = .unhandled,\n");
-    try self.buffer.appendSlice(self.allocator, "        .location = .{ .uri = uri },\n");
-    try self.buffer.appendSlice(self.allocator, "        .method = std.http.Method.");
+    try self.buffer.appendSlice(self.allocator, "    const result = fetchFollowingRedirects(client, std.http.Method.");
     try self.buffer.appendSlice(self.allocator, method);
-    try self.buffer.appendSlice(self.allocator, ",\n");
-    try self.buffer.appendSlice(self.allocator, "        .extra_headers = ");
+    try self.buffer.appendSlice(self.allocator, ", uri, ");
     try self.buffer.appendSlice(self.allocator, header_local_names.headers);
-    try self.buffer.appendSlice(self.allocator, ".items,\n");
-    try self.buffer.appendSlice(self.allocator, "        .payload = payload,\n");
-    try self.buffer.appendSlice(self.allocator, "        .response_writer = &response_body.writer,\n");
-    try self.buffer.appendSlice(self.allocator, "    }) catch |err| {\n");
+    try self.buffer.appendSlice(self.allocator, ".items, payload, &response_body.writer) catch |err| {\n");
     try self.buffer.appendSlice(self.allocator, "        if (client.http_observer) |obs| {\n");
     try self.buffer.appendSlice(self.allocator, "            if (obs.onError) |cb| cb(obs.ctx, std.http.Method.");
     try self.buffer.appendSlice(self.allocator, method);
@@ -520,13 +513,7 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
     };
     if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");
     try self.buffer.appendSlice(self.allocator, "client.base_url");
-    if (operation.parameters) |parameters| {
-        for (parameters, 0..) |parameter, i| {
-            if (parameter.location != .path) continue;
-            try self.buffer.appendSlice(self.allocator, ", ");
-            try self.appendParamReference(operation, method, path, i, parameter);
-        }
-    }
+    try self.appendPathArguments(operation, method, path);
     if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");
     try self.buffer.appendSlice(self.allocator, "});\n");
 
