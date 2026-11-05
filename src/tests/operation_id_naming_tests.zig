@@ -179,6 +179,31 @@ test "operation ids that camel case to the same name stay distinct" {
     try testing.expect(std.mem.indexOf(u8, code, "pub fn getPet_(client: *Client) ") != null);
 }
 
+test "an operation can be named readResponseBody" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const spec =
+        \\{
+        \\  "openapi": "3.0.0",
+        \\  "info": { "title": "Naming", "version": "1.0.0" },
+        \\  "paths": {
+        \\    "/body": {
+        \\      "get": {
+        \\        "operationId": "readResponseBody",
+        \\        "responses": { "200": { "description": "ok" } }
+        \\      }
+        \\    }
+        \\  }
+        \\}
+    ;
+    const code = try generateClient(allocator, spec, .{ .input_path = "fixture.json" });
+    defer allocator.free(code);
+
+    try testing.expectEqual(@as(usize, 1), std.mem.count(u8, code, "fn readResponseBody("));
+}
+
 test "operation names avoid the Raw and Result variants of other operations" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
