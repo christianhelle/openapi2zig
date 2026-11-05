@@ -233,14 +233,17 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\/// headers stay on the original origin, because std.http.Client keeps
         \\/// extra_headers across hosts and never sends privileged_headers.
         \\fn fetchFollowingRedirects(client: *Client, method: std.http.Method, uri: std.Uri, headers: []const std.http.Header, payload: ?[]const u8, response_writer: ?*std.Io.Writer) !std.http.Client.FetchResult {
-        \\    if (payload != null) return client.http.fetch(.{
-        \\        .redirect_behavior = .unhandled,
-        \\        .location = .{ .uri = uri },
-        \\        .method = method,
-        \\        .extra_headers = headers,
-        \\        .payload = payload,
-        \\        .response_writer = response_writer,
-        \\    });
+        \\    if (payload) |body| {
+        \\        var req = try client.http.request(method, uri, .{ .redirect_behavior = .unhandled, .extra_headers = headers });
+        \\        defer req.deinit();
+        \\        req.transfer_encoding = .{ .content_length = body.len };
+        \\        var body_writer = try req.sendBodyUnflushed(&.{});
+        \\        try body_writer.writer.writeAll(body);
+        \\        try body_writer.end();
+        \\        try req.connection.?.flush();
+        \\        var response = try req.receiveHead(&.{});
+        \\        return readResponseBody(client, &req, &response, response_writer);
+        \\    }
         \\
         \\    var location_storage: [8 * 1024]u8 = undefined;
         \\    var location_buffer: []u8 = &location_storage;
@@ -270,29 +273,42 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\            continue;
         \\        }
         \\
-        \\        const writer = response_writer orelse {
-        \\            const reader = response.reader(&.{});
-        \\            _ = reader.discardRemaining() catch |err| switch (err) {
-        \\                error.ReadFailed => return response.bodyErr().?,
-        \\            };
-        \\            return .{ .status = status };
-        \\        };
-        \\        const decompress_buffer: []u8 = switch (response.head.content_encoding) {
-        \\            .identity => &.{},
-        \\            .zstd => try client.allocator.alloc(u8, std.compress.zstd.default_window_len),
-        \\            .deflate, .gzip => try client.allocator.alloc(u8, std.compress.flate.max_window_len),
-        \\            .compress => return error.UnsupportedCompressionMethod,
-        \\        };
-        \\        defer client.allocator.free(decompress_buffer);
-        \\        var transfer_buffer: [64]u8 = undefined;
-        \\        var decompress: std.http.Decompress = undefined;
-        \\        const reader = response.readerDecompressing(&transfer_buffer, &decompress, decompress_buffer);
-        \\        _ = reader.streamRemaining(writer) catch |err| switch (err) {
-        \\            error.ReadFailed => return response.bodyErr().?,
-        \\            else => |e| return e,
-        \\        };
+        \\        return readResponseBody(client, &req, &response, response_writer);
+        \\    }
+        \\}
+        \\
+        \\/// A 204 or 304 response ends at its headers. std.http reads a response with
+        \\/// no length until the server closes the connection, both here and when the
+        \\/// request is released, so mark the response as finished before reading it.
+        \\fn readResponseBody(client: *Client, req: *std.http.Client.Request, response: *std.http.Client.Response, response_writer: ?*std.Io.Writer) !std.http.Client.FetchResult {
+        \\    const status = response.head.status;
+        \\    if (status == .no_content or status == .not_modified) {
+        \\        req.reader.state = .ready;
         \\        return .{ .status = status };
         \\    }
+        \\
+        \\    const writer = response_writer orelse {
+        \\        const reader = response.reader(&.{});
+        \\        _ = reader.discardRemaining() catch |err| switch (err) {
+        \\            error.ReadFailed => return response.bodyErr().?,
+        \\        };
+        \\        return .{ .status = status };
+        \\    };
+        \\    const decompress_buffer: []u8 = switch (response.head.content_encoding) {
+        \\        .identity => &.{},
+        \\        .zstd => try client.allocator.alloc(u8, std.compress.zstd.default_window_len),
+        \\        .deflate, .gzip => try client.allocator.alloc(u8, std.compress.flate.max_window_len),
+        \\        .compress => return error.UnsupportedCompressionMethod,
+        \\    };
+        \\    defer client.allocator.free(decompress_buffer);
+        \\    var transfer_buffer: [64]u8 = undefined;
+        \\    var decompress: std.http.Decompress = undefined;
+        \\    const reader = response.readerDecompressing(&transfer_buffer, &decompress, decompress_buffer);
+        \\    _ = reader.streamRemaining(writer) catch |err| switch (err) {
+        \\        error.ReadFailed => return response.bodyErr().?,
+        \\        else => |e| return e,
+        \\    };
+        \\    return .{ .status = status };
         \\}
         \\
         \\/// A URI that omits its port uses the default of its scheme.
