@@ -195,7 +195,7 @@ test "operation without a request body still sends auth headers" {
     try expectContains(fixture.code, "\"x-trace-id\"");
 }
 
-test "binary body is sent verbatim through a direct fetch" {
+test "binary body is sent verbatim" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     var fixture = try generate(allocator, .{
@@ -206,13 +206,15 @@ test "binary body is sent verbatim through a direct fetch" {
 
     try expectContains(fixture.code, "const payload: ?[]const u8 = requestBody;");
     try expectContains(fixture.code, "\"application/octet-stream\", \"application/json\");");
-    try expectContains(fixture.code, "const result = client.http.fetch(.{");
+    try expectContains(fixture.code, ".items, payload, &response_body.writer) catch |err| {");
+    // client.http.fetch waits for the connection to close after a 204 response.
+    try std.testing.expect(std.mem.indexOf(u8, fixture.code, "client.http.fetch(") == null);
     try expectContains(fixture.code, "if (obs.onRequest) |cb| cb(obs.ctx, std.http.Method.POST");
     try expectContains(fixture.code, "if (obs.onError) |cb| cb(obs.ctx, std.http.Method.POST");
     try expectContains(fixture.code, "if (obs.onResponse) |cb| cb(obs.ctx, std.http.Method.POST");
 }
 
-test "text body is sent verbatim through a direct fetch" {
+test "text body is sent verbatim" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
     var fixture = try generate(allocator, .{ .body_content_type = "text/plain" });
