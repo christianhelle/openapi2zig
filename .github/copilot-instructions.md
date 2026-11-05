@@ -80,7 +80,8 @@ zig run generated/main.zig  # Test generated code, should output "Generated mode
 zig run /tmp/test_output.zig  # Verify custom generated code works
 
 # Cross-compilation validation (1-2 minutes each)
-zig build -Dtarget=x86_64-windows   # Windows x64
+zig build -Dtarget=x86_64-windows-gnu   # Windows x64
+zig build -Dtarget=aarch64-windows-gnu  # Windows ARM64
 zig build -Dtarget=x86_64-macos     # macOS x64  
 zig build -Dtarget=aarch64-linux    # Linux ARM64
 ```
@@ -295,7 +296,8 @@ Use Zig error sets and `catch |err|` pattern. Print meaningful error messages wi
   - `zig build run-generate` - Set timeout: 5+ minutes
 
 - **Cross-compilation**: 1-2 minutes per target
-  - `zig build -Dtarget=x86_64-windows` - Set timeout: 5+ minutes
+  - `zig build -Dtarget=x86_64-windows-gnu` - Set timeout: 5+ minutes
+  - `zig build -Dtarget=aarch64-windows-gnu` - Set timeout: 5+ minutes
   - `zig build -Dtarget=x86_64-macos` - Set timeout: 5+ minutes  
   - `zig build -Dtarget=aarch64-linux` - Set timeout: 5+ minutes
 

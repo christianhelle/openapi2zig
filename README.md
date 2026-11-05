@@ -54,9 +54,11 @@ curl -fsSL https://christianhelle.com/openapi2zig/install | INSTALL_DIR=$HOME/.l
 Download the latest release for your platform from the [GitHub Releases page](https://github.com/christianhelle/openapi2zig/releases/latest):
 
 - **Linux x86_64:** `openapi2zig-linux-x86_64.tar.gz`
+- **Linux ARM64:** `openapi2zig-linux-aarch64.tar.gz`
 - **macOS x86_64:** `openapi2zig-macos-x86_64.tar.gz`
 - **macOS ARM64:** `openapi2zig-macos-aarch64.tar.gz`
 - **Windows x86_64:** `openapi2zig-windows-x86_64.zip`
+- **Windows ARM64:** `openapi2zig-windows-aarch64.zip`
 
 Extract the archive and add the binary to your PATH.
 
@@ -877,7 +879,10 @@ Build for different targets:
 
 ```bash
 # Windows
-zig build -Dtarget=x86_64-windows
+zig build -Dtarget=x86_64-windows-gnu
+
+# Windows ARM64
+zig build -Dtarget=aarch64-windows-gnu
 
 # macOS
 zig build -Dtarget=x86_64-macos

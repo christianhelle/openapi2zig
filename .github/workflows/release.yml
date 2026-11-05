@@ -10,6 +10,11 @@ on:
         description: "Release version (e.g., v1.0.0)"
         required: true
         type: string
+      draft:
+        description: "Create a draft tagged <version>-draft.<run id> and skip the container and changelog jobs"
+        required: false
+        default: false
+        type: boolean
 
 env:
   ZIG_VERSION: "0.17.0"
@@ -18,6 +23,8 @@ jobs:
   build:
     name: Build Release
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -25,10 +32,18 @@ jobs:
             target: x86_64-linux
             binary_name: openapi2zig
             archive_name: openapi2zig-linux-x86_64.tar.gz
+          - os: ubuntu-latest
+            target: aarch64-linux
+            binary_name: openapi2zig
+            archive_name: openapi2zig-linux-aarch64.tar.gz
           - os: windows-latest
-            target: x86_64-windows
+            target: x86_64-windows-gnu
             binary_name: openapi2zig.exe
             archive_name: openapi2zig-windows-x86_64.zip
+          - os: windows-latest
+            target: aarch64-windows-gnu
+            binary_name: openapi2zig.exe
+            archive_name: openapi2zig-windows-aarch64.zip
           - os: macos-latest
             target: x86_64-macos
             binary_name: openapi2zig
@@ -41,6 +56,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
@@ -105,37 +122,30 @@ jobs:
       - name: Get version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ inputs.draft }}" = "true" ]; then
+            # A unique tag keeps a draft from reusing a published release.
+            echo "version=${{ github.event.inputs.version }}-draft.${{ github.run_id }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Generate changelog
-        id: changelog
-        run: |
-          if [ -f CHANGELOG.md ]; then
-            echo "changelog<<EOF" >> $GITHUB_OUTPUT
-            cat CHANGELOG.md | head -n 50 >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "changelog=Release ${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: christianhelle/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: ${{ steps.version.outputs.version }}
+          draft: ${{ inputs.draft == true }}
+          generate_release_notes: true
           files: |
             artifacts/**/*
-          draft: false
-          generate_release_notes: true
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
 
   publish-container:
     name: Publish Container
     needs: build
+    if: ${{ !inputs.draft }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -204,3 +214,34 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+
+  changelog:
+    runs-on: ubuntu-latest
+    needs: release
+    if: ${{ !inputs.draft }}
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        uses: christianhelle/changelog-generator-action@main
+        with:
+          output: CHANGELOG.md
+          github-token: ${{ secrets.PAT }}
+
+      - name: Commit changelog
+        if: steps.changelog.outputs.changed == 'true'
+        run: |
+          git config user.name "Christian Helle"
+          git config user.email "christian.helle@outlook.com"
+          git add CHANGELOG.md
+          git commit -m "Update changelog [skip ci]"
+          git push

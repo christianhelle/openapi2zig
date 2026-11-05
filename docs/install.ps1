@@ -39,7 +39,8 @@ param(
 # Configuration
 $GitHubRepo = "christianhelle/openapi2zig"
 $BinaryName = "openapi2zig.exe"
-$ArchiveName = "openapi2zig-windows-x86_64.zip"
+$IsArm64 = $env:PROCESSOR_ARCHITECTURE -eq "ARM64" -or $env:PROCESSOR_ARCHITEW6432 -eq "ARM64"
+$ArchiveName = if ($IsArm64) { "openapi2zig-windows-aarch64.zip" } else { "openapi2zig-windows-x86_64.zip" }
 
 # Function to write colored output
 function Write-ColorOutput

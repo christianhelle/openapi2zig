@@ -10,6 +10,7 @@ const Platform = enum {
     macos_x86_64,
     macos_aarch64,
     windows_x86_64,
+    windows_aarch64,
 };
 
 fn getPlatform() Platform {
@@ -23,6 +24,7 @@ fn getPlatform() Platform {
         .aarch64 => switch (builtin.target.os.tag) {
             .linux => .linux_aarch64,
             .macos => .macos_aarch64,
+            .windows => .windows_aarch64,
             else => @compileError("unsupported OS for aarch64"),
         },
         else => @compileError("unsupported architecture"),
@@ -36,12 +38,13 @@ fn platformString(p: Platform) []const u8 {
         .macos_x86_64 => "macos-x86_64",
         .macos_aarch64 => "macos-aarch64",
         .windows_x86_64 => "windows-x86_64",
+        .windows_aarch64 => "windows-aarch64",
     };
 }
 
 fn isWindows(p: Platform) bool {
     return switch (p) {
-        .windows_x86_64 => true,
+        .windows_x86_64, .windows_aarch64 => true,
         else => false,
     };
 }
@@ -386,6 +389,7 @@ test "platformString returns correct values" {
     try std.testing.expectEqualStrings("macos-x86_64", platformString(.macos_x86_64));
     try std.testing.expectEqualStrings("macos-aarch64", platformString(.macos_aarch64));
     try std.testing.expectEqualStrings("windows-x86_64", platformString(.windows_x86_64));
+    try std.testing.expectEqualStrings("windows-aarch64", platformString(.windows_aarch64));
 }
 
 test "isWindows returns true only for windows" {
@@ -394,6 +398,7 @@ test "isWindows returns true only for windows" {
     try std.testing.expect(!isWindows(.macos_x86_64));
     try std.testing.expect(!isWindows(.macos_aarch64));
     try std.testing.expect(isWindows(.windows_x86_64));
+    try std.testing.expect(isWindows(.windows_aarch64));
 }
 
 test "isLinux returns true only for linux" {
@@ -402,6 +407,7 @@ test "isLinux returns true only for linux" {
     try std.testing.expect(!isLinux(.macos_x86_64));
     try std.testing.expect(!isLinux(.macos_aarch64));
     try std.testing.expect(!isLinux(.windows_x86_64));
+    try std.testing.expect(!isLinux(.windows_aarch64));
 }
 
 test "version comparison skips v prefix" {
