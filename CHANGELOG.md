@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased Changes]
+## [v0.6.2](https://github.com/christianhelle/openapi2zig/releases/tag/v0.6.2) (2026-11-05)
 
 ### Features
 - Fix path argument order and slow 204 and 304 responses ([#125](https://github.com/christianhelle/openapi2zig/pull/125)) ([@christianhelle](https://github.com/christianhelle/))
