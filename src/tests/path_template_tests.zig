@@ -142,6 +142,38 @@ const spec_with_parameters_out_of_path_order_no_operation_id =
     \\}
 ;
 
+const spec_with_parameter_missing_from_path =
+    \\{
+    \\  "openapi": "3.0.0",
+    \\  "info": { "title": "Paths", "version": "1.0.0" },
+    \\  "paths": {
+    \\    "/things/{id}": {
+    \\      "get": {
+    \\        "operationId": "getThing",
+    \\        "parameters": [
+    \\          { "name": "unused", "in": "path", "required": true, "schema": { "type": "string" } },
+    \\          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+    \\        ],
+    \\        "responses": { "200": { "description": "ok" } }
+    \\      }
+    \\    }
+    \\  }
+    \\}
+;
+
+test "a path parameter the template never uses still gets an argument" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_parameter_missing_from_path);
+    defer allocator.free(code);
+
+    // The extra argument makes the generated code fail to compile, rather than
+    // silently ignoring the value the caller passed.
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/things/{s}\", .{ client.base_url, id, unused }") != null);
+}
+
 test "path arguments follow the path template when their types differ" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
