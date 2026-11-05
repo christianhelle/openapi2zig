@@ -1,6 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 const test_utils = @import("test_utils.zig");
+const cli = @import("../cli.zig");
 const models = @import("../models.zig");
 const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
 const UnifiedApiGenerator = @import("../generators/unified/api_generator.zig").UnifiedApiGenerator;
@@ -47,13 +48,17 @@ const spec_without_operation_id =
 ;
 
 fn generateClient(allocator: std.mem.Allocator, spec: []const u8) ![]const u8 {
+    return generateClientWithArgs(allocator, spec, .{ .input_path = "fixture.json" });
+}
+
+fn generateClientWithArgs(allocator: std.mem.Allocator, spec: []const u8, args: cli.CliArgs) ![]const u8 {
     var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
     defer parsed.deinit(allocator);
     var converter = OpenApiConverter.init(allocator);
     var unified = try converter.convert(parsed);
     defer unified.deinit(allocator);
 
-    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    var generator = UnifiedApiGenerator.init(allocator, args);
     defer generator.deinit();
     return generator.generate(unified);
 }
@@ -194,6 +199,28 @@ test "path arguments follow the path template when their types match" {
     defer allocator.free(code);
 
     try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{s}/variables/{s}\", .{ client.base_url, environment_name, name }") != null);
+}
+
+test "struct path arguments follow the path template" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClientWithArgs(allocator, spec_with_parameters_out_of_path_order, .{ .input_path = "fixture.json", .parameters_as_struct = true });
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/users/{s}/projects/{d}/fields/{d}\", .{ client.base_url, options.username, options.project_number, options.field_id }") != null);
+}
+
+test "struct path arguments follow the path template for operations without an operationId" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClientWithArgs(allocator, spec_with_parameters_out_of_path_order_no_operation_id, .{ .input_path = "fixture.json", .parameters_as_struct = true });
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{s}/variables/{s}\", .{ client.base_url, options.environment_name, options.name }") != null);
 }
 
 test "a repeated path placeholder gets one argument per occurrence" {
