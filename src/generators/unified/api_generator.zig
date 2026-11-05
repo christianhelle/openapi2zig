@@ -434,6 +434,7 @@ pub const UnifiedApiGenerator = struct {
     pub const appendHeaderValuesLocal = @import("api_generator/request_building.zig").appendHeaderValuesLocal;
     pub const appendHeaderParamAppends = @import("api_generator/request_building.zig").appendHeaderParamAppends;
     pub const appendAuthHeader = @import("api_generator/request_building.zig").appendAuthHeader;
+    pub const appendPathArguments = @import("api_generator/request_building.zig").appendPathArguments;
     pub const appendUrlConstruction = @import("api_generator/request_building.zig").appendUrlConstruction;
     pub const hasBodyParameter = @import("api_generator/request_building.zig").hasBodyParameter;
     pub const generateApiClient = @import("api_generator/operations.zig").generateApiClient;

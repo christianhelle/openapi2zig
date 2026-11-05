@@ -520,13 +520,7 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
     };
     if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");
     try self.buffer.appendSlice(self.allocator, "client.base_url");
-    if (operation.parameters) |parameters| {
-        for (parameters, 0..) |parameter, i| {
-            if (parameter.location != .path) continue;
-            try self.buffer.appendSlice(self.allocator, ", ");
-            try self.appendParamReference(operation, method, path, i, parameter);
-        }
-    }
+    try self.appendPathArguments(operation, method, path);
     if (has_path_param_direct) try self.buffer.appendSlice(self.allocator, " ");
     try self.buffer.appendSlice(self.allocator, "});\n");
 

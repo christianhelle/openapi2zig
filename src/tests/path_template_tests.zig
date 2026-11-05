@@ -82,3 +82,106 @@ test "path placeholders substitute correctly for operations without an operation
 
     try testing.expect(std.mem.indexOf(u8, code, "\"{s}/repos/{s}/{s}/stacks/{d}\"") != null);
 }
+
+// Some descriptions, GitHub among them, list path parameters in a different
+// order than their paths use them, with and without matching types.
+const spec_with_parameters_out_of_path_order =
+    \\{
+    \\  "openapi": "3.0.0",
+    \\  "info": { "title": "Paths", "version": "1.0.0" },
+    \\  "paths": {
+    \\    "/users/{username}/projects/{project_number}/fields/{field_id}": {
+    \\      "get": {
+    \\        "operationId": "getField",
+    \\        "parameters": [
+    \\          { "name": "project_number", "in": "path", "required": true, "schema": { "type": "integer" } },
+    \\          { "name": "field_id", "in": "path", "required": true, "schema": { "type": "integer" } },
+    \\          { "name": "username", "in": "path", "required": true, "schema": { "type": "string" } }
+    \\        ],
+    \\        "responses": { "200": { "description": "ok" } }
+    \\      }
+    \\    },
+    \\    "/environments/{environment_name}/variables/{name}": {
+    \\      "get": {
+    \\        "operationId": "getVariable",
+    \\        "parameters": [
+    \\          { "name": "name", "in": "path", "required": true, "schema": { "type": "string" } },
+    \\          { "name": "environment_name", "in": "path", "required": true, "schema": { "type": "string" } }
+    \\        ],
+    \\        "responses": { "200": { "description": "ok" } }
+    \\      }
+    \\    },
+    \\    "/mirrors/{id}/of/{id}": {
+    \\      "get": {
+    \\        "operationId": "getMirror",
+    \\        "parameters": [
+    \\          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+    \\        ],
+    \\        "responses": { "200": { "description": "ok" } }
+    \\      }
+    \\    }
+    \\  }
+    \\}
+;
+
+const spec_with_parameters_out_of_path_order_no_operation_id =
+    \\{
+    \\  "openapi": "3.0.0",
+    \\  "info": { "title": "Paths", "version": "1.0.0" },
+    \\  "paths": {
+    \\    "/environments/{environment_name}/variables/{name}": {
+    \\      "get": {
+    \\        "parameters": [
+    \\          { "name": "name", "in": "path", "required": true, "schema": { "type": "string" } },
+    \\          { "name": "environment_name", "in": "path", "required": true, "schema": { "type": "string" } }
+    \\        ],
+    \\        "responses": { "200": { "description": "ok" } }
+    \\      }
+    \\    }
+    \\  }
+    \\}
+;
+
+test "path arguments follow the path template when their types differ" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_parameters_out_of_path_order);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/users/{s}/projects/{d}/fields/{d}\", .{ client.base_url, username, project_number, field_id }") != null);
+}
+
+test "path arguments follow the path template when their types match" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_parameters_out_of_path_order);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{s}/variables/{s}\", .{ client.base_url, environment_name, name }") != null);
+}
+
+test "a repeated path placeholder gets one argument per occurrence" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_parameters_out_of_path_order);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/mirrors/{s}/of/{s}\", .{ client.base_url, id, id }") != null);
+}
+
+test "path arguments follow the path template for operations without an operationId" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateClient(allocator, spec_with_parameters_out_of_path_order_no_operation_id);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{s}/variables/{s}\", .{ client.base_url, environment_name, name }") != null);
+}
