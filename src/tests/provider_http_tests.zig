@@ -435,12 +435,13 @@ const CorruptGzipServer = struct {
 test "generated GET calls return an error for a corrupt gzip response" {
     var context: CorruptGzipServer = .{ .listener = try listenLoopback() };
     defer context.listener.deinit(std.testing.io);
-    const thread = try std.Thread.spawn(.{}, CorruptGzipServer.serve, .{&context});
-    defer thread.join();
     var url_buffer: [64]u8 = undefined;
     const url = try std.fmt.bufPrint(&url_buffer, "http://127.0.0.1:{d}", .{context.listener.socket.address.getPort()});
     var client = sdk.Client.init(std.testing.allocator, std.testing.io, "");
     defer client.deinit();
-    try std.testing.expectError(error.ReadFailed, sdk.requestRaw(&client, .GET, url, null));
+    const thread = try std.Thread.spawn(.{}, CorruptGzipServer.serve, .{&context});
+    const result = sdk.requestRaw(&client, .GET, url, null);
+    thread.join();
     if (context.failure) |err| return err;
+    try std.testing.expectError(error.ReadFailed, result);
 }
