@@ -3,6 +3,7 @@
 ## [Unreleased Changes]
 
 ### Features
+- Return an error instead of crashing on a corrupt compressed response ([#123](https://github.com/christianhelle/openapi2zig/pull/123)) ([@christianhelle](https://github.com/christianhelle/))
 - Add Linux and Windows ARM64 release targets and align the release with puny ([#124](https://github.com/christianhelle/openapi2zig/pull/124)) ([@christianhelle](https://github.com/christianhelle/))
 
 
