@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased Changes]
+
+### Features
+- Upgrade to Zig 0.17.1 ([#126](https://github.com/christianhelle/openapi2zig/pull/126)) ([@christianhelle](https://github.com/christianhelle/))
+
+
 ## [v0.6.2](https://github.com/christianhelle/openapi2zig/releases/tag/v0.6.2) (2026-11-05)
 
 ### Features
