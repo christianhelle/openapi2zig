@@ -241,3 +241,10 @@ test "generateApi emits an API client for a unified document" {
 
     try std.testing.expect(std.mem.indexOf(u8, code, "pub const Client = struct") != null);
 }
+
+test "library exposes the sdk generation entry points" {
+    try std.testing.expect(@hasDecl(openapi2zig, "generateSdk"));
+    try std.testing.expect(@hasDecl(openapi2zig.sdk, "prepare"));
+    const config: openapi2zig.SdkConfig = .{ .name = "pets" };
+    try std.testing.expectEqualStrings("0.1.0", config.version);
+}
