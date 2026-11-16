@@ -1,0 +1,75 @@
+const std = @import("std");
+const models = @import("../models.zig");
+const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
+const UnifiedModelGenerator = @import("../generators/unified/model_generator.zig").UnifiedModelGenerator;
+const test_utils = @import("test_utils.zig");
+
+const testing = std.testing;
+
+const spec =
+    "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{}," ++
+    "\"components\":{\"schemas\":{" ++
+    "\"Pet\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}," ++
+    "\"Dog\":{\"type\":\"object\",\"properties\":{\"bark\":{\"type\":\"string\"}}}," ++
+    "\"Owner\":{\"type\":\"object\",\"required\":[\"parent\"],\"properties\":{" ++
+    "\"parent\":{\"description\":\"The parent\",\"anyOf\":[{\"$ref\":\"#/components/schemas/Pet\"},{\"type\":\"object\",\"nullable\":true}]}," ++
+    "\"value\":{\"oneOf\":[{\"type\":\"string\"},{\"type\":\"integer\"}]}," ++
+    "\"animal\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/Pet\"},{\"$ref\":\"#/components/schemas/Dog\"}],\"discriminator\":{\"propertyName\":\"kind\"}}}}}}}";
+
+test "openapi 3.0 collapses the nullable reference idiom" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const owner = unified.schemas.?.get("Owner").?;
+    const parent = owner.properties.?.get("parent").?;
+    try testing.expectEqualStrings("#/components/schemas/Pet", parent.ref.?);
+    try testing.expect(parent.nullable);
+    try testing.expect(parent.any_of == null);
+}
+
+test "openapi 3.0 keeps oneOf and discriminators" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const owner = unified.schemas.?.get("Owner").?;
+    const value = owner.properties.?.get("value").?;
+    try testing.expectEqual(@as(usize, 2), value.one_of.?.len);
+
+    const animal = owner.properties.?.get("animal").?;
+    try testing.expectEqualStrings("kind", animal.discriminator_property.?);
+    try testing.expectEqual(@as(usize, 2), animal.one_of_refs.?.len);
+    try testing.expectEqualStrings("Dog", animal.one_of_refs.?[1]);
+}
+
+test "openapi 3.0 nullable reference becomes an optional model field" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "parent: ?Pet,") != null);
+}

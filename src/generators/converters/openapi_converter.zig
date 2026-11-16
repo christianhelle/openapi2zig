@@ -399,7 +399,14 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
-        if (schema.allOf != null) return try self.convertAllOfSchema(schema);
+        if (nullableReference(schema)) |ref| {
+            return Schema{ .type = .reference, .ref = ref, .description = schema.description, .nullable = true };
+        }
+        if (schema.allOf != null) {
+            var converted = try self.convertAllOfSchema(schema);
+            try self.attachComposition(&converted, schema);
+            return converted;
+        }
 
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
         const title = schema.title;
@@ -430,8 +437,8 @@ pub const OpenApiConverter = struct {
         } else null;
         const additional_properties = convertAdditionalProperties(schema.additionalProperties);
 
-        return Schema{
-            .type = schema_type,
+        var converted = Schema{
+            .type = schema_type orelse (if (schema.oneOf != null or schema.anyOf != null) SchemaType.object else null),
             .ref = null,
             .title = title,
             .description = description,
@@ -445,6 +452,81 @@ pub const OpenApiConverter = struct {
             .additional_properties = additional_properties,
             .nullable = schema.nullable orelse false,
         };
+        try self.attachComposition(&converted, schema);
+        return converted;
+    }
+
+    /// `anyOf: [{$ref: X}, {type: object, nullable: true}]` is how OpenAPI 3.0
+    /// writes "X or null". Returns the reference when `schema` has that shape.
+    fn nullableReference(schema: Schema3) ?[]const u8 {
+        if ((schema.anyOf != null) == (schema.oneOf != null)) return null;
+        const variants = schema.anyOf orelse schema.oneOf orelse return null;
+        if (variants.len != 2) return null;
+        var found: ?[]const u8 = null;
+        var has_null = false;
+        for (variants) |variant| switch (variant) {
+            .reference => |reference| {
+                if (found != null) return null;
+                found = reference.ref;
+            },
+            .schema => |inline_schema| {
+                const s = inline_schema.*;
+                const bare = s.properties == null and s.items == null and s.allOf == null and
+                    s.anyOf == null and s.oneOf == null and s.enum_values == null;
+                const object_like = s.type == null or std.mem.eql(u8, s.type.?, "object");
+                if (!(bare and object_like and (s.nullable orelse false))) return null;
+                has_null = true;
+            },
+        };
+        if (!has_null) return null;
+        return found;
+    }
+
+    // JSON Schema composition applies alongside properties, not instead of
+    // them. Retain both union keywords even when both occur on one schema.
+    fn attachComposition(self: *OpenApiConverter, converted: *Schema, schema: Schema3) !void {
+        if (schema.oneOf) |variants| converted.one_of = try self.convertUnionVariants(variants);
+        if (schema.anyOf) |variants| converted.any_of = try self.convertUnionVariants(variants);
+        if (schema.discriminator) |disc| {
+            converted.discriminator_property = try self.allocator.dupe(u8, disc.propertyName);
+            if (schema.oneOf) |variants| converted.one_of_refs = try self.convertUnionRefs(variants);
+            if (schema.anyOf) |variants| converted.any_of_refs = try self.convertUnionRefs(variants);
+        }
+    }
+
+    fn convertUnionVariants(self: *OpenApiConverter, variants: []const SchemaOrReference3) ![]Schema {
+        const converted = try self.allocator.alloc(Schema, variants.len);
+        errdefer self.allocator.free(converted);
+        for (variants, 0..) |variant, i| {
+            converted[i] = try self.convertSchemaOrReference(variant);
+        }
+        return converted;
+    }
+
+    fn convertUnionRefs(self: *OpenApiConverter, variants: []const SchemaOrReference3) !?[][]const u8 {
+        var refs = try self.allocator.alloc([]const u8, variants.len);
+        errdefer {
+            for (refs[0..]) |ref| if (ref.len != 0) self.allocator.free(ref);
+            self.allocator.free(refs);
+        }
+        for (refs) |*ref| ref.* = "";
+
+        for (variants, 0..) |variant, i| {
+            switch (variant) {
+                .reference => |reference| refs[i] = try self.allocator.dupe(u8, refName(reference.ref)),
+                .schema => {
+                    for (refs) |ref| if (ref.len != 0) self.allocator.free(ref);
+                    self.allocator.free(refs);
+                    return null;
+                },
+            }
+        }
+        return refs;
+    }
+
+    fn refName(ref: []const u8) []const u8 {
+        if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| return ref[last_slash + 1 ..];
+        return ref;
     }
 
     fn convertSchemaType(self: *OpenApiConverter, type_str: []const u8) SchemaType {
