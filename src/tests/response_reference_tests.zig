@@ -97,3 +97,29 @@ test "openapi 3.2 resolves response references" {
     defer unified.deinit(allocator);
     try expectResolved(unified);
 }
+
+test "success response selection prefers exact codes over the 2XX wildcard" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const json =
+        "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{\"/a\":{\"get\":{\"operationId\":\"getA\",\"responses\":{" ++
+        "\"2XX\":{\"description\":\"w\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/Wild\"}}}}," ++
+        "\"207\":{\"description\":\"m\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/Multi\"}}}}," ++
+        "\"206\":{\"description\":\"p\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/Partial\"}}}}}}}}," ++
+        "\"components\":{\"schemas\":{\"Wild\":{\"type\":\"object\"},\"Multi\":{\"type\":\"object\"},\"Partial\":{\"type\":\"object\"}}}}";
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, json);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json" });
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn getA(client: *Client) !Owned(Partial)") != null);
+}

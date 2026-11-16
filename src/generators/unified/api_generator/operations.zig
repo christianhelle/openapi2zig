@@ -659,15 +659,23 @@ pub fn successResponseSchema(self: *UnifiedApiGenerator, operation: Operation) ?
         }
     }
 
+    // Map iteration order is arbitrary, so pick the lowest remaining 2xx code
+    // (exact codes sort before the `2XX` wildcard) to keep output stable.
+    var best_code: ?[]const u8 = null;
+    var best_schema: ?Schema = null;
     var iterator = operation.responses.iterator();
     while (iterator.next()) |entry| {
         const code = entry.key_ptr.*;
         if (code.len == 3 and code[0] == '2') {
-            if (entry.value_ptr.schema) |schema| return schema;
+            const schema = entry.value_ptr.schema orelse continue;
+            if (best_code == null or std.mem.lessThan(u8, code, best_code.?)) {
+                best_code = code;
+                best_schema = schema;
+            }
         }
     }
 
-    return null;
+    return best_schema;
 }
 
 pub fn appendReturnType(self: *UnifiedApiGenerator, method: []const u8, operation: Operation) !void {
