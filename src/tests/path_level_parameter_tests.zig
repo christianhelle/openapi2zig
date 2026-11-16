@@ -71,3 +71,54 @@ test "generated functions take inherited path parameters" {
 
     try testing.expect(std.mem.indexOf(u8, code, "pub fn deletePosts(client: *Client, id: []const u8") != null);
 }
+
+test "openapi 3.1 operations inherit path-level parameters" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApi31Document.parseFromJson(allocator, spec3("3.1.0"));
+    defer parsed.deinit(allocator);
+    var converter = OpenApi31Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    try expectMergedParameters(unified);
+}
+
+test "openapi 3.2 operations inherit path-level parameters" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApi32Document.parseFromJson(allocator, spec3("3.2.0"));
+    defer parsed.deinit(allocator);
+    var converter = OpenApi32Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    try expectMergedParameters(unified);
+}
+
+test "swagger 2.0 operations inherit path-level parameters" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const swagger_spec =
+        "{\"swagger\":\"2.0\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{" ++
+        "\"/users/{id}/posts\":{" ++
+        "\"parameters\":[" ++
+        "{\"name\":\"id\",\"in\":\"path\",\"required\":true,\"type\":\"string\"}," ++
+        "{\"name\":\"limit\",\"in\":\"query\",\"type\":\"integer\"}]," ++
+        "\"get\":{\"operationId\":\"listPosts\",\"parameters\":[" ++
+        "{\"name\":\"limit\",\"in\":\"query\",\"required\":true,\"type\":\"string\"}," ++
+        "{\"name\":\"expand\",\"in\":\"query\",\"type\":\"string\"}]," ++
+        "\"responses\":{\"200\":{\"description\":\"ok\"}}}," ++
+        "\"delete\":{\"operationId\":\"deletePosts\",\"responses\":{\"204\":{\"description\":\"gone\"}}}}}}";
+
+    var parsed = try models.SwaggerDocument.parseFromJson(allocator, swagger_spec);
+    defer parsed.deinit(allocator);
+    var converter = SwaggerConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    try expectMergedParameters(unified);
+}
