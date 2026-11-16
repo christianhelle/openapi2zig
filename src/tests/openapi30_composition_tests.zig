@@ -107,3 +107,29 @@ const spec32 =
     "\"parent\":{\"anyOf\":[{\"$ref\":\"#/components/schemas/Pet\"},{\"type\":\"null\"}]}," ++
     "\"value\":{\"oneOf\":[{\"type\":\"string\"},{\"type\":\"integer\"}]}," ++
     "\"animal\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/Pet\"},{\"$ref\":\"#/components/schemas/Dog\"}],\"discriminator\":{\"propertyName\":\"kind\"}}}}}}}";
+
+test "openapi 3.0 and 3.2 keep string enum values" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const OpenApi32Converter = @import("../generators/converters/openapi32_converter.zig").OpenApi32Converter;
+    const body = "\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{\"Pet\":{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\",\"enum\":[\"available\",\"sold\"]}}}}}}";
+
+    var parsed30 = try models.OpenApiDocument.parseFromJson(allocator, "{\"openapi\":\"3.0.3\"," ++ body);
+    defer parsed30.deinit(allocator);
+    var converter30 = OpenApiConverter.init(allocator);
+    var unified30 = try converter30.convert(parsed30);
+    defer unified30.deinit(allocator);
+    const status30 = unified30.schemas.?.get("Pet").?.properties.?.get("status").?;
+    try testing.expectEqual(@as(usize, 2), status30.enum_values.?.len);
+    try testing.expectEqualStrings("sold", status30.enum_values.?[1].string);
+
+    var parsed32 = try models.OpenApi32Document.parseFromJson(allocator, "{\"openapi\":\"3.2.0\"," ++ body);
+    defer parsed32.deinit(allocator);
+    var converter32 = OpenApi32Converter.init(allocator);
+    var unified32 = try converter32.convert(parsed32);
+    defer unified32.deinit(allocator);
+    const status32 = unified32.schemas.?.get("Pet").?.properties.?.get("status").?;
+    try testing.expectEqual(@as(usize, 2), status32.enum_values.?.len);
+}

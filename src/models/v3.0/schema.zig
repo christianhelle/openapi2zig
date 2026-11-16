@@ -150,7 +150,7 @@ pub const Schema = struct {
         errdefer enum_list.deinit(allocator);
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
-                try enum_list.append(allocator, item);
+                try enum_list.append(allocator, try json_helpers.cloneScalar(allocator, item));
             }
         }
         var all_of_list = std.ArrayList(SchemaOrReference).empty;
@@ -281,6 +281,7 @@ pub const Schema = struct {
             externalDocs.deinit(allocator);
         }
         if (self.enum_values) |enum_values| {
+            for (enum_values) |value| json_helpers.deinitScalar(allocator, value);
             allocator.free(enum_values);
         }
         if (self.xml) |*xml| {
