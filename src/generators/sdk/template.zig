@@ -21,6 +21,17 @@ pub fn expand(allocator: std.mem.Allocator, template: []const u8, vars: []const 
             i += 1;
             continue;
         }
+        // `{{{{` and `}}}}` are literal `{{` and `}}`, for GitHub expressions.
+        if (std.mem.startsWith(u8, template[i..], "{{{{")) {
+            try out.appendSlice(allocator, "{{");
+            i += 4;
+            continue;
+        }
+        if (std.mem.startsWith(u8, template[i..], "}}}}")) {
+            try out.appendSlice(allocator, "}}");
+            i += 4;
+            continue;
+        }
         if (c == '{' and i + 1 < template.len and template[i + 1] == '{') {
             const end = std.mem.indexOfPos(u8, template, i + 2, "}}") orelse return error.UnterminatedPlaceholder;
             const name = std.mem.trim(u8, template[i + 2 .. end], " ");

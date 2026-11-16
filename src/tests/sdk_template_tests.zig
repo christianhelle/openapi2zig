@@ -185,3 +185,13 @@ test "license template only applies to MIT" {
     try testing.expect(!templates.applies(.license, ctx));
     try testing.expect(templates.applies(.gitignore, ctx));
 }
+
+test "template escapes doubled braces for github expressions" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const out = try template.expand(allocator, "os: ${{{{ matrix.os }}}} v{{ v }}", &.{.{ .name = "v", .value = "1" }});
+    defer allocator.free(out);
+    try testing.expectEqualStrings("os: ${{ matrix.os }} v1", out);
+}
