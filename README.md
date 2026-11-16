@@ -144,6 +144,9 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `--runtime-only`              | Generate only the runtime module. No input spec is required; when `-i` is given it is ignored entirely. Without `--multiple-files`, writes the runtime module to `-o` (default `runtime.zig`). With `--multiple-files`, writes only the runtime file into the output directory (honors `--file-name runtime=...`). Mutually exclusive with `--models-only`, `--runtime-module`, and all client-related options.                                            |
 | `--force`                     | Force overwriting output even when unchanged (skip unchanged-content check).                                                                                                                                                                                                                                                                                                                                                                               |
 | `--parameters-as-struct`      | Wrap the method parameters of each operation in a single `options` struct instead of emitting them as individual function arguments. Optional query parameters become nullable fields defaulting to `null`; required path and query parameters stay non-optional. The request body, when present, remains a separate `requestBody` argument.                                                                                                               |
+| `--sdk`                       | Generate a complete SDK repository (sources, build files, docs, CI, examples) into the output directory. Implies `--multiple-files`. See [Generating a full SDK repository](#generating-a-full-sdk-repository). |
+| `--sdk-config <path>`         | SDK config file. Defaults to `<output>/openapi2zig.json`. |
+| `--sdk-name <name>`           | Package name (a lowercase Zig identifier). Required on the first run, when no config file exists yet. |
 
 ### Unchanged output is not rewritten
 
@@ -298,6 +301,41 @@ openapi2zig generate -i openapi/v3.1/lmstudio.json -o generated/lmstudio --multi
 ```
 
 When `--runtime-module` is given, no `runtime.zig` is emitted in the output directory; `client.zig` instead contains `const runtime = @import("../shared/runtime.zig");` (alias derived from the file basename, e.g. `my_runtime` for `my_runtime.zig`) and re-exports `Owned`, `RawResponse`, etc. from that module. The flag requires `--multiple-files` and is mutually exclusive with `--file-name runtime=...`. If the target file does not yet exist, generation still succeeds with an info log so you can generate the shared runtime first, for example with `openapi2zig generate --runtime-only -o generated/shared --multiple-files`.
+
+### Generating a full SDK repository
+
+`--sdk` generates a complete, production-ready Zig package instead of bare sources: the generated `models.zig`, `runtime.zig` and `client.zig` under `src/`, plus `root.zig`, `compile_check.zig`, `build.zig`, `build.zig.zon`, README, LICENSE, CHANGELOG, docs, CI and release workflows, and a quickstart example.
+
+```bash
+# first run: names the package and writes openapi2zig.json
+openapi2zig generate --sdk --sdk-name petstore -i openapi/petstore.json -o my-sdk
+
+# later runs read my-sdk/openapi2zig.json
+openapi2zig generate --sdk -o my-sdk
+```
+
+Settings live in `openapi2zig.json` at the repository root:
+
+```json
+{
+  "name": "petstore",
+  "version": "0.1.0",
+  "description": "Petstore SDK for Zig",
+  "repository": "https://github.com/OWNER/petstore-sdk-for-zig",
+  "author": "Your Name",
+  "license": "MIT",
+  "minimum_zig_version": "0.17.1",
+  "spec": "openapi/openapi.json",
+  "base_url": null,
+  "generator": { "resource_wrappers": "paths", "parameters_as_struct": false, "tags": [] }
+}
+```
+
+`base_url` defaults to the first server of the spec. Unknown keys are rejected so typos are not ignored.
+
+Files are either *generated* or *scaffold*. Generated files (`src/*`, `build.zig`, `.gitattributes`, `docs/REGENERATING.md`) are rewritten whenever their content changes. Scaffold files (`build.zig.zon`, `README.md`, `LICENSE`, `CHANGELOG.md`, `.gitignore`, `docs/USAGE.md`, the workflows and `examples/quickstart.zig`) are written once and then belong to you, so edit them freely; `--force` overwrites them. Every `examples/*.zig` file you add is picked up by the generated `build.zig`. `LICENSE` is only written for `"license": "MIT"`.
+
+Inside the new repository, `zig build test`, `zig build check` (compiles every operation) and `zig build examples` verify the SDK. `zig build test-sdk` in this repository does exactly that for a petstore SDK.
 
 ### Upgrading
 
