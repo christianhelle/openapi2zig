@@ -302,6 +302,7 @@ test "emphasis markers inside plain scalars are not aliases" {
         \\openapi: 3.0.3
         \\info:
         \\  title: Retrieve the sets which are *excluded* in a policy & more!
+        \\  description: It has no fixed value - you might see Note: this
         \\  version: 1.0.0
     ;
 
@@ -309,6 +310,7 @@ test "emphasis markers inside plain scalars are not aliases" {
     defer allocator.free(json);
 
     try expectContains(json, "sets which are *excluded* in a policy & more!");
+    try expectContains(json, "no fixed value - you might");
 }
 
 test "unbalanced brackets inside plain scalars do not leak into later lines" {
