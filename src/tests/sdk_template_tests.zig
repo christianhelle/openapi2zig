@@ -122,3 +122,32 @@ test "build.zig template exports the module and the examples" {
     try testing.expect(std.mem.indexOf(u8, out, "b.step(\"examples\"") != null);
     try testing.expect(std.mem.indexOf(u8, out, ".name = \"petstore\", .module = mod") != null);
 }
+
+test "fingerprint combines a package id with the name checksum" {
+    const fp = templates.fingerprintFor("petstore", "https://github.com/example/petstore");
+    try testing.expectEqual(@as(u64, std.hash.Crc32.hash("petstore")), fp >> 32);
+    const id: u32 = @truncate(fp);
+    try testing.expect(id != 0 and id != 0xffffffff);
+    try testing.expectEqual(fp, templates.fingerprintFor("petstore", "https://github.com/example/petstore"));
+    try testing.expect(fp != templates.fingerprintFor("petstore", "https://github.com/other/petstore"));
+}
+
+test "build.zig.zon template carries the package metadata" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const out = try renderOwned(allocator, .build_zig_zon);
+    defer allocator.free(out);
+
+    try testing.expect(std.mem.indexOf(u8, out, ".name = .petstore,") != null);
+    try testing.expect(std.mem.indexOf(u8, out, ".version = \"1.2.3\",") != null);
+    try testing.expect(std.mem.indexOf(u8, out, ".fingerprint = 0xabcdef0123456789,") != null);
+    try testing.expect(std.mem.indexOf(u8, out, ".minimum_zig_version = \"0.17.1\",") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "\"CHANGELOG.md\",") != null);
+}
+
+test "scaffold and generated ownership" {
+    try testing.expectEqual(@import("../generator/output_writer.zig").Ownership.scaffold, templates.Kind.build_zig_zon.ownership());
+    try testing.expectEqual(@import("../generator/output_writer.zig").Ownership.generated, templates.Kind.build_zig.ownership());
+}

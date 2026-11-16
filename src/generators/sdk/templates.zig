@@ -28,18 +28,21 @@ pub const Kind = enum {
     root_zig,
     compile_check_zig,
     build_zig,
+    build_zig_zon,
 
     pub fn path(self: Kind) []const u8 {
         return switch (self) {
             .root_zig => "src/root.zig",
             .compile_check_zig => "src/compile_check.zig",
             .build_zig => "build.zig",
+            .build_zig_zon => "build.zig.zon",
         };
     }
 
     pub fn ownership(self: Kind) output_writer.Ownership {
         return switch (self) {
             .root_zig, .compile_check_zig, .build_zig => .generated,
+            .build_zig_zon => .scaffold,
         };
     }
 
@@ -48,6 +51,7 @@ pub const Kind = enum {
             .root_zig => @embedFile("templates/root.zig.tmpl"),
             .compile_check_zig => @embedFile("templates/compile_check.zig.tmpl"),
             .build_zig => @embedFile("templates/build.zig.tmpl"),
+            .build_zig_zon => @embedFile("templates/build.zig.zon.tmpl"),
         };
     }
 };
@@ -91,4 +95,14 @@ fn examplesList(arena: std.mem.Allocator, names: []const []const u8) ![]const u8
     var out: std.ArrayList(u8) = .empty;
     for (names) |name| try out.print(arena, "    \"{s}\",\n", .{name});
     return out.items;
+}
+
+/// Computes a `build.zig.zon` fingerprint: the low 32 bits are a stable
+/// package id derived from `seed`, the high 32 bits are the CRC-32 of `name`
+/// that the Zig package manager validates.
+pub fn fingerprintFor(name: []const u8, seed: []const u8) u64 {
+    var id: u32 = @truncate(std.hash.Wyhash.hash(0, seed));
+    if (id == 0 or id == 0xffffffff) id = 0x6f70656e;
+    const checksum: u64 = std.hash.Crc32.hash(name);
+    return (checksum << 32) | id;
 }
