@@ -327,6 +327,19 @@ fn appendMarkedLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line:
     const comment_index = findInlineCommentStart(line[value_start..]) orelse line[value_start..].len;
     const scalar_end = value_start + comment_index;
     const scalar = std.mem.trimEnd(u8, line[value_start..scalar_end], " \t\r");
+    if (isPlainScalarWithQuotes(scalar)) {
+        // zig-yaml starts a quoted string at any quote that follows a space, so
+        // write the whole plain scalar as a single-quoted one.
+        try out.appendSlice(allocator, line[0..value_start]);
+        try out.append(allocator, '\'');
+        for (scalar) |c| {
+            if (c == '\'') try out.append(allocator, '\'');
+            try out.append(allocator, c);
+        }
+        try out.append(allocator, '\'');
+        try out.appendSlice(allocator, line[value_start + scalar.len ..]);
+        return;
+    }
     if (!shouldMarkOriginallyUnquotedScalar(scalar)) {
         try out.appendSlice(allocator, line);
         return;
@@ -559,4 +572,15 @@ fn isJsonNumber(value: []const u8) bool {
     }
 
     return index == value.len;
+}
+
+/// A plain (unquoted) scalar that has a quote character somewhere after its
+/// first character, like `set to 'eventual'.`.
+fn isPlainScalarWithQuotes(value: []const u8) bool {
+    if (value.len < 2) return false;
+    switch (value[0]) {
+        '"', '\'', '|', '>', '[', '{', '&', '*', '!', '%', '@', '`', '#' => return false,
+        else => {},
+    }
+    return std.mem.indexOfAny(u8, value[1..], "'\"") != null;
 }

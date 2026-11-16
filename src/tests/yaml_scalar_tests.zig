@@ -263,3 +263,20 @@ test "an apostrophe inside a plain scalar does not open a quoted string" {
     try expectContains(json, "can't be restored. Also it's owner.");
     try expectContains(json, "\"4XX\"");
 }
+
+test "quoted words inside a plain scalar stay part of the text" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: Header must be set to 'eventual'. Say "hi" to it's owner.
+        \\  version: 1.0.0
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "set to 'eventual'. Say \\\"hi\\\" to it's owner.");
+}
