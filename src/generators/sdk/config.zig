@@ -45,6 +45,7 @@ pub const Parsed = std.json.Parsed(SdkConfig);
 pub fn parse(allocator: std.mem.Allocator, json: []const u8) (ConfigError || std.mem.Allocator.Error)!Parsed {
     var parsed = std.json.parseFromSlice(SdkConfig, allocator, json, .{
         .ignore_unknown_fields = false,
+        .allocate = .alloc_always,
     }) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidConfig,

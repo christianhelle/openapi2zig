@@ -2,6 +2,7 @@ const std = @import("std");
 const cli = @import("../cli.zig");
 const models = @import("../models.zig");
 const generator = @import("../generator.zig");
+const sdk_scaffold = @import("../generators/sdk/scaffold.zig");
 const OpenApiConverter = @import("../generators/converters/openapi_converter.zig").OpenApiConverter;
 const test_utils = @import("test_utils.zig");
 
@@ -157,4 +158,59 @@ test "sdk generation skips the license for non-MIT configs" {
 
     try testing.expect(!exists(tmp.dir, "repo/LICENSE"));
     try testing.expect(exists(tmp.dir, "repo/build.zig"));
+}
+
+test "sdk prepare writes a default config when none exists" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var prepared = try sdk_scaffold.prepare(allocator, testing.io, tmp.dir, .{
+        .input_path = "",
+        .output_path = "repo",
+        .sdk = true,
+        .sdk_name = "pets",
+    });
+    defer prepared.deinit();
+
+    const expected_config = try std.fs.path.join(allocator, &.{ "repo", "openapi2zig.json" });
+    defer allocator.free(expected_config);
+    try testing.expectEqualStrings(expected_config, prepared.config_path);
+    try testing.expectEqualStrings("pets", prepared.parsed.value.name);
+    try testing.expect(std.mem.endsWith(u8, prepared.args.input_path, "openapi.json"));
+    try testing.expect(exists(tmp.dir, "repo/openapi2zig.json"));
+}
+
+test "sdk prepare needs a name when there is no config" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try testing.expectError(error.MissingSdkName, sdk_scaffold.prepare(allocator, testing.io, tmp.dir, .{
+        .input_path = "spec.json",
+        .sdk = true,
+    }));
+}
+
+test "sdk prepare reads the spec path from an existing config" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.createDirPath(testing.io, "repo");
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "repo/openapi2zig.json", .data = config_json });
+
+    var prepared = try sdk_scaffold.prepare(allocator, testing.io, tmp.dir, .{ .input_path = "", .output_path = "repo", .sdk = true });
+    defer prepared.deinit();
+
+    const expected = try std.fs.path.join(allocator, &.{ "repo", "openapi/openapi.json" });
+    defer allocator.free(expected);
+    try testing.expectEqualStrings(expected, prepared.args.input_path);
+    try testing.expect(prepared.args.multiple_files);
 }
