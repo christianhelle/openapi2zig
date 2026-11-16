@@ -71,3 +71,29 @@ test "wildcard success responses give operations a return type" {
 
     try testing.expect(std.mem.indexOf(u8, code, "pub fn getPet(client: *Client, id: []const u8) !Owned(Pet)") != null);
 }
+
+test "openapi 3.1 resolves response references" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApi31Document.parseFromJson(allocator, spec("3.1.0"));
+    defer parsed.deinit(allocator);
+    var converter = OpenApi31Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    try expectResolved(unified);
+}
+
+test "openapi 3.2 resolves response references" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApi32Document.parseFromJson(allocator, spec("3.2.0"));
+    defer parsed.deinit(allocator);
+    var converter = OpenApi32Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    try expectResolved(unified);
+}

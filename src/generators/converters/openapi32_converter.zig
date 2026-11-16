@@ -44,6 +44,9 @@ pub const OpenApi32Converter = struct {
     /// Bodies declared under `components.requestBodies`, so that a request body
     /// given as a `$ref` keeps the schema it points at.
     source_request_bodies: ?*const std.StringHashMap(RequestBodyOrReference32) = null,
+    /// Responses declared under `components.responses`, so that a response given
+    /// as a `$ref` keeps the schema it points at.
+    source_responses: ?*const std.StringHashMap(ResponseOrReference32) = null,
     /// Schemas declared under `components.schemas`, so that an `allOf` member
     /// given as a `$ref` resolves to the schema it composes.
     source_schemas: ?*const std.StringHashMap(SchemaOrReference32) = null,
@@ -63,6 +66,10 @@ pub const OpenApi32Converter = struct {
             if (components.schemas) |*component_schemas| self.source_schemas = component_schemas;
         }
         defer self.source_request_bodies = null;
+        if (openapi.components) |*components| {
+            if (components.responses) |*component_responses| self.source_responses = component_responses;
+        }
+        defer self.source_responses = null;
         defer self.source_schemas = null;
         defer {
             self.active_all_of_refs.deinit(self.allocator);
@@ -736,12 +743,36 @@ pub const OpenApi32Converter = struct {
     fn convertResponseOrReference(self: *OpenApi32Converter, respOrRef: ResponseOrReference32) !Response {
         switch (respOrRef) {
             .reference => |ref| {
+                if (self.resolveComponentResponse(ref.ref)) |resolved| {
+                    return self.convertResponse(resolved);
+                }
                 return Response{ .description = ref.ref };
             },
             .response => |resp| {
                 return self.convertResponse(resp);
             },
         }
+    }
+
+    /// Look up a `#/components/responses/<name>` reference. A component entry
+    /// may itself be a Reference Object, so alias chains are followed; the hop
+    /// limit bounds cyclic definitions.
+    fn resolveComponentResponse(self: *OpenApi32Converter, ref: []const u8) ?Response32 {
+        const prefix = "#/components/responses/";
+        const max_hops = 32;
+        const responses = self.source_responses orelse return null;
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = responses.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .response => |response| return response,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
     }
 
     fn convertResponse(self: *OpenApi32Converter, response: Response32) !Response {
