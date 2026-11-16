@@ -161,6 +161,10 @@ fn value(self: *Parser, gpa: Allocator) ParseError!Node.OptionalIndex {
             self.token_it.seekBy(-1);
             return self.list(gpa);
         },
+        .flow_map_start => {
+            self.token_it.seekBy(-1);
+            return self.mapBracketed(gpa);
+        },
         .flow_seq_start => {
             // list
             self.token_it.seekBy(-1);
@@ -390,6 +394,67 @@ fn list(self: *Parser, gpa: Allocator) ParseError!Node.OptionalIndex {
     });
 
     return node_index.toOptional();
+}
+
+/// A flow mapping (`{ }` or `{ key: value, ... }`). Only what OpenAPI
+/// descriptions use is supported: literal or quoted keys with any value.
+fn mapBracketed(self: *Parser, gpa: Allocator) ParseError!Node.OptionalIndex {
+    const node_index = try self.nodes.addOne(gpa);
+    const node_start = self.token_it.pos;
+
+    var entries: std.ArrayListUnmanaged(Map.Entry) = .empty;
+    defer entries.deinit(gpa);
+
+    log.debug("(flow map) begin {s}@{d}", .{ @tagName(self.token(node_start).id), node_start });
+
+    _ = try self.expectToken(.flow_map_start, &.{});
+
+    const node_end: Token.Index = while (true) {
+        self.eatCommentsAndSpace(&.{});
+
+        if (self.eatToken(.flow_map_end, &.{})) |pos| break pos;
+        _ = self.eatToken(.comma, &.{});
+        self.eatCommentsAndSpace(&.{});
+        if (self.eatToken(.flow_map_end, &.{})) |pos| break pos;
+
+        const key_pos = self.token_it.pos;
+        const key = self.token_it.next() orelse return error.UnexpectedEof;
+        switch (key.id) {
+            .literal, .single_quoted, .double_quoted => {},
+            else => return self.fail(gpa, key_pos, "unexpected token for flow map key: {}", .{key}),
+        }
+
+        _ = self.expectToken(.map_value_ind, &.{ .new_line, .comment }) catch
+            return self.fail(gpa, self.token_it.pos, "expected map separator ':'", .{});
+
+        const value_index = try self.value(gpa);
+        try entries.append(gpa, .{ .key = key_pos, .maybe_node = value_index });
+    };
+
+    log.debug("(flow map) end {s}@{d}", .{ @tagName(self.token(node_end).id), node_end });
+
+    const scope: Node.Scope = .{ .start = node_start, .end = node_end };
+
+    if (entries.items.len == 1) {
+        const entry = entries.items[0];
+        self.nodes.set(node_index, .{
+            .tag = .map_single,
+            .scope = scope,
+            .data = .{ .map = .{ .key = entry.key, .maybe_node = entry.maybe_node } },
+        });
+    } else {
+        try self.extra.ensureUnusedCapacity(gpa, entries.items.len * 2 + 1);
+        const extra_index: u32 = @intCast(self.extra.items.len);
+        _ = self.addExtraAssumeCapacity(Map{ .map_len = @intCast(entries.items.len) });
+        for (entries.items) |entry| _ = self.addExtraAssumeCapacity(entry);
+        self.nodes.set(node_index, .{
+            .tag = .map_many,
+            .scope = scope,
+            .data = .{ .extra = @fromBackingInt(@intCast(extra_index)) },
+        });
+    }
+
+    return @as(Node.Index, @fromBackingInt(@intCast(node_index))).toOptional();
 }
 
 fn listBracketed(self: *Parser, gpa: Allocator) ParseError!Node.OptionalIndex {

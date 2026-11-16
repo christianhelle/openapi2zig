@@ -264,6 +264,36 @@ test "an apostrophe inside a plain scalar does not open a quoted string" {
     try expectContains(json, "\"4XX\"");
 }
 
+test "empty flow maps keep their parent map intact" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: t
+        \\  version: 1.0.0
+        \\x-example:
+        \\  properties:
+        \\    a: { }
+        \\    b: { }
+        \\    c: { }
+        \\    d: { }
+        \\    e: { }
+        \\    f: {}
+        \\    g: { }
+        \\  required: true
+        \\x-after: 1
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "\"properties\":{\"a\":{},\"b\":{},\"c\":{},\"d\":{},\"e\":{},\"f\":{},\"g\":{}}");
+    try expectContains(json, "\"required\":true");
+    try expectContains(json, "\"x-after\":\"1\"");
+}
+
 test "unbalanced brackets inside plain scalars do not leak into later lines" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();
