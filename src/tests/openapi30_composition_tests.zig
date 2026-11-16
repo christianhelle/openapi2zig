@@ -73,3 +73,37 @@ test "openapi 3.0 nullable reference becomes an optional model field" {
 
     try testing.expect(std.mem.indexOf(u8, code, "parent: ?Pet,") != null);
 }
+
+test "openapi 3.2 keeps oneOf, anyOf and discriminators" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const OpenApi32Converter = @import("../generators/converters/openapi32_converter.zig").OpenApi32Converter;
+    var parsed = try models.OpenApi32Document.parseFromJson(allocator, spec32);
+    defer parsed.deinit(allocator);
+    var converter = OpenApi32Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const owner = unified.schemas.?.get("Owner").?;
+    const value = owner.properties.?.get("value").?;
+    try testing.expectEqual(@as(usize, 2), value.one_of.?.len);
+
+    const animal = owner.properties.?.get("animal").?;
+    try testing.expectEqualStrings("kind", animal.discriminator_property.?);
+    try testing.expectEqualStrings("Dog", animal.one_of_refs.?[1]);
+
+    const parent = owner.properties.?.get("parent").?;
+    try testing.expectEqual(@as(usize, 2), parent.any_of.?.len);
+}
+
+const spec32 =
+    "{\"openapi\":\"3.2.0\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{}," ++
+    "\"components\":{\"schemas\":{" ++
+    "\"Pet\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}," ++
+    "\"Dog\":{\"type\":\"object\",\"properties\":{\"bark\":{\"type\":\"string\"}}}," ++
+    "\"Owner\":{\"type\":\"object\",\"properties\":{" ++
+    "\"parent\":{\"anyOf\":[{\"$ref\":\"#/components/schemas/Pet\"},{\"type\":\"null\"}]}," ++
+    "\"value\":{\"oneOf\":[{\"type\":\"string\"},{\"type\":\"integer\"}]}," ++
+    "\"animal\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/Pet\"},{\"$ref\":\"#/components/schemas/Dog\"}],\"discriminator\":{\"propertyName\":\"kind\"}}}}}}}";

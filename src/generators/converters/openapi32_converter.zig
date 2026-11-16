@@ -468,7 +468,11 @@ pub const OpenApi32Converter = struct {
     }
 
     fn convertSchema(self: *OpenApi32Converter, schema: Schema32) anyerror!Schema {
-        if (schema.allOf != null) return try self.convertAllOfSchema(schema);
+        if (schema.allOf != null) {
+            var converted = try self.convertAllOfSchema(schema);
+            try self.attachComposition(&converted, schema);
+            return converted;
+        }
 
         const schema_type = self.declaredSchemaType(schema);
         const nullable = isNullable(schema);
@@ -503,8 +507,8 @@ pub const OpenApi32Converter = struct {
             .schema_or_reference => null,
         } else null;
 
-        return Schema{
-            .type = schema_type,
+        var converted = Schema{
+            .type = schema_type orelse (if (schema.oneOf != null or schema.anyOf != null) SchemaType.object else null),
             .ref = null,
             .title = title,
             .description = description,
@@ -518,6 +522,55 @@ pub const OpenApi32Converter = struct {
             .additional_properties = additional_properties,
             .nullable = nullable,
         };
+        try self.attachComposition(&converted, schema);
+        return converted;
+    }
+
+    // JSON Schema composition applies alongside properties, not instead of
+    // them. Retain both union keywords even when both occur on one schema.
+    fn attachComposition(self: *OpenApi32Converter, converted: *Schema, schema: Schema32) !void {
+        if (schema.oneOf) |variants| converted.one_of = try self.convertUnionVariants(variants);
+        if (schema.anyOf) |variants| converted.any_of = try self.convertUnionVariants(variants);
+        if (schema.discriminator) |disc| {
+            converted.discriminator_property = try self.allocator.dupe(u8, disc.propertyName);
+            if (schema.oneOf) |variants| converted.one_of_refs = try self.convertUnionRefs(variants);
+            if (schema.anyOf) |variants| converted.any_of_refs = try self.convertUnionRefs(variants);
+        }
+    }
+
+    fn convertUnionVariants(self: *OpenApi32Converter, variants: []const SchemaOrReference32) ![]Schema {
+        const converted = try self.allocator.alloc(Schema, variants.len);
+        errdefer self.allocator.free(converted);
+        for (variants, 0..) |variant, i| {
+            converted[i] = try self.convertSchemaOrReference(variant);
+        }
+        return converted;
+    }
+
+    fn convertUnionRefs(self: *OpenApi32Converter, variants: []const SchemaOrReference32) !?[][]const u8 {
+        var refs = try self.allocator.alloc([]const u8, variants.len);
+        errdefer {
+            for (refs[0..]) |ref| if (ref.len != 0) self.allocator.free(ref);
+            self.allocator.free(refs);
+        }
+        for (refs) |*ref| ref.* = "";
+
+        for (variants, 0..) |variant, i| {
+            switch (variant) {
+                .reference => |reference| refs[i] = try self.allocator.dupe(u8, refName(reference.ref)),
+                .schema => {
+                    for (refs) |ref| if (ref.len != 0) self.allocator.free(ref);
+                    self.allocator.free(refs);
+                    return null;
+                },
+            }
+        }
+        return refs;
+    }
+
+    fn refName(ref: []const u8) []const u8 {
+        if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| return ref[last_slash + 1 ..];
+        return ref;
     }
 
     fn convertSchemaType(self: *OpenApi32Converter, type_str: []const u8) SchemaType {
