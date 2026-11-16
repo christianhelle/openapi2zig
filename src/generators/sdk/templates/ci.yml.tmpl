@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{{{ matrix.os }}}}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: {{minimum_zig_version}}
+
+      - name: Test
+        run: zig build test
+
+      - name: Compile every generated operation
+        run: zig build check
+
+      - name: Build examples
+        run: zig build examples

@@ -87,7 +87,7 @@ test "every template renders without leftover placeholders" {
         const out = try renderOwned(allocator, kind);
         defer allocator.free(out);
         try testing.expect(out.len > 0);
-        try testing.expect(std.mem.indexOf(u8, out, "{{") == null);
+        if (kind != .ci and kind != .release) try testing.expect(std.mem.indexOf(u8, out, "{{") == null);
         try testing.expect(std.mem.indexOfScalar(u8, out, '\r') == null);
     }
 }
@@ -194,4 +194,65 @@ test "template escapes doubled braces for github expressions" {
     const out = try template.expand(allocator, "os: ${{{{ matrix.os }}}} v{{ v }}", &.{.{ .name = "v", .value = "1" }});
     defer allocator.free(out);
     try testing.expectEqualStrings("os: ${{ matrix.os }} v1", out);
+}
+
+test "readme template documents install and regeneration" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const out = try renderOwned(allocator, .readme);
+    defer allocator.free(out);
+
+    try testing.expect(std.mem.indexOf(u8, out, "# Petstore SDK") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "zig fetch --save git+https://github.com/example/petstore-sdk-for-zig#v1.2.3") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "b.dependency(\"petstore\"") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "all 3 paths (5 operations)") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "7 schemas") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "openapi2zig 9.9.9") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "docs/REGENERATING.md") != null);
+}
+
+test "docs templates mention the generate command" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const regen = try renderOwned(allocator, .regenerating);
+    defer allocator.free(regen);
+    try testing.expect(std.mem.indexOf(u8, regen, "openapi2zig generate --sdk") != null);
+    try testing.expect(std.mem.indexOf(u8, regen, "openapi/openapi.json") != null);
+
+    const usage = try renderOwned(allocator, .usage);
+    defer allocator.free(usage);
+    try testing.expect(std.mem.indexOf(u8, usage, "https://petstore.example.com/v1") != null);
+    try testing.expect(std.mem.indexOf(u8, usage, "ApiResult") != null);
+}
+
+test "workflow templates keep github expressions" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const ci = try renderOwned(allocator, .ci);
+    defer allocator.free(ci);
+    try testing.expect(std.mem.indexOf(u8, ci, "runs-on: ${{ matrix.os }}") != null);
+    try testing.expect(std.mem.indexOf(u8, ci, "version: 0.17.1") != null);
+    try testing.expect(std.mem.indexOf(u8, ci, "zig build check") != null);
+
+    const release = try renderOwned(allocator, .release);
+    defer allocator.free(release);
+    try testing.expect(std.mem.indexOf(u8, release, "VERSION: ${{ inputs.version }}") != null);
+    try testing.expect(std.mem.indexOf(u8, release, "gh release create") != null);
+}
+
+test "quickstart example imports the sdk module" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const out = try renderOwned(allocator, .quickstart);
+    defer allocator.free(out);
+    try testing.expect(std.mem.indexOf(u8, out, "@import(\"petstore\")") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "client.deinit()") != null);
 }

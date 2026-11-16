@@ -33,6 +33,12 @@ pub const Kind = enum {
     gitattributes,
     license,
     changelog,
+    readme,
+    usage,
+    regenerating,
+    ci,
+    release,
+    quickstart,
 
     pub fn path(self: Kind) []const u8 {
         return switch (self) {
@@ -44,6 +50,12 @@ pub const Kind = enum {
             .gitattributes => ".gitattributes",
             .license => "LICENSE",
             .changelog => "CHANGELOG.md",
+            .readme => "README.md",
+            .usage => "docs/USAGE.md",
+            .regenerating => "docs/REGENERATING.md",
+            .ci => ".github/workflows/ci.yml",
+            .release => ".github/workflows/release.yml",
+            .quickstart => "examples/quickstart.zig",
         };
     }
 
@@ -51,7 +63,8 @@ pub const Kind = enum {
         return switch (self) {
             .root_zig, .compile_check_zig, .build_zig => .generated,
             .build_zig_zon, .gitignore, .license, .changelog => .scaffold,
-            .gitattributes => .generated,
+            .gitattributes, .regenerating => .generated,
+            .readme, .usage, .ci, .release, .quickstart => .scaffold,
         };
     }
 
@@ -65,6 +78,12 @@ pub const Kind = enum {
             .gitattributes => @embedFile("templates/gitattributes.tmpl"),
             .license => @embedFile("templates/LICENSE.tmpl"),
             .changelog => @embedFile("templates/CHANGELOG.md.tmpl"),
+            .readme => @embedFile("templates/README.md.tmpl"),
+            .usage => @embedFile("templates/USAGE.md.tmpl"),
+            .regenerating => @embedFile("templates/REGENERATING.md.tmpl"),
+            .ci => @embedFile("templates/ci.yml.tmpl"),
+            .release => @embedFile("templates/release.yml.tmpl"),
+            .quickstart => @embedFile("templates/quickstart.zig.tmpl"),
         };
     }
 };
