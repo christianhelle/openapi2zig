@@ -75,3 +75,49 @@ pub fn isUnchanged(
 
     return !generated_header.hasChanged(existing, raw_code);
 }
+
+/// Who owns a non-Zig file in a generated SDK repository.
+///
+/// `generated` files are rewritten on every run (unless unchanged) because the
+/// generator is their only author. `scaffold` files are written once and then
+/// belong to the user, so they are never touched again unless `force` is set.
+pub const Ownership = enum { generated, scaffold };
+
+pub const WriteResult = enum { written, skipped_unchanged, skipped_existing };
+
+/// Writes `content` verbatim (no header, no normalization) to `path`.
+pub fn writeOwned(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    cwd: std.Io.Dir,
+    path: []const u8,
+    content: []const u8,
+    ownership: Ownership,
+    force: bool,
+) !WriteResult {
+    const existing = cwd.readFileAlloc(io, path, allocator, .unlimited) catch |err| switch (err) {
+        error.FileNotFound => null,
+        else => return err,
+    };
+    defer if (existing) |bytes| allocator.free(bytes);
+
+    if (existing) |bytes| {
+        if (std.mem.eql(u8, bytes, content)) {
+            std.log.info("Skipping '{s}' (unchanged)", .{path});
+            return .skipped_unchanged;
+        }
+        if (ownership == .scaffold and !force) {
+            std.log.info("Skipping '{s}' (already exists; use --force to overwrite)", .{path});
+            return .skipped_existing;
+        }
+    }
+
+    if (std.fs.path.dirname(path)) |parent| {
+        try cwd.createDirPath(io, parent);
+    }
+    const file = try cwd.createFile(io, path, .{});
+    defer file.close(io);
+    try file.writeStreamingAll(io, content);
+    std.log.info("Wrote '{s}'", .{path});
+    return .written;
+}
