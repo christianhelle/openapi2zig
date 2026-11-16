@@ -100,6 +100,13 @@ pub const CliArgs = struct {
     /// Wrap non-body method parameters in a single `options` struct instead of
     /// emitting them as individual function arguments.
     parameters_as_struct: bool = false,
+    /// Generate a complete SDK repository (sources plus build files, docs,
+    /// CI workflows and examples) instead of bare Zig sources.
+    sdk: bool = false,
+    /// Path to the SDK config file. Defaults to `<output>/openapi2zig.json`.
+    sdk_config_path: ?[]const u8 = null,
+    /// SDK package name, used when no config file exists yet.
+    sdk_name: ?[]const u8 = null,
 
     pub fn deinit(self: *CliArgs, allocator: std.mem.Allocator) void {
         if (self.owns_tags) allocator.free(self.tags);
