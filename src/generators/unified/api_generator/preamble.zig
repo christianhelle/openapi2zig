@@ -167,6 +167,15 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    try std.Uri.Component.percentEncode(writer, value, isQueryChar);
         \\}
         \\
+        \\/// A path parameter value, percent-encoded when formatted with `{f}`.
+        \\const PathSegment = struct {
+        \\    value: []const u8,
+        \\
+        \\    pub fn format(self: PathSegment, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        \\        try writeQueryComponent(writer, self.value);
+        \\    }
+        \\};
+        \\
         \\fn writeQueryValue(writer: *std.Io.Writer, value: anytype) !void {
         \\    const T = @TypeOf(value);
         \\    switch (@typeInfo(T)) {
