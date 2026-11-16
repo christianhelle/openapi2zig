@@ -151,3 +151,37 @@ test "scaffold and generated ownership" {
     try testing.expectEqual(@import("../generator/output_writer.zig").Ownership.scaffold, templates.Kind.build_zig_zon.ownership());
     try testing.expectEqual(@import("../generator/output_writer.zig").Ownership.generated, templates.Kind.build_zig.ownership());
 }
+
+test "static repository files render" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const ignore = try renderOwned(allocator, .gitignore);
+    defer allocator.free(ignore);
+    try testing.expect(std.mem.indexOf(u8, ignore, ".zig-cache/") != null);
+    try testing.expect(std.mem.indexOf(u8, ignore, "zig-out/") != null);
+
+    const attrs = try renderOwned(allocator, .gitattributes);
+    defer allocator.free(attrs);
+    try testing.expect(std.mem.indexOf(u8, attrs, "src/client.zig linguist-generated=true") != null);
+    try testing.expect(std.mem.indexOf(u8, attrs, "openapi/openapi.json linguist-generated=true") != null);
+
+    const license = try renderOwned(allocator, .license);
+    defer allocator.free(license);
+    try testing.expect(std.mem.indexOf(u8, license, "MIT License") != null);
+    try testing.expect(std.mem.indexOf(u8, license, "Copyright (c) 2026 Jane Doe") != null);
+
+    const changelog = try renderOwned(allocator, .changelog);
+    defer allocator.free(changelog);
+    try testing.expect(std.mem.indexOf(u8, changelog, "## 1.2.3") != null);
+    try testing.expect(std.mem.indexOf(u8, changelog, "openapi2zig 9.9.9") != null);
+}
+
+test "license template only applies to MIT" {
+    var ctx = testContext();
+    try testing.expect(templates.applies(.license, ctx));
+    ctx.config.license = "Apache-2.0";
+    try testing.expect(!templates.applies(.license, ctx));
+    try testing.expect(templates.applies(.gitignore, ctx));
+}

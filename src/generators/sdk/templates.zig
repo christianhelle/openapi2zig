@@ -29,6 +29,10 @@ pub const Kind = enum {
     compile_check_zig,
     build_zig,
     build_zig_zon,
+    gitignore,
+    gitattributes,
+    license,
+    changelog,
 
     pub fn path(self: Kind) []const u8 {
         return switch (self) {
@@ -36,13 +40,18 @@ pub const Kind = enum {
             .compile_check_zig => "src/compile_check.zig",
             .build_zig => "build.zig",
             .build_zig_zon => "build.zig.zon",
+            .gitignore => ".gitignore",
+            .gitattributes => ".gitattributes",
+            .license => "LICENSE",
+            .changelog => "CHANGELOG.md",
         };
     }
 
     pub fn ownership(self: Kind) output_writer.Ownership {
         return switch (self) {
             .root_zig, .compile_check_zig, .build_zig => .generated,
-            .build_zig_zon => .scaffold,
+            .build_zig_zon, .gitignore, .license, .changelog => .scaffold,
+            .gitattributes => .generated,
         };
     }
 
@@ -52,6 +61,10 @@ pub const Kind = enum {
             .compile_check_zig => @embedFile("templates/compile_check.zig.tmpl"),
             .build_zig => @embedFile("templates/build.zig.tmpl"),
             .build_zig_zon => @embedFile("templates/build.zig.zon.tmpl"),
+            .gitignore => @embedFile("templates/gitignore.tmpl"),
+            .gitattributes => @embedFile("templates/gitattributes.tmpl"),
+            .license => @embedFile("templates/LICENSE.tmpl"),
+            .changelog => @embedFile("templates/CHANGELOG.md.tmpl"),
         };
     }
 };
@@ -105,4 +118,13 @@ pub fn fingerprintFor(name: []const u8, seed: []const u8) u64 {
     if (id == 0 or id == 0xffffffff) id = 0x6f70656e;
     const checksum: u64 = std.hash.Crc32.hash(name);
     return (checksum << 32) | id;
+}
+
+/// Whether the template applies to this SDK. The bundled LICENSE text is MIT
+/// only; other licenses are left for the user to add.
+pub fn applies(kind: Kind, ctx: SdkContext) bool {
+    return switch (kind) {
+        .license => std.mem.eql(u8, ctx.config.license, "MIT"),
+        else => true,
+    };
 }
