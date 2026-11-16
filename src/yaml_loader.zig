@@ -245,6 +245,11 @@ fn normalizeQuotedMapKeys(allocator: std.mem.Allocator, yaml_content: []const u8
 fn appendNormalizedMapKeyLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line: []const u8) !void {
     var index: usize = 0;
     while (index < line.len and (line[index] == ' ' or line[index] == '\t')) : (index += 1) {}
+    // A quoted key may follow sequence markers: `- '@odata.type': value`.
+    while (std.mem.startsWith(u8, line[index..], "- ")) {
+        index += 2;
+        while (index < line.len and line[index] == ' ') : (index += 1) {}
+    }
 
     if (index >= line.len or (line[index] != '\'' and line[index] != '"')) {
         try appendLineWithEscapedKeyBraces(allocator, out, line);

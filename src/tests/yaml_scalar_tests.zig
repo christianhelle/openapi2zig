@@ -373,11 +373,15 @@ test "quoted keys may start with hash or contain syntax characters" {
         \\  'x, y [z]': d
         \\x-next:
         \\  k: v
+        \\x-list:
+        \\  - '@odata.type': microsoft.graph.thing
+        \\    other: 1
     ;
 
     const json = try yaml_loader.yamlToJson(allocator, yaml_content);
     defer allocator.free(json);
 
+    try expectContains(json, "\"x-list\":[{\"@odata.type\":\"microsoft.graph.thing\"");
     try expectContains(json, "\"#microsoft.graph.thing\":\"#/components/schemas/thing\"");
     try expectContains(json, "\"two words\":\"a\"");
     try expectContains(json, "\"a: b\":\"c\"");
