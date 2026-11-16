@@ -4,6 +4,7 @@ const yaml = @import("yaml");
 const YamlValue = yaml.Yaml.Value;
 const lbrace_placeholder = "__openapi2zig_lbrace__";
 const rbrace_placeholder = "__openapi2zig_rbrace__";
+const byte_placeholder_prefix = "__openapi2zig_byte_";
 const unquoted_scalar_placeholder = "__openapi2zig_unquoted_scalar__";
 
 pub const YamlToJsonError = error{
@@ -274,7 +275,7 @@ fn appendNormalizedMapKeyLine(allocator: std.mem.Allocator, out: *std.ArrayList(
     defer allocator.free(key);
 
     try out.appendSlice(allocator, line[0..index]);
-    try appendKeyWithEscapedBraces(allocator, out, key);
+    try appendKeyWithEscapedBraces(allocator, out, key, true);
     try out.appendSlice(allocator, line[key_end + 1 ..]);
 }
 
@@ -284,15 +285,23 @@ fn appendLineWithEscapedKeyBraces(allocator: std.mem.Allocator, out: *std.ArrayL
         return;
     };
 
-    try appendKeyWithEscapedBraces(allocator, out, line[0..colon_index]);
+    try appendKeyWithEscapedBraces(allocator, out, line[0..colon_index], false);
     try out.appendSlice(allocator, line[colon_index..]);
 }
 
-fn appendKeyWithEscapedBraces(allocator: std.mem.Allocator, out: *std.ArrayList(u8), key: []const u8) !void {
+fn appendKeyWithEscapedBraces(allocator: std.mem.Allocator, out: *std.ArrayList(u8), key: []const u8, escape_syntax: bool) !void {
     for (key) |char| {
         switch (char) {
             '{' => try out.appendSlice(allocator, lbrace_placeholder),
             '}' => try out.appendSlice(allocator, rbrace_placeholder),
+            // Characters zig-yaml reads as syntax inside an unquoted key.
+            ' ', '#', '[', ']', ',', ':', '\'', '"', '*', '&', '!', '|', '>', '%', '`' => {
+                if (escape_syntax) {
+                    try out.print(allocator, "{s}{x:0>2}__", .{ byte_placeholder_prefix, char });
+                } else {
+                    try out.append(allocator, char);
+                }
+            },
             else => try out.append(allocator, char),
         }
     }
@@ -472,7 +481,28 @@ fn normalizeYamlKey(allocator: std.mem.Allocator, raw_key: []const u8) ![]const 
 fn replaceKeyPlaceholders(allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
     const with_lbraces = try std.mem.replaceOwned(u8, allocator, key, lbrace_placeholder, "{");
     defer allocator.free(with_lbraces);
-    return try std.mem.replaceOwned(u8, allocator, with_lbraces, rbrace_placeholder, "}");
+    const with_braces = try std.mem.replaceOwned(u8, allocator, with_lbraces, rbrace_placeholder, "}");
+    defer allocator.free(with_braces);
+
+    var out = std.ArrayList(u8).empty;
+    errdefer out.deinit(allocator);
+    var i: usize = 0;
+    while (i < with_braces.len) {
+        const rest = with_braces[i..];
+        if (std.mem.startsWith(u8, rest, byte_placeholder_prefix) and rest.len >= byte_placeholder_prefix.len + 4) {
+            const hex = rest[byte_placeholder_prefix.len..][0..2];
+            if (std.mem.eql(u8, rest[byte_placeholder_prefix.len + 2 ..][0..2], "__")) {
+                if (std.fmt.parseInt(u8, hex, 16)) |byte| {
+                    try out.append(allocator, byte);
+                    i += byte_placeholder_prefix.len + 4;
+                    continue;
+                } else |_| {}
+            }
+        }
+        try out.append(allocator, with_braces[i]);
+        i += 1;
+    }
+    return try out.toOwnedSlice(allocator);
 }
 
 fn unescapeSingleQuoted(allocator: std.mem.Allocator, value: []const u8) ![]const u8 {

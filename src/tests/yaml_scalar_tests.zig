@@ -356,3 +356,31 @@ test "quoted words inside a plain scalar stay part of the text" {
 
     try expectContains(json, "set to 'eventual'. Say \\\"hi\\\" to it's owner.");
 }
+
+test "quoted keys may start with hash or contain syntax characters" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: t
+        \\  version: 1.0.0
+        \\x-mapping:
+        \\  '#microsoft.graph.thing': '#/components/schemas/thing'
+        \\  'two words': a
+        \\  'a: b': c
+        \\  'x, y [z]': d
+        \\x-next:
+        \\  k: v
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "\"#microsoft.graph.thing\":\"#/components/schemas/thing\"");
+    try expectContains(json, "\"two words\":\"a\"");
+    try expectContains(json, "\"a: b\":\"c\"");
+    try expectContains(json, "\"x, y [z]\":\"d\"");
+    try expectContains(json, "\"x-next\":{\"k\":\"v\"}");
+}
