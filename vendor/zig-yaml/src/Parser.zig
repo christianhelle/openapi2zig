@@ -714,6 +714,40 @@ fn parseDoubleQuoted(self: *Parser, gpa: Allocator, raw: []const u8) ParseError!
                     self.string_bytes.appendAssumeCapacity('"');
                     string.len += 1;
                 },
+                'r', '0', '/', 'b', 'f', 'a', 'v', 'e', ' ' => {
+                    state = .start;
+                    self.string_bytes.appendAssumeCapacity(switch (c) {
+                        'r' => '\r',
+                        '0' => 0,
+                        '/' => '/',
+                        'b' => 0x08,
+                        'f' => 0x0c,
+                        'a' => 0x07,
+                        'v' => 0x0b,
+                        'e' => 0x1b,
+                        else => ' ',
+                    });
+                    string.len += 1;
+                },
+                'x', 'u', 'U' => {
+                    const digits: usize = switch (c) {
+                        'x' => 2,
+                        'u' => 4,
+                        else => 8,
+                    };
+                    if (index + digits >= raw_no_quotes.len + 0 and index + digits > raw_no_quotes.len - 1) {
+                        return error.InvalidEscapeSequence;
+                    }
+                    const hex = raw_no_quotes[index + 1 .. index + 1 + digits];
+                    const code_point = std.fmt.parseInt(u21, hex, 16) catch return error.InvalidEscapeSequence;
+                    var utf8: [4]u8 = undefined;
+                    const len = std.unicode.utf8Encode(code_point, &utf8) catch return error.InvalidEscapeSequence;
+                    // The escape is at least as long as the bytes it produces.
+                    self.string_bytes.appendSliceAssumeCapacity(utf8[0..len]);
+                    string.len += @intCast(len);
+                    index += digits;
+                    state = .start;
+                },
                 else => return error.InvalidEscapeSequence,
             },
         }

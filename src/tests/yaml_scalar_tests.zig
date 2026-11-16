@@ -220,3 +220,20 @@ test "block scalars escape tabs and quotes" {
 
     try expectContains(json, "a \\\"quoted\\\" word\\tand a tab");
 }
+
+test "double quoted values accept the full YAML escape set" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: "line one.\r\nline two.\tTabbed \/ slash é \x41 nul\0end"
+        \\  version: 1.0.0
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "line one.\\r\\nline two.\\tTabbed / slash \xc3\xa9 A nul\\u0000end");
+}
