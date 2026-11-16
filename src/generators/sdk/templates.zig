@@ -19,27 +19,35 @@ pub const SdkContext = struct {
     fingerprint: u64 = 0,
     /// Spec location relative to the repository, as written in the config.
     spec: []const u8 = "openapi/openapi.json",
+    /// Example names (file stems in `examples/`), in build order.
+    examples: []const []const u8 = &.{"quickstart"},
 };
 
 /// A non-Zig or hand-off file of the SDK repository.
 pub const Kind = enum {
     root_zig,
+    compile_check_zig,
+    build_zig,
 
     pub fn path(self: Kind) []const u8 {
         return switch (self) {
             .root_zig => "src/root.zig",
+            .compile_check_zig => "src/compile_check.zig",
+            .build_zig => "build.zig",
         };
     }
 
     pub fn ownership(self: Kind) output_writer.Ownership {
         return switch (self) {
-            .root_zig => .generated,
+            .root_zig, .compile_check_zig, .build_zig => .generated,
         };
     }
 
     fn source(self: Kind) []const u8 {
         return switch (self) {
             .root_zig => @embedFile("templates/root.zig.tmpl"),
+            .compile_check_zig => @embedFile("templates/compile_check.zig.tmpl"),
+            .build_zig => @embedFile("templates/build.zig.tmpl"),
         };
     }
 };
@@ -63,6 +71,7 @@ pub fn buildVars(arena: std.mem.Allocator, ctx: SdkContext) ![]template.Var {
         .{ .name = "generator_version", .value = ctx.generator_version },
         .{ .name = "spec", .value = ctx.spec },
         .{ .name = "year", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.year}) },
+        .{ .name = "examples_list", .value = try examplesList(arena, ctx.examples) },
         .{ .name = "fingerprint", .value = try std.fmt.allocPrint(arena, "0x{x:0>16}", .{ctx.fingerprint}) },
         .{ .name = "path_count", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.path_count}) },
         .{ .name = "operation_count", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.operation_count}) },
@@ -76,4 +85,10 @@ pub fn render(allocator: std.mem.Allocator, kind: Kind, ctx: SdkContext) ![]u8 {
     defer arena_state.deinit();
     const vars = try buildVars(arena_state.allocator(), ctx);
     return template.expand(allocator, kind.source(), vars);
+}
+
+fn examplesList(arena: std.mem.Allocator, names: []const []const u8) ![]const u8 {
+    var out: std.ArrayList(u8) = .empty;
+    for (names) |name| try out.print(arena, "    \"{s}\",\n", .{name});
+    return out.items;
 }

@@ -91,3 +91,34 @@ test "every template renders without leftover placeholders" {
         try testing.expect(std.mem.indexOfScalar(u8, out, '\r') == null);
     }
 }
+
+test "compile_check.zig template walks every client declaration" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const out = try renderOwned(allocator, .compile_check_zig);
+    defer allocator.free(out);
+
+    try testing.expect(std.mem.indexOf(u8, out, "@import(\"client.zig\")") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "std.meta.declarations(client)") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "@setEvalBranchQuota") != null);
+}
+
+test "build.zig template exports the module and the examples" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var ctx = testContext();
+    ctx.examples = &.{ "quickstart", "list_pets" };
+    const out = try templates.render(allocator, .build_zig, ctx);
+    defer allocator.free(out);
+
+    try testing.expect(std.mem.indexOf(u8, out, "b.addModule(\"petstore\"") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "\"src/root.zig\"") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "    \"quickstart\",\n    \"list_pets\",\n};") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "b.step(\"check\"") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "b.step(\"examples\"") != null);
+    try testing.expect(std.mem.indexOf(u8, out, ".name = \"petstore\", .module = mod") != null);
+}
