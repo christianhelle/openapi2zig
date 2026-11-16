@@ -214,3 +214,46 @@ test "sdk prepare reads the spec path from an existing config" {
     try testing.expectEqualStrings(expected, prepared.args.input_path);
     try testing.expect(prepared.args.multiple_files);
 }
+
+test "sdk prepare copies a local spec into the repository" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "pets.json", .data = spec });
+
+    var prepared = try sdk_scaffold.prepare(allocator, testing.io, tmp.dir, .{
+        .input_path = "pets.json",
+        .output_path = "repo",
+        .sdk = true,
+        .sdk_name = "pets",
+    });
+    defer prepared.deinit();
+
+    try testing.expectEqualStrings("openapi/pets.json", prepared.parsed.value.spec.?);
+    try testing.expectEqualStrings("pets.json", prepared.args.input_path);
+
+    const copied = try read(allocator, tmp.dir, "repo/openapi/pets.json");
+    defer allocator.free(copied);
+    try testing.expectEqualStrings(spec, copied);
+}
+
+test "sdk prepare keeps a remote spec url in the config" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var prepared = try sdk_scaffold.prepare(allocator, testing.io, tmp.dir, .{
+        .input_path = "https://example.com/openapi.json",
+        .output_path = "repo",
+        .sdk = true,
+        .sdk_name = "pets",
+    });
+    defer prepared.deinit();
+
+    try testing.expectEqualStrings("https://example.com/openapi.json", prepared.parsed.value.spec.?);
+}

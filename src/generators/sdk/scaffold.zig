@@ -48,7 +48,8 @@ pub fn prepare(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, args: 
         try config_mod.parse(allocator, bytes)
     else blk: {
         const name = args.sdk_name orelse return error.MissingSdkName;
-        const spec = if (args.input_path.len > 0) args.input_path else default_spec_path;
+        const spec = try bundledSpecPath(allocator, io, cwd, repo_dir, args.input_path);
+        defer allocator.free(spec);
         const rendered = try config_mod.renderDefault(allocator, name, spec);
         defer allocator.free(rendered);
         _ = try output_writer.writeOwned(allocator, io, cwd, config_path, rendered, .scaffold, false);
@@ -175,4 +176,27 @@ fn discoverExamples(arena: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, repo_
 
 fn lessThan(_: void, a: []const u8, b: []const u8) bool {
     return std.mem.lessThan(u8, a, b);
+}
+
+/// Decides what a freshly written config calls its spec. A local spec file is
+/// copied into `<repo>/openapi/` so the repository can be regenerated on its
+/// own; a URL is kept as is. The result is owned by the caller.
+fn bundledSpecPath(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, repo_dir: []const u8, input_path: []const u8) ![]u8 {
+    if (input_path.len == 0) return allocator.dupe(u8, default_spec_path);
+    if (isUrl(input_path)) return allocator.dupe(u8, input_path);
+
+    const base = std.fs.path.basename(input_path);
+    const bundled = try std.fmt.allocPrint(allocator, "openapi/{s}", .{base});
+    errdefer allocator.free(bundled);
+
+    const bytes = cwd.readFileAlloc(io, input_path, allocator, .unlimited) catch |err| switch (err) {
+        // The generation step reports a missing spec with a clearer error.
+        error.FileNotFound => return bundled,
+        else => return err,
+    };
+    defer allocator.free(bytes);
+    const dest = try std.fs.path.join(allocator, &.{ repo_dir, bundled });
+    defer allocator.free(dest);
+    _ = try output_writer.writeOwned(allocator, io, cwd, dest, bytes, .scaffold, false);
+    return bundled;
 }
