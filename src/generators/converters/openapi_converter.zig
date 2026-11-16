@@ -15,6 +15,7 @@ const Response = @import("../../models/common/document.zig").Response;
 const Operation = @import("../../models/common/document.zig").Operation;
 const PathItem = @import("../../models/common/document.zig").PathItem;
 const mime = @import("../../media_type.zig");
+const param_merge = @import("param_merge.zig");
 const OpenApiDocument = @import("../../models/v3.0/openapi.zig").OpenApiDocument;
 const Info3 = @import("../../models/v3.0/info.zig").Info;
 const ExternalDocs3 = @import("../../models/v3.0/externaldocs.zig").ExternalDocumentation;
@@ -462,13 +463,13 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertPathItem(self: *OpenApiConverter, pathItem: PathItem3) !PathItem {
-        const get = if (pathItem.get) |op| try self.convertOperation(op) else null;
-        const put = if (pathItem.put) |op| try self.convertOperation(op) else null;
-        const post = if (pathItem.post) |op| try self.convertOperation(op) else null;
-        const delete = if (pathItem.delete) |op| try self.convertOperation(op) else null;
-        const options = if (pathItem.options) |op| try self.convertOperation(op) else null;
-        const head = if (pathItem.head) |op| try self.convertOperation(op) else null;
-        const patch = if (pathItem.patch) |op| try self.convertOperation(op) else null;
+        const get = try self.convertPathOperation(pathItem.get, pathItem.parameters);
+        const put = try self.convertPathOperation(pathItem.put, pathItem.parameters);
+        const post = try self.convertPathOperation(pathItem.post, pathItem.parameters);
+        const delete = try self.convertPathOperation(pathItem.delete, pathItem.parameters);
+        const options = try self.convertPathOperation(pathItem.options, pathItem.parameters);
+        const head = try self.convertPathOperation(pathItem.head, pathItem.parameters);
+        const patch = try self.convertPathOperation(pathItem.patch, pathItem.parameters);
         const parameters = if (pathItem.parameters) |params| try self.convertParameters(params) else null;
         return PathItem{
             .get = get,
@@ -480,6 +481,17 @@ pub const OpenApiConverter = struct {
             .patch = patch,
             .parameters = parameters,
         };
+    }
+
+    /// Converts an operation and merges the path item's parameters into it.
+    fn convertPathOperation(self: *OpenApiConverter, raw_operation: ?Operation3, path_parameters: anytype) !?Operation {
+        const raw = raw_operation orelse return null;
+        var operation = try self.convertOperation(raw);
+        if (path_parameters) |params| {
+            const path_level = try self.convertParameters(params);
+            try param_merge.mergePathLevel(self.allocator, &operation, path_level);
+        }
+        return operation;
     }
 
     fn convertOperation(self: *OpenApiConverter, operation: Operation3) !Operation {
