@@ -9,6 +9,7 @@ const test_input_loader = @import("tests/test_input_loader.zig");
 const yaml_loader_tests = @import("tests/yaml_loader_tests.zig");
 const resource_wrapper_tests = @import("tests/resource_wrapper_tests.zig");
 const sdk_config_tests = @import("tests/sdk_config_tests.zig");
+const deterministic_output_tests = @import("tests/deterministic_output_tests.zig");
 const openapi30_composition_tests = @import("tests/openapi30_composition_tests.zig");
 const response_reference_tests = @import("tests/response_reference_tests.zig");
 const path_level_parameter_tests = @import("tests/path_level_parameter_tests.zig");
@@ -63,6 +64,7 @@ comptime {
     _ = yaml_loader_tests;
     _ = resource_wrapper_tests;
     _ = sdk_config_tests;
+    _ = deterministic_output_tests;
     _ = openapi30_composition_tests;
     _ = response_reference_tests;
     _ = path_level_parameter_tests;

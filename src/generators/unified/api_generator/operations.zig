@@ -15,12 +15,20 @@ const authSchemeForOperation = helpers.authSchemeForOperation;
 const UnifiedApiGenerator = @import("../api_generator.zig").UnifiedApiGenerator;
 
 pub fn generateApiClient(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
-    var path_iterator = document.paths.iterator();
-    while (path_iterator.next()) |entry| {
-        const path = entry.key_ptr.*;
-        const path_item = entry.value_ptr.*;
-        try self.generateOperations(path, path_item, document);
+    // Emit in path order so the output does not depend on hash map order.
+    const sorted = try self.allocator.alloc([]const u8, document.paths.count());
+    defer self.allocator.free(sorted);
+    var index: usize = 0;
+    var keys = document.paths.keyIterator();
+    while (keys.next()) |path| : (index += 1) sorted[index] = path.*;
+    std.mem.sort([]const u8, sorted, {}, lessThanPath);
+    for (sorted) |path| {
+        try self.generateOperations(path, document.paths.get(path).?, document);
     }
+}
+
+fn lessThanPath(_: void, a: []const u8, b: []const u8) bool {
+    return std.mem.lessThan(u8, a, b);
 }
 
 pub fn generateOperations(self: *UnifiedApiGenerator, path: []const u8, path_item: @import("../../../models/common/document.zig").PathItem, document: UnifiedDocument) !void {

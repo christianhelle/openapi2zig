@@ -113,12 +113,20 @@ pub const UnifiedModelGenerator = struct {
         // of the hash map's iteration order.
         var names = schemas.keyIterator();
         while (names.next()) |name| try self.declaration_names.put(name.*, {});
-        var schema_iterator = schemas.iterator();
-        while (schema_iterator.next()) |entry| {
-            const schema_name = entry.key_ptr.*;
-            const schema = entry.value_ptr.*;
-            try self.generateSchema(schema_name, schema);
+        // Emit in name order so the output does not depend on hash map order.
+        const sorted = try self.allocator.alloc([]const u8, schemas.count());
+        defer self.allocator.free(sorted);
+        var index: usize = 0;
+        var keys = schemas.keyIterator();
+        while (keys.next()) |name| : (index += 1) sorted[index] = name.*;
+        std.mem.sort([]const u8, sorted, {}, lessThanString);
+        for (sorted) |schema_name| {
+            try self.generateSchema(schema_name, schemas.get(schema_name).?);
         }
+    }
+
+    fn lessThanString(_: void, a: []const u8, b: []const u8) bool {
+        return std.mem.lessThan(u8, a, b);
     }
 
     pub fn generateSchema(self: *UnifiedModelGenerator, name: []const u8, schema: Schema) anyerror!void {
