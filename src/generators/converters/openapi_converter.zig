@@ -51,6 +51,9 @@ pub const OpenApiConverter = struct {
     /// Names of the schemas whose `allOf` composition is currently being
     /// resolved, so that a cycle between them stops instead of recursing.
     active_all_of_refs: std.ArrayList([]const u8) = .empty,
+    /// Responses declared under `components.responses`, so that a response given
+    /// as a `$ref` keeps the schema it points at.
+    source_responses: ?*const std.StringHashMap(ResponseOrReference3) = null,
 
     pub fn init(allocator: std.mem.Allocator) OpenApiConverter {
         return OpenApiConverter{ .allocator = allocator };
@@ -71,6 +74,10 @@ pub const OpenApiConverter = struct {
                 self.source_schemas = component_schemas;
             }
         }
+        if (openapi.components) |*components| {
+            if (components.responses) |*component_responses| self.source_responses = component_responses;
+        }
+        defer self.source_responses = null;
         defer self.component_parameters = null;
         defer self.source_schemas = null;
         defer {
@@ -690,12 +697,36 @@ pub const OpenApiConverter = struct {
     fn convertResponseOrReference(self: *OpenApiConverter, respOrRef: ResponseOrReference3) !Response {
         switch (respOrRef) {
             .reference => |ref| {
+                if (self.resolveComponentResponse(ref.ref)) |resolved| {
+                    return self.convertResponse(resolved);
+                }
                 return Response{ .description = ref.ref };
             },
             .response => |resp| {
                 return self.convertResponse(resp);
             },
         }
+    }
+
+    /// Look up a `#/components/responses/<name>` reference. A component entry
+    /// may itself be a Reference Object, so alias chains are followed; the hop
+    /// limit bounds cyclic definitions.
+    fn resolveComponentResponse(self: *OpenApiConverter, ref: []const u8) ?Response3 {
+        const prefix = "#/components/responses/";
+        const max_hops = 32;
+        const responses = self.source_responses orelse return null;
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = responses.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .response => |response| return response,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
     }
 
     fn convertResponse(self: *OpenApiConverter, response: Response3) !Response {
