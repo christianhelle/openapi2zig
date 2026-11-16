@@ -285,7 +285,8 @@ pub fn next(self: *Tokenizer) Token {
             },
 
             .literal => switch (c) {
-                '\r', '\n', ' ', '\'', '"', ']', '}' => {
+                // Quotes inside a plain scalar (`can't`) are ordinary characters.
+                '\r', '\n', ' ', ']', '}' => {
                     result.id = .literal;
                     break;
                 },

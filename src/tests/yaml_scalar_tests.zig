@@ -237,3 +237,29 @@ test "double quoted values accept the full YAML escape set" {
 
     try expectContains(json, "line one.\\r\\nline two.\\tTabbed / slash \xc3\xa9 A nul\\u0000end");
 }
+
+test "an apostrophe inside a plain scalar does not open a quoted string" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: A deleted item can't be restored. Also it's owner.
+        \\  version: 1.0.0
+        \\paths:
+        \\  /a:
+        \\    get:
+        \\      responses:
+        \\        '204':
+        \\          description: Success
+        \\        4XX:
+        \\          $ref: '#/components/responses/error'
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "can't be restored. Also it's owner.");
+    try expectContains(json, "\"4XX\"");
+}
