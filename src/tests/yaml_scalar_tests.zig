@@ -294,6 +294,23 @@ test "empty flow maps keep their parent map intact" {
     try expectContains(json, "\"x-after\":\"1\"");
 }
 
+test "emphasis markers inside plain scalars are not aliases" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: Retrieve the sets which are *excluded* in a policy & more!
+        \\  version: 1.0.0
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "sets which are *excluded* in a policy & more!");
+}
+
 test "unbalanced brackets inside plain scalars do not leak into later lines" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();

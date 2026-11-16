@@ -596,7 +596,10 @@ fn isPlainScalarWithQuotes(value: []const u8) bool {
         '"', '\'', '|', '>', '[', '{', '&', '*', '!', '%', '@', '`', '#' => return false,
         else => {},
     }
-    return std.mem.indexOfAny(u8, value[1..], "'\"[]{}") != null;
+    if (std.mem.indexOfAny(u8, value[1..], "'\"[]{}") != null) return true;
+    // `*`, `&` and `!` start aliases, anchors and tags after a space.
+    return std.mem.indexOf(u8, value, " *") != null or std.mem.indexOf(u8, value, " &") != null or
+        std.mem.indexOf(u8, value, " !") != null;
 }
 
 /// Logs where zig-yaml gave up. Line and column refer to the normalized text
