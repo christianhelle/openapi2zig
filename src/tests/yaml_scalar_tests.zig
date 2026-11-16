@@ -264,6 +264,33 @@ test "an apostrophe inside a plain scalar does not open a quoted string" {
     try expectContains(json, "\"4XX\"");
 }
 
+test "unbalanced brackets inside plain scalars do not leak into later lines" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: Use the filter {a and [b to narrow results
+        \\  version: 1.0.0
+        \\x-list:
+        \\  - a trailing ] bracket } and brace
+        \\  - second
+        \\x-example:
+        \\  properties:
+        \\    rate: { }
+        \\    basis: { }
+        \\  required: true
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "Use the filter {a and [b to narrow results");
+    try expectContains(json, "a trailing ] bracket } and brace");
+    try expectContains(json, "\"required\":true");
+}
+
 test "quoted words inside a plain scalar stay part of the text" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();

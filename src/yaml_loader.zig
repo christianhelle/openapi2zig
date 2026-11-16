@@ -28,7 +28,10 @@ pub fn yamlToJson(allocator: std.mem.Allocator, yaml_content: []const u8) ![]con
     var parsed: yaml.Yaml = .{ .source = marked_yaml };
     defer parsed.deinit(allocator);
 
-    try parsed.load(allocator);
+    parsed.load(allocator) catch |err| {
+        reportParseError(parsed.parse_errors, marked_yaml);
+        return err;
+    };
 
     if (parsed.docs.items.len == 0) return YamlToJsonError.EmptyYamlDocument;
     if (parsed.docs.items.len > 1) return YamlToJsonError.MultipleYamlDocumentsUnsupported;
@@ -311,12 +314,20 @@ fn markOriginallyUnquotedScalars(allocator: std.mem.Allocator, yaml_content: []c
 }
 
 fn appendMarkedLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line: []const u8) !void {
-    const colon_index = std.mem.indexOfScalar(u8, line, ':') orelse {
+    const indent = countIndent(line);
+    const is_seq_item = std.mem.startsWith(u8, line[indent..], "- ");
+    const content_start = if (is_seq_item) indent + 2 else indent;
+
+    var value_start: usize = undefined;
+    if (findKeyColon(line, content_start)) |colon_index| {
+        value_start = colon_index + 1;
+    } else if (is_seq_item) {
+        // A plain scalar sequence item: the whole remainder is the value.
+        value_start = content_start;
+    } else {
         try out.appendSlice(allocator, line);
         return;
-    };
-
-    var value_start = colon_index + 1;
+    }
     while (value_start < line.len and (line[value_start] == ' ' or line[value_start] == '\t')) : (value_start += 1) {}
 
     if (value_start >= line.len) {
@@ -574,13 +585,70 @@ fn isJsonNumber(value: []const u8) bool {
     return index == value.len;
 }
 
-/// A plain (unquoted) scalar that has a quote character somewhere after its
-/// first character, like `set to 'eventual'.`.
+/// A plain (unquoted) scalar with a quote or flow indicator after its first
+/// character, such as `set to 'eventual'.` or `use {a and [b`. zig-yaml would read
+/// those as the start of a quoted string or flow collection.
+/// (Previously: a plain scalar that has a quote character somewhere after its
+/// first character.)
 fn isPlainScalarWithQuotes(value: []const u8) bool {
     if (value.len < 2) return false;
     switch (value[0]) {
         '"', '\'', '|', '>', '[', '{', '&', '*', '!', '%', '@', '`', '#' => return false,
         else => {},
     }
-    return std.mem.indexOfAny(u8, value[1..], "'\"") != null;
+    return std.mem.indexOfAny(u8, value[1..], "'\"[]{}") != null;
+}
+
+/// Logs where zig-yaml gave up. Line and column refer to the normalized text
+/// the parser saw, which only differs from the input in quoting and folding.
+fn reportParseError(bundle: std.zig.ErrorBundle, source: []const u8) void {
+    if (bundle.errorMessageCount() == 0) return;
+    const message = bundle.getErrorMessage(bundle.getMessages()[0]);
+    const msg = bundle.nullTerminatedString(message.msg);
+    if (message.src_loc == .none) {
+        std.log.err("YAML parse error: {s}", .{msg});
+        return;
+    }
+    const loc = bundle.getSourceLocation(message.src_loc);
+    std.log.err("YAML parse error at line {d}, column {d}: {s}", .{ loc.line + 1, loc.column + 1, msg });
+    logSourceContext(source, loc.line + 1, 12);
+}
+
+/// Logs up to `radius` lines of `source` before and including `line_number`
+/// (1-based), so a parse error can be read in context.
+fn logSourceContext(source: []const u8, line_number: usize, radius: usize) void {
+    var lines = std.mem.splitScalar(u8, source, '\n');
+    var number: usize = 1;
+    while (lines.next()) |line| : (number += 1) {
+        if (number + radius < line_number) continue;
+        if (number > line_number) break;
+        std.log.err("  {d}: {s}", .{ number, std.mem.trimEnd(u8, line, "\r") });
+    }
+}
+
+/// The index of the colon that ends a mapping key, starting at `start`. A key
+/// may be quoted, in which case colons inside the quotes do not count. Returns
+/// null when the text has no `key:` form (a plain scalar).
+fn findKeyColon(line: []const u8, start: usize) ?usize {
+    var i = start;
+    if (i < line.len and (line[i] == '\'' or line[i] == '"')) {
+        const quote = line[i];
+        i += 1;
+        while (i < line.len) : (i += 1) {
+            if (line[i] == quote) {
+                // A doubled single quote is an escaped quote.
+                if (quote == '\'' and i + 1 < line.len and line[i + 1] == '\'') {
+                    i += 1;
+                    continue;
+                }
+                break;
+            }
+            if (quote == '"' and line[i] == '\\') i += 1;
+        }
+        i += 1;
+    }
+    while (i < line.len) : (i += 1) {
+        if (line[i] == ':' and (i + 1 == line.len or line[i + 1] == ' ' or line[i + 1] == '\t' or line[i + 1] == '\r')) return i;
+    }
+    return null;
 }
