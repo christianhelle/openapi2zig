@@ -9,6 +9,7 @@ const test_input_loader = @import("tests/test_input_loader.zig");
 const yaml_loader_tests = @import("tests/yaml_loader_tests.zig");
 const resource_wrapper_tests = @import("tests/resource_wrapper_tests.zig");
 const sdk_config_tests = @import("tests/sdk_config_tests.zig");
+const sdk_scaffold_tests = @import("tests/sdk_scaffold_tests.zig");
 const sdk_template_tests = @import("tests/sdk_template_tests.zig");
 const sdk_write_owned_tests = @import("tests/sdk_write_owned_tests.zig");
 const multiple_clients_tests = @import("tests/multiple_clients_tests.zig");
@@ -59,6 +60,7 @@ comptime {
     _ = yaml_loader_tests;
     _ = resource_wrapper_tests;
     _ = sdk_config_tests;
+    _ = sdk_scaffold_tests;
     _ = sdk_template_tests;
     _ = sdk_write_owned_tests;
     _ = multiple_clients_tests;

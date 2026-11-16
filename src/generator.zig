@@ -52,6 +52,15 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs)
         return generateRuntimeOnly(allocator, io, std.Io.Dir.cwd(), args);
     }
 
+    if (args.sdk) {
+        var prepared = try sdk_scaffold.prepare(allocator, io, std.Io.Dir.cwd(), args);
+        defer prepared.deinit();
+        return generateInputCode(allocator, io, prepared.args);
+    }
+    return generateInputCode(allocator, io, args);
+}
+
+fn generateInputCode(allocator: std.mem.Allocator, io: std.Io, args: cli.CliArgs) !void {
     const extension = try validateExtension(args.input_path);
 
     // Determine input source: URL or file path
@@ -121,6 +130,11 @@ pub fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io,
     var filtered_doc = unified_doc;
     try document_filter.filterByTags(allocator, &filtered_doc, args.tags);
 
+    if (args.sdk) {
+        try sdk_scaffold.generateSdk(allocator, io, cwd, filtered_doc, args);
+        return;
+    }
+
     if (args.multiple_files) {
         try generateMultipleFiles(allocator, io, cwd, filtered_doc, args);
         return;
@@ -169,6 +183,7 @@ pub fn generateRuntimeOnly(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io
     try output_writer.writeGeneratedFile(allocator, io, cwd, output_path, generated_runtime, args.force);
 }
 
+const sdk_scaffold = @import("generators/sdk/scaffold.zig");
 const multi_file = @import("generator/multi_file.zig");
 const output_writer = @import("generator/output_writer.zig");
 pub const writeFile = multi_file.writeFile;
