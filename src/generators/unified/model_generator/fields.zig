@@ -131,9 +131,33 @@ pub fn generateStructField(self: *UnifiedModelGenerator, owner_name: []const u8,
 
     if (!is_required) {
         try self.buffer.appendSlice(self.allocator, " = null");
+    } else if (requiredStringDefault(field_schema)) |default_value| {
+        // A required property that declares a default still parses when the
+        // server omits it (OData's `@odata.type` is the usual case).
+        try self.buffer.appendSlice(self.allocator, " = \"");
+        for (default_value) |c| switch (c) {
+            '"' => try self.buffer.appendSlice(self.allocator, "\\\""),
+            '\\' => try self.buffer.appendSlice(self.allocator, "\\\\"),
+            '\n' => try self.buffer.appendSlice(self.allocator, "\\n"),
+            '\r' => try self.buffer.appendSlice(self.allocator, "\\r"),
+            '\t' => try self.buffer.appendSlice(self.allocator, "\\t"),
+            else => try self.buffer.append(self.allocator, c),
+        };
+        try self.buffer.append(self.allocator, '"');
     }
 
     try self.buffer.appendSlice(self.allocator, ",\n");
+}
+
+/// The string default of a plain, non-nullable string property, if any.
+fn requiredStringDefault(schema: Schema) ?[]const u8 {
+    if (schema.type != .string or schema.nullable or schema.ref != null) return null;
+    if (schema.enum_values != null) return null;
+    const default = schema.default orelse return null;
+    return switch (default) {
+        .string => |s| s,
+        else => null,
+    };
 }
 
 pub fn generateJsonStringify(self: *UnifiedModelGenerator, properties: std.StringHashMap(Schema), required: ?[][]const u8) !void {
