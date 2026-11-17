@@ -35,9 +35,19 @@ pub fn collectPointerFields(self: *UnifiedModelGenerator, schemas: std.StringHas
     var path: std.ArrayList(Edge) = .empty;
     defer path.deinit(self.allocator);
 
-    for (keys) |key| {
-        if (states.contains(key)) continue;
-        try visit(self, schemas, &states, &path, key);
+    // Moving a cut to another edge can leave a cycle behind that a finished
+    // node already reported, so walk again, skipping the fields chosen so far,
+    // until a whole pass finds nothing new.
+    var round: usize = 0;
+    while (round < 64) : (round += 1) {
+        const before = self.pointer_fields.count();
+        states.clearRetainingCapacity();
+        path.clearRetainingCapacity();
+        for (keys) |key| {
+            if (states.contains(key)) continue;
+            try visit(self, schemas, &states, &path, key);
+        }
+        if (self.pointer_fields.count() == before) break;
     }
 }
 
@@ -58,9 +68,16 @@ fn visit(
         defer self.allocator.free(fields);
         for (fields) |field| {
             const property = properties.get(field).?;
+            // A field that is already a pointer no longer contains its target.
+            if (self.isPointerField(self.typeName(name), field)) continue;
             const ref = property.ref orelse continue;
             try follow(self, schemas, states, path, .{ .owner = name, .field = field, .target = refTarget(ref) });
         }
+    }
+
+    // A component that is only a reference is an alias of its target.
+    if (schema.type == .reference) {
+        if (schema.ref) |ref| try follow(self, schemas, states, path, .{ .owner = name, .field = null, .target = refTarget(ref) });
     }
 
     // A union holds one of its variants by value.
