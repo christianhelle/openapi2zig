@@ -2,6 +2,8 @@ const std = @import("std");
 const UnifiedDocument = @import("../../models/common/document.zig").UnifiedDocument;
 const Schema = @import("../../models/common/document.zig").Schema;
 const ident = @import("ident_utils.zig");
+const model_names = @import("model_names.zig");
+const cycles = @import("model_generator/cycles.zig");
 
 pub fn isExtensibleRequest(name: []const u8) bool {
     return std.mem.eql(u8, name, "CreateResponse") or
@@ -12,6 +14,15 @@ pub const UnifiedModelGenerator = struct {
     allocator: std.mem.Allocator,
     buffer: std.ArrayList(u8),
     source_schemas: ?*const std.StringHashMap(Schema) = null,
+    /// How component schema names become Zig type names.
+    model_naming: model_names.Mode = .raw,
+    /// Built while generating when `model_naming` is `.namespaced`.
+    name_map: ?model_names.ModelNameMap = null,
+    /// `"{type name}{field name}"` keys of the reference fields that are
+    /// emitted as pointers because they close a cycle between types.
+    pointer_fields: std.StringHashMapUnmanaged(void) = .empty,
+    /// Set while one field is emitted: its reference becomes a `*const` pointer.
+    pointer_next_ref: bool = false,
     declaration_names: std.StringHashMap(void),
     helper_names: std.StringHashMap([]const u8),
 
@@ -75,6 +86,8 @@ pub const UnifiedModelGenerator = struct {
         self.clearNames();
         self.declaration_names.deinit();
         self.helper_names.deinit();
+        self.clearPointerFields();
+        self.pointer_fields.deinit(self.allocator);
     }
 
     pub fn generate(self: *UnifiedModelGenerator, document: UnifiedDocument) ![]const u8 {
@@ -85,11 +98,46 @@ pub const UnifiedModelGenerator = struct {
         if (document.schemas) |schemas| {
             self.source_schemas = &schemas;
             defer self.source_schemas = null;
+            if (self.model_naming == .namespaced) {
+                self.name_map = try model_names.ModelNameMap.init(self.allocator, schemas);
+            }
+            defer if (self.name_map) |*map| {
+                map.deinit();
+                self.name_map = null;
+            };
+            try cycles.collectPointerFields(self, schemas);
             try self.generateSchemas(schemas);
             try self.generateManualAliases(schemas);
+            if (self.name_map) |*map| try map.appendNamespaceAliases(self.allocator, &self.buffer);
         }
 
         return try self.allocator.dupe(u8, self.buffer.items);
+    }
+
+    pub fn clearPointerFields(self: *UnifiedModelGenerator) void {
+        var iterator = self.pointer_fields.keyIterator();
+        while (iterator.next()) |key| self.allocator.free(key.*);
+        self.pointer_fields.clearRetainingCapacity();
+    }
+
+    /// Records that `field` of the schema called `owner_raw` is a pointer.
+    pub fn markPointerField(self: *UnifiedModelGenerator, owner_raw: []const u8, field: []const u8) !void {
+        const key = try std.fmt.allocPrint(self.allocator, "{s}\x00{s}", .{ self.typeName(owner_raw), field });
+        errdefer self.allocator.free(key);
+        const gop = try self.pointer_fields.getOrPut(self.allocator, key);
+        if (gop.found_existing) self.allocator.free(key);
+    }
+
+    pub fn isPointerField(self: *const UnifiedModelGenerator, owner: []const u8, field: []const u8) bool {
+        var buffer: [512]u8 = undefined;
+        const key = std.fmt.bufPrint(&buffer, "{s}\x00{s}", .{ owner, field }) catch return false;
+        return self.pointer_fields.contains(key);
+    }
+
+    /// The Zig name of the schema called `raw` in the specification.
+    pub fn typeName(self: *const UnifiedModelGenerator, raw: []const u8) []const u8 {
+        if (self.name_map) |*map| return map.flatName(raw);
+        return raw;
     }
 
     pub fn appendIdentifier(self: *UnifiedModelGenerator, name: []const u8) !void {
@@ -112,7 +160,7 @@ pub const UnifiedModelGenerator = struct {
         // Reserve every component before emitting any inline helpers, regardless
         // of the hash map's iteration order.
         var names = schemas.keyIterator();
-        while (names.next()) |name| try self.declaration_names.put(name.*, {});
+        while (names.next()) |name| try self.declaration_names.put(self.typeName(name.*), {});
         // Emit in name order so the output does not depend on hash map order.
         const sorted = try self.allocator.alloc([]const u8, schemas.count());
         defer self.allocator.free(sorted);
@@ -121,7 +169,7 @@ pub const UnifiedModelGenerator = struct {
         while (keys.next()) |name| : (index += 1) sorted[index] = name.*;
         std.mem.sort([]const u8, sorted, {}, lessThanString);
         for (sorted) |schema_name| {
-            try self.generateSchema(schema_name, schemas.get(schema_name).?);
+            try self.generateSchema(self.typeName(schema_name), schemas.get(schema_name).?);
         }
     }
 
@@ -184,7 +232,7 @@ pub const UnifiedModelGenerator = struct {
                     try self.buffer.appendSlice(self.allocator, "pub const ");
                     try self.appendIdentifier(name);
                     try self.buffer.appendSlice(self.allocator, " = []const ");
-                    try self.appendIdentifier(refName(ref));
+                    try self.appendIdentifier(self.typeName(refName(ref)));
                     try self.buffer.appendSlice(self.allocator, ";\n\n");
                     return;
                 } else if (try self.canGenerateNamedArrayItemType(items.*)) {

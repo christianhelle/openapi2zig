@@ -95,7 +95,7 @@ pub fn refName(ref: []const u8) []const u8 {
 }
 
 pub fn variantTypeNameAlloc(self: *UnifiedModelGenerator, union_name: []const u8, variant: Schema, index: usize) ![]const u8 {
-    if (variant.ref) |ref| return try self.allocator.dupe(u8, refName(ref));
+    if (variant.ref) |ref| return try self.allocator.dupe(u8, self.typeName(refName(ref)));
     const suggested = try std.fmt.allocPrint(self.allocator, "{s}Variant{d}", .{ union_name, index });
     defer self.allocator.free(suggested);
     const detail = try std.fmt.allocPrint(self.allocator, "{d}", .{index});
