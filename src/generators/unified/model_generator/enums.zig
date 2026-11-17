@@ -58,10 +58,7 @@ pub fn generateStringEnum(self: *UnifiedModelGenerator, name: []const u8, member
         \\    }
         \\
         \\    fn fromWire(text: []const u8) @This() {
-        \\        inline for (comptime std.enums.values(@This())) |member| {
-        \\            if (member != ._unknown and std.mem.eql(u8, @tagName(member), text)) return member;
-        \\        }
-        \\        return ._unknown;
+        \\        return std.meta.stringToEnum(@This(), text) orelse ._unknown;
         \\    }
         \\};
         \\
