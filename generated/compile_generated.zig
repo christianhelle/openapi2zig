@@ -368,11 +368,10 @@ const FixedToken = struct {
     calls: usize = 0,
 
     fn get(ctx: *anyopaque, allocator: std.mem.Allocator, io: std.Io) anyerror![]const u8 {
-        _ = allocator;
         _ = io;
         const self: *FixedToken = @ptrCast(@alignCast(ctx));
         self.calls += 1;
-        return self.value;
+        return allocator.dupe(u8, self.value);
     }
 };
 
@@ -385,6 +384,7 @@ test "generated client takes its token from a provider" {
     client.retry = .{ .max_retries = 2 };
 
     const provided = try client.token_provider.?.getToken(std.testing.allocator, std.testing.io);
+    defer std.testing.allocator.free(provided);
     try std.testing.expectEqualStrings("from-provider", provided);
     try std.testing.expectEqual(@as(usize, 1), token.calls);
     try std.testing.expectEqual(@as(u8, 2), client.retry.max_retries);

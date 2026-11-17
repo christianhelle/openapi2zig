@@ -32,7 +32,7 @@ test "generated clients accept a token provider and a retry policy" {
     try testing.expect(std.mem.indexOf(u8, code, "pub const RetryPolicy = struct {") != null);
     try testing.expect(std.mem.indexOf(u8, code, "token_provider: ?TokenProvider = null,") != null);
     try testing.expect(std.mem.indexOf(u8, code, "retry: RetryPolicy = .{},") != null);
-    try testing.expect(std.mem.indexOf(u8, code, "if (client.token_provider) |provider| try provider.getToken(allocator, client.io) else client.api_key") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "try provider.getToken(allocator, client.io), .owned = true") != null);
 }
 
 test "generated transport retries throttled responses" {
@@ -43,8 +43,8 @@ test "generated transport retries throttled responses" {
     const code = try generateClient(allocator);
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "fn isRetryableStatus(status: std.http.Status) bool {") != null);
-    try testing.expect(std.mem.indexOf(u8, code, "status == .too_many_requests or status == .service_unavailable or status == .gateway_timeout") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "fn isRetryableStatus(status: std.http.Status, method: std.http.Method) bool {") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "status == .gateway_timeout and method != .POST and method != .PATCH") != null);
     try testing.expect(std.mem.indexOf(u8, code, "client.retry.delayMilliseconds(attempt, result.retry_after_seconds)") != null);
 }
 

@@ -69,9 +69,10 @@ pub fn generatePagerType(self: *UnifiedApiGenerator) !void {
         \\            var bearer: ?[]u8 = null;
         \\            defer if (bearer) |value| allocator.free(value);
         \\            if (use_bearer) {
-        \\                const token: []const u8 = if (client.token_provider) |provider| try provider.getToken(allocator, client.io) else client.api_key;
-        \\                if (token.len > 0) {
-        \\                    bearer = try std.fmt.allocPrint(allocator, "Bearer {s}", .{token});
+        \\                const holder = try bearerToken(client, allocator);
+        \\                defer holder.deinit(allocator);
+        \\                if (holder.value.len > 0) {
+        \\                    bearer = try std.fmt.allocPrint(allocator, "Bearer {s}", .{holder.value});
         \\                    try headers.append(allocator, .{ .name = "Authorization", .value = bearer.? });
         \\                }
         \\            }

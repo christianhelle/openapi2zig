@@ -110,8 +110,8 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
     try self.buffer.appendSlice(self.allocator,
         \\
         \\/// Supplies the bearer token for each request, for example one that refreshes
-        \\/// itself before it expires. The returned slice must stay valid until the
-        \\/// next call.
+        \\/// itself before it expires. The returned slice is allocated with the given
+        \\/// allocator and belongs to the caller, who frees it.
         \\pub const TokenProvider = struct {
         \\    ctx: *anyopaque,
         \\    getTokenFn: *const fn (ctx: *anyopaque, allocator: std.mem.Allocator, io: std.Io) anyerror![]const u8,
@@ -120,6 +120,24 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\        return self.getTokenFn(self.ctx, allocator, io);
         \\    }
         \\};
+        \\
+        \\/// The bearer token of one request: the provider's (owned by the request) or
+        \\/// the client's static key.
+        \\pub const BearerToken = struct {
+        \\    value: []const u8,
+        \\    owned: bool,
+        \\
+        \\    pub fn deinit(self: BearerToken, allocator: std.mem.Allocator) void {
+        \\        if (self.owned) allocator.free(self.value);
+        \\    }
+        \\};
+        \\
+        \\pub fn bearerToken(client: *Client, allocator: std.mem.Allocator) !BearerToken {
+        \\    if (client.token_provider) |provider| {
+        \\        return .{ .value = try provider.getToken(allocator, client.io), .owned = true };
+        \\    }
+        \\    return .{ .value = client.api_key, .owned = false };
+        \\}
         \\
         \\/// How throttled (429) and temporarily unavailable (503, 504) responses are
         \\/// retried. The default of zero retries sends every request once.
@@ -325,8 +343,12 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\    return days * 86400 + hour * 3600 + minute * 60 + second;
         \\}
         \\
-        \\fn isRetryableStatus(status: std.http.Status) bool {
-        \\    return status == .too_many_requests or status == .service_unavailable or status == .gateway_timeout;
+        \\/// 429 and 503 mean the server did not act on the request, so any method may be
+        \\/// retried. A 504 can arrive after the work was done, so only methods that are
+        \\/// safe to repeat (everything except POST and PATCH) are retried on it.
+        \\fn isRetryableStatus(status: std.http.Status, method: std.http.Method) bool {
+        \\    if (status == .too_many_requests or status == .service_unavailable) return true;
+        \\    return status == .gateway_timeout and method != .POST and method != .PATCH;
         \\}
         \\
         \\/// Sends the request, retrying throttled or temporarily unavailable responses
@@ -339,7 +361,7 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\        var attempt_body: std.Io.Writer.Allocating = .init(client.allocator);
         \\        defer attempt_body.deinit();
         \\        const result = try fetchOnce(client, method, uri, headers, payload, if (response_writer != null) &attempt_body.writer else null);
-        \\        if (attempt < client.retry.max_retries and isRetryableStatus(result.status)) {
+        \\        if (attempt < client.retry.max_retries and isRetryableStatus(result.status, method)) {
         \\            attempt += 1;
         \\            if (client.cancel_check) |is_cancelled| {
         \\                if (is_cancelled()) return error.Cancelled;
