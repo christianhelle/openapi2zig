@@ -141,6 +141,12 @@ pub fn generateStructField(self: *UnifiedModelGenerator, owner_name: []const u8,
             '\n' => try self.buffer.appendSlice(self.allocator, "\\n"),
             '\r' => try self.buffer.appendSlice(self.allocator, "\\r"),
             '\t' => try self.buffer.appendSlice(self.allocator, "\\t"),
+            0...8, 11, 12, 14...31, 127 => {
+                const digits = "0123456789abcdef";
+                try self.buffer.appendSlice(self.allocator, "\\x");
+                try self.buffer.append(self.allocator, digits[c >> 4]);
+                try self.buffer.append(self.allocator, digits[c & 0xf]);
+            },
             else => try self.buffer.append(self.allocator, c),
         };
         try self.buffer.append(self.allocator, '"');
