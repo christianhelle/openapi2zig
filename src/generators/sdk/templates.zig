@@ -2,6 +2,7 @@ const std = @import("std");
 const config_mod = @import("config.zig");
 const template = @import("template.zig");
 const oauth_text = @import("oauth_text.zig");
+const zig_text = @import("zig_text.zig");
 const output_writer = @import("../../generator/output_writer.zig");
 
 pub const SdkConfig = config_mod.SdkConfig;
@@ -112,11 +113,13 @@ pub fn buildVars(arena: std.mem.Allocator, ctx: SdkContext) ![]template.Var {
         .{ .name = "name", .value = c.name },
         .{ .name = "version", .value = c.version },
         .{ .name = "description", .value = description },
+        .{ .name = "description_doc", .value = try zig_text.docComment(arena, description) },
         .{ .name = "repository", .value = repository },
         .{ .name = "author", .value = c.author },
         .{ .name = "license", .value = c.license },
         .{ .name = "minimum_zig_version", .value = c.minimum_zig_version },
         .{ .name = "base_url", .value = ctx.base_url },
+        .{ .name = "base_url_zig", .value = try zig_text.escapeString(arena, ctx.base_url) },
         .{ .name = "generator_version", .value = ctx.generator_version },
         .{ .name = "spec", .value = ctx.spec },
         .{ .name = "year", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.year}) },

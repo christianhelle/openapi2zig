@@ -270,6 +270,13 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             printError("--sdk cannot be combined with --runtime-only, --models-only, --runtime-module or --file-name\n", .{});
             return error.InvalidArguments;
         }
+        if (resource_wrappers_explicit or multiple_clients != null or tags_list.items.len > 0) {
+            // These come from the "generator" section of openapi2zig.json, so a
+            // command line value would be silently replaced.
+            printUsage();
+            printError("--sdk takes --resource-wrappers, --multiple-clients and --tag from openapi2zig.json (generator section)\n", .{});
+            return error.InvalidArguments;
+        }
         if (sdk_name) |name| {
             if (!sdk_helpers.isValidSdkName(name)) {
                 printUsage();

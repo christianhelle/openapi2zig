@@ -147,3 +147,14 @@ test "sdk config selects the model naming" {
     defer defaults.deinit();
     try testing.expectEqual(@import("../generators/unified/model_names.zig").Mode.raw, defaults.value.generator.model_naming);
 }
+
+test "sdk config keeps parameters-as-struct from the command line" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try sdk_config.parse(allocator, "{ \"name\": \"pets\" }");
+    defer parsed.deinit();
+    const args = parsed.value.toCliArgs(.{ .input_path = "", .sdk = true, .parameters_as_struct = true });
+    try testing.expect(args.parameters_as_struct);
+}

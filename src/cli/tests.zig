@@ -1455,3 +1455,38 @@ test "parse generate supports model-naming" {
     const invalid = [_][:0]const u8{ "openapi2zig", "generate", "-i", "openapi.json", "--model-naming", "fancy" };
     try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &invalid));
 }
+
+test "parse generate sdk rejects options that the config file controls" {
+    const options = [_][]const [:0]const u8{
+        &.{ "--resource-wrappers", "tags" },
+        &.{ "--multiple-clients", "PerTag" },
+        &.{ "--tag", "pets" },
+    };
+    for (options) |extra| {
+        var argv: [8][:0]const u8 = undefined;
+        argv[0] = "openapi2zig";
+        argv[1] = "generate";
+        argv[2] = "--sdk";
+        argv[3] = "--sdk-name";
+        argv[4] = "petstore";
+        var n: usize = 5;
+        for (extra) |arg| {
+            argv[n] = arg;
+            n += 1;
+        }
+        try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, argv[0..n]));
+    }
+}
+
+test "parse generate sdk rejects names that collide with std" {
+    for ([_][:0]const u8{ "std", "builtin", "root" }) |name| {
+        const argv = [_][:0]const u8{ "openapi2zig", "generate", "--sdk", "--sdk-name", name };
+        try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+    }
+}
+
+test "parse generate sdk keeps parameters-as-struct" {
+    const argv = [_][:0]const u8{ "openapi2zig", "generate", "--sdk", "--sdk-name", "petstore", "--parameters-as-struct" };
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expect(parsed.args.parameters_as_struct);
+}

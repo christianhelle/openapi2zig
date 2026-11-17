@@ -95,7 +95,9 @@ pub const generator = @import("generator.zig");
 pub const generateFromSpec = generator.generateCode;
 
 /// Generate a complete SDK repository (Zig sources, build files, docs, CI
-/// workflows and examples) for an already converted document. `args.sdk` is
+/// workflows and examples) for an already converted document. `args` must come
+/// from `sdk.prepare` (it applies the config file settings) and the document
+/// must already be filtered by `args.tags`. `args.sdk` is
 /// expected to be set and `args.sdk_config_path` must point at an existing
 /// `openapi2zig.json`; see `sdk.prepare` to create one.
 pub const generateSdk = sdk.generateSdk;

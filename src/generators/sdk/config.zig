@@ -59,12 +59,12 @@ pub const SdkConfig = struct {
         if (args.input_path.len == 0) args.input_path = self.spec orelse "";
         if (args.base_url == null) args.base_url = self.base_url;
         args.resource_wrappers = self.generator.resource_wrappers;
-        args.parameters_as_struct = self.generator.parameters_as_struct;
-        args.model_naming = self.generator.model_naming;
-        args.pagination = self.generator.pagination;
-        args.typed_errors = self.generator.typed_errors;
-        args.split_by_tag = self.generator.split_by_tag;
-        args.string_enums = self.generator.string_enums;
+        args.parameters_as_struct = base.parameters_as_struct or self.generator.parameters_as_struct;
+        if (base.model_naming == .raw) args.model_naming = self.generator.model_naming;
+        args.pagination = base.pagination or self.generator.pagination;
+        args.typed_errors = base.typed_errors or self.generator.typed_errors;
+        args.split_by_tag = base.split_by_tag or self.generator.split_by_tag;
+        args.string_enums = base.string_enums or self.generator.string_enums;
         if (args.tags.len == 0) args.tags = self.generator.tags;
         return args;
     }
