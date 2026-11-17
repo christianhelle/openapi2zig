@@ -272,6 +272,7 @@ pub const UnifiedApiGenerator = struct {
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeader();
         try self.reserveFlatParameterNames(document);
+        try self.generateTypedErrors(document);
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
@@ -297,6 +298,7 @@ pub const UnifiedApiGenerator = struct {
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeaderMulti();
         try self.reserveFlatParameterNames(document);
+        try self.generateTypedErrors(document);
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
@@ -529,6 +531,7 @@ pub const UnifiedApiGenerator = struct {
     pub const generateEndpointClient = @import("api_generator/tag_clients.zig").generateEndpointClient;
     pub const topLevelNameConflicts = @import("api_generator/tag_clients.zig").topLevelNameConflicts;
     pub const generatePagerType = @import("api_generator/pagination.zig").generatePagerType;
+    pub const generateTypedErrors = @import("api_generator/errors.zig").generateTypedErrors;
     pub const generatePagesFunction = @import("api_generator/pagination.zig").generatePagesFunction;
     pub const appendPagerType = @import("api_generator/pagination.zig").appendPagerType;
     pub const uniqueTagClientStructNameAlloc = @import("api_generator/tag_clients.zig").uniqueTagClientStructNameAlloc;

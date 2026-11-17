@@ -105,6 +105,8 @@ pub const CliArgs = struct {
     model_naming: model_names.Mode = .raw,
     /// Emit a `Pager` and `...Pages` functions for operations marked `x-ms-pageable`.
     pagination: bool = false,
+    /// Emit `ApiError` and `parseApiError` for the API's common error model.
+    typed_errors: bool = false,
     /// Generate a complete SDK repository (sources plus build files, docs,
     /// CI workflows and examples) instead of bare Zig sources.
     sdk: bool = false,

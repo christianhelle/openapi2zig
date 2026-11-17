@@ -561,8 +561,8 @@ pub fn build(b: *std.Build) void {
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerEndpoint" },
         &.{ "--resource-wrappers", "paths", "--parameters-as-struct" },
         &.{ "--resource-wrappers", "paths", "--model-naming", "namespaced" },
-        &.{ "--resource-wrappers", "paths", "--pagination" },
-        &.{ "--resource-wrappers", "none", "--pagination", "--model-naming", "namespaced", "--parameters-as-struct" },
+        &.{ "--resource-wrappers", "paths", "--pagination", "--typed-errors" },
+        &.{ "--resource-wrappers", "none", "--pagination", "--typed-errors", "--model-naming", "namespaced", "--parameters-as-struct" },
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerTag", "--model-naming", "namespaced", "--parameters-as-struct" },
     };
     for (odata_variants) |variant| {

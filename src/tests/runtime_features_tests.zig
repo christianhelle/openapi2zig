@@ -99,3 +99,43 @@ test "pagination is off unless requested" {
 
     try testing.expect(std.mem.indexOf(u8, code, "Pager") == null);
 }
+
+const error_spec =
+    "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{" ++
+    "\"/a\":{\"get\":{\"operationId\":\"getA\",\"responses\":{\"200\":{\"description\":\"ok\"},\"4XX\":{\"$ref\":\"#/components/responses/failure\"},\"5XX\":{\"$ref\":\"#/components/responses/failure\"}}}}," ++
+    "\"/b\":{\"get\":{\"operationId\":\"getB\",\"responses\":{\"200\":{\"description\":\"ok\"},\"default\":{\"$ref\":\"#/components/responses/failure\"}}}}}," ++
+    "\"components\":{\"schemas\":{\"Failure\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}}},\"Other\":{\"type\":\"object\"}}," ++
+    "\"responses\":{\"failure\":{\"description\":\"error\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/Failure\"}}}}}}}";
+
+fn generateErrors(allocator: std.mem.Allocator, typed_errors: bool) ![]const u8 {
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, error_spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json", .typed_errors = typed_errors });
+    defer generator.deinit();
+    return generator.generate(unified);
+}
+
+test "typed errors expose the most common error model" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateErrors(allocator, true);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "pub const ApiError = Failure;") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn parseApiError(allocator: std.mem.Allocator, raw: RawResponse) !std.json.Parsed(ApiError) {") != null);
+}
+
+test "typed errors are off unless requested" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateErrors(allocator, false);
+    defer allocator.free(code);
+    try testing.expect(std.mem.indexOf(u8, code, "ApiError") == null);
+}
