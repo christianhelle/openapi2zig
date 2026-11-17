@@ -345,6 +345,8 @@ pub const GeneratedFiles = struct {
 /// `args.runtime_only` is set, only the runtime file is generated (`models` is
 /// empty and `client` is null) and `unified_doc` is ignored.
 pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) !GeneratedFiles {
+    // The extra files of split mode do not fit this result, so refuse it.
+    if (args.split_by_tag) return error.UnsupportedSplitByTag;
     if (args.runtime_only) {
         try rejectRuntimeOnlyConflicts(args);
         var runtime_gen = RuntimeGenerator.init(allocator);
