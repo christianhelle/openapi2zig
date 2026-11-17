@@ -361,7 +361,7 @@ fn appendMarkedLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line:
         while (parts.next()) |part| {
             if (!first) try out.append(allocator, ',');
             first = false;
-            const colon = std.mem.indexOfScalar(u8, part, ':') orelse {
+            const colon = flowMapSeparator(part) orelse {
                 try out.appendSlice(allocator, part);
                 continue;
             };
@@ -726,4 +726,14 @@ fn isSimpleFlowMap(value: []const u8) bool {
         if (std.mem.indexOfScalar(u8, part, ':') == null) return false;
     }
     return true;
+}
+
+/// The `:` that separates a flow-map key from its value: one followed by a
+/// space or the end of the entry, so `https://host/read: Read` keeps its URL.
+fn flowMapSeparator(entry: []const u8) ?usize {
+    var index: usize = 0;
+    while (std.mem.indexOfScalarPos(u8, entry, index, ':')) |colon| : (index = colon + 1) {
+        if (colon + 1 == entry.len or entry[colon + 1] == ' ' or entry[colon + 1] == '\t') return colon;
+    }
+    return null;
 }
