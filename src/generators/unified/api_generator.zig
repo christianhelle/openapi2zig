@@ -188,6 +188,8 @@ pub const UnifiedApiGenerator = struct {
             while (claimed_iterator.next()) |key| self.allocator.free(key.*);
             claimed.deinit();
         }
+        // A tag file imports client.zig under this name (--split-by-tag).
+        try self.claimDeclarations(&claimed, "_client_zig");
 
         for (operations.items) |op_ref| {
             const operation_id = op_ref.operation.operationId orelse continue;
@@ -379,7 +381,7 @@ pub const UnifiedApiGenerator = struct {
             "uri_buf",  "first_query",   "auth_header", "header_value", "value",       "item",     "str",                "payload",
             "uri",      "response_body", "start",       "result",       "elapsed_ns",  "body",     "parsed",             "raw",
             "ok",       "err",           "obs",         "cb",           "resources",   "_root",    "std",                "bearer_token",
-            "provider",
+            "provider", "bearer_holder", "holder",
         };
         for (locals) |name| try self.reserveFlatName(&self.flat_reserved_names, name);
         const source = try self.allocator.dupeSentinel(u8, self.buffer.items, 0);

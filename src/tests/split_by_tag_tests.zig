@@ -115,3 +115,27 @@ test "split mode is off by default" {
     try testing.expectEqual(@as(usize, 0), api.split_files.items.len);
     try testing.expect(std.mem.indexOf(u8, client, "pub fn petsGetPet(") != null);
 }
+
+test "split mode never lets an operation take the tag import alias" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const clash =
+        "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{\"/a\":{\"get\":{\"tags\":[\"x\"],\"operationId\":\"_client_zig\",\"responses\":{\"200\":{\"description\":\"ok\"}}}}}}";
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, clash);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    var api = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json", .multiple_files = true, .split_by_tag = true, .resource_wrappers = .none });
+    api.emit_imports = true;
+    defer api.deinit();
+    const client = try api.generateClientOnly(unified);
+    defer allocator.free(client);
+
+    const tag_file = findFile(&api, "client/x.zig") orelse return error.MissingFile;
+    try testing.expect(std.mem.indexOf(u8, tag_file, "pub fn _client_zig_(") != null);
+    try testing.expect(std.mem.indexOf(u8, tag_file, "const _client_zig = @import(\"../client.zig\");") != null);
+}
