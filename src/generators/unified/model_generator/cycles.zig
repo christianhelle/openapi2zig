@@ -37,9 +37,9 @@ pub fn collectPointerFields(self: *UnifiedModelGenerator, schemas: std.StringHas
 
     // Moving a cut to another edge can leave a cycle behind that a finished
     // node already reported, so walk again, skipping the fields chosen so far,
-    // until a whole pass finds nothing new.
-    var round: usize = 0;
-    while (round < 64) : (round += 1) {
+    // until a whole pass finds nothing new. Every pass adds a pointer field, so
+    // the number of passes is bounded by the number of fields.
+    while (true) {
         const before = self.pointer_fields.count();
         states.clearRetainingCapacity();
         path.clearRetainingCapacity();

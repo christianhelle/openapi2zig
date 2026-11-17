@@ -106,3 +106,40 @@ test "a cycle through a component alias is broken" {
 
     try testing.expect(std.mem.indexOf(u8, code, "b: ?*const B = null,") != null);
 }
+
+test "cycle cuts keep moving until every route is cut" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    // A reaches the union B through 65 routes, and B can hold A again.
+    var spec_text: std.ArrayList(u8) = .empty;
+    defer spec_text.deinit(allocator);
+    try spec_text.appendSlice(allocator, "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{");
+    try spec_text.appendSlice(allocator, "\"D\":{\"type\":\"object\"},");
+    try spec_text.appendSlice(allocator, "\"B\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/A\"},{\"$ref\":\"#/components/schemas/D\"}]},");
+    try spec_text.appendSlice(allocator, "\"A\":{\"type\":\"object\",\"properties\":{");
+    var i: usize = 1;
+    while (i <= 65) : (i += 1) {
+        if (i > 1) try spec_text.append(allocator, ',');
+        try spec_text.print(allocator, "\"p{d:0>2}\":{{\"$ref\":\"#/components/schemas/C{d:0>2}\"}}", .{ i, i });
+    }
+    try spec_text.appendSlice(allocator, "}}");
+    i = 1;
+    while (i <= 65) : (i += 1) {
+        try spec_text.print(allocator, ",\"C{d:0>2}\":{{\"type\":\"object\",\"properties\":{{\"b\":{{\"$ref\":\"#/components/schemas/B\"}}}}}}", .{i});
+    }
+    try spec_text.appendSlice(allocator, "}}}");
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec_text.items);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    try testing.expectEqual(@as(usize, 65), std.mem.count(u8, code, "b: ?*const B = null,"));
+}
