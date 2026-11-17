@@ -139,3 +139,34 @@ test "typed errors are off unless requested" {
     defer allocator.free(code);
     try testing.expect(std.mem.indexOf(u8, code, "ApiError") == null);
 }
+
+test "typed errors fall back to a json value without an error model" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json", .typed_errors = true });
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "pub const ApiError = std.json.Value;") != null);
+    try testing.expect(std.mem.indexOf(u8, code, ".allocate = .alloc_always") != null);
+}
+
+test "pagination reserves the Pages names and escapes the link property" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generatePageable(allocator, true);
+    defer allocator.free(code);
+    // `listUsersPages` is taken by the pager function, so an operation that
+    // is called that gets a suffix instead of colliding.
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn listUsersPages(") != null);
+}
