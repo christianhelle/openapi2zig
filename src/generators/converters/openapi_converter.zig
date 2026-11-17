@@ -15,6 +15,7 @@ const Response = @import("../../models/common/document.zig").Response;
 const Operation = @import("../../models/common/document.zig").Operation;
 const PathItem = @import("../../models/common/document.zig").PathItem;
 const mime = @import("../../media_type.zig");
+const param_merge = @import("param_merge.zig");
 const OpenApiDocument = @import("../../models/v3.0/openapi.zig").OpenApiDocument;
 const Info3 = @import("../../models/v3.0/info.zig").Info;
 const ExternalDocs3 = @import("../../models/v3.0/externaldocs.zig").ExternalDocumentation;
@@ -50,6 +51,9 @@ pub const OpenApiConverter = struct {
     /// Names of the schemas whose `allOf` composition is currently being
     /// resolved, so that a cycle between them stops instead of recursing.
     active_all_of_refs: std.ArrayList([]const u8) = .empty,
+    /// Responses declared under `components.responses`, so that a response given
+    /// as a `$ref` keeps the schema it points at.
+    source_responses: ?*const std.StringHashMap(ResponseOrReference3) = null,
 
     pub fn init(allocator: std.mem.Allocator) OpenApiConverter {
         return OpenApiConverter{ .allocator = allocator };
@@ -70,6 +74,10 @@ pub const OpenApiConverter = struct {
                 self.source_schemas = component_schemas;
             }
         }
+        if (openapi.components) |*components| {
+            if (components.responses) |*component_responses| self.source_responses = component_responses;
+        }
+        defer self.source_responses = null;
         defer self.component_parameters = null;
         defer self.source_schemas = null;
         defer {
@@ -391,7 +399,14 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertSchema(self: *OpenApiConverter, schema: Schema3) anyerror!Schema {
-        if (schema.allOf != null) return try self.convertAllOfSchema(schema);
+        if (nullableReference(schema)) |ref| {
+            return Schema{ .type = .reference, .ref = ref, .description = schema.description, .nullable = true };
+        }
+        if (schema.allOf != null) {
+            var converted = try self.convertAllOfSchema(schema);
+            try self.attachComposition(&converted, schema);
+            return converted;
+        }
 
         const schema_type = if (schema.type) |type_str| self.convertSchemaType(type_str) else null;
         const title = schema.title;
@@ -422,8 +437,8 @@ pub const OpenApiConverter = struct {
         } else null;
         const additional_properties = convertAdditionalProperties(schema.additionalProperties);
 
-        return Schema{
-            .type = schema_type,
+        var converted = Schema{
+            .type = schema_type orelse (if (schema.oneOf != null or schema.anyOf != null) SchemaType.object else null),
             .ref = null,
             .title = title,
             .description = description,
@@ -431,12 +446,89 @@ pub const OpenApiConverter = struct {
             .required = required,
             .properties = properties,
             .items = items,
-            .enum_values = if (schema_type == .boolean) schema.enum_values else null,
+            .enum_values = schema.enum_values,
             .default = schema.default,
             .example = schema.example,
             .additional_properties = additional_properties,
             .nullable = schema.nullable orelse false,
         };
+        try self.attachComposition(&converted, schema);
+        return converted;
+    }
+
+    /// `anyOf: [{$ref: X}, {type: object, nullable: true}]` is how OpenAPI 3.0
+    /// writes "X or null". Returns the reference when `schema` has that shape.
+    fn nullableReference(schema: Schema3) ?[]const u8 {
+        // Sibling constraints would be lost by collapsing to the reference.
+        if (schema.properties != null or schema.required != null or schema.allOf != null) return null;
+        if ((schema.anyOf != null) == (schema.oneOf != null)) return null;
+        const variants = schema.anyOf orelse schema.oneOf orelse return null;
+        if (variants.len != 2) return null;
+        var found: ?[]const u8 = null;
+        var has_null = false;
+        for (variants) |variant| switch (variant) {
+            .reference => |reference| {
+                if (found != null) return null;
+                found = reference.ref;
+            },
+            .schema => |inline_schema| {
+                const s = inline_schema.*;
+                const bare = s.properties == null and s.items == null and s.allOf == null and
+                    s.anyOf == null and s.oneOf == null and s.enum_values == null;
+                const object_like = s.type == null or std.mem.eql(u8, s.type.?, "object");
+                if (!(bare and object_like and (s.nullable orelse false))) return null;
+                has_null = true;
+            },
+        };
+        if (!has_null) return null;
+        return found;
+    }
+
+    // JSON Schema composition applies alongside properties, not instead of
+    // them. Retain both union keywords even when both occur on one schema.
+    fn attachComposition(self: *OpenApiConverter, converted: *Schema, schema: Schema3) !void {
+        if (schema.oneOf) |variants| converted.one_of = try self.convertUnionVariants(variants);
+        if (schema.anyOf) |variants| converted.any_of = try self.convertUnionVariants(variants);
+        if (schema.discriminator) |disc| {
+            converted.discriminator_property = try self.allocator.dupe(u8, disc.propertyName);
+            if (schema.oneOf) |variants| converted.one_of_refs = try self.convertUnionRefs(variants);
+            if (schema.anyOf) |variants| converted.any_of_refs = try self.convertUnionRefs(variants);
+        }
+    }
+
+    fn convertUnionVariants(self: *OpenApiConverter, variants: []const SchemaOrReference3) ![]Schema {
+        const converted = try self.allocator.alloc(Schema, variants.len);
+        errdefer self.allocator.free(converted);
+        for (variants, 0..) |variant, i| {
+            converted[i] = try self.convertSchemaOrReference(variant);
+        }
+        return converted;
+    }
+
+    fn convertUnionRefs(self: *OpenApiConverter, variants: []const SchemaOrReference3) !?[][]const u8 {
+        var refs = try self.allocator.alloc([]const u8, variants.len);
+        errdefer {
+            for (refs[0..]) |ref| if (ref.len != 0) self.allocator.free(ref);
+            self.allocator.free(refs);
+        }
+        for (refs) |*ref| ref.* = "";
+
+        for (variants, 0..) |variant, i| {
+            switch (variant) {
+                .reference => |reference| refs[i] = try self.allocator.dupe(u8, refName(reference.ref)),
+                .schema => {
+                    for (refs) |ref| if (ref.len != 0) self.allocator.free(ref);
+                    self.allocator.free(refs);
+                    return null;
+                },
+            }
+        }
+        return refs;
+    }
+
+    fn refName(ref: []const u8) []const u8 {
+        if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| return ref[last_slash + 1 ..];
+        return ref;
     }
 
     fn convertSchemaType(self: *OpenApiConverter, type_str: []const u8) SchemaType {
@@ -462,13 +554,13 @@ pub const OpenApiConverter = struct {
     }
 
     fn convertPathItem(self: *OpenApiConverter, pathItem: PathItem3) !PathItem {
-        const get = if (pathItem.get) |op| try self.convertOperation(op) else null;
-        const put = if (pathItem.put) |op| try self.convertOperation(op) else null;
-        const post = if (pathItem.post) |op| try self.convertOperation(op) else null;
-        const delete = if (pathItem.delete) |op| try self.convertOperation(op) else null;
-        const options = if (pathItem.options) |op| try self.convertOperation(op) else null;
-        const head = if (pathItem.head) |op| try self.convertOperation(op) else null;
-        const patch = if (pathItem.patch) |op| try self.convertOperation(op) else null;
+        const get = try self.convertPathOperation(pathItem.get, pathItem.parameters);
+        const put = try self.convertPathOperation(pathItem.put, pathItem.parameters);
+        const post = try self.convertPathOperation(pathItem.post, pathItem.parameters);
+        const delete = try self.convertPathOperation(pathItem.delete, pathItem.parameters);
+        const options = try self.convertPathOperation(pathItem.options, pathItem.parameters);
+        const head = try self.convertPathOperation(pathItem.head, pathItem.parameters);
+        const patch = try self.convertPathOperation(pathItem.patch, pathItem.parameters);
         const parameters = if (pathItem.parameters) |params| try self.convertParameters(params) else null;
         return PathItem{
             .get = get,
@@ -480,6 +572,17 @@ pub const OpenApiConverter = struct {
             .patch = patch,
             .parameters = parameters,
         };
+    }
+
+    /// Converts an operation and merges the path item's parameters into it.
+    fn convertPathOperation(self: *OpenApiConverter, raw_operation: ?Operation3, path_parameters: anytype) !?Operation {
+        const raw = raw_operation orelse return null;
+        var operation = try self.convertOperation(raw);
+        if (path_parameters) |params| {
+            const path_level = try self.convertParameters(params);
+            try param_merge.mergePathLevel(self.allocator, &operation, path_level);
+        }
+        return operation;
     }
 
     fn convertOperation(self: *OpenApiConverter, operation: Operation3) !Operation {
@@ -678,12 +781,36 @@ pub const OpenApiConverter = struct {
     fn convertResponseOrReference(self: *OpenApiConverter, respOrRef: ResponseOrReference3) !Response {
         switch (respOrRef) {
             .reference => |ref| {
+                if (self.resolveComponentResponse(ref.ref)) |resolved| {
+                    return self.convertResponse(resolved);
+                }
                 return Response{ .description = ref.ref };
             },
             .response => |resp| {
                 return self.convertResponse(resp);
             },
         }
+    }
+
+    /// Look up a `#/components/responses/<name>` reference. A component entry
+    /// may itself be a Reference Object, so alias chains are followed; the hop
+    /// limit bounds cyclic definitions.
+    fn resolveComponentResponse(self: *OpenApiConverter, ref: []const u8) ?Response3 {
+        const prefix = "#/components/responses/";
+        const max_hops = 32;
+        const responses = self.source_responses orelse return null;
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = responses.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .response => |response| return response,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
     }
 
     fn convertResponse(self: *OpenApiConverter, response: Response3) !Response {

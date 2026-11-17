@@ -15,12 +15,20 @@ const authSchemeForOperation = helpers.authSchemeForOperation;
 const UnifiedApiGenerator = @import("../api_generator.zig").UnifiedApiGenerator;
 
 pub fn generateApiClient(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
-    var path_iterator = document.paths.iterator();
-    while (path_iterator.next()) |entry| {
-        const path = entry.key_ptr.*;
-        const path_item = entry.value_ptr.*;
-        try self.generateOperations(path, path_item, document);
+    // Emit in path order so the output does not depend on hash map order.
+    const sorted = try self.allocator.alloc([]const u8, document.paths.count());
+    defer self.allocator.free(sorted);
+    var index: usize = 0;
+    var keys = document.paths.keyIterator();
+    while (keys.next()) |path| : (index += 1) sorted[index] = path.*;
+    std.mem.sort([]const u8, sorted, {}, lessThanPath);
+    for (sorted) |path| {
+        try self.generateOperations(path, document.paths.get(path).?, document);
     }
+}
+
+fn lessThanPath(_: void, a: []const u8, b: []const u8) bool {
+    return std.mem.lessThan(u8, a, b);
 }
 
 pub fn generateOperations(self: *UnifiedApiGenerator, path: []const u8, path_item: @import("../../../models/common/document.zig").PathItem, document: UnifiedDocument) !void {
@@ -462,7 +470,8 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
             else
                 parameter.type orelse .string;
             const param_type = switch (path_type) {
-                .string => "s",
+                // Strings go through `OpenApiPathSegment`, which percent-encodes them.
+                .string => "f",
                 .integer => "d",
                 .number => "d",
                 else => "any",
@@ -659,15 +668,23 @@ pub fn successResponseSchema(self: *UnifiedApiGenerator, operation: Operation) ?
         }
     }
 
+    // Map iteration order is arbitrary, so pick the lowest remaining 2xx code
+    // (exact codes sort before the `2XX` wildcard) to keep output stable.
+    var best_code: ?[]const u8 = null;
+    var best_schema: ?Schema = null;
     var iterator = operation.responses.iterator();
     while (iterator.next()) |entry| {
         const code = entry.key_ptr.*;
         if (code.len == 3 and code[0] == '2') {
-            if (entry.value_ptr.schema) |schema| return schema;
+            const schema = entry.value_ptr.schema orelse continue;
+            if (best_code == null or std.mem.lessThan(u8, code, best_code.?)) {
+                best_code = code;
+                best_schema = schema;
+            }
         }
     }
 
-    return null;
+    return best_schema;
 }
 
 pub fn appendReturnType(self: *UnifiedApiGenerator, method: []const u8, operation: Operation) !void {

@@ -547,6 +547,42 @@ pub fn build(b: *std.Build) void {
         }
     }
 
+    // OData-derived descriptions (Microsoft Graph and friends) use shapes the
+    // petstore samples never do: path-level parameters, response references,
+    // wildcard status codes, dotted names and OData path segments. Generate
+    // from a reduction of them in every client style and compile the result.
+    const odata_test_step = b.step("test-odata-shapes", "Compile code generated from an OData-shaped description");
+    test_step.dependOn(odata_test_step);
+    const odata_variants = [_][]const []const u8{
+        &.{ "--resource-wrappers", "none" },
+        &.{ "--resource-wrappers", "paths" },
+        &.{ "--resource-wrappers", "tags" },
+        &.{ "--resource-wrappers", "none", "--multiple-clients", "PerTag" },
+        &.{ "--resource-wrappers", "none", "--multiple-clients", "PerEndpoint" },
+        &.{ "--resource-wrappers", "paths", "--parameters-as-struct" },
+    };
+    for (odata_variants) |variant| {
+        const odata_fixture = b.addRunArtifact(exe);
+        odata_fixture.addArg("generate");
+        odata_fixture.addArgs(variant);
+        odata_fixture.addArg("-i");
+        odata_fixture.addFileArg(b.path("openapi/v3.0/regression-odata-shapes.json"));
+        odata_fixture.addArg("-o");
+        const odata_source = odata_fixture.addOutputFileArg("odata.zig");
+        const odata_module = b.createModule(.{
+            .root_source_file = b.path("src/tests/compile_odata_fixture.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        odata_module.addImport("odata_fixture", b.createModule(.{
+            .root_source_file = odata_source,
+            .target = target,
+            .optimize = optimize,
+        }));
+        const odata_tests = b.addTest(.{ .root_module = odata_module });
+        odata_test_step.dependOn(&b.addRunArtifact(odata_tests).step);
+    }
+
     const multi_generated_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("generated/compile_multi_generated.zig"),

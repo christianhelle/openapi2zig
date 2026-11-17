@@ -15,6 +15,7 @@ const Response = @import("../../models/common/document.zig").Response;
 const Operation = @import("../../models/common/document.zig").Operation;
 const PathItem = @import("../../models/common/document.zig").PathItem;
 const mime = @import("../../media_type.zig");
+const param_merge = @import("param_merge.zig");
 const OpenApi31Document = @import("../../models/v3.1/openapi.zig").OpenApi31Document;
 const Info31 = @import("../../models/v3.1/info.zig").Info;
 const ExternalDocs31 = @import("../../models/v3.1/externaldocs.zig").ExternalDocumentation;
@@ -39,6 +40,12 @@ pub const OpenApi31Converter = struct {
     allocator: std.mem.Allocator,
     source_schemas: ?*const std.StringHashMap(SchemaOrReference31) = null,
     source_request_bodies: ?*const std.StringHashMap(RequestBodyOrReference31) = null,
+    /// Parameters declared under `components.parameters`, so that a parameter
+    /// given as a `$ref` resolves to the parameter it points at.
+    component_parameters: ?*const std.StringHashMap(ParameterOrReference31) = null,
+    /// Responses declared under `components.responses`, so that a response given
+    /// as a `$ref` keeps the schema it points at.
+    source_responses: ?*const std.StringHashMap(ResponseOrReference31) = null,
     active_all_of_refs: std.ArrayList([]const u8) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) OpenApi31Converter {
@@ -54,6 +61,14 @@ pub const OpenApi31Converter = struct {
         }
         defer self.source_schemas = null;
         defer self.source_request_bodies = null;
+        if (openapi.components) |*components| {
+            if (components.parameters) |*component_parameters| self.component_parameters = component_parameters;
+        }
+        defer self.component_parameters = null;
+        if (openapi.components) |*components| {
+            if (components.responses) |*component_responses| self.source_responses = component_responses;
+        }
+        defer self.source_responses = null;
         defer {
             self.active_all_of_refs.deinit(self.allocator);
             self.active_all_of_refs = .empty;
@@ -569,13 +584,13 @@ pub const OpenApi31Converter = struct {
     }
 
     fn convertPathItem(self: *OpenApi31Converter, pathItem: PathItem31) !PathItem {
-        const get = if (pathItem.get) |op| try self.convertOperation(op) else null;
-        const put = if (pathItem.put) |op| try self.convertOperation(op) else null;
-        const post = if (pathItem.post) |op| try self.convertOperation(op) else null;
-        const delete = if (pathItem.delete) |op| try self.convertOperation(op) else null;
-        const options = if (pathItem.options) |op| try self.convertOperation(op) else null;
-        const head = if (pathItem.head) |op| try self.convertOperation(op) else null;
-        const patch = if (pathItem.patch) |op| try self.convertOperation(op) else null;
+        const get = try self.convertPathOperation(pathItem.get, pathItem.parameters);
+        const put = try self.convertPathOperation(pathItem.put, pathItem.parameters);
+        const post = try self.convertPathOperation(pathItem.post, pathItem.parameters);
+        const delete = try self.convertPathOperation(pathItem.delete, pathItem.parameters);
+        const options = try self.convertPathOperation(pathItem.options, pathItem.parameters);
+        const head = try self.convertPathOperation(pathItem.head, pathItem.parameters);
+        const patch = try self.convertPathOperation(pathItem.patch, pathItem.parameters);
         const parameters = if (pathItem.parameters) |params| try self.convertParameters(params) else null;
         return PathItem{
             .get = get,
@@ -587,6 +602,17 @@ pub const OpenApi31Converter = struct {
             .patch = patch,
             .parameters = parameters,
         };
+    }
+
+    /// Converts an operation and merges the path item's parameters into it.
+    fn convertPathOperation(self: *OpenApi31Converter, raw_operation: ?Operation31, path_parameters: anytype) !?Operation {
+        const raw = raw_operation orelse return null;
+        var operation = try self.convertOperation(raw);
+        if (path_parameters) |params| {
+            const path_level = try self.convertParameters(params);
+            try param_merge.mergePathLevel(self.allocator, &operation, path_level);
+        }
+        return operation;
     }
 
     fn convertOperation(self: *OpenApi31Converter, operation: Operation31) !Operation {
@@ -712,9 +738,30 @@ pub const OpenApi31Converter = struct {
         return converted_params;
     }
 
+    /// Look up a `#/components/parameters/<name>` reference, following alias
+    /// chains. The hop limit bounds cyclic definitions.
+    fn resolveComponentParameter(self: *OpenApi31Converter, ref: []const u8) ?Parameter31 {
+        const prefix = "#/components/parameters/";
+        const max_hops = 32;
+        const parameters = self.component_parameters orelse return null;
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = parameters.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .parameter => |param| return param,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
+    }
+
     fn convertParameterOrReference(self: *OpenApi31Converter, paramOrRef: *const ParameterOrReference31) !Parameter {
         switch (paramOrRef.*) {
             .reference => |ref| {
+                if (self.resolveComponentParameter(ref.ref)) |resolved| return self.convertParameter(resolved);
                 return Parameter{
                     .name = ref.ref,
                     .location = .query,
@@ -756,12 +803,36 @@ pub const OpenApi31Converter = struct {
     fn convertResponseOrReference(self: *OpenApi31Converter, respOrRef: ResponseOrReference31) !Response {
         switch (respOrRef) {
             .reference => |ref| {
+                if (self.resolveComponentResponse(ref.ref)) |resolved| {
+                    return self.convertResponse(resolved);
+                }
                 return Response{ .description = ref.ref };
             },
             .response => |resp| {
                 return self.convertResponse(resp);
             },
         }
+    }
+
+    /// Look up a `#/components/responses/<name>` reference. A component entry
+    /// may itself be a Reference Object, so alias chains are followed; the hop
+    /// limit bounds cyclic definitions.
+    fn resolveComponentResponse(self: *OpenApi31Converter, ref: []const u8) ?Response31 {
+        const prefix = "#/components/responses/";
+        const max_hops = 32;
+        const responses = self.source_responses orelse return null;
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = responses.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .response => |response| return response,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
     }
 
     fn convertResponse(self: *OpenApi31Converter, response: Response31) !Response {

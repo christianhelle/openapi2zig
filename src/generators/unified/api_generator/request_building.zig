@@ -1,5 +1,7 @@
 const std = @import("std");
 const Operation = @import("../../../models/common/document.zig").Operation;
+const Parameter = @import("../../../models/common/document.zig").Parameter;
+const SchemaType = @import("../../../models/common/document.zig").SchemaType;
 const helpers = @import("helpers.zig");
 const AuthScheme = helpers.AuthScheme;
 const HeaderLocalNames = helpers.HeaderLocalNames;
@@ -151,7 +153,11 @@ pub fn appendPathArguments(self: *UnifiedApiGenerator, operation: Operation, met
         for (parameters, 0..) |parameter, i| {
             if (parameter.location != .path or !std.mem.eql(u8, parameter.name, name)) continue;
             try self.buffer.appendSlice(self.allocator, ", ");
+            // String segments are percent-encoded by the `OpenApiPathSegment` formatter.
+            const encode = isStringPathParameter(parameter);
+            if (encode) try self.buffer.appendSlice(self.allocator, "OpenApiPathSegment{ .value = ");
             try self.appendParamReference(operation, method, path, i, parameter);
+            if (encode) try self.buffer.appendSlice(self.allocator, " }");
             break;
         }
     }
@@ -180,12 +186,10 @@ pub fn appendUrlConstruction(self: *UnifiedApiGenerator, method: []const u8, pat
         for (parameters) |parameter| {
             if (parameter.location != .path) continue;
             const param = parameter.name;
-            const path_type = if (parameter.schema) |schema|
-                schema.type orelse .string
-            else
-                parameter.type orelse .string;
+            const path_type = pathParameterType(parameter);
             const param_type = switch (path_type) {
-                .string => "s",
+                // Strings go through `OpenApiPathSegment`, which percent-encodes them.
+                .string => "f",
                 .integer => "d",
                 .number => "d",
                 else => "any",
@@ -283,4 +287,17 @@ pub fn hasBodyParameter(self: *UnifiedApiGenerator, operation: Operation) bool {
         }
     }
     return false;
+}
+
+fn pathParameterType(parameter: Parameter) SchemaType {
+    return if (parameter.schema) |schema|
+        schema.type orelse .string
+    else
+        parameter.type orelse .string;
+}
+
+/// Whether a path parameter is substituted as a plain string and therefore has
+/// to be percent-encoded.
+fn isStringPathParameter(parameter: Parameter) bool {
+    return pathParameterType(parameter) == .string;
 }

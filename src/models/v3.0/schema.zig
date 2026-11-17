@@ -150,7 +150,7 @@ pub const Schema = struct {
         errdefer enum_list.deinit(allocator);
         if (obj.get("enum")) |enum_val| {
             for (enum_val.array.items) |item| {
-                try enum_list.append(allocator, item);
+                try enum_list.append(allocator, try json_helpers.cloneScalar(allocator, item));
             }
         }
         var all_of_list = std.ArrayList(SchemaOrReference).empty;
@@ -208,7 +208,7 @@ pub const Schema = struct {
             .additionalProperties = if (obj.get("additionalProperties")) |val| try AdditionalProperties.parseFromJson(allocator, val) else null,
             .description = if (obj.get("description")) |val| try allocator.dupe(u8, val.string) else null,
             .format = if (obj.get("format")) |val| try allocator.dupe(u8, val.string) else null,
-            .default = if (obj.get("default")) |val| val else null,
+            .default = if (obj.get("default")) |val| try json_helpers.cloneScalar(allocator, val) else null,
             .nullable = if (obj.get("nullable")) |val| val.bool else null,
             .discriminator = if (obj.get("discriminator")) |val| try Discriminator.parseFromJson(allocator, val) else null,
             .readOnly = if (obj.get("readOnly")) |val| val.bool else null,
@@ -280,7 +280,9 @@ pub const Schema = struct {
         if (self.externalDocs) |*externalDocs| {
             externalDocs.deinit(allocator);
         }
+        if (self.default) |default_value| json_helpers.deinitScalar(allocator, default_value);
         if (self.enum_values) |enum_values| {
+            for (enum_values) |value| json_helpers.deinitScalar(allocator, value);
             allocator.free(enum_values);
         }
         if (self.xml) |*xml| {

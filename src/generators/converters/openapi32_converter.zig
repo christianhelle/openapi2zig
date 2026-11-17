@@ -15,6 +15,7 @@ const Response = @import("../../models/common/document.zig").Response;
 const Operation = @import("../../models/common/document.zig").Operation;
 const PathItem = @import("../../models/common/document.zig").PathItem;
 const mime = @import("../../media_type.zig");
+const param_merge = @import("param_merge.zig");
 const test_utils = @import("../../tests/test_utils.zig");
 const OpenApi32Document = @import("../../models/v3.2/openapi.zig").OpenApi32Document;
 const Info32 = @import("../../models/v3.2/info.zig").Info;
@@ -43,6 +44,12 @@ pub const OpenApi32Converter = struct {
     /// Bodies declared under `components.requestBodies`, so that a request body
     /// given as a `$ref` keeps the schema it points at.
     source_request_bodies: ?*const std.StringHashMap(RequestBodyOrReference32) = null,
+    /// Parameters declared under `components.parameters`, so that a parameter
+    /// given as a `$ref` resolves to the parameter it points at.
+    component_parameters: ?*const std.StringHashMap(ParameterOrReference32) = null,
+    /// Responses declared under `components.responses`, so that a response given
+    /// as a `$ref` keeps the schema it points at.
+    source_responses: ?*const std.StringHashMap(ResponseOrReference32) = null,
     /// Schemas declared under `components.schemas`, so that an `allOf` member
     /// given as a `$ref` resolves to the schema it composes.
     source_schemas: ?*const std.StringHashMap(SchemaOrReference32) = null,
@@ -62,6 +69,14 @@ pub const OpenApi32Converter = struct {
             if (components.schemas) |*component_schemas| self.source_schemas = component_schemas;
         }
         defer self.source_request_bodies = null;
+        if (openapi.components) |*components| {
+            if (components.parameters) |*component_parameters| self.component_parameters = component_parameters;
+        }
+        defer self.component_parameters = null;
+        if (openapi.components) |*components| {
+            if (components.responses) |*component_responses| self.source_responses = component_responses;
+        }
+        defer self.source_responses = null;
         defer self.source_schemas = null;
         defer {
             self.active_all_of_refs.deinit(self.allocator);
@@ -460,7 +475,11 @@ pub const OpenApi32Converter = struct {
     }
 
     fn convertSchema(self: *OpenApi32Converter, schema: Schema32) anyerror!Schema {
-        if (schema.allOf != null) return try self.convertAllOfSchema(schema);
+        if (schema.allOf != null) {
+            var converted = try self.convertAllOfSchema(schema);
+            try self.attachComposition(&converted, schema);
+            return converted;
+        }
 
         const schema_type = self.declaredSchemaType(schema);
         const nullable = isNullable(schema);
@@ -495,8 +514,8 @@ pub const OpenApi32Converter = struct {
             .schema_or_reference => null,
         } else null;
 
-        return Schema{
-            .type = schema_type,
+        var converted = Schema{
+            .type = schema_type orelse (if (schema.oneOf != null or schema.anyOf != null) SchemaType.object else null),
             .ref = null,
             .title = title,
             .description = description,
@@ -504,12 +523,61 @@ pub const OpenApi32Converter = struct {
             .required = required,
             .properties = properties,
             .items = items,
-            .enum_values = if (schema_type == .boolean) schema.enum_values else null,
+            .enum_values = schema.enum_values,
             .default = schema.default,
             .example = schema.example,
             .additional_properties = additional_properties,
             .nullable = nullable,
         };
+        try self.attachComposition(&converted, schema);
+        return converted;
+    }
+
+    // JSON Schema composition applies alongside properties, not instead of
+    // them. Retain both union keywords even when both occur on one schema.
+    fn attachComposition(self: *OpenApi32Converter, converted: *Schema, schema: Schema32) !void {
+        if (schema.oneOf) |variants| converted.one_of = try self.convertUnionVariants(variants);
+        if (schema.anyOf) |variants| converted.any_of = try self.convertUnionVariants(variants);
+        if (schema.discriminator) |disc| {
+            converted.discriminator_property = try self.allocator.dupe(u8, disc.propertyName);
+            if (schema.oneOf) |variants| converted.one_of_refs = try self.convertUnionRefs(variants);
+            if (schema.anyOf) |variants| converted.any_of_refs = try self.convertUnionRefs(variants);
+        }
+    }
+
+    fn convertUnionVariants(self: *OpenApi32Converter, variants: []const SchemaOrReference32) ![]Schema {
+        const converted = try self.allocator.alloc(Schema, variants.len);
+        errdefer self.allocator.free(converted);
+        for (variants, 0..) |variant, i| {
+            converted[i] = try self.convertSchemaOrReference(variant);
+        }
+        return converted;
+    }
+
+    fn convertUnionRefs(self: *OpenApi32Converter, variants: []const SchemaOrReference32) !?[][]const u8 {
+        var refs = try self.allocator.alloc([]const u8, variants.len);
+        errdefer {
+            for (refs[0..]) |ref| if (ref.len != 0) self.allocator.free(ref);
+            self.allocator.free(refs);
+        }
+        for (refs) |*ref| ref.* = "";
+
+        for (variants, 0..) |variant, i| {
+            switch (variant) {
+                .reference => |reference| refs[i] = try self.allocator.dupe(u8, refName(reference.ref)),
+                .schema => {
+                    for (refs) |ref| if (ref.len != 0) self.allocator.free(ref);
+                    self.allocator.free(refs);
+                    return null;
+                },
+            }
+        }
+        return refs;
+    }
+
+    fn refName(ref: []const u8) []const u8 {
+        if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| return ref[last_slash + 1 ..];
+        return ref;
     }
 
     fn convertSchemaType(self: *OpenApi32Converter, type_str: []const u8) SchemaType {
@@ -535,13 +603,13 @@ pub const OpenApi32Converter = struct {
     }
 
     fn convertPathItem(self: *OpenApi32Converter, pathItem: PathItem32) !PathItem {
-        const get = if (pathItem.get) |op| try self.convertOperation(op) else null;
-        const put = if (pathItem.put) |op| try self.convertOperation(op) else null;
-        const post = if (pathItem.post) |op| try self.convertOperation(op) else null;
-        const delete = if (pathItem.delete) |op| try self.convertOperation(op) else null;
-        const options = if (pathItem.options) |op| try self.convertOperation(op) else null;
-        const head = if (pathItem.head) |op| try self.convertOperation(op) else null;
-        const patch = if (pathItem.patch) |op| try self.convertOperation(op) else null;
+        const get = try self.convertPathOperation(pathItem.get, pathItem.parameters);
+        const put = try self.convertPathOperation(pathItem.put, pathItem.parameters);
+        const post = try self.convertPathOperation(pathItem.post, pathItem.parameters);
+        const delete = try self.convertPathOperation(pathItem.delete, pathItem.parameters);
+        const options = try self.convertPathOperation(pathItem.options, pathItem.parameters);
+        const head = try self.convertPathOperation(pathItem.head, pathItem.parameters);
+        const patch = try self.convertPathOperation(pathItem.patch, pathItem.parameters);
         const parameters = if (pathItem.parameters) |params| try self.convertParameters(params) else null;
         return PathItem{
             .get = get,
@@ -553,6 +621,17 @@ pub const OpenApi32Converter = struct {
             .patch = patch,
             .parameters = parameters,
         };
+    }
+
+    /// Converts an operation and merges the path item's parameters into it.
+    fn convertPathOperation(self: *OpenApi32Converter, raw_operation: ?Operation32, path_parameters: anytype) !?Operation {
+        const raw = raw_operation orelse return null;
+        var operation = try self.convertOperation(raw);
+        if (path_parameters) |params| {
+            const path_level = try self.convertParameters(params);
+            try param_merge.mergePathLevel(self.allocator, &operation, path_level);
+        }
+        return operation;
     }
 
     fn convertOperation(self: *OpenApi32Converter, operation: Operation32) !Operation {
@@ -680,9 +759,30 @@ pub const OpenApi32Converter = struct {
         return converted_params;
     }
 
+    /// Look up a `#/components/parameters/<name>` reference, following alias
+    /// chains. The hop limit bounds cyclic definitions.
+    fn resolveComponentParameter(self: *OpenApi32Converter, ref: []const u8) ?Parameter32 {
+        const prefix = "#/components/parameters/";
+        const max_hops = 32;
+        const parameters = self.component_parameters orelse return null;
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = parameters.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .parameter => |param| return param,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
+    }
+
     fn convertParameterOrReference(self: *OpenApi32Converter, paramOrRef: *const ParameterOrReference32) !Parameter {
         switch (paramOrRef.*) {
             .reference => |ref| {
+                if (self.resolveComponentParameter(ref.ref)) |resolved| return self.convertParameter(resolved);
                 return Parameter{
                     .name = ref.ref,
                     .location = .query,
@@ -724,12 +824,36 @@ pub const OpenApi32Converter = struct {
     fn convertResponseOrReference(self: *OpenApi32Converter, respOrRef: ResponseOrReference32) !Response {
         switch (respOrRef) {
             .reference => |ref| {
+                if (self.resolveComponentResponse(ref.ref)) |resolved| {
+                    return self.convertResponse(resolved);
+                }
                 return Response{ .description = ref.ref };
             },
             .response => |resp| {
                 return self.convertResponse(resp);
             },
         }
+    }
+
+    /// Look up a `#/components/responses/<name>` reference. A component entry
+    /// may itself be a Reference Object, so alias chains are followed; the hop
+    /// limit bounds cyclic definitions.
+    fn resolveComponentResponse(self: *OpenApi32Converter, ref: []const u8) ?Response32 {
+        const prefix = "#/components/responses/";
+        const max_hops = 32;
+        const responses = self.source_responses orelse return null;
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = responses.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .response => |response| return response,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
     }
 
     fn convertResponse(self: *OpenApi32Converter, response: Response32) !Response {
