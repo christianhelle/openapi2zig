@@ -9,5 +9,7 @@ pub fn isValidSdkName(name: []const u8) bool {
     for (name) |c| {
         if (!(std.ascii.isLower(c) or std.ascii.isDigit(c) or c == '_')) return false;
     }
+    // The package is imported under this name next to `std`, so it cannot be `std`.
+    if (std.mem.eql(u8, name, "std") or std.mem.eql(u8, name, "builtin") or std.mem.eql(u8, name, "root")) return false;
     return !ident_utils.isReservedIdent(name);
 }
