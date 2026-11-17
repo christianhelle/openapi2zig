@@ -121,8 +121,9 @@ pub fn appendAuthHeader(self: *UnifiedApiGenerator, scheme: ?AuthScheme, names: 
             .bearer => {
                 try self.buffer.appendSlice(self.allocator, "    var auth_header: ?[]u8 = null;\n");
                 try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| allocator.free(value);\n");
-                try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) {\n");
-                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(allocator, \"Bearer {s}\", .{client.api_key});\n");
+                try self.buffer.appendSlice(self.allocator, "    const bearer_token: []const u8 = if (client.token_provider) |provider| try provider.getToken(allocator, client.io) else client.api_key;\n");
+                try self.buffer.appendSlice(self.allocator, "    if (bearer_token.len > 0) {\n");
+                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(allocator, \"Bearer {s}\", .{bearer_token});\n");
                 try self.buffer.appendSlice(self.allocator, "        try ");
                 try self.buffer.appendSlice(self.allocator, names.headers);
                 try self.buffer.appendSlice(self.allocator, ".append(allocator, .{ .name = \"Authorization\", .value = auth_header.? });\n");
