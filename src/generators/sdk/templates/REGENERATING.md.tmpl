@@ -28,6 +28,8 @@ Run this from the root of the repository:
 openapi2zig generate --sdk
 ```
 
+If you keep the settings in another file, name it: `openapi2zig generate --sdk --sdk-config path/to/settings.json`.
+
 The generator skips a file when only its header would change. Pass `--force` to rewrite everything.
 
 ## After generating
