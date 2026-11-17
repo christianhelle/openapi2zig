@@ -884,6 +884,7 @@ pub fn generateStreamAuthCode(self: *UnifiedApiGenerator) !void {
         \\
         \\
     );
+    if (self.args.pagination) try self.generatePagerType();
 }
 
 pub fn generateSseBufferConstants(self: *UnifiedApiGenerator) !void {

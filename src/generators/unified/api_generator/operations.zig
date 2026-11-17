@@ -51,6 +51,7 @@ pub fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: [
     }
     if (operation.operationId != null and self.hasReturnValue(method, operation)) {
         try self.generateFunctionResult(method, path, operation);
+        try self.generatePagesFunction(method, path, operation, document);
     }
 
     if (operation.streaming and std.mem.eql(u8, method, "POST")) {

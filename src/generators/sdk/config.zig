@@ -9,6 +9,7 @@ pub const Generator = struct {
     parameters_as_struct: bool = false,
     tags: []const []const u8 = &.{},
     model_naming: model_names.Mode = .raw,
+    pagination: bool = false,
 };
 
 /// Contents of `openapi2zig.json`, the file that describes an SDK repository.
@@ -38,6 +39,7 @@ pub const SdkConfig = struct {
         args.resource_wrappers = self.generator.resource_wrappers;
         args.parameters_as_struct = self.generator.parameters_as_struct;
         args.model_naming = self.generator.model_naming;
+        args.pagination = self.generator.pagination;
         if (args.tags.len == 0) args.tags = self.generator.tags;
         return args;
     }

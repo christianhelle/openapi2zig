@@ -47,3 +47,55 @@ test "generated transport retries throttled responses" {
     try testing.expect(std.mem.indexOf(u8, code, "status == .too_many_requests or status == .service_unavailable or status == .gateway_timeout") != null);
     try testing.expect(std.mem.indexOf(u8, code, "client.retry.delayMilliseconds(attempt, result.retry_after_seconds)") != null);
 }
+
+const pageable_spec =
+    "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{" ++
+    "\"/users\":{\"get\":{\"operationId\":\"listUsers\",\"parameters\":[{\"name\":\"$top\",\"in\":\"query\",\"schema\":{\"type\":\"integer\"}}]," ++
+    "\"responses\":{\"200\":{\"description\":\"ok\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/UserPage\"}}}}}," ++
+    "\"x-ms-pageable\":{\"nextLinkName\":\"@odata.nextLink\",\"operationName\":\"listMore\"}}}," ++
+    "\"/other\":{\"get\":{\"operationId\":\"listOther\",\"responses\":{\"200\":{\"description\":\"ok\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/Other\"}}}}}," ++
+    "\"x-ms-pageable\":{\"nextLinkName\":\"@odata.nextLink\"}}}}," ++
+    "\"components\":{\"schemas\":{" ++
+    "\"UserPage\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"@odata.nextLink\":{\"type\":\"string\",\"nullable\":true}}}," ++
+    "\"Other\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}}}}";
+
+fn generatePageable(allocator: std.mem.Allocator, pagination: bool) ![]const u8 {
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, pageable_spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    const item = unified.paths.get("/users").?.get.?;
+    try testing.expectEqualStrings("@odata.nextLink", item.next_link_name.?);
+
+    var generator = UnifiedApiGenerator.init(allocator, .{ .input_path = "fixture.json", .pagination = pagination });
+    defer generator.deinit();
+    return generator.generate(unified);
+}
+
+test "pagination adds a pager for operations that declare x-ms-pageable" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generatePageable(allocator, true);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn Pager(comptime Page: type, comptime next_link_field: []const u8) type {") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn listUsersPages(client: *Client, @\"$top\": ?i64) !Pager(UserPage, \"@odata.nextLink\") {") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "return Pager(UserPage, \"@odata.nextLink\").init(client, try listUsers(client, @\"$top\"));") != null);
+    // The page type has no such property, so no pager is generated for it.
+    try testing.expect(std.mem.indexOf(u8, code, "listOtherPages") == null);
+}
+
+test "pagination is off unless requested" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generatePageable(allocator, false);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "Pager") == null);
+}

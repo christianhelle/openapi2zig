@@ -21,3 +21,14 @@ test "OData-shaped description generates code that compiles" {
     @setEvalBranchQuota(50_000_000);
     refAllDeclsRecursive(sdk);
 }
+
+test "generated pager compiles for a page type" {
+    if (!@hasDecl(sdk, "Pager")) return;
+    const Page = struct { value: []const u8 = "", @"@odata.nextLink": ?[]const u8 = null };
+    const P = sdk.Pager(Page, "@odata.nextLink");
+    _ = &P.init;
+    _ = &P.deinit;
+    _ = &P.page;
+    _ = &P.nextLink;
+    _ = &P.advance;
+}

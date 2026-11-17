@@ -103,6 +103,8 @@ pub const CliArgs = struct {
     parameters_as_struct: bool = false,
     /// How component schema names become Zig type names.
     model_naming: model_names.Mode = .raw,
+    /// Emit a `Pager` and `...Pages` functions for operations marked `x-ms-pageable`.
+    pagination: bool = false,
     /// Generate a complete SDK repository (sources plus build files, docs,
     /// CI workflows and examples) instead of bare Zig sources.
     sdk: bool = false,

@@ -637,6 +637,7 @@ pub const OpenApiConverter = struct {
             .deprecated = operation.deprecated orelse false,
             .security = security,
             .streaming = streaming,
+            .next_link_name = operation.next_link_name,
         };
     }
 
