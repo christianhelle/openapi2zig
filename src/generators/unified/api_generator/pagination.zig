@@ -4,6 +4,7 @@ const Operation = document.Operation;
 const Schema = document.Schema;
 const UnifiedDocument = document.UnifiedDocument;
 const UnifiedApiGenerator = @import("../api_generator.zig").UnifiedApiGenerator;
+const escapeZigString = @import("helpers.zig").escapeZigString;
 
 /// The runtime half of pagination: a type that walks `@odata.nextLink` style
 /// links. Emitted into the client only when pagination is requested.
@@ -117,6 +118,8 @@ pub fn appendPagerType(self: *UnifiedApiGenerator, response: Schema, next_link: 
     try self.buffer.appendSlice(self.allocator, "Pager(");
     try self.appendZigTypeFromSchema(response);
     try self.buffer.appendSlice(self.allocator, ", \"");
-    try self.buffer.appendSlice(self.allocator, next_link);
+    const escaped = try escapeZigString(self.allocator, next_link);
+    defer self.allocator.free(escaped);
+    try self.buffer.appendSlice(self.allocator, escaped);
     try self.buffer.appendSlice(self.allocator, "\")");
 }
