@@ -245,12 +245,15 @@ pub const ClientCredentials = struct {
     }
 
     /// The current access token, fetched or refreshed when needed. The slice is
-    /// valid until the next call.
+    /// allocated with `allocator` and belongs to the caller, so concurrent refreshes
+    /// by other threads cannot invalidate it.
     pub fn getToken(self: *ClientCredentials, allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
-        _ = allocator;
         self.mutex.lockUncancelable(io);
         defer self.mutex.unlock(io);
+        return allocator.dupe(u8, try self.tokenLocked(io));
+    }
 
+    fn tokenLocked(self: *ClientCredentials, io: std.Io) ![]const u8 {
         const now = nowSeconds(io);
         if (self.cache.isFresh(now)) return self.cache.access_token.?;
 
@@ -355,15 +358,21 @@ pub const DeviceCode = struct {
     }
 
     pub fn getToken(self: *DeviceCode, allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
-        _ = allocator;
         self.mutex.lockUncancelable(io);
         defer self.mutex.unlock(io);
+        return allocator.dupe(u8, try self.tokenLocked(io));
+    }
 
+    fn tokenLocked(self: *DeviceCode, io: std.Io) ![]const u8 {
         const now = nowSeconds(io);
         if (self.cache.isFresh(now)) return self.cache.access_token.?;
 
         if (self.cache.refresh_token != null) {
-            if (self.refresh(io, now)) |_| return self.cache.access_token.? else |_| {}
+            if (self.refresh(io, now)) |_| return self.cache.access_token.? else |err| {
+                // Only a rejected grant means the user has to sign in again; a
+                // network error or a 503 must not start a new sign in.
+                if (err != error.OAuthError or !self.refreshNeedsSignIn()) return err;
+            }
         }
         try self.signIn(io);
         return self.cache.access_token.?;
@@ -442,6 +451,10 @@ pub const DeviceCode = struct {
             return error.OAuthError;
         }
         return error.DeviceCodeExpired;
+    }
+
+    fn refreshNeedsSignIn(self: *const DeviceCode) bool {
+        return errorNeedsSignIn(self.last_error);
     }
 
     fn recordError(self: *DeviceCode, body: []const u8) !void {
@@ -546,6 +559,7 @@ test "credentials adapt to a token provider and serve a cached token" {
 
     const provider = credentials.tokenProvider(TestProvider);
     const token = try provider.getTokenFn(provider.ctx, std.testing.allocator, std.testing.io);
+    defer std.testing.allocator.free(token);
     try std.testing.expectEqualStrings("cached-token", token);
 }
 
@@ -567,5 +581,19 @@ test "device code serves a cached token and compiles its sign in flow" {
     device.cache.replace(std.testing.allocator, .{ .access_token = access, .refresh_token = null, .expires_in = 3600 }, nowSeconds(std.testing.io));
     const provider = device.tokenProvider(TestProvider);
     const token = try provider.getTokenFn(provider.ctx, std.testing.allocator, std.testing.io);
+    defer std.testing.allocator.free(token);
     try std.testing.expectEqualStrings("device-token", token);
+}
+
+/// Whether the last OAuth error says the refresh token is no longer usable.
+fn errorNeedsSignIn(message: ?[]const u8) bool {
+    const text = message orelse return false;
+    return std.mem.startsWith(u8, text, "invalid_grant") or std.mem.startsWith(u8, text, "interaction_required");
+}
+
+test "only rejected grants send the user back to sign in" {
+    try std.testing.expect(errorNeedsSignIn("invalid_grant: expired"));
+    try std.testing.expect(errorNeedsSignIn("interaction_required"));
+    try std.testing.expect(!errorNeedsSignIn("temporarily_unavailable"));
+    try std.testing.expect(!errorNeedsSignIn(null));
 }

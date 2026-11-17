@@ -38,7 +38,7 @@ pub fn envLines(arena: std.mem.Allocator, oauth2: ?config_mod.OAuth2) ![]const u
     var out: std.ArrayList(u8) = .empty;
     for (try placeholders(arena, settings.token_url)) |name| {
         const upper = try std.ascii.allocUpperString(arena, name);
-        try out.print(arena, "    const {s} = init.environ_map.get(\"{s}\") orelse {{\n", .{ name, upper });
+        try out.print(arena, "    const url_{s} = init.environ_map.get(\"{s}\") orelse {{\n", .{ name, upper });
         try out.print(arena, "        std.debug.print(\"Set the {s} environment variable\\n\", .{{}});\n", .{upper});
         try out.appendSlice(arena, "        return error.MissingEnvironmentVariable;\n    };\n");
     }
@@ -50,7 +50,7 @@ pub fn paramsLiteral(arena: std.mem.Allocator, oauth2: ?config_mod.OAuth2) ![]co
     const settings = oauth2 orelse return "";
     var out: std.ArrayList(u8) = .empty;
     for (try placeholders(arena, settings.token_url)) |name| {
-        try out.print(arena, "        .{{ .name = \"{s}\", .value = {s} }},\n", .{ name, name });
+        try out.print(arena, "        .{{ .name = \"{s}\", .value = url_{s} }},\n", .{ name, name });
     }
     return out.items;
 }

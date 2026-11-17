@@ -376,7 +376,7 @@ test "oauth examples read credentials from the environment" {
     defer allocator.free(credentials);
     try testing.expect(std.mem.indexOf(u8, credentials, "init.environ_map.get(\"TENANT\")") != null);
     try testing.expect(std.mem.indexOf(u8, credentials, "CLIENT_SECRET") != null);
-    try testing.expect(std.mem.indexOf(u8, credentials, ".{ .name = \"tenant\", .value = tenant }") != null);
+    try testing.expect(std.mem.indexOf(u8, credentials, ".{ .name = \"tenant\", .value = url_tenant }") != null);
 
     const device = try templates.render(allocator, .example_device_code, configured.ctx);
     defer allocator.free(device);
