@@ -257,3 +257,56 @@ test "sdk prepare keeps a remote spec url in the config" {
 
     try testing.expectEqualStrings("https://example.com/openapi.json", prepared.parsed.value.spec.?);
 }
+
+test "sdk prepare writes nothing for an invalid name" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "pets.json", .data = spec });
+
+    try testing.expectError(error.InvalidConfig, sdk_scaffold.prepare(allocator, testing.io, tmp.dir, .{
+        .input_path = "pets.json",
+        .output_path = "repo",
+        .sdk = true,
+        .sdk_name = "Pet-Store",
+    }));
+    try testing.expect(!exists(tmp.dir, "repo/openapi2zig.json"));
+    try testing.expect(!exists(tmp.dir, "repo/openapi/pets.json"));
+}
+
+test "sdk prepare writes no config when the local spec is missing" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try testing.expectError(error.FileNotFound, sdk_scaffold.prepare(allocator, testing.io, tmp.dir, .{
+        .input_path = "missing.json",
+        .output_path = "repo",
+        .sdk = true,
+        .sdk_name = "pets",
+    }));
+    try testing.expect(!exists(tmp.dir, "repo/openapi2zig.json"));
+}
+
+test "sdk generation skips examples whose names cannot be a build step" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.createDirPath(testing.io, "repo/examples");
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "repo/openapi2zig.json", .data = config_json });
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "repo/examples/a b.zig", .data = "// bad\n" });
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "repo/examples/good_one.zig", .data = "// ok\n" });
+    try runGenerate(allocator, tmp.dir, false);
+
+    const build_zig = try read(allocator, tmp.dir, "repo/build.zig");
+    defer allocator.free(build_zig);
+    try testing.expect(std.mem.indexOf(u8, build_zig, "\"good_one\"") != null);
+    try testing.expect(std.mem.indexOf(u8, build_zig, "a b") == null);
+}

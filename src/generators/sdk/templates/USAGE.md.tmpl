@@ -23,7 +23,7 @@ defer result.deinit();
 const value = result.value();
 ```
 
-Each operation comes in three forms:
+Operations that return a body come in three forms. An operation without a response body only has `operation` (returning `!void`) and `operationRaw`:
 
 | Form | Returns | Use it when |
 | --- | --- | --- |
@@ -41,7 +41,7 @@ Each operation comes in three forms:
 var result = try sdk.client.someOperationResult(&client, arguments);
 defer result.deinit();
 switch (result) {
-    .ok => |owned| std.debug.print("{any}\n", .{owned.value()}),
+    .ok => |*owned| std.debug.print("{any}\n", .{owned.value()}),
     .api_error => |err| std.debug.print("HTTP {d}: {s}\n", .{ @intFromEnum(err.status), err.body }),
     .parse_error => |err| std.debug.print("could not parse: {s}\n", .{err.error_name}),
 }

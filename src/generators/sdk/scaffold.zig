@@ -48,6 +48,7 @@ pub fn prepare(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, args: 
         try config_mod.parse(allocator, bytes)
     else blk: {
         const name = args.sdk_name orelse return error.MissingSdkName;
+        if (!cli.isValidSdkName(name)) return error.InvalidConfig;
         const spec = try bundledSpecPath(allocator, io, cwd, repo_dir, args.input_path);
         defer allocator.free(spec);
         const rendered = try config_mod.renderDefault(allocator, name, spec);
@@ -174,6 +175,10 @@ fn discoverExamples(arena: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, repo_
         if (!std.mem.endsWith(u8, entry.name, ".zig")) continue;
         const stem = entry.name[0 .. entry.name.len - ".zig".len];
         if (std.mem.eql(u8, stem, "quickstart")) continue;
+        if (!isUsableExampleName(stem)) {
+            std.log.warn("Skipping example '{s}': use letters, digits, underscores and dashes only", .{stem});
+            continue;
+        }
         try names.append(arena, try arena.dupe(u8, stem));
     }
     std.mem.sort([]const u8, names.items, {}, lessThan);
@@ -195,14 +200,20 @@ fn bundledSpecPath(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, re
     const bundled = try std.fmt.allocPrint(allocator, "openapi/{s}", .{base});
     errdefer allocator.free(bundled);
 
-    const bytes = cwd.readFileAlloc(io, input_path, allocator, .unlimited) catch |err| switch (err) {
-        // The generation step reports a missing spec with a clearer error.
-        error.FileNotFound => return bundled,
-        else => return err,
-    };
+    // A missing spec is an error here, so no config pointing at a spec that was
+    // never copied is written.
+    const bytes = try cwd.readFileAlloc(io, input_path, allocator, .unlimited);
     defer allocator.free(bytes);
     const dest = try std.fs.path.join(allocator, &.{ repo_dir, bundled });
     defer allocator.free(dest);
     _ = try output_writer.writeOwned(allocator, io, cwd, dest, bytes, .scaffold, false);
     return bundled;
+}
+
+fn isUsableExampleName(stem: []const u8) bool {
+    if (stem.len == 0) return false;
+    for (stem) |c| {
+        if (!(std.ascii.isAlphanumeric(c) or c == '_' or c == '-')) return false;
+    }
+    return true;
 }
