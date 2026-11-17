@@ -295,3 +295,91 @@ test "sdk config reads the retry count" {
     try testing.expect(args.pagination);
     try testing.expect(args.typed_errors);
 }
+
+const oauth_json =
+    \\{ "name": "pets", "auth": { "oauth2": {
+    \\    "token_url": "https://login.example.com/{tenant}/oauth2/v2.0/token",
+    \\    "device_authorization_url": "https://login.example.com/{tenant}/oauth2/v2.0/devicecode",
+    \\    "scopes": ["https://api.example.com/.default", "offline_access"] } } }
+;
+
+test "sdk config reads oauth2 settings" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const sdk_config = @import("../generators/sdk/config.zig");
+    var parsed = try sdk_config.parse(allocator, oauth_json);
+    defer parsed.deinit();
+    const oauth2 = parsed.value.auth.oauth2.?;
+    try testing.expectEqualStrings("https://login.example.com/{tenant}/oauth2/v2.0/token", oauth2.token_url);
+    try testing.expectEqual(@as(usize, 2), oauth2.scopes.len);
+
+    var plain = try sdk_config.parse(allocator, "{ \"name\": \"pets\" }");
+    defer plain.deinit();
+    try testing.expect(plain.value.auth.oauth2 == null);
+}
+
+fn oauthContext(allocator: std.mem.Allocator) !struct { parsed: @import("../generators/sdk/config.zig").Parsed, ctx: templates.SdkContext } {
+    const sdk_config = @import("../generators/sdk/config.zig");
+    const parsed = try sdk_config.parse(allocator, oauth_json);
+    var ctx = testContext();
+    ctx.config = parsed.value;
+    return .{ .parsed = parsed, .ctx = ctx };
+}
+
+test "oauth templates only apply when oauth2 is configured" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    try testing.expect(!templates.applies(.auth_zig, testContext()));
+    try testing.expect(!templates.applies(.example_client_credentials, testContext()));
+
+    var configured = try oauthContext(allocator);
+    defer configured.parsed.deinit();
+    try testing.expect(templates.applies(.auth_zig, configured.ctx));
+    try testing.expect(templates.applies(.example_client_credentials, configured.ctx));
+    try testing.expect(templates.applies(.example_device_code, configured.ctx));
+}
+
+test "root.zig exposes the oauth helpers with the configured urls and scopes" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var configured = try oauthContext(allocator);
+    defer configured.parsed.deinit();
+    const out = try templates.render(allocator, .root_zig, configured.ctx);
+    defer allocator.free(out);
+
+    try testing.expect(std.mem.indexOf(u8, out, "pub const auth = @import(\"auth.zig\");") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "pub const token_url = \"https://login.example.com/{tenant}/oauth2/v2.0/token\";") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "pub const scope = \"https://api.example.com/.default offline_access\";") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "pub fn clientCredentials(") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "pub fn deviceCode(") != null);
+
+    const plain = try renderOwned(allocator, .root_zig);
+    defer allocator.free(plain);
+    try testing.expect(std.mem.indexOf(u8, plain, "auth.zig") == null);
+}
+
+test "oauth examples read credentials from the environment" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var configured = try oauthContext(allocator);
+    defer configured.parsed.deinit();
+
+    const credentials = try templates.render(allocator, .example_client_credentials, configured.ctx);
+    defer allocator.free(credentials);
+    try testing.expect(std.mem.indexOf(u8, credentials, "init.environ_map.get(\"TENANT\")") != null);
+    try testing.expect(std.mem.indexOf(u8, credentials, "CLIENT_SECRET") != null);
+    try testing.expect(std.mem.indexOf(u8, credentials, ".{ .name = \"tenant\", .value = tenant }") != null);
+
+    const device = try templates.render(allocator, .example_device_code, configured.ctx);
+    defer allocator.free(device);
+    try testing.expect(std.mem.indexOf(u8, device, "sdk.deviceCode(") != null);
+    try testing.expect(std.mem.indexOf(u8, device, "secret") == null);
+}

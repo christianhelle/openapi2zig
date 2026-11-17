@@ -1,6 +1,7 @@
 const std = @import("std");
 const config_mod = @import("config.zig");
 const template = @import("template.zig");
+const oauth_text = @import("oauth_text.zig");
 const output_writer = @import("../../generator/output_writer.zig");
 
 pub const SdkConfig = config_mod.SdkConfig;
@@ -42,6 +43,9 @@ pub const Kind = enum {
     ci,
     release,
     quickstart,
+    auth_zig,
+    example_client_credentials,
+    example_device_code,
 
     pub fn path(self: Kind) []const u8 {
         return switch (self) {
@@ -59,6 +63,9 @@ pub const Kind = enum {
             .ci => ".github/workflows/ci.yml",
             .release => ".github/workflows/release.yml",
             .quickstart => "examples/quickstart.zig",
+            .auth_zig => "src/auth.zig",
+            .example_client_credentials => "examples/client_credentials.zig",
+            .example_device_code => "examples/device_code.zig",
         };
     }
 
@@ -66,8 +73,8 @@ pub const Kind = enum {
         return switch (self) {
             .root_zig, .compile_check_zig, .build_zig => .generated,
             .build_zig_zon, .gitignore, .license, .changelog => .scaffold,
-            .gitattributes, .regenerating => .generated,
-            .readme, .usage, .ci, .release, .quickstart => .scaffold,
+            .gitattributes, .regenerating, .auth_zig => .generated,
+            .readme, .usage, .ci, .release, .quickstart, .example_client_credentials, .example_device_code => .scaffold,
         };
     }
 
@@ -87,6 +94,9 @@ pub const Kind = enum {
             .ci => @embedFile("templates/ci.yml.tmpl"),
             .release => @embedFile("templates/release.yml.tmpl"),
             .quickstart => @embedFile("templates/quickstart.zig.tmpl"),
+            .auth_zig => @embedFile("auth_runtime.zig"),
+            .example_client_credentials => @embedFile("templates/client_credentials.zig.tmpl"),
+            .example_device_code => @embedFile("templates/device_code.zig.tmpl"),
         };
     }
 };
@@ -112,6 +122,9 @@ pub fn buildVars(arena: std.mem.Allocator, ctx: SdkContext) ![]template.Var {
         .{ .name = "year", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.year}) },
         .{ .name = "examples_list", .value = try examplesList(arena, ctx.examples) },
         .{ .name = "extra_exports", .value = try extraExports(arena, ctx) },
+        .{ .name = "oauth_block", .value = try oauth_text.rootBlock(arena, ctx.config.auth.oauth2) },
+        .{ .name = "oauth_env_lines", .value = try oauth_text.envLines(arena, ctx.config.auth.oauth2) },
+        .{ .name = "oauth_params_literal", .value = try oauth_text.paramsLiteral(arena, ctx.config.auth.oauth2) },
         .{ .name = "max_retries", .value = try std.fmt.allocPrint(arena, "{d}", .{c.retry.max_retries}) },
         .{ .name = "fingerprint", .value = try std.fmt.allocPrint(arena, "0x{x:0>16}", .{ctx.fingerprint}) },
         .{ .name = "path_count", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.path_count}) },
@@ -122,6 +135,8 @@ pub fn buildVars(arena: std.mem.Allocator, ctx: SdkContext) ![]template.Var {
 }
 
 pub fn render(allocator: std.mem.Allocator, kind: Kind, ctx: SdkContext) ![]u8 {
+    // The OAuth runtime is plain Zig source, copied as it is.
+    if (kind == .auth_zig) return template.expandNone(allocator, kind.source());
     var arena_state = std.heap.ArenaAllocator.init(allocator);
     defer arena_state.deinit();
     const vars = try buildVars(arena_state.allocator(), ctx);
@@ -149,6 +164,8 @@ pub fn fingerprintFor(name: []const u8, seed: []const u8) u64 {
 pub fn applies(kind: Kind, ctx: SdkContext) bool {
     return switch (kind) {
         .license => std.mem.eql(u8, ctx.config.license, "MIT"),
+        .auth_zig, .example_client_credentials => ctx.config.auth.oauth2 != null,
+        .example_device_code => if (ctx.config.auth.oauth2) |oauth2| oauth2.device_authorization_url != null else false,
         else => true,
     };
 }

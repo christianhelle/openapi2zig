@@ -4,6 +4,18 @@ const model_names = @import("../unified/model_names.zig");
 
 pub const ConfigError = error{InvalidConfig};
 
+/// OAuth 2.0 endpoints. URLs may contain `{name}` placeholders, for example a
+/// tenant, that callers fill in at run time.
+pub const OAuth2 = struct {
+    token_url: []const u8,
+    device_authorization_url: ?[]const u8 = null,
+    scopes: []const []const u8 = &.{},
+};
+
+pub const Auth = struct {
+    oauth2: ?OAuth2 = null,
+};
+
 /// Retry behavior of the generated `init`.
 pub const Retry = struct {
     max_retries: u8 = 0,
@@ -33,6 +45,7 @@ pub const SdkConfig = struct {
     base_url: ?[]const u8 = null,
     generator: Generator = .{},
     retry: Retry = .{},
+    auth: Auth = .{},
 
     /// Merges the config into the CLI args. Values given on the command line
     /// (input path, base URL) win over the config. The returned args borrow
