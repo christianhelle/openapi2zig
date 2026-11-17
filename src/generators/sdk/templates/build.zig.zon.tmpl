@@ -1,0 +1,19 @@
+.{
+    .name = .{{name}},
+    .version = "{{version}}",
+    // Changing this has security and trust implications. See the Zig package
+    // documentation before regenerating it.
+    .fingerprint = {{fingerprint}},
+    .minimum_zig_version = "{{minimum_zig_version}}",
+    .dependencies = .{},
+    // docs/ and openapi/ are left out so consumers do not download the OpenAPI description.
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "examples",
+        "LICENSE",
+        "README.md",
+        "CHANGELOG.md",
+    },
+}

@@ -1,0 +1,15 @@
+//! Creates a client and prints the base URL it targets.
+//!
+//!     zig build run-quickstart
+
+const std = @import("std");
+const sdk = @import("{{name}}");
+
+pub fn main(init: std.process.Init) !void {
+    const token = init.environ_map.get("API_TOKEN") orelse "";
+
+    var client = sdk.init(init.gpa, init.io, token);
+    defer client.deinit();
+
+    std.debug.print("Client ready for {s}\n", .{client.base_url});
+}

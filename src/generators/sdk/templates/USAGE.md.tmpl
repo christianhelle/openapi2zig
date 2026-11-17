@@ -1,0 +1,57 @@
+# Using the {{name}} SDK
+
+## Creating a client
+
+```zig
+const sdk = @import("{{name}}");
+
+var client = sdk.init(allocator, io, token);
+defer client.deinit();
+```
+
+`sdk.init` targets `{{base_url}}`. To use a different host, call `client.withBaseUrl("https://...")`.
+
+The token is sent as a bearer token on operations that require authentication.
+
+## Calling operations
+
+Every operation is a free function in `sdk.client` that takes a `*Client` first:
+
+```zig
+var result = try sdk.client.someOperation(&client, arguments);
+defer result.deinit();
+const value = result.value();
+```
+
+Operations that return a body come in three forms. An operation without a response body only has `operation` (returning `!void`) and `operationRaw`:
+
+| Form | Returns | Use it when |
+| --- | --- | --- |
+| `operation` | `!Owned(T)` | You want the parsed model and treat any non-2xx status as an error. |
+| `operationRaw` | `!RawResponse` | You want the status code and body. |
+| `operationResult` | `!ApiResult(T)` | You want to tell API errors from parse errors. |
+
+`Owned(T)` owns the parsed response; call `deinit()` when you are done with it.
+
+## Error handling
+
+`ApiResult(T)` is a union with `ok`, `api_error` (status and body) and `parse_error` (the parser error name and body) cases:
+
+```zig
+var result = try sdk.client.someOperationResult(&client, arguments);
+defer result.deinit();
+switch (result) {
+    .ok => |*owned| std.debug.print("{any}\n", .{owned.value()}),
+    .api_error => |err| std.debug.print("HTTP {d}: {s}\n", .{ @intFromEnum(err.status), err.body }),
+    .parse_error => |err| std.debug.print("could not parse: {s}\n", .{err.error_name}),
+}
+```
+
+## Observing requests
+
+Set `client.http_observer` to log every request, response and error.
+
+## Known limitations
+
+- `multipart/form-data` and `application/x-www-form-urlencoded` request bodies are sent as JSON.
+- Response bodies are buffered in memory.

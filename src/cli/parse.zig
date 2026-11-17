@@ -2,6 +2,7 @@ const std = @import("std");
 const types = @import("types.zig");
 const usage = @import("usage.zig");
 const fnames = @import("file_names.zig");
+const sdk_helpers = @import("sdk.zig");
 const ResourceWrapperMode = types.ResourceWrapperMode;
 const MultipleClientsMode = types.MultipleClientsMode;
 const FileKind = types.FileKind;
@@ -41,7 +42,12 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
         }
     }
 
-    const min_args: usize = if (has_runtime_only) 3 else 4;
+    var has_sdk = false;
+    for (args) |arg| {
+        if (std.mem.eql(u8, arg, "--sdk")) has_sdk = true;
+    }
+
+    const min_args: usize = if (has_runtime_only or has_sdk) 3 else 4;
     if (args.len < min_args or (args.len >= 1 and !std.mem.eql(u8, args[1], "generate"))) {
         printUsage();
         return .{
@@ -67,6 +73,9 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var force = false;
     var runtime_only = false;
     var parameters_as_struct = false;
+    var sdk = false;
+    var sdk_config_path: ?[]const u8 = null;
+    var sdk_name: ?[]const u8 = null;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -202,10 +211,67 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             runtime_only = true;
         } else if (std.mem.eql(u8, arg, "--parameters-as-struct")) {
             parameters_as_struct = true;
+        } else if (std.mem.eql(u8, arg, "--sdk")) {
+            sdk = true;
+        } else if (std.mem.eql(u8, arg, "--sdk-config")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                printError("--sdk-config value required\n", .{});
+                return error.InvalidArguments;
+            }
+            if (std.mem.startsWith(u8, args[i], "-")) {
+                printUsage();
+                printError("--sdk-config value must not start with '-'\n", .{});
+                return error.InvalidArguments;
+            }
+            sdk_config_path = args[i];
+        } else if (std.mem.eql(u8, arg, "--sdk-name")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                printError("--sdk-name value required\n", .{});
+                return error.InvalidArguments;
+            }
+            sdk_name = args[i];
         }
     }
 
-    if (input_path == null and !runtime_only) {
+    if (!sdk and (sdk_config_path != null or sdk_name != null)) {
+        printUsage();
+        printError("--sdk-config and --sdk-name require --sdk\n", .{});
+        return error.InvalidArguments;
+    }
+
+    if (sdk) {
+        if (runtime_only or models_only or runtime_module != null or file_names.any()) {
+            printUsage();
+            printError("--sdk cannot be combined with --runtime-only, --models-only, --runtime-module or --file-name\n", .{});
+            return error.InvalidArguments;
+        }
+        if (multiple_clients != null) {
+            printUsage();
+            printError("--multiple-clients is not available with --sdk\n", .{});
+            return error.InvalidArguments;
+        }
+        if (resource_wrappers_explicit or tags_list.items.len > 0) {
+            // These come from the "generator" section of openapi2zig.json, so a
+            // command line value would be silently replaced.
+            printUsage();
+            printError("--sdk takes --resource-wrappers and --tag from openapi2zig.json (generator section)\n", .{});
+            return error.InvalidArguments;
+        }
+        if (sdk_name) |name| {
+            if (!sdk_helpers.isValidSdkName(name)) {
+                printUsage();
+                printError("invalid --sdk-name '{s}', expected a lowercase Zig identifier\n", .{name});
+                return error.InvalidArguments;
+            }
+        }
+        multiple_files = true;
+    }
+
+    if (input_path == null and !runtime_only and !sdk) {
         printUsage();
         printError("OpenAPI spec path or URL required\n", .{});
         return error.InvalidArguments;
@@ -389,6 +455,9 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .force = force,
             .runtime_only = runtime_only,
             .parameters_as_struct = parameters_as_struct,
+            .sdk = sdk,
+            .sdk_config_path = sdk_config_path,
+            .sdk_name = sdk_name,
         },
     };
 }

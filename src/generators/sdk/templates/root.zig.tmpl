@@ -1,0 +1,44 @@
+//! {{description_doc}}, generated from an OpenAPI description by openapi2zig
+//! (https://github.com/christianhelle/openapi2zig).
+//!
+//! `client.zig`, `models.zig` and `runtime.zig` are generated. This file is
+//! generated too: change `openapi2zig.json` and regenerate instead of editing it.
+
+const std = @import("std");
+
+/// Every generated operation, as free functions taking a `*Client`.
+pub const client = @import("client.zig");
+/// Every schema from the OpenAPI description, as a struct.
+pub const models = @import("models.zig");
+/// Shared response types and helpers used by the generated operations.
+pub const runtime = @import("runtime.zig");
+
+pub const Client = client.Client;
+pub const Owned = runtime.Owned;
+pub const ApiResult = runtime.ApiResult;
+pub const RawResponse = runtime.RawResponse;
+pub const HttpObserver = runtime.HttpObserver;
+
+/// The default base URL of the API, taken from the OpenAPI description.
+pub const api_base_url = "{{base_url_zig}}";
+
+/// Creates a client for `api_base_url`. Pass an empty token for anonymous
+/// requests. `Client.init` alone leaves the base URL empty, which makes every
+/// request fail, so prefer this unless you target a different host.
+pub fn init(allocator: std.mem.Allocator, io: std.Io, token: []const u8) Client {
+    var api = Client.init(allocator, io, token);
+    api.withBaseUrl(api_base_url);
+    return api;
+}
+
+test {
+    _ = runtime;
+}
+
+test "init targets the default base url and keeps the token" {
+    var api = init(std.testing.allocator, std.testing.io, "secret");
+    defer api.deinit();
+
+    try std.testing.expectEqualStrings(api_base_url, api.base_url);
+    try std.testing.expectEqualStrings("secret", api.api_key);
+}

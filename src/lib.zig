@@ -94,6 +94,16 @@ pub const generator = @import("generator.zig");
 /// - args: The same arguments the CLI accepts, as a struct
 pub const generateFromSpec = generator.generateCode;
 
+/// Generate a complete SDK repository (Zig sources, build files, docs, CI
+/// workflows and examples) for an already converted document. `args` must come
+/// from `sdk.prepare` (it applies the config file settings) and the document
+/// must already be filtered by `args.tags`. `args.sdk` is
+/// expected to be set and `args.sdk_config_path` must point at an existing
+/// `openapi2zig.json`; see `sdk.prepare` to create one.
+pub const generateSdk = sdk.generateSdk;
+pub const sdk = @import("generators/sdk/scaffold.zig");
+pub const SdkConfig = @import("generators/sdk/config.zig").SdkConfig;
+
 /// Parse a JSON string containing an OpenAPI or Swagger specification and convert it to a unified document representation.
 /// The caller is responsible for calling `deinit()` on the returned document.
 ///

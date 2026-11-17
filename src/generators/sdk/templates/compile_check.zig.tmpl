@@ -1,0 +1,13 @@
+//! Forces the compiler to analyze every generated operation, which it otherwise
+//! skips until an operation is called. Run with `zig build check`.
+
+const std = @import("std");
+const client = @import("client.zig");
+
+test "every generated operation compiles" {
+    @setEvalBranchQuota(2_000_000_000);
+    inline for (comptime std.meta.declarations(client)) |name| {
+        const info = @typeInfo(@TypeOf(@field(client, name)));
+        if (info == .@"fn" and !info.@"fn".is_generic) _ = &@field(client, name);
+    }
+}

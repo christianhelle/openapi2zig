@@ -80,3 +80,10 @@ fn formatUtcTimestamp(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
         day_seconds.getSecondsIntoMinute(),
     });
 }
+
+/// The current UTC year, used for copyright lines in scaffolded files.
+pub fn currentYear(io: std.Io) u16 {
+    const now = std.Io.Clock.real.now(io);
+    const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = @as(u64, @intCast(now.toSeconds())) };
+    return epoch_seconds.getEpochDay().calculateYearDay().year;
+}

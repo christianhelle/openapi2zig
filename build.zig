@@ -564,6 +564,22 @@ pub fn build(b: *std.Build) void {
     test_package_step.dependOn(&test_package_cmd.step);
     test_step.dependOn(&test_package_cmd.step);
 
+    // Generate a complete SDK repository from the petstore spec, then build it
+    // the way a consumer would: unit tests, every operation, and the examples.
+    const sdk_fixture_dir = ".zig-cache/sdk-fixture";
+    const sdk_generate = b.addRunArtifact(exe);
+    sdk_generate.addArgs(&.{ "generate", "--sdk", "--sdk-name", "petstore", "--force", "-i", "openapi/v3.0/petstore.json", "-o", sdk_fixture_dir });
+    var sdk_previous: *std.Build.Step = &sdk_generate.step;
+    for ([_][]const u8{ "test", "check", "examples" }) |sdk_step_name| {
+        const sdk_build = b.addSystemCommand(&.{ b.graph.zig_exe, "build", sdk_step_name });
+        sdk_build.setCwd(b.path(sdk_fixture_dir));
+        sdk_build.step.dependOn(sdk_previous);
+        sdk_previous = &sdk_build.step;
+    }
+    const test_sdk_step = b.step("test-sdk", "Generate a petstore SDK repository and build it");
+    test_sdk_step.dependOn(sdk_previous);
+    test_step.dependOn(sdk_previous);
+
     const test_artifact = b.addInstallArtifact(
         exe_unit_tests,
         .{ .dest_dir = .{ .override = .{ .custom = "tests" } } },

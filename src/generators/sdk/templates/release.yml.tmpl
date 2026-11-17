@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, matching build.zig.zon (for example {{version}})"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{{{ inputs.version }}}}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: {{minimum_zig_version}}
+
+      - name: Check the version matches build.zig.zon
+        run: grep -qF ".version = \"$VERSION\"" build.zig.zon
+
+      - name: Test
+        run: zig build test
+
+      - name: Compile every generated operation
+        run: zig build check
+
+      - name: Build examples
+        run: zig build examples
+
+      - name: Check an existing tag points at this commit
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null 2>&1; then
+            git fetch --depth=1 origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
+            if [ "$(git rev-parse "v$VERSION^{commit}")" != "$GITHUB_SHA" ]; then
+              echo "Tag v$VERSION already exists and does not point at $GITHUB_SHA" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{{{ github.token }}}}
+        run: gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
