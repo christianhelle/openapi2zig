@@ -310,3 +310,24 @@ test "sdk generation skips examples whose names cannot be a build step" {
     try testing.expect(std.mem.indexOf(u8, build_zig, "\"good_one\"") != null);
     try testing.expect(std.mem.indexOf(u8, build_zig, "a b") == null);
 }
+
+test "sdk build lists the oauth examples on the first run" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.createDirPath(testing.io, "repo");
+    try tmp.dir.writeFile(testing.io, .{
+        .sub_path = "repo/openapi2zig.json",
+        .data = "{ \"name\": \"pets\", \"auth\": { \"oauth2\": { \"token_url\": \"https://login.example.com/{tenant}/token\", \"device_authorization_url\": \"https://login.example.com/{tenant}/devicecode\" } } }",
+    });
+    try runGenerate(allocator, tmp.dir, false);
+
+    const build_zig = try read(allocator, tmp.dir, "repo/build.zig");
+    defer allocator.free(build_zig);
+    try testing.expect(std.mem.indexOf(u8, build_zig, "\"client_credentials\"") != null);
+    try testing.expect(std.mem.indexOf(u8, build_zig, "\"device_code\"") != null);
+    try testing.expect(exists(tmp.dir, "repo/examples/client_credentials.zig"));
+}
