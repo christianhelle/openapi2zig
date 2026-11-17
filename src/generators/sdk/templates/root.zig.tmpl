@@ -1,4 +1,4 @@
-//! {{description}}, generated from an OpenAPI description by openapi2zig
+//! {{description_doc}}, generated from an OpenAPI description by openapi2zig
 //! (https://github.com/christianhelle/openapi2zig).
 //!
 //! `client.zig`, `models.zig` and `runtime.zig` are generated. This file is
@@ -20,7 +20,7 @@ pub const RawResponse = runtime.RawResponse;
 pub const HttpObserver = runtime.HttpObserver;
 
 /// The default base URL of the API, taken from the OpenAPI description.
-pub const api_base_url = "{{base_url}}";
+pub const api_base_url = "{{base_url_zig}}";
 
 /// Creates a client for `api_base_url`. Pass an empty token for anonymous
 /// requests. `Client.init` alone leaves the base URL empty, which makes every
