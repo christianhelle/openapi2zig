@@ -99,6 +99,10 @@ pub const ModelNameMap = struct {
                 var snake: std.ArrayList(u8) = .empty;
                 defer snake.deinit(tmp);
                 try appendSnake(tmp, &snake, segment);
+                // Namespaces live next to `root` and `std` in models.zig.
+                if (std.mem.eql(u8, snake.items, "root") or std.mem.eql(u8, snake.items, "std") or std.mem.eql(u8, snake.items, "builtin")) {
+                    try snake.append(tmp, '_');
+                }
                 namespace[i] = try arena.dupe(u8, snake.items);
                 try namespace_key.appendSlice(tmp, snake.items);
                 try namespace_key.append(tmp, '.');

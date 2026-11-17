@@ -119,3 +119,21 @@ test "no aliases are emitted when nothing is namespaced" {
     try map.appendNamespaceAliases(allocator, &out);
     try testing.expectEqual(@as(usize, 0), out.items.len);
 }
+
+test "namespaces never take the names of root or std" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var schemas = try schemasFor(allocator, &.{ "pkg.root.foo", "pkg.std.bar", "pkg.other.baz" });
+    defer schemas.deinit();
+    var map = try model_names.ModelNameMap.init(allocator, schemas);
+    defer map.deinit();
+
+    var out: std.ArrayList(u8) = .empty;
+    defer out.deinit(allocator);
+    try map.appendNamespaceAliases(allocator, &out);
+    try testing.expect(std.mem.indexOf(u8, out.items, "pub const root_ = struct {") != null);
+    try testing.expect(std.mem.indexOf(u8, out.items, "pub const std_ = struct {") != null);
+    try testing.expect(std.mem.indexOf(u8, out.items, "pub const other = struct {") != null);
+}
