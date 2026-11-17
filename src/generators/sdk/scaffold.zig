@@ -80,6 +80,12 @@ fn isUrl(path: []const u8) bool {
 }
 
 /// Writes the whole SDK repository for `doc` below `args.output_path`.
+///
+/// `args` must be the result of `prepare` (it carries the settings of the
+/// config file, such as `parameters_as_struct` and `resource_wrappers`), and
+/// `doc` must already be filtered by `args.tags`. The command line pipeline
+/// does both; a direct caller has to as well, because this function generates
+/// from exactly what it is given.
 pub fn generateSdk(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, doc: UnifiedDocument, args: cli.CliArgs) !void {
     const repo_dir = args.output_path orelse ".";
     const config_path = args.sdk_config_path orelse return error.InvalidConfig;

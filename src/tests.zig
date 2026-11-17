@@ -14,6 +14,7 @@ const deterministic_output_tests = @import("tests/deterministic_output_tests.zig
 const openapi30_composition_tests = @import("tests/openapi30_composition_tests.zig");
 const response_reference_tests = @import("tests/response_reference_tests.zig");
 const path_level_parameter_tests = @import("tests/path_level_parameter_tests.zig");
+const sdk_escape_tests = @import("tests/sdk_escape_tests.zig");
 const sdk_scaffold_tests = @import("tests/sdk_scaffold_tests.zig");
 const sdk_template_tests = @import("tests/sdk_template_tests.zig");
 const sdk_write_owned_tests = @import("tests/sdk_write_owned_tests.zig");
@@ -70,6 +71,7 @@ comptime {
     _ = openapi30_composition_tests;
     _ = response_reference_tests;
     _ = path_level_parameter_tests;
+    _ = sdk_escape_tests;
     _ = sdk_scaffold_tests;
     _ = sdk_template_tests;
     _ = sdk_write_owned_tests;
