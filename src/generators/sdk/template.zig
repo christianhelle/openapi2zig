@@ -52,3 +52,13 @@ fn lookup(vars: []const Var, name: []const u8) ?[]const u8 {
     }
     return null;
 }
+
+/// Copies `source` without looking for placeholders, dropping carriage returns.
+pub fn expandNone(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(allocator);
+    for (source) |c| {
+        if (c != '\r') try out.append(allocator, c);
+    }
+    return out.toOwnedSlice(allocator);
+}

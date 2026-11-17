@@ -220,3 +220,210 @@ test "block scalars escape tabs and quotes" {
 
     try expectContains(json, "a \\\"quoted\\\" word\\tand a tab");
 }
+
+test "double quoted values accept the full YAML escape set" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: "line one.\r\nline two.\tTabbed \/ slash é \x41 nul\0end"
+        \\  version: 1.0.0
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "line one.\\r\\nline two.\\tTabbed / slash \xc3\xa9 A nul\\u0000end");
+}
+
+test "an apostrophe inside a plain scalar does not open a quoted string" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: A deleted item can't be restored. Also it's owner.
+        \\  version: 1.0.0
+        \\paths:
+        \\  /a:
+        \\    get:
+        \\      responses:
+        \\        '204':
+        \\          description: Success
+        \\        4XX:
+        \\          $ref: '#/components/responses/error'
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "can't be restored. Also it's owner.");
+    try expectContains(json, "\"4XX\"");
+}
+
+test "empty flow maps keep their parent map intact" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: t
+        \\  version: 1.0.0
+        \\x-example:
+        \\  properties:
+        \\    a: { }
+        \\    b: { }
+        \\    c: { }
+        \\    d: { }
+        \\    e: { }
+        \\    f: {}
+        \\    g: { }
+        \\  required: true
+        \\x-after: 1
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "\"properties\":{\"a\":{},\"b\":{},\"c\":{},\"d\":{},\"e\":{},\"f\":{},\"g\":{}}");
+    try expectContains(json, "\"required\":true");
+    try expectContains(json, "\"x-after\":\"1\"");
+}
+
+test "emphasis markers inside plain scalars are not aliases" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: Retrieve the sets which are *excluded* in a policy & more!
+        \\  description: It has no fixed value - you might see Note: this
+        \\  version: 1.0.0
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "sets which are *excluded* in a policy & more!");
+    try expectContains(json, "no fixed value - you might");
+}
+
+test "flow mapping leaves are typed like block values" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: t
+        \\  version: 1.0.0
+        \\x-schema: {nullable: true, maxLength: 5, default: null, type: string}
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "\"nullable\":true");
+    try expectContains(json, "\"default\":null");
+    try expectContains(json, "\"type\":\"string\"");
+}
+
+test "unbalanced brackets inside plain scalars do not leak into later lines" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: Use the filter {a and [b to narrow results
+        \\  version: 1.0.0
+        \\x-list:
+        \\  - a trailing ] bracket } and brace
+        \\  - second
+        \\x-example:
+        \\  properties:
+        \\    rate: { }
+        \\    basis: { }
+        \\  required: true
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "Use the filter {a and [b to narrow results");
+    try expectContains(json, "a trailing ] bracket } and brace");
+    try expectContains(json, "\"required\":true");
+}
+
+test "quoted words inside a plain scalar stay part of the text" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: Header must be set to 'eventual'. Say "hi" to it's owner.
+        \\  version: 1.0.0
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "set to 'eventual'. Say \\\"hi\\\" to it's owner.");
+}
+
+test "quoted keys may start with hash or contain syntax characters" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: t
+        \\  version: 1.0.0
+        \\x-mapping:
+        \\  '#microsoft.graph.thing': '#/components/schemas/thing'
+        \\  'two words': a
+        \\  'a: b': c
+        \\  'x, y [z]': d
+        \\x-next:
+        \\  k: v
+        \\x-list:
+        \\  - '@odata.type': microsoft.graph.thing
+        \\    other: 1
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "\"x-list\":[{\"@odata.type\":\"microsoft.graph.thing\"");
+    try expectContains(json, "\"#microsoft.graph.thing\":\"#/components/schemas/thing\"");
+    try expectContains(json, "\"two words\":\"a\"");
+    try expectContains(json, "\"a: b\":\"c\"");
+    try expectContains(json, "\"x, y [z]\":\"d\"");
+    try expectContains(json, "\"x-next\":{\"k\":\"v\"}");
+}
+
+test "flow mapping keys keep colons that are part of a URL" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: t
+        \\  version: 1.0.0
+        \\x-scopes: {https://example.com/read: Read, flag: true}
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "\"https://example.com/read\":\"Read\"");
+    try expectContains(json, "\"flag\":true");
+}

@@ -352,3 +352,40 @@ test "options struct parameters require required fields" {
     const required: Options = .{ .petId = 1 };
     try std.testing.expectEqual(@as(i64, 1), required.petId);
 }
+
+test "generated retry policy backs off exponentially and honors Retry-After" {
+    const policy: v3.RetryPolicy = .{ .max_retries = 5, .base_delay_ms = 100, .max_delay_ms = 1_000 };
+    try std.testing.expectEqual(@as(i64, 100), policy.delayMilliseconds(1, null));
+    try std.testing.expectEqual(@as(i64, 200), policy.delayMilliseconds(2, null));
+    try std.testing.expectEqual(@as(i64, 400), policy.delayMilliseconds(3, null));
+    try std.testing.expectEqual(@as(i64, 1_000), policy.delayMilliseconds(10, null));
+    try std.testing.expectEqual(@as(i64, 1_000), policy.delayMilliseconds(1, 2));
+    try std.testing.expectEqual(@as(i64, 0), (v3.RetryPolicy{}).delayMilliseconds(1, 0));
+}
+
+const FixedToken = struct {
+    value: []const u8,
+    calls: usize = 0,
+
+    fn get(ctx: *anyopaque, allocator: std.mem.Allocator, io: std.Io) anyerror![]const u8 {
+        _ = io;
+        const self: *FixedToken = @ptrCast(@alignCast(ctx));
+        self.calls += 1;
+        return allocator.dupe(u8, self.value);
+    }
+};
+
+test "generated client takes its token from a provider" {
+    var token: FixedToken = .{ .value = "from-provider" };
+    var client = v3.Client.init(std.testing.allocator, std.testing.io, "static-key");
+    defer client.deinit();
+    try std.testing.expect(client.token_provider == null);
+    client.token_provider = .{ .ctx = &token, .getTokenFn = FixedToken.get };
+    client.retry = .{ .max_retries = 2 };
+
+    const provided = try client.token_provider.?.getToken(std.testing.allocator, std.testing.io);
+    defer std.testing.allocator.free(provided);
+    try std.testing.expectEqualStrings("from-provider", provided);
+    try std.testing.expectEqual(@as(usize, 1), token.calls);
+    try std.testing.expectEqual(@as(u8, 2), client.retry.max_retries);
+}

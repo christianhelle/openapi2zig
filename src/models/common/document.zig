@@ -201,6 +201,8 @@ pub const Operation = struct {
     deprecated: bool = false,
     security: ?[]SecurityRequirement = null,
     streaming: bool = false,
+    /// The property holding the next page link, from `x-ms-pageable`. Borrowed.
+    next_link_name: ?[]const u8 = null,
     pub fn deinit(self: *Operation, allocator: std.mem.Allocator) void {
         if (self.tags) |tags| {
             allocator.free(tags);

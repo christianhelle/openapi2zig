@@ -1,0 +1,33 @@
+//! Signs a user in with the device code flow: the program prints a code, you
+//! enter it on another device, and the program continues once you approve it.
+//!
+//!     zig build run-device_code
+
+const std = @import("std");
+const sdk = @import("{{name}}");
+
+fn showPrompt(_: ?*anyopaque, prompt: sdk.auth.DevicePrompt) void {
+    if (prompt.message) |message| {
+        std.debug.print("{s}\n", .{message});
+    } else {
+        std.debug.print("Open {s} and enter the code {s}\n", .{ prompt.verification_uri, prompt.user_code });
+    }
+}
+
+pub fn main(init: std.process.Init) !void {
+{{oauth_env_lines}}    const client_id = init.environ_map.get("CLIENT_ID") orelse return error.MissingClientId;
+
+    var device = try sdk.deviceCode(init.gpa, init.io, &.{
+{{oauth_params_literal}}    }, client_id, showPrompt);
+    defer device.deinit();
+
+    var client = sdk.initWithTokenProvider(init.gpa, init.io, device.tokenProvider(sdk.TokenProvider));
+    defer client.deinit();
+
+    const token = client.token_provider.?.getToken(init.gpa, init.io) catch |err| {
+        if (device.last_error) |message| std.debug.print("Sign in failed: {s}\n", .{message});
+        return err;
+    };
+    defer init.gpa.free(token);
+    std.debug.print("Signed in; the access token has {d} characters\n", .{token.len});
+}

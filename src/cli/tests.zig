@@ -1443,6 +1443,19 @@ test "parse generate sdk-only flags require --sdk" {
     try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
 }
 
+test "parse generate supports model-naming" {
+    const argv = [_][:0]const u8{ "openapi2zig", "generate", "-i", "openapi.json", "--model-naming", "namespaced" };
+    const parsed = try parse(std.testing.allocator, &argv);
+    try std.testing.expectEqual(@import("../generators/unified/model_names.zig").Mode.namespaced, parsed.args.model_naming);
+
+    const defaults = [_][:0]const u8{ "openapi2zig", "generate", "-i", "openapi.json" };
+    const parsed_defaults = try parse(std.testing.allocator, &defaults);
+    try std.testing.expectEqual(@import("../generators/unified/model_names.zig").Mode.raw, parsed_defaults.args.model_naming);
+
+    const invalid = [_][:0]const u8{ "openapi2zig", "generate", "-i", "openapi.json", "--model-naming", "fancy" };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &invalid));
+}
+
 test "parse generate sdk rejects options that the config file controls" {
     const options = [_][]const [:0]const u8{
         &.{ "--resource-wrappers", "tags" },

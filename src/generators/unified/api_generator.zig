@@ -8,6 +8,8 @@ const SchemaType = @import("../../models/common/document.zig").SchemaType;
 const Parameter = @import("../../models/common/document.zig").Parameter;
 const media_type = @import("../../media_type.zig");
 const ident = @import("ident_utils.zig");
+const model_names = @import("model_names.zig");
+const split = @import("api_generator/split.zig");
 const helpers = @import("api_generator/helpers.zig");
 
 const BodyKind = helpers.BodyKind;
@@ -49,6 +51,13 @@ pub const UnifiedApiGenerator = struct {
     /// disambiguated against every top-level declaration so generated clients
     /// always compile.
     options_type_names: std.StringHashMap([]const u8),
+    /// The values of `options_type_names`, for constant-time conflict checks.
+    options_name_set: std.StringHashMap(void),
+    /// Every name the flat client declares at the top level for an operation,
+    /// built on first use so name conflict checks do not rescan the document.
+    top_level_names: std.StringHashMap(void),
+    top_level_names_ready: bool = false,
+    top_level_owned: std.ArrayList([]u8) = .empty,
     /// Cached options struct field names, keyed by operation identity and
     /// parameter name/location. Populated on first use so repeated parameter
     /// references don't rescan the operation's parameter list.
@@ -72,6 +81,10 @@ pub const UnifiedApiGenerator = struct {
     flat_reserved_names: std.StringHashMap(void),
     parameter_scope_names: []const []const u8 = &.{},
     model_prefix: []const u8 = "",
+    /// Built while generating when `args.model_naming` is `.namespaced`.
+    name_map: ?model_names.ModelNameMap = null,
+    /// Extra files produced by `--split-by-tag`, next to the client file.
+    split_files: std.ArrayList(split.SplitFile) = .empty,
     emit_imports: bool = true,
     models_import: []const u8 = "models.zig",
     models_import_alias: []const u8 = "models",
@@ -86,6 +99,8 @@ pub const UnifiedApiGenerator = struct {
             .buffer = std.ArrayList(u8).empty,
             .args = args,
             .options_type_names = std.StringHashMap([]const u8).init(allocator),
+            .options_name_set = std.StringHashMap(void).init(allocator),
+            .top_level_names = std.StringHashMap(void).init(allocator),
             .options_field_names = std.StringHashMap([]const u8).init(allocator),
             .operation_names = std.StringHashMap([]const u8).init(allocator),
             .flat_parameter_names = std.StringHashMap(void).init(allocator),
@@ -100,6 +115,24 @@ pub const UnifiedApiGenerator = struct {
             allocator.free(entry.value_ptr.*);
         }
         self.options_type_names.clearRetainingCapacity();
+        self.options_name_set.clearRetainingCapacity();
+        self.top_level_names.clearRetainingCapacity();
+        self.top_level_names_ready = false;
+        self.freeTopLevelOwned();
+        self.freeSplitFiles();
+    }
+
+    fn freeSplitFiles(self: *UnifiedApiGenerator) void {
+        for (self.split_files.items) |file| {
+            self.allocator.free(file.name);
+            self.allocator.free(file.content);
+        }
+        self.split_files.clearRetainingCapacity();
+    }
+
+    fn freeTopLevelOwned(self: *UnifiedApiGenerator) void {
+        for (self.top_level_owned.items) |name| self.allocator.free(name);
+        self.top_level_owned.clearRetainingCapacity();
     }
 
     pub fn clearOptionsFieldNames(self: *UnifiedApiGenerator, allocator: std.mem.Allocator) void {
@@ -129,7 +162,14 @@ pub const UnifiedApiGenerator = struct {
     /// `fooOptions` need not move aside for one named `foo`. `Stream` and
     /// `StreamEvents` are left out too -- those name wrapper and tag-client
     /// methods, which live inside a struct rather than at file scope.
-    const declaration_suffixes = [_][]const u8{ "", "Raw", "Result", "Streaming", "StreamingEvents" };
+    const base_declaration_suffixes = [_][]const u8{ "", "Raw", "Result", "Streaming", "StreamingEvents" };
+    const paged_declaration_suffixes = base_declaration_suffixes ++ [_][]const u8{"Pages"};
+
+    /// The declarations derived from one operation name. `Pages` only exists
+    /// when pagination is on.
+    fn declarationSuffixes(self: *const UnifiedApiGenerator) []const []const u8 {
+        return if (self.args.pagination) &paged_declaration_suffixes else &base_declaration_suffixes;
+    }
 
     /// Assign a declaration name to every operation id in the document.
     /// Camel casing can collapse two distinct ids onto one name (e.g.
@@ -148,6 +188,8 @@ pub const UnifiedApiGenerator = struct {
             while (claimed_iterator.next()) |key| self.allocator.free(key.*);
             claimed.deinit();
         }
+        // A tag file imports client.zig under this name (--split-by-tag).
+        try self.claimDeclarations(&claimed, "_client_zig");
 
         for (operations.items) |op_ref| {
             const operation_id = op_ref.operation.operationId orelse continue;
@@ -168,7 +210,7 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn declarationsClaimed(self: *UnifiedApiGenerator, claimed: *std.StringHashMap(void), name: []const u8) !bool {
-        for (declaration_suffixes) |suffix| {
+        for (self.declarationSuffixes()) |suffix| {
             const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
             defer self.allocator.free(declaration);
             if (claimed.contains(declaration)) return true;
@@ -177,7 +219,7 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn claimDeclarations(self: *UnifiedApiGenerator, claimed: *std.StringHashMap(void), name: []const u8) !void {
-        for (declaration_suffixes) |suffix| {
+        for (self.declarationSuffixes()) |suffix| {
             const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
             errdefer self.allocator.free(declaration);
             const entry = try claimed.getOrPut(declaration);
@@ -190,6 +232,25 @@ pub const UnifiedApiGenerator = struct {
     /// first, so this is a lookup; an id that was never reserved falls back to
     /// itself and is escaped at the point of use as it was before. The returned
     /// slice stays valid until the next `generate` call.
+    fn buildNameMap(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
+        self.releaseNameMap();
+        if (self.args.model_naming != .namespaced) return;
+        if (document.schemas) |schemas| {
+            self.name_map = try model_names.ModelNameMap.init(self.allocator, schemas);
+        }
+    }
+
+    fn releaseNameMap(self: *UnifiedApiGenerator) void {
+        if (self.name_map) |*map| map.deinit();
+        self.name_map = null;
+    }
+
+    /// The Zig name of the schema called `raw` in the specification.
+    pub fn typeName(self: *const UnifiedApiGenerator, raw: []const u8) []const u8 {
+        if (self.name_map) |*map| return map.flatName(raw);
+        return raw;
+    }
+
     pub fn operationName(self: *UnifiedApiGenerator, operation_id: []const u8) []const u8 {
         return self.operation_names.get(operation_id) orelse operation_id;
     }
@@ -201,9 +262,16 @@ pub const UnifiedApiGenerator = struct {
     }
 
     pub fn deinit(self: *UnifiedApiGenerator) void {
+        self.releaseNameMap();
         self.buffer.deinit(self.allocator);
         self.clearOptionsTypeNames(self.allocator);
         self.options_type_names.deinit();
+        self.options_name_set.deinit();
+        self.top_level_names.deinit();
+        self.freeTopLevelOwned();
+        self.top_level_owned.deinit(self.allocator);
+        self.freeSplitFiles();
+        self.split_files.deinit(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
         self.options_field_names.deinit();
         self.clearOperationNames(self.allocator);
@@ -214,6 +282,8 @@ pub const UnifiedApiGenerator = struct {
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
+        try self.buildNameMap(document);
+        defer self.releaseNameMap();
         if (document.schemas) |*schemas| self.inlined_model_names = schemas;
         defer self.inlined_model_names = null;
         self.buffer.clearRetainingCapacity();
@@ -225,6 +295,7 @@ pub const UnifiedApiGenerator = struct {
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeader();
         try self.reserveFlatParameterNames(document);
+        try self.generateTypedErrors(document);
         try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
@@ -239,6 +310,8 @@ pub const UnifiedApiGenerator = struct {
     }
 
     pub fn generateClientOnly(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
+        try self.buildNameMap(document);
+        defer self.releaseNameMap();
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
@@ -248,7 +321,8 @@ pub const UnifiedApiGenerator = struct {
         self.auth_scheme = authSchemeFor(document);
         try self.generateHeaderMulti();
         try self.reserveFlatParameterNames(document);
-        try self.generateApiClient(document);
+        try self.generateTypedErrors(document);
+        if (self.args.split_by_tag) try self.generateApiClientSplit(document) else try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
         }
@@ -277,6 +351,7 @@ pub const UnifiedApiGenerator = struct {
     /// file, and so cannot be reused or referenced bare from a nested scope.
     pub fn isInlinedModelName(self: *UnifiedApiGenerator, name: []const u8) bool {
         const schemas = self.inlined_model_names orelse return false;
+        if (self.name_map) |*map| return map.declared.contains(name);
         return schemas.contains(name);
     }
 
@@ -302,10 +377,11 @@ pub const UnifiedApiGenerator = struct {
     pub fn reserveFlatParameterNames(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
         self.clearFlatParameterNames();
         const locals = [_][]const u8{
-            "client",  "self",          "allocator",   "options",      "requestBody", "callback", "cancellation_token", "Event",
-            "uri_buf", "first_query",   "auth_header", "header_value", "value",       "item",     "str",                "payload",
-            "uri",     "response_body", "start",       "result",       "elapsed_ns",  "body",     "parsed",             "raw",
-            "ok",      "err",           "obs",         "cb",           "resources",   "_root",    "std",
+            "client",   "self",          "allocator",   "options",      "requestBody", "callback", "cancellation_token", "Event",
+            "uri_buf",  "first_query",   "auth_header", "header_value", "value",       "item",     "str",                "payload",
+            "uri",      "response_body", "start",       "result",       "elapsed_ns",  "body",     "parsed",             "raw",
+            "ok",       "err",           "obs",         "cb",           "resources",   "_root",    "std",                "bearer_token",
+            "provider", "bearer_holder", "holder",
         };
         for (locals) |name| try self.reserveFlatName(&self.flat_reserved_names, name);
         const source = try self.allocator.dupeSentinel(u8, self.buffer.items, 0);
@@ -341,7 +417,7 @@ pub const UnifiedApiGenerator = struct {
             else
                 try std.fmt.allocPrint(self.allocator, "operation{s}", .{op_ref.path[1..]});
             defer self.allocator.free(name);
-            for (declaration_suffixes) |suffix| {
+            for (self.declarationSuffixes()) |suffix| {
                 const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
                 defer self.allocator.free(declaration);
                 try self.reserveFlatName(&self.flat_reserved_names, declaration);
@@ -479,6 +555,11 @@ pub const UnifiedApiGenerator = struct {
     pub const endpointClientNameAlloc = @import("api_generator/tag_clients.zig").endpointClientNameAlloc;
     pub const generateEndpointClient = @import("api_generator/tag_clients.zig").generateEndpointClient;
     pub const topLevelNameConflicts = @import("api_generator/tag_clients.zig").topLevelNameConflicts;
+    pub const generatePagerType = @import("api_generator/pagination.zig").generatePagerType;
+    pub const generateApiClientSplit = split.generateApiClientSplit;
+    pub const generateTypedErrors = @import("api_generator/errors.zig").generateTypedErrors;
+    pub const generatePagesFunction = @import("api_generator/pagination.zig").generatePagesFunction;
+    pub const appendPagerType = @import("api_generator/pagination.zig").appendPagerType;
     pub const uniqueTagClientStructNameAlloc = @import("api_generator/tag_clients.zig").uniqueTagClientStructNameAlloc;
     pub const streamingEventsShadowed = @import("api_generator/tag_clients.zig").streamingEventsShadowed;
     pub const isReservedTagClientMethod = @import("api_generator/tag_clients.zig").isReservedTagClientMethod;

@@ -4,6 +4,7 @@ const yaml = @import("yaml");
 const YamlValue = yaml.Yaml.Value;
 const lbrace_placeholder = "__openapi2zig_lbrace__";
 const rbrace_placeholder = "__openapi2zig_rbrace__";
+const byte_placeholder_prefix = "__openapi2zig_byte_";
 const unquoted_scalar_placeholder = "__openapi2zig_unquoted_scalar__";
 
 pub const YamlToJsonError = error{
@@ -28,7 +29,10 @@ pub fn yamlToJson(allocator: std.mem.Allocator, yaml_content: []const u8) ![]con
     var parsed: yaml.Yaml = .{ .source = marked_yaml };
     defer parsed.deinit(allocator);
 
-    try parsed.load(allocator);
+    parsed.load(allocator) catch |err| {
+        reportParseError(parsed.parse_errors, marked_yaml);
+        return err;
+    };
 
     if (parsed.docs.items.len == 0) return YamlToJsonError.EmptyYamlDocument;
     if (parsed.docs.items.len > 1) return YamlToJsonError.MultipleYamlDocumentsUnsupported;
@@ -241,6 +245,11 @@ fn normalizeQuotedMapKeys(allocator: std.mem.Allocator, yaml_content: []const u8
 fn appendNormalizedMapKeyLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line: []const u8) !void {
     var index: usize = 0;
     while (index < line.len and (line[index] == ' ' or line[index] == '\t')) : (index += 1) {}
+    // A quoted key may follow sequence markers: `- '@odata.type': value`.
+    while (std.mem.startsWith(u8, line[index..], "- ")) {
+        index += 2;
+        while (index < line.len and line[index] == ' ') : (index += 1) {}
+    }
 
     if (index >= line.len or (line[index] != '\'' and line[index] != '"')) {
         try appendLineWithEscapedKeyBraces(allocator, out, line);
@@ -271,7 +280,7 @@ fn appendNormalizedMapKeyLine(allocator: std.mem.Allocator, out: *std.ArrayList(
     defer allocator.free(key);
 
     try out.appendSlice(allocator, line[0..index]);
-    try appendKeyWithEscapedBraces(allocator, out, key);
+    try appendKeyWithEscapedBraces(allocator, out, key, true);
     try out.appendSlice(allocator, line[key_end + 1 ..]);
 }
 
@@ -281,15 +290,23 @@ fn appendLineWithEscapedKeyBraces(allocator: std.mem.Allocator, out: *std.ArrayL
         return;
     };
 
-    try appendKeyWithEscapedBraces(allocator, out, line[0..colon_index]);
+    try appendKeyWithEscapedBraces(allocator, out, line[0..colon_index], false);
     try out.appendSlice(allocator, line[colon_index..]);
 }
 
-fn appendKeyWithEscapedBraces(allocator: std.mem.Allocator, out: *std.ArrayList(u8), key: []const u8) !void {
+fn appendKeyWithEscapedBraces(allocator: std.mem.Allocator, out: *std.ArrayList(u8), key: []const u8, escape_syntax: bool) !void {
     for (key) |char| {
         switch (char) {
             '{' => try out.appendSlice(allocator, lbrace_placeholder),
             '}' => try out.appendSlice(allocator, rbrace_placeholder),
+            // Characters zig-yaml reads as syntax inside an unquoted key.
+            ' ', '#', '[', ']', ',', ':', '\'', '"', '*', '&', '!', '|', '>', '%', '`' => {
+                if (escape_syntax) {
+                    try out.print(allocator, "{s}{x:0>2}__", .{ byte_placeholder_prefix, char });
+                } else {
+                    try out.append(allocator, char);
+                }
+            },
             else => try out.append(allocator, char),
         }
     }
@@ -311,12 +328,20 @@ fn markOriginallyUnquotedScalars(allocator: std.mem.Allocator, yaml_content: []c
 }
 
 fn appendMarkedLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line: []const u8) !void {
-    const colon_index = std.mem.indexOfScalar(u8, line, ':') orelse {
+    const indent = countIndent(line);
+    const is_seq_item = std.mem.startsWith(u8, line[indent..], "- ");
+    const content_start = if (is_seq_item) indent + 2 else indent;
+
+    var value_start: usize = undefined;
+    if (findKeyColon(line, content_start)) |colon_index| {
+        value_start = colon_index + 1;
+    } else if (is_seq_item) {
+        // A plain scalar sequence item: the whole remainder is the value.
+        value_start = content_start;
+    } else {
         try out.appendSlice(allocator, line);
         return;
-    };
-
-    var value_start = colon_index + 1;
+    }
     while (value_start < line.len and (line[value_start] == ' ' or line[value_start] == '\t')) : (value_start += 1) {}
 
     if (value_start >= line.len) {
@@ -327,6 +352,42 @@ fn appendMarkedLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line:
     const comment_index = findInlineCommentStart(line[value_start..]) orelse line[value_start..].len;
     const scalar_end = value_start + comment_index;
     const scalar = std.mem.trimEnd(u8, line[value_start..scalar_end], " \t\r");
+    if (isSimpleFlowMap(scalar)) {
+        // The leaves of `{nullable: true, maxLength: 5}` are typed like block values.
+        try out.appendSlice(allocator, line[0..value_start]);
+        try out.append(allocator, '{');
+        var parts = std.mem.splitScalar(u8, scalar[1 .. scalar.len - 1], ',');
+        var first = true;
+        while (parts.next()) |part| {
+            if (!first) try out.append(allocator, ',');
+            first = false;
+            const colon = flowMapSeparator(part) orelse {
+                try out.appendSlice(allocator, part);
+                continue;
+            };
+            const value = std.mem.trim(u8, part[colon + 1 ..], " \t");
+            try out.appendSlice(allocator, part[0 .. colon + 1]);
+            try out.append(allocator, ' ');
+            if (shouldMarkOriginallyUnquotedScalar(value)) try out.appendSlice(allocator, unquoted_scalar_placeholder);
+            try out.appendSlice(allocator, value);
+        }
+        try out.append(allocator, '}');
+        try out.appendSlice(allocator, line[value_start + scalar.len ..]);
+        return;
+    }
+    if (isPlainScalarWithQuotes(scalar)) {
+        // zig-yaml starts a quoted string at any quote that follows a space, so
+        // write the whole plain scalar as a single-quoted one.
+        try out.appendSlice(allocator, line[0..value_start]);
+        try out.append(allocator, '\'');
+        for (scalar) |c| {
+            if (c == '\'') try out.append(allocator, '\'');
+            try out.append(allocator, c);
+        }
+        try out.append(allocator, '\'');
+        try out.appendSlice(allocator, line[value_start + scalar.len ..]);
+        return;
+    }
     if (!shouldMarkOriginallyUnquotedScalar(scalar)) {
         try out.appendSlice(allocator, line);
         return;
@@ -448,7 +509,28 @@ fn normalizeYamlKey(allocator: std.mem.Allocator, raw_key: []const u8) ![]const 
 fn replaceKeyPlaceholders(allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
     const with_lbraces = try std.mem.replaceOwned(u8, allocator, key, lbrace_placeholder, "{");
     defer allocator.free(with_lbraces);
-    return try std.mem.replaceOwned(u8, allocator, with_lbraces, rbrace_placeholder, "}");
+    const with_braces = try std.mem.replaceOwned(u8, allocator, with_lbraces, rbrace_placeholder, "}");
+    defer allocator.free(with_braces);
+
+    var out = std.ArrayList(u8).empty;
+    errdefer out.deinit(allocator);
+    var i: usize = 0;
+    while (i < with_braces.len) {
+        const rest = with_braces[i..];
+        if (std.mem.startsWith(u8, rest, byte_placeholder_prefix) and rest.len >= byte_placeholder_prefix.len + 4) {
+            const hex = rest[byte_placeholder_prefix.len..][0..2];
+            if (std.mem.eql(u8, rest[byte_placeholder_prefix.len + 2 ..][0..2], "__")) {
+                if (std.fmt.parseInt(u8, hex, 16)) |byte| {
+                    try out.append(allocator, byte);
+                    i += byte_placeholder_prefix.len + 4;
+                    continue;
+                } else |_| {}
+            }
+        }
+        try out.append(allocator, with_braces[i]);
+        i += 1;
+    }
+    return try out.toOwnedSlice(allocator);
 }
 
 fn unescapeSingleQuoted(allocator: std.mem.Allocator, value: []const u8) ![]const u8 {
@@ -559,4 +641,99 @@ fn isJsonNumber(value: []const u8) bool {
     }
 
     return index == value.len;
+}
+
+/// A plain (unquoted) scalar with a quote or flow indicator after its first
+/// character, such as `set to 'eventual'.` or `use {a and [b`. zig-yaml would read
+/// those as the start of a quoted string or flow collection.
+/// (Previously: a plain scalar that has a quote character somewhere after its
+/// first character.)
+fn isPlainScalarWithQuotes(value: []const u8) bool {
+    if (value.len < 2) return false;
+    switch (value[0]) {
+        '"', '\'', '|', '>', '[', '{', '&', '*', '!', '%', '@', '`', '#' => return false,
+        else => {},
+    }
+    if (std.mem.indexOfAny(u8, value[1..], "'\"[]{}") != null) return true;
+    // `*`, `&` and `!` start aliases, anchors and tags after a space.
+    return std.mem.indexOf(u8, value, " *") != null or std.mem.indexOf(u8, value, " &") != null or
+        std.mem.indexOf(u8, value, " !") != null or std.mem.indexOf(u8, value, " - ") != null or
+        std.mem.indexOf(u8, value, ": ") != null;
+}
+
+/// Logs where zig-yaml gave up. Line and column refer to the normalized text
+/// the parser saw, which only differs from the input in quoting and folding.
+fn reportParseError(bundle: std.zig.ErrorBundle, source: []const u8) void {
+    if (bundle.errorMessageCount() == 0) return;
+    const message = bundle.getErrorMessage(bundle.getMessages()[0]);
+    const msg = bundle.nullTerminatedString(message.msg);
+    if (message.src_loc == .none) {
+        std.log.err("YAML parse error: {s}", .{msg});
+        return;
+    }
+    const loc = bundle.getSourceLocation(message.src_loc);
+    std.log.err("YAML parse error at line {d}, column {d}: {s}", .{ loc.line + 1, loc.column + 1, msg });
+    logSourceContext(source, loc.line + 1, 12);
+}
+
+/// Logs up to `radius` lines of `source` before and including `line_number`
+/// (1-based), so a parse error can be read in context.
+fn logSourceContext(source: []const u8, line_number: usize, radius: usize) void {
+    var lines = std.mem.splitScalar(u8, source, '\n');
+    var number: usize = 1;
+    while (lines.next()) |line| : (number += 1) {
+        if (number + radius < line_number) continue;
+        if (number > line_number) break;
+        std.log.err("  {d}: {s}", .{ number, std.mem.trimEnd(u8, line, "\r") });
+    }
+}
+
+/// The index of the colon that ends a mapping key, starting at `start`. A key
+/// may be quoted, in which case colons inside the quotes do not count. Returns
+/// null when the text has no `key:` form (a plain scalar).
+fn findKeyColon(line: []const u8, start: usize) ?usize {
+    var i = start;
+    if (i < line.len and (line[i] == '\'' or line[i] == '"')) {
+        const quote = line[i];
+        i += 1;
+        while (i < line.len) : (i += 1) {
+            if (line[i] == quote) {
+                // A doubled single quote is an escaped quote.
+                if (quote == '\'' and i + 1 < line.len and line[i + 1] == '\'') {
+                    i += 1;
+                    continue;
+                }
+                break;
+            }
+            if (quote == '"' and line[i] == '\\') i += 1;
+        }
+        i += 1;
+    }
+    while (i < line.len) : (i += 1) {
+        if (line[i] == ':' and (i + 1 == line.len or line[i + 1] == ' ' or line[i + 1] == '\t' or line[i + 1] == '\r')) return i;
+    }
+    return null;
+}
+
+/// A one-line flow mapping without nesting, quotes or escapes, such as
+/// `{nullable: true, maxLength: 5}`.
+fn isSimpleFlowMap(value: []const u8) bool {
+    if (value.len < 3 or value[0] != '{' or value[value.len - 1] != '}') return false;
+    const inner = value[1 .. value.len - 1];
+    if (std.mem.indexOfAny(u8, inner, "{}[]'\"#&*!|>") != null) return false;
+    var parts = std.mem.splitScalar(u8, inner, ',');
+    while (parts.next()) |part| {
+        if (std.mem.indexOfScalar(u8, part, ':') == null) return false;
+    }
+    return true;
+}
+
+/// The `:` that separates a flow-map key from its value: one followed by a
+/// space or the end of the entry, so `https://host/read: Read` keeps its URL.
+fn flowMapSeparator(entry: []const u8) ?usize {
+    var index: usize = 0;
+    while (std.mem.indexOfScalarPos(u8, entry, index, ':')) |colon| : (index = colon + 1) {
+        if (colon + 1 == entry.len or entry[colon + 1] == ' ' or entry[colon + 1] == '\t') return colon;
+    }
+    return null;
 }

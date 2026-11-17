@@ -1,4 +1,5 @@
 const std = @import("std");
+const model_names = @import("../generators/unified/model_names.zig");
 
 pub const ResourceWrapperMode = enum {
     none,
@@ -100,6 +101,16 @@ pub const CliArgs = struct {
     /// Wrap non-body method parameters in a single `options` struct instead of
     /// emitting them as individual function arguments.
     parameters_as_struct: bool = false,
+    /// How component schema names become Zig type names.
+    model_naming: model_names.Mode = .raw,
+    /// Emit a `Pager` and `...Pages` functions for operations marked `x-ms-pageable`.
+    pagination: bool = false,
+    /// Declare named string enums as Zig enums.
+    string_enums: bool = false,
+    /// Emit `ApiError` and `parseApiError` for the API's common error model.
+    typed_errors: bool = false,
+    /// Put the operations of each tag in their own file (`client/<tag>.zig`).
+    split_by_tag: bool = false,
     /// Generate a complete SDK repository (sources plus build files, docs,
     /// CI workflows and examples) instead of bare Zig sources.
     sdk: bool = false,

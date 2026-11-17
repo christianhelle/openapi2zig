@@ -130,7 +130,7 @@ pub fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation, met
     else
         try std.fmt.allocPrint(self.allocator, "operation{s}Options", .{path[1..]});
     defer self.allocator.free(candidate);
-    while (self.topLevelNameConflicts(candidate, document)) {
+    while (try self.topLevelNameConflicts(candidate, document)) {
         const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
         self.allocator.free(candidate);
         candidate = suffixed;
@@ -138,6 +138,7 @@ pub fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation, met
     const key = try self.optionsTypeKeyAlloc(operation, method, path);
     defer self.allocator.free(key);
     if (self.options_type_names.fetchRemove(key)) |kv| {
+        _ = self.options_name_set.remove(kv.value);
         self.allocator.free(kv.key);
         self.allocator.free(kv.value);
     }
@@ -146,6 +147,8 @@ pub fn generateOptionsType(self: *UnifiedApiGenerator, operation: Operation, met
         errdefer self.allocator.free(key_copy_);
         const candidate_copy_ = try self.allocator.dupe(u8, candidate);
         errdefer self.allocator.free(candidate_copy_);
+        try self.options_name_set.put(candidate_copy_, {});
+        errdefer _ = self.options_name_set.remove(candidate_copy_);
         try self.options_type_names.put(key_copy_, candidate_copy_);
     }
 

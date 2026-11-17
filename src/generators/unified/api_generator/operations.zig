@@ -51,6 +51,7 @@ pub fn generateOperation(self: *UnifiedApiGenerator, method: []const u8, path: [
     }
     if (operation.operationId != null and self.hasReturnValue(method, operation)) {
         try self.generateFunctionResult(method, path, operation);
+        try self.generatePagesFunction(method, path, operation, document);
     }
 
     if (operation.streaming and std.mem.eql(u8, method, "POST")) {
@@ -272,8 +273,9 @@ pub fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path
                 try self.buffer.appendSlice(self.allocator, "    defer stream_headers.deinit(client.allocator);\n");
                 try self.buffer.appendSlice(self.allocator, "    var auth_header: ?[]u8 = null;\n");
                 try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| client.allocator.free(value);\n");
-                try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) {\n");
-                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{client.api_key});\n");
+                try self.buffer.appendSlice(self.allocator, "    const bearer_holder = try requestToken(client, client.allocator);\n    defer bearer_holder.deinit(client.allocator);\n    const bearer_token = bearer_holder.value;\n");
+                try self.buffer.appendSlice(self.allocator, "    if (bearer_token.len > 0) {\n");
+                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{bearer_token});\n");
                 try self.buffer.appendSlice(self.allocator, "        try stream_headers.append(client.allocator, .{ .name = \"Authorization\", .value = auth_header.? });\n");
                 try self.buffer.appendSlice(self.allocator, "    }\n");
                 try self.buffer.appendSlice(self.allocator, "    return streamJsonWithExtraHeaders(client, \"");
@@ -288,8 +290,9 @@ pub fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path
                 try self.buffer.appendSlice(self.allocator, "    defer stream_headers.deinit(client.allocator);\n");
                 try self.buffer.appendSlice(self.allocator, "    var auth_header: ?[]u8 = null;\n");
                 try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| client.allocator.free(value);\n");
-                try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) {\n");
-                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{client.api_key});\n");
+                try self.buffer.appendSlice(self.allocator, "    const bearer_holder = try requestToken(client, client.allocator);\n    defer bearer_holder.deinit(client.allocator);\n    const bearer_token = bearer_holder.value;\n");
+                try self.buffer.appendSlice(self.allocator, "    if (bearer_token.len > 0) {\n");
+                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{bearer_token});\n");
                 try self.buffer.appendSlice(self.allocator, "        try stream_headers.append(client.allocator, .{ .name = \"Authorization\", .value = auth_header.? });\n");
                 try self.buffer.appendSlice(self.allocator, "    }\n");
                 try self.buffer.appendSlice(self.allocator, "    return streamJsonTypedWithExtraHeaders(Event, client, \"");
@@ -734,7 +737,7 @@ pub fn appendZigTypeFromSchema(self: *UnifiedApiGenerator, schema: Schema) !void
     if (schema.ref) |ref| {
         if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
             try self.buffer.appendSlice(self.allocator, self.model_prefix);
-            try self.appendIdentifier(ref[last_slash + 1 ..]);
+            try self.appendIdentifier(self.typeName(ref[last_slash + 1 ..]));
             return;
         }
     }

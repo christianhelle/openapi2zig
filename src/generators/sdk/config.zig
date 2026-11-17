@@ -1,12 +1,35 @@
 const std = @import("std");
 const cli = @import("../../cli.zig");
+const model_names = @import("../unified/model_names.zig");
 
 pub const ConfigError = error{InvalidConfig};
+
+/// OAuth 2.0 endpoints. URLs may contain `{name}` placeholders, for example a
+/// tenant, that callers fill in at run time.
+pub const OAuth2 = struct {
+    token_url: []const u8,
+    device_authorization_url: ?[]const u8 = null,
+    scopes: []const []const u8 = &.{},
+};
+
+pub const Auth = struct {
+    oauth2: ?OAuth2 = null,
+};
+
+/// Retry behavior of the generated `init`.
+pub const Retry = struct {
+    max_retries: u8 = 0,
+};
 
 pub const Generator = struct {
     resource_wrappers: cli.ResourceWrapperMode = .paths,
     parameters_as_struct: bool = false,
     tags: []const []const u8 = &.{},
+    model_naming: model_names.Mode = .raw,
+    pagination: bool = false,
+    typed_errors: bool = false,
+    split_by_tag: bool = false,
+    string_enums: bool = false,
 };
 
 /// Contents of `openapi2zig.json`, the file that describes an SDK repository.
@@ -23,6 +46,8 @@ pub const SdkConfig = struct {
     /// Overrides the server URL declared by the spec.
     base_url: ?[]const u8 = null,
     generator: Generator = .{},
+    retry: Retry = .{},
+    auth: Auth = .{},
 
     /// Merges the config into the CLI args. Values given on the command line
     /// (input path, base URL) win over the config. The returned args borrow
@@ -35,6 +60,11 @@ pub const SdkConfig = struct {
         if (args.base_url == null) args.base_url = self.base_url;
         args.resource_wrappers = self.generator.resource_wrappers;
         args.parameters_as_struct = base.parameters_as_struct or self.generator.parameters_as_struct;
+        if (base.model_naming == .raw) args.model_naming = self.generator.model_naming;
+        args.pagination = base.pagination or self.generator.pagination;
+        args.typed_errors = base.typed_errors or self.generator.typed_errors;
+        args.split_by_tag = base.split_by_tag or self.generator.split_by_tag;
+        args.string_enums = base.string_enums or self.generator.string_enums;
         if (args.tags.len == 0) args.tags = self.generator.tags;
         return args;
     }

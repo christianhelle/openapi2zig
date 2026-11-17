@@ -247,7 +247,7 @@ pub fn endpointClientNameAlloc(self: *UnifiedApiGenerator, op_ref: OperationRef,
     else
         try self.endpointFallbackNameAlloc(op_ref.method, op_ref.path);
     errdefer self.allocator.free(candidate);
-    while (self.topLevelNameConflicts(candidate, document) or used_names.contains(candidate)) {
+    while (try self.topLevelNameConflicts(candidate, document) or used_names.contains(candidate)) {
         const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
         self.allocator.free(candidate);
         candidate = suffixed;
@@ -358,7 +358,7 @@ pub fn generateEndpointClient(self: *UnifiedApiGenerator, struct_name: []const u
     try self.buffer.appendSlice(self.allocator, "};\n\n");
 }
 
-pub fn topLevelNameConflicts(self: *UnifiedApiGenerator, name: []const u8, document: UnifiedDocument) bool {
+pub fn topLevelNameConflicts(self: *UnifiedApiGenerator, name: []const u8, document: UnifiedDocument) std.mem.Allocator.Error!bool {
     const runtime_names = [_][]const u8{
         "Client",        "Owned",                     "RawResponse",        "ParseErrorResponse",  "ApiResult",        "HttpObserver",  "CancellationToken",
         "requestRaw",    "requestRawWithContentType", "getRaw",             "postJsonRaw",         "parseRawResponse", "getJsonResult", "postJsonResult",
@@ -368,36 +368,70 @@ pub fn topLevelNameConflicts(self: *UnifiedApiGenerator, name: []const u8, docum
         if (std.mem.eql(u8, name, runtime_name)) return true;
     }
 
-    var options_iterator = self.options_type_names.valueIterator();
-    while (options_iterator.next()) |options_name| {
-        if (std.mem.eql(u8, options_name.*, name)) return true;
-    }
+    if (self.options_name_set.contains(name)) return true;
 
     if (document.schemas) |schemas| {
-        var schema_iterator = schemas.iterator();
-        while (schema_iterator.next()) |entry| {
-            if (std.mem.eql(u8, entry.key_ptr.*, name)) return true;
-        }
+        const declared = if (self.name_map) |*map| map.declared.contains(name) else schemas.contains(name);
+        if (declared) return true;
     }
 
+    if (!self.top_level_names_ready) {
+        try buildTopLevelNames(self, document);
+        self.top_level_names_ready = true;
+    }
+    return self.top_level_names.contains(name);
+}
+
+/// Collects the names every operation declares at the top level (the function,
+/// its `Raw` and `Result` variants and the streaming pair).
+fn buildTopLevelNames(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
     var path_iterator = document.paths.iterator();
     while (path_iterator.next()) |entry| {
         const path_item = entry.value_ptr.*;
-        if (operationDeclaresTopLevelName(self, path_item.get, "GET", name)) return true;
-        if (operationDeclaresTopLevelName(self, path_item.post, "POST", name)) return true;
-        if (operationDeclaresTopLevelName(self, path_item.put, "PUT", name)) return true;
-        if (operationDeclaresTopLevelName(self, path_item.delete, "DELETE", name)) return true;
-        if (operationDeclaresTopLevelName(self, path_item.patch, "PATCH", name)) return true;
-        if (operationDeclaresTopLevelName(self, path_item.head, "HEAD", name)) return true;
-        if (operationDeclaresTopLevelName(self, path_item.options, "OPTIONS", name)) return true;
+        try addOperationTopLevelNames(self, path_item.get, "GET");
+        try addOperationTopLevelNames(self, path_item.post, "POST");
+        try addOperationTopLevelNames(self, path_item.put, "PUT");
+        try addOperationTopLevelNames(self, path_item.delete, "DELETE");
+        try addOperationTopLevelNames(self, path_item.patch, "PATCH");
+        try addOperationTopLevelNames(self, path_item.head, "HEAD");
+        try addOperationTopLevelNames(self, path_item.options, "OPTIONS");
     }
-    return false;
+}
+
+fn addOperationTopLevelNames(self: *UnifiedApiGenerator, maybe_operation: ?Operation, method: []const u8) !void {
+    const operation = maybe_operation orelse return;
+    const raw_operation_id = operation.operationId orelse return;
+    const operation_id = self.operationName(raw_operation_id);
+    try self.top_level_names.put(operation_id, {});
+    try putOwnedTopLevelName(self, "{s}Raw", operation_id);
+    if (self.hasReturnValue(method, operation)) {
+        try putOwnedTopLevelName(self, "{s}Result", operation_id);
+    }
+    if (self.args.pagination and operation.next_link_name != null) {
+        try putOwnedTopLevelName(self, "{s}Pages", operation_id);
+    }
+    if (operation.streaming and std.mem.eql(u8, method, "POST")) {
+        try putOwnedTopLevelName(self, "{s}Streaming", operation_id);
+        try putOwnedTopLevelName(self, "{s}StreamingEvents", operation_id);
+    }
+}
+
+/// Formats `fmt` with `operation_id`, keeps the string alive for the lifetime
+/// of the name cache and records it as a declared top-level name.
+fn putOwnedTopLevelName(self: *UnifiedApiGenerator, comptime fmt: []const u8, operation_id: []const u8) !void {
+    const name = try std.fmt.allocPrint(self.allocator, fmt, .{operation_id});
+    self.top_level_owned.append(self.allocator, name) catch |err| {
+        self.allocator.free(name);
+        return err;
+    };
+    // From here the list owns `name`, so a failed put leaks nothing.
+    try self.top_level_names.put(name, {});
 }
 
 pub fn uniqueTagClientStructNameAlloc(self: *UnifiedApiGenerator, name: []const u8, document: UnifiedDocument, used_names: std.StringHashMap(void)) ![]const u8 {
     var candidate = try self.allocator.dupe(u8, name);
     errdefer self.allocator.free(candidate);
-    while (self.topLevelNameConflicts(candidate, document) or used_names.contains(candidate)) {
+    while (try self.topLevelNameConflicts(candidate, document) or used_names.contains(candidate)) {
         const suffixed = try std.fmt.allocPrint(self.allocator, "{s}_", .{candidate});
         self.allocator.free(candidate);
         candidate = suffixed;

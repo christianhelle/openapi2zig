@@ -105,6 +105,8 @@ pub fn generateStructFields(self: *UnifiedModelGenerator, owner_name: []const u8
 }
 
 pub fn generateStructField(self: *UnifiedModelGenerator, owner_name: []const u8, field_name: []const u8, field_schema: Schema, is_required: bool) !void {
+    self.pointer_next_ref = self.isPointerField(owner_name, field_name);
+    defer self.pointer_next_ref = false;
     try self.buffer.appendSlice(self.allocator, "    ");
     try self.appendFieldIdentifier(field_name);
     try self.buffer.appendSlice(self.allocator, ": ");
@@ -248,8 +250,12 @@ pub fn appendZigType(self: *UnifiedModelGenerator, schema: Schema) !void {
 
     if (schema.ref) |ref| {
         if (isNullableSchema(schema)) try self.buffer.appendSlice(self.allocator, "?");
+        if (self.pointer_next_ref) {
+            self.pointer_next_ref = false;
+            try self.buffer.appendSlice(self.allocator, "*const ");
+        }
         if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
-            try self.appendIdentifier(ref[last_slash + 1 ..]);
+            try self.appendIdentifier(self.typeName(ref[last_slash + 1 ..]));
             return;
         }
         try self.buffer.appendSlice(self.allocator, "[]const u8");
@@ -303,7 +309,7 @@ pub fn appendArrayItemType(self: *UnifiedModelGenerator, schema: Schema) !void {
     }
     if (schema.ref) |ref| {
         if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
-            try self.appendIdentifier(ref[last_slash + 1 ..]);
+            try self.appendIdentifier(self.typeName(ref[last_slash + 1 ..]));
             return;
         }
     }

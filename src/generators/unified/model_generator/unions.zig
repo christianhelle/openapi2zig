@@ -40,7 +40,10 @@ pub fn nonNullUnionChild(schema: Schema) ?Schema {
 pub fn isStringLikeSchema(self: *UnifiedModelGenerator, schema: Schema) bool {
     if (schema.ref) |ref| {
         const schemas = self.source_schemas orelse return false;
-        return self.isStringLikeSchema(schemas.get(refName(ref)) orelse return false);
+        const target = schemas.get(refName(ref)) orelse return false;
+        // A named enum that is declared as a Zig enum is a type of its own.
+        if (self.string_enums and @import("enums.zig").enumMembers(target) != null) return false;
+        return self.isStringLikeSchema(target);
     }
     if (schema.type == .string) return true;
     if (unionVariants(schema)) |variants| {
@@ -95,7 +98,7 @@ pub fn refName(ref: []const u8) []const u8 {
 }
 
 pub fn variantTypeNameAlloc(self: *UnifiedModelGenerator, union_name: []const u8, variant: Schema, index: usize) ![]const u8 {
-    if (variant.ref) |ref| return try self.allocator.dupe(u8, refName(ref));
+    if (variant.ref) |ref| return try self.allocator.dupe(u8, self.typeName(refName(ref)));
     const suggested = try std.fmt.allocPrint(self.allocator, "{s}Variant{d}", .{ union_name, index });
     defer self.allocator.free(suggested);
     const detail = try std.fmt.allocPrint(self.allocator, "{d}", .{index});

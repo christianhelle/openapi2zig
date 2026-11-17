@@ -147,6 +147,11 @@ The `generate` command reads a JSON or YAML OpenAPI/Swagger document from a loca
 | `--sdk`                       | Generate a complete SDK repository (sources, build files, docs, CI, examples) into the output directory. Implies `--multiple-files`. See [Generating a full SDK repository](#generating-a-full-sdk-repository). |
 | `--sdk-config <path>`         | SDK config file. Defaults to `<output>/openapi2zig.json`. |
 | `--sdk-name <name>`           | Package name (a lowercase Zig identifier). Required on the first run, when no config file exists yet. |
+| `--model-naming <mode>`       | `raw` (default) keeps schema names as written, so `microsoft.graph.user` becomes `@"microsoft.graph.user"`. `namespaced` drops the prefix every dotted name shares and uses PascalCase: `User`, `SecurityAlert`, with nested aliases such as `security.Alert`. |
+| `--string-enums`              | Declare named string enums as Zig enums with an `_unknown` member: a value the spec does not list parses as `_unknown` instead of failing. An unknown value is written back as `null`. |
+| `--pagination`                | For operations marked `x-ms-pageable` (OpenAPI 3.0), generate `<operation>Pages`, which returns a `Pager`. Call `advance()` to follow the next link; links to another host are refused. |
+| `--typed-errors`              | Generate `ApiError` (the error model most error responses use) and `parseApiError(allocator, raw)`. |
+| `--split-by-tag`              | With `--multiple-files`, write the operations of each tag to `client/<tag>.zig`. `client.zig` keeps the client and re-exports every operation, so the API is unchanged. Cannot be combined with `--multiple-clients`, `--models-only`, `--runtime-module` or `--file-name`. |
 
 ### Unchanged output is not rewritten
 
@@ -327,13 +332,32 @@ Settings live in `openapi2zig.json` at the repository root:
   "minimum_zig_version": "0.17.1",
   "spec": "openapi/openapi.json",
   "base_url": null,
-  "generator": { "resource_wrappers": "paths", "parameters_as_struct": false, "tags": [] }
+  "generator": {
+    "resource_wrappers": "paths",
+    "parameters_as_struct": false,
+    "tags": [],
+    "model_naming": "raw",
+    "string_enums": false,
+    "pagination": false,
+    "typed_errors": false,
+    "split_by_tag": false
+  },
+  "retry": { "max_retries": 0 },
+  "auth": {
+    "oauth2": {
+      "token_url": "https://login.example.com/{tenant}/oauth2/v2.0/token",
+      "device_authorization_url": "https://login.example.com/{tenant}/oauth2/v2.0/devicecode",
+      "scopes": ["https://api.example.com/.default"]
+    }
+  }
 }
 ```
 
 `base_url` defaults to the first server of the spec. Unknown keys are rejected so typos are not ignored.
 
 Files are either *generated* or *scaffold*. Generated files (`src/*`, `build.zig`, `.gitattributes`, `docs/REGENERATING.md`) are rewritten whenever their content changes. Scaffold files (`build.zig.zon`, `README.md`, `LICENSE`, `CHANGELOG.md`, `.gitignore`, `docs/USAGE.md`, the workflows and `examples/quickstart.zig`) are written once and then belong to you, so edit them freely; `--force` overwrites them. Every `examples/*.zig` file you add is picked up by the generated `build.zig`. `LICENSE` is only written for `"license": "MIT"`.
+
+With `auth.oauth2` configured the SDK also gets `src/auth.zig` (client credentials and device code flows that cache and refresh tokens), `sdk.clientCredentials` and `sdk.deviceCode` helpers, and `examples/client_credentials.zig` and `examples/device_code.zig`. Every client accepts a `TokenProvider`, so `sdk.initWithTokenProvider` works with your own token source too. `retry.max_retries` makes `sdk.init` retry throttled (429) and temporarily unavailable (503, 504) responses, honoring `Retry-After`.
 
 Inside the new repository, `zig build test`, `zig build check` (compiles every operation) and `zig build examples` verify the SDK. `zig build test-sdk` in this repository does exactly that for a petstore SDK.
 

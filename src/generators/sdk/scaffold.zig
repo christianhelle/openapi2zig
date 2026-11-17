@@ -109,7 +109,16 @@ pub fn generateSdk(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, do
     defer arena_state.deinit();
     const arena = arena_state.allocator();
 
-    const examples = try discoverExamples(arena, io, cwd, repo_dir);
+    const discovered = try discoverExamples(arena, io, cwd, repo_dir);
+    // The OAuth examples are written below, so `build.zig` has to list them now.
+    var example_list: std.ArrayList([]const u8) = .empty;
+    try example_list.appendSlice(arena, discovered);
+    if (config.auth.oauth2) |oauth2| {
+        try addUniqueName(arena, &example_list, "client_credentials");
+        if (oauth2.device_authorization_url != null) try addUniqueName(arena, &example_list, "device_code");
+    }
+    std.mem.sort([]const u8, example_list.items, {}, lessThan);
+    const examples = example_list.items;
     const base_url = args.base_url orelse config.base_url orelse firstServerUrl(doc) orelse "";
     const repository = if (config.repository.len > 0) config.repository else config.name;
 
@@ -124,6 +133,8 @@ pub fn generateSdk(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, do
         .fingerprint = templates.fingerprintFor(config.name, repository),
         .spec = config.spec orelse default_spec_path,
         .examples = examples,
+        .pagination = args.pagination,
+        .typed_errors = args.typed_errors,
     };
 
     for (templates.all_kinds) |kind| {
@@ -217,4 +228,11 @@ fn isUsableExampleName(stem: []const u8) bool {
         if (!(std.ascii.isAlphanumeric(c) or c == '_' or c == '-')) return false;
     }
     return true;
+}
+
+fn addUniqueName(arena: std.mem.Allocator, list: *std.ArrayList([]const u8), name: []const u8) !void {
+    for (list.items) |existing| {
+        if (std.mem.eql(u8, existing, name)) return;
+    }
+    try list.append(arena, name);
 }

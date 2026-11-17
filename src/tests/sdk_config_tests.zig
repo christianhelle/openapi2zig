@@ -133,6 +133,21 @@ test "sdk config cli base url wins over the config" {
     try testing.expectEqualStrings("https://cli.example.com", args.base_url.?);
 }
 
+test "sdk config selects the model naming" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try sdk_config.parse(allocator, "{ \"name\": \"pets\", \"generator\": { \"model_naming\": \"namespaced\" } }");
+    defer parsed.deinit();
+    const args = parsed.value.toCliArgs(.{ .input_path = "", .sdk = true });
+    try testing.expectEqual(@import("../generators/unified/model_names.zig").Mode.namespaced, args.model_naming);
+
+    var defaults = try sdk_config.parse(allocator, "{ \"name\": \"pets\" }");
+    defer defaults.deinit();
+    try testing.expectEqual(@import("../generators/unified/model_names.zig").Mode.raw, defaults.value.generator.model_naming);
+}
+
 test "sdk config keeps parameters-as-struct from the command line" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();

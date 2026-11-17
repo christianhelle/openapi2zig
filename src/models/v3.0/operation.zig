@@ -21,6 +21,8 @@ pub const Operation = struct {
     deprecated: ?bool = null,
     security: ?[]const SecurityRequirement = null,
     servers: ?[]const Server = null,
+    /// `nextLinkName` of the `x-ms-pageable` extension, when present.
+    next_link_name: ?[]const u8 = null,
 
     pub fn parseFromJson(allocator: std.mem.Allocator, value: json.Value) anyerror!Operation {
         const obj = value.object;
@@ -72,6 +74,7 @@ pub const Operation = struct {
             .deprecated = if (obj.get("deprecated")) |val| val.bool else null,
             .security = if (security_list.items.len > 0) try security_list.toOwnedSlice(allocator) else null,
             .servers = if (servers_list.items.len > 0) try servers_list.toOwnedSlice(allocator) else null,
+            .next_link_name = try parsePageableNextLink(allocator, obj),
         };
     }
 
@@ -86,6 +89,7 @@ pub const Operation = struct {
         if (self.summary) |summary| allocator.free(summary);
         if (self.description) |description| allocator.free(description);
         if (self.operationId) |operationId| allocator.free(operationId);
+        if (self.next_link_name) |name| allocator.free(name);
         if (self.externalDocs) |*externalDocs| {
             externalDocs.deinit(allocator);
         }
@@ -123,3 +127,13 @@ pub const Operation = struct {
         }
     }
 };
+
+/// Reads `x-ms-pageable: { nextLinkName: ... }`. A null or missing link name
+/// means the operation is not paged.
+fn parsePageableNextLink(allocator: std.mem.Allocator, obj: json.ObjectMap) !?[]const u8 {
+    const pageable = obj.get("x-ms-pageable") orelse return null;
+    if (pageable != .object) return null;
+    const name = pageable.object.get("nextLinkName") orelse return null;
+    if (name != .string) return null;
+    return try allocator.dupe(u8, name.string);
+}

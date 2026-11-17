@@ -13,6 +13,34 @@ defer client.deinit();
 
 The token is sent as a bearer token on operations that require authentication.
 
+## Authentication
+
+A static token goes into `sdk.init`. For tokens that expire, give the client a `TokenProvider`
+that returns a fresh token for every request:
+
+```zig
+var client = sdk.initWithTokenProvider(allocator, io, provider);
+```
+
+If `openapi2zig.json` has an `auth.oauth2` section, the SDK also contains `sdk.auth` with
+`ClientCredentials` (app-only access with a client secret) and `DeviceCode` (sign a user in on
+another device). Both cache the access token and refresh it shortly before it expires:
+
+```zig
+var credentials = try sdk.clientCredentials(allocator, io, &.{ .{ .name = "tenant", .value = tenant } }, client_id, client_secret);
+defer credentials.deinit();
+var client = sdk.initWithTokenProvider(allocator, io, credentials.tokenProvider(sdk.TokenProvider));
+```
+
+See `examples/client_credentials.zig` and `examples/device_code.zig`. Read secrets from the
+environment, never from source code.
+
+## Retries
+
+Set `retry.max_retries` in `openapi2zig.json`, or `client.retry = .{ .max_retries = 3 }`, to retry
+throttled (429) and temporarily unavailable (503, 504) responses. The `Retry-After` header is
+honored, otherwise the wait doubles each time.
+
 ## Calling operations
 
 Every operation is a free function in `sdk.client` that takes a `*Client` first:

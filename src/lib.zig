@@ -231,7 +231,13 @@ pub fn parseSwagger(allocator: std.mem.Allocator, json_content: []const u8) !Swa
 /// Returns:
 /// - String containing generated Zig model code
 pub fn generateModels(allocator: std.mem.Allocator, unified_doc: UnifiedDocument) ![]const u8 {
+    return generateModelsNamed(allocator, unified_doc, .raw);
+}
+
+/// Like `generateModels`, with a choice of how schema names become type names.
+pub fn generateModelsNamed(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, naming: @import("generators/unified/model_names.zig").Mode) ![]const u8 {
     var model_generator = UnifiedModelGenerator.init(allocator);
+    model_generator.model_naming = naming;
     defer model_generator.deinit();
 
     return try model_generator.generate(unified_doc);
@@ -296,7 +302,7 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, unified_doc: Unifi
         try rejectRuntimeOnlyConflicts(args);
         return try generateRuntime(allocator, io);
     }
-    const models_code = try generateModels(allocator, unified_doc);
+    const models_code = try generateModelsFor(allocator, unified_doc, args);
     defer allocator.free(models_code);
 
     if (args.models_only) {
@@ -339,6 +345,8 @@ pub const GeneratedFiles = struct {
 /// `args.runtime_only` is set, only the runtime file is generated (`models` is
 /// empty and `client` is null) and `unified_doc` is ignored.
 pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_doc: UnifiedDocument, args: CliArgs) !GeneratedFiles {
+    // The extra files of split mode do not fit this result, so refuse it.
+    if (args.split_by_tag) return error.UnsupportedSplitByTag;
     if (args.runtime_only) {
         try rejectRuntimeOnlyConflicts(args);
         var runtime_gen = RuntimeGenerator.init(allocator);
@@ -360,7 +368,7 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     const client_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.client) orelse cli.FileKind.client.defaultName(), "\\", "/");
     defer allocator.free(client_file);
 
-    const models_code = try generateModels(allocator, unified_doc);
+    const models_code = try generateModelsFor(allocator, unified_doc, args);
     defer allocator.free(models_code);
 
     const models_checksum = generated_header.computeChecksum(models_code);
@@ -979,4 +987,12 @@ test {
     // Import all tests to ensure they're run when testing the library
     std.testing.refAllDecls(@This());
     _ = @import("tests.zig");
+}
+
+fn generateModelsFor(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
+    var model_generator = UnifiedModelGenerator.init(allocator);
+    model_generator.model_naming = args.model_naming;
+    model_generator.string_enums = args.string_enums;
+    defer model_generator.deinit();
+    return try model_generator.generate(unified_doc);
 }

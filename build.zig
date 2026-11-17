@@ -327,7 +327,7 @@ pub fn build(b: *std.Build) void {
         "http://localhost:1234",
     });
     const run_generate_lmstudio_json_step = b.step("run-generate-lmstudio", "Run the app with generate command for LM Studio OpenAPI JSON");
-    run_generate_lmstudio_json_step.dependOn(&run_generate_v3_yaml_cmd.step);
+    run_generate_lmstudio_json_step.dependOn(&run_generate_lmstudio_json_cmd.step);
 
     const run_generate_lmstudio_multi_cmd = b.addRunArtifact(exe);
     run_generate_lmstudio_multi_cmd.addArgs(&.{
@@ -361,7 +361,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const run_generate_anthropic_json_step = b.step("run-generate-anthropic", "Run the app with generate command for Anthropic OpenAPI JSON");
-    run_generate_anthropic_json_step.dependOn(&run_generate_lmstudio_json_cmd.step);
+    run_generate_anthropic_json_step.dependOn(&run_generate_anthropic_json_cmd.step);
 
     const run_generate_openai_json_cmd = b.addRunArtifact(exe);
     run_generate_openai_json_cmd.addArgs(&.{
@@ -560,6 +560,10 @@ pub fn build(b: *std.Build) void {
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerTag" },
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerEndpoint" },
         &.{ "--resource-wrappers", "paths", "--parameters-as-struct" },
+        &.{ "--resource-wrappers", "paths", "--model-naming", "namespaced", "--string-enums" },
+        &.{ "--resource-wrappers", "paths", "--pagination", "--typed-errors" },
+        &.{ "--resource-wrappers", "none", "--pagination", "--typed-errors", "--model-naming", "namespaced", "--parameters-as-struct" },
+        &.{ "--resource-wrappers", "none", "--multiple-clients", "PerTag", "--model-naming", "namespaced", "--parameters-as-struct" },
     };
     for (odata_variants) |variant| {
         const odata_fixture = b.addRunArtifact(exe);
@@ -581,6 +585,33 @@ pub fn build(b: *std.Build) void {
         }));
         const odata_tests = b.addTest(.{ .root_module = odata_module });
         odata_test_step.dependOn(&b.addRunArtifact(odata_tests).step);
+    }
+
+    // The same description with the operations split into one file per tag.
+    const odata_split_variants = [_][]const []const u8{
+        &.{ "--resource-wrappers", "none", "--parameters-as-struct", "--model-naming", "namespaced", "--pagination", "--typed-errors", "--string-enums" },
+        &.{ "--resource-wrappers", "paths" },
+    };
+    for (odata_split_variants) |variant| {
+        const split_fixture = b.addRunArtifact(exe);
+        split_fixture.addArgs(&.{ "generate", "--multiple-files", "--split-by-tag" });
+        split_fixture.addArgs(variant);
+        split_fixture.addArg("-i");
+        split_fixture.addFileArg(b.path("openapi/v3.0/regression-odata-shapes.json"));
+        split_fixture.addArg("-o");
+        const split_dir = split_fixture.addOutputDirectoryArg("odata_split");
+        const split_module = b.createModule(.{
+            .root_source_file = b.path("src/tests/compile_odata_fixture.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        split_module.addImport("odata_fixture", b.createModule(.{
+            .root_source_file = split_dir.path(b, "client.zig"),
+            .target = target,
+            .optimize = optimize,
+        }));
+        const split_tests = b.addTest(.{ .root_module = split_module });
+        odata_test_step.dependOn(&b.addRunArtifact(split_tests).step);
     }
 
     const multi_generated_tests = b.addTest(.{
