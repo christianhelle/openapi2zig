@@ -5,6 +5,7 @@ const Schema = document.Schema;
 const UnifiedDocument = document.UnifiedDocument;
 const UnifiedApiGenerator = @import("../api_generator.zig").UnifiedApiGenerator;
 const escapeZigString = @import("helpers.zig").escapeZigString;
+const authSchemeForOperation = @import("helpers.zig").authSchemeForOperation;
 
 /// The runtime half of pagination: a type that walks `@odata.nextLink` style
 /// links. Emitted into the client only when pagination is requested.
@@ -13,18 +14,25 @@ pub fn generatePagerType(self: *UnifiedApiGenerator) !void {
         \\
         \\/// Walks a paged collection. Create one with an operation's `...Pages`
         \\/// function, read `page()`, then call `advance()` until it returns false.
-        \\pub fn Pager(comptime Page: type, comptime next_link_field: []const u8) type {
+        \\///
+        \\/// Later pages are requested with the headers of the first request: the API
+        \\/// key header of the operation, or a bearer token when `use_bearer` is set,
+        \\/// plus the header parameters in `extra_headers`. The header names and
+        \\/// values must outlive the pager; the slice itself is owned by it.
+        \\pub fn Pager(comptime Page: type, comptime next_link_field: []const u8, comptime use_bearer: bool) type {
         \\    return struct {
         \\        const Self = @This();
         \\
         \\        client: *Client,
         \\        current: Owned(Page),
+        \\        extra_headers: []const std.http.Header,
         \\
-        \\        pub fn init(client: *Client, first_page: Owned(Page)) Self {
-        \\            return .{ .client = client, .current = first_page };
+        \\        pub fn init(client: *Client, first_page: Owned(Page), extra_headers: []const std.http.Header) Self {
+        \\            return .{ .client = client, .current = first_page, .extra_headers = extra_headers };
         \\        }
         \\
         \\        pub fn deinit(self: *Self) void {
+        \\            self.client.allocator.free(self.extra_headers);
         \\            self.current.deinit();
         \\        }
         \\
@@ -55,18 +63,20 @@ pub fn generatePagerType(self: *UnifiedApiGenerator) !void {
         \\            const target = std.Uri.parse(url) catch return error.InvalidNextLink;
         \\            if (!isSameOrigin(base, target)) return error.UntrustedNextLink;
         \\
-        \\            const token: []const u8 = if (client.token_provider) |provider| try provider.getToken(allocator, client.io) else client.api_key;
+        \\            var headers: std.ArrayList(std.http.Header) = .empty;
+        \\            defer headers.deinit(allocator);
+        \\            try headers.appendSlice(allocator, self.extra_headers);
         \\            var bearer: ?[]u8 = null;
         \\            defer if (bearer) |value| allocator.free(value);
-        \\            var auth_headers: [1]std.http.Header = undefined;
-        \\            var extra_headers: []const std.http.Header = &.{};
-        \\            if (token.len > 0) {
-        \\                bearer = try std.fmt.allocPrint(allocator, "Bearer {s}", .{token});
-        \\                auth_headers[0] = .{ .name = "Authorization", .value = bearer.? };
-        \\                extra_headers = auth_headers[0..1];
+        \\            if (use_bearer) {
+        \\                const token: []const u8 = if (client.token_provider) |provider| try provider.getToken(allocator, client.io) else client.api_key;
+        \\                if (token.len > 0) {
+        \\                    bearer = try std.fmt.allocPrint(allocator, "Bearer {s}", .{token});
+        \\                    try headers.append(allocator, .{ .name = "Authorization", .value = bearer.? });
+        \\                }
         \\            }
         \\
-        \\            var raw = try requestRawWithExtraHeaders(client, .GET, url, null, extra_headers);
+        \\            var raw = try requestRawWithExtraHeaders(client, .GET, url, null, headers.items);
         \\            errdefer raw.deinit();
         \\            if (@intFromEnum(raw.status) < 200 or @intFromEnum(raw.status) >= 300) return error.ResponseError;
         \\            const parsed = try std.json.parseFromSlice(Page, allocator, raw.body, .{ .ignore_unknown_fields = true });
@@ -103,23 +113,68 @@ pub fn generatePagesFunction(self: *UnifiedApiGenerator, method: []const u8, pat
     try self.appendIdentifier(pages_name);
     try self.buffer.appendSlice(self.allocator, "(client: *Client");
     try self.appendFlatOperationParameters(operation, method, path);
+    const scheme = authSchemeForOperation(doc, operation);
+    const use_bearer = if (scheme) |s| s == .bearer else false;
+
     try self.buffer.appendSlice(self.allocator, ") !");
-    try self.appendPagerType(response, next_link);
-    try self.buffer.appendSlice(self.allocator, " {\n    return ");
-    try self.appendPagerType(response, next_link);
-    try self.buffer.appendSlice(self.allocator, ".init(client, try ");
+    try self.appendPagerType(response, next_link, use_bearer);
+    try self.buffer.appendSlice(self.allocator, " {\n");
+    try self.buffer.appendSlice(self.allocator, "    const allocator = client.allocator;\n");
+    try self.buffer.appendSlice(self.allocator, "    var page_headers: std.ArrayList(std.http.Header) = .empty;\n");
+    try self.buffer.appendSlice(self.allocator, "    errdefer page_headers.deinit(allocator);\n");
+
+    // Header parameters and the API key header belong to every page request.
+    if (operation.parameters) |parameters| {
+        for (parameters, 0..) |parameter, i| {
+            if (parameter.location != .header or !isStringParameter(parameter)) continue;
+            const escaped_name = try escapeZigString(self.allocator, parameter.name);
+            defer self.allocator.free(escaped_name);
+            if (parameter.required) {
+                try self.buffer.appendSlice(self.allocator, "    try page_headers.append(allocator, .{ .name = \"");
+                try self.buffer.appendSlice(self.allocator, escaped_name);
+                try self.buffer.appendSlice(self.allocator, "\", .value = ");
+                try self.appendParamReference(operation, method, path, i, parameter);
+                try self.buffer.appendSlice(self.allocator, " });\n");
+            } else {
+                try self.buffer.appendSlice(self.allocator, "    if (");
+                try self.appendParamReference(operation, method, path, i, parameter);
+                try self.buffer.appendSlice(self.allocator, ") |header_value| try page_headers.append(allocator, .{ .name = \"");
+                try self.buffer.appendSlice(self.allocator, escaped_name);
+                try self.buffer.appendSlice(self.allocator, "\", .value = header_value });\n");
+            }
+        }
+    }
+    if (scheme) |s| switch (s) {
+        .api_key_header => |key_header| {
+            const escaped_name = try escapeZigString(self.allocator, key_header);
+            defer self.allocator.free(escaped_name);
+            try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) try page_headers.append(allocator, .{ .name = \"");
+            try self.buffer.appendSlice(self.allocator, escaped_name);
+            try self.buffer.appendSlice(self.allocator, "\", .value = client.api_key });\n");
+        },
+        .bearer => {},
+    };
+
+    try self.buffer.appendSlice(self.allocator, "    var first_page = try ");
     try self.appendIdentifier(operation_id);
     try self.appendFlatCallArguments(operation);
-    try self.buffer.appendSlice(self.allocator, ");\n}\n\n");
+    try self.buffer.appendSlice(self.allocator, ";\n    errdefer first_page.deinit();\n    return ");
+    try self.appendPagerType(response, next_link, use_bearer);
+    try self.buffer.appendSlice(self.allocator, ".init(client, first_page, try page_headers.toOwnedSlice(allocator));\n}\n\n");
+}
+
+fn isStringParameter(parameter: document.Parameter) bool {
+    const schema_type = if (parameter.schema) |schema| schema.type else parameter.type;
+    return schema_type == null or schema_type.? == .string;
 }
 
 /// Appends `Pager(<response type>, "<link property>")`.
-pub fn appendPagerType(self: *UnifiedApiGenerator, response: Schema, next_link: []const u8) !void {
+pub fn appendPagerType(self: *UnifiedApiGenerator, response: Schema, next_link: []const u8, use_bearer: bool) !void {
     try self.buffer.appendSlice(self.allocator, "Pager(");
     try self.appendZigTypeFromSchema(response);
     try self.buffer.appendSlice(self.allocator, ", \"");
     const escaped = try escapeZigString(self.allocator, next_link);
     defer self.allocator.free(escaped);
     try self.buffer.appendSlice(self.allocator, escaped);
-    try self.buffer.appendSlice(self.allocator, "\")");
+    try self.buffer.appendSlice(self.allocator, if (use_bearer) "\", true)" else "\", false)");
 }

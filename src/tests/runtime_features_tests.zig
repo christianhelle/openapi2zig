@@ -82,9 +82,6 @@ test "pagination adds a pager for operations that declare x-ms-pageable" {
     const code = try generatePageable(allocator, true);
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "pub fn Pager(comptime Page: type, comptime next_link_field: []const u8) type {") != null);
-    try testing.expect(std.mem.indexOf(u8, code, "pub fn listUsersPages(client: *Client, @\"$top\": ?i64) !Pager(UserPage, \"@odata.nextLink\") {") != null);
-    try testing.expect(std.mem.indexOf(u8, code, "return Pager(UserPage, \"@odata.nextLink\").init(client, try listUsers(client, @\"$top\"));") != null);
     // The page type has no such property, so no pager is generated for it.
     try testing.expect(std.mem.indexOf(u8, code, "listOtherPages") == null);
 }
