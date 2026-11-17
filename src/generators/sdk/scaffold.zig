@@ -99,7 +99,8 @@ pub fn generateSdk(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, do
 
     const src_dir = try std.fs.path.join(allocator, &.{ repo_dir, "src" });
     defer allocator.free(src_dir);
-    var source_args = args;
+    // Idempotent for args that went through `prepare`; applies the config for direct callers.
+    var source_args = config.toCliArgs(args);
     source_args.output_path = src_dir;
     source_args.multiple_files = true;
     try multi_file.generateMultipleFiles(allocator, io, cwd, doc, source_args);
