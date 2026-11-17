@@ -162,7 +162,14 @@ pub const UnifiedApiGenerator = struct {
     /// `fooOptions` need not move aside for one named `foo`. `Stream` and
     /// `StreamEvents` are left out too -- those name wrapper and tag-client
     /// methods, which live inside a struct rather than at file scope.
-    const declaration_suffixes = [_][]const u8{ "", "Raw", "Result", "Streaming", "StreamingEvents" };
+    const base_declaration_suffixes = [_][]const u8{ "", "Raw", "Result", "Streaming", "StreamingEvents" };
+    const paged_declaration_suffixes = base_declaration_suffixes ++ [_][]const u8{"Pages"};
+
+    /// The declarations derived from one operation name. `Pages` only exists
+    /// when pagination is on.
+    fn declarationSuffixes(self: *const UnifiedApiGenerator) []const []const u8 {
+        return if (self.args.pagination) &paged_declaration_suffixes else &base_declaration_suffixes;
+    }
 
     /// Assign a declaration name to every operation id in the document.
     /// Camel casing can collapse two distinct ids onto one name (e.g.
@@ -201,7 +208,7 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn declarationsClaimed(self: *UnifiedApiGenerator, claimed: *std.StringHashMap(void), name: []const u8) !bool {
-        for (declaration_suffixes) |suffix| {
+        for (self.declarationSuffixes()) |suffix| {
             const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
             defer self.allocator.free(declaration);
             if (claimed.contains(declaration)) return true;
@@ -210,7 +217,7 @@ pub const UnifiedApiGenerator = struct {
     }
 
     fn claimDeclarations(self: *UnifiedApiGenerator, claimed: *std.StringHashMap(void), name: []const u8) !void {
-        for (declaration_suffixes) |suffix| {
+        for (self.declarationSuffixes()) |suffix| {
             const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
             errdefer self.allocator.free(declaration);
             const entry = try claimed.getOrPut(declaration);
@@ -342,6 +349,7 @@ pub const UnifiedApiGenerator = struct {
     /// file, and so cannot be reused or referenced bare from a nested scope.
     pub fn isInlinedModelName(self: *UnifiedApiGenerator, name: []const u8) bool {
         const schemas = self.inlined_model_names orelse return false;
+        if (self.name_map) |*map| return map.declared.contains(name);
         return schemas.contains(name);
     }
 
@@ -367,10 +375,11 @@ pub const UnifiedApiGenerator = struct {
     pub fn reserveFlatParameterNames(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
         self.clearFlatParameterNames();
         const locals = [_][]const u8{
-            "client",  "self",          "allocator",   "options",      "requestBody", "callback", "cancellation_token", "Event",
-            "uri_buf", "first_query",   "auth_header", "header_value", "value",       "item",     "str",                "payload",
-            "uri",     "response_body", "start",       "result",       "elapsed_ns",  "body",     "parsed",             "raw",
-            "ok",      "err",           "obs",         "cb",           "resources",   "_root",    "std",
+            "client",   "self",          "allocator",   "options",      "requestBody", "callback", "cancellation_token", "Event",
+            "uri_buf",  "first_query",   "auth_header", "header_value", "value",       "item",     "str",                "payload",
+            "uri",      "response_body", "start",       "result",       "elapsed_ns",  "body",     "parsed",             "raw",
+            "ok",       "err",           "obs",         "cb",           "resources",   "_root",    "std",                "bearer_token",
+            "provider",
         };
         for (locals) |name| try self.reserveFlatName(&self.flat_reserved_names, name);
         const source = try self.allocator.dupeSentinel(u8, self.buffer.items, 0);
@@ -406,7 +415,7 @@ pub const UnifiedApiGenerator = struct {
             else
                 try std.fmt.allocPrint(self.allocator, "operation{s}", .{op_ref.path[1..]});
             defer self.allocator.free(name);
-            for (declaration_suffixes) |suffix| {
+            for (self.declarationSuffixes()) |suffix| {
                 const declaration = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ name, suffix });
                 defer self.allocator.free(declaration);
                 try self.reserveFlatName(&self.flat_reserved_names, declaration);

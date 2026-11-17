@@ -371,7 +371,8 @@ pub fn topLevelNameConflicts(self: *UnifiedApiGenerator, name: []const u8, docum
     if (self.options_name_set.contains(name)) return true;
 
     if (document.schemas) |schemas| {
-        if (schemas.contains(name)) return true;
+        const declared = if (self.name_map) |*map| map.declared.contains(name) else schemas.contains(name);
+        if (declared) return true;
     }
 
     if (!self.top_level_names_ready) {

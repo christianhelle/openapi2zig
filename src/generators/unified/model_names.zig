@@ -35,6 +35,8 @@ pub const ModelNameMap = struct {
     arena: std.heap.ArenaAllocator,
     flat: std.StringHashMapUnmanaged([]const u8) = .empty,
     entries: std.StringHashMapUnmanaged(Entry) = .empty,
+    /// Every emitted flat type name, for constant-time conflict checks.
+    declared: std.StringHashMapUnmanaged(void) = .empty,
 
     pub fn init(allocator: std.mem.Allocator, schemas: std.StringHashMap(Schema)) !ModelNameMap {
         var self: ModelNameMap = .{ .arena = std.heap.ArenaAllocator.init(allocator) };
@@ -115,6 +117,7 @@ pub const ModelNameMap = struct {
 
             const raw_copy = try arena.dupe(u8, raw);
             try self.flat.put(arena, raw_copy, flat_copy);
+            try self.declared.put(arena, flat_copy, {});
             try self.entries.put(arena, raw_copy, .{ .namespace = namespace, .leaf = try arena.dupe(u8, leaf.items) });
         }
     }
