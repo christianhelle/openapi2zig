@@ -3,6 +3,7 @@ const types = @import("types.zig");
 const usage = @import("usage.zig");
 const fnames = @import("file_names.zig");
 const sdk_helpers = @import("sdk.zig");
+const model_names = @import("../generators/unified/model_names.zig");
 const ResourceWrapperMode = types.ResourceWrapperMode;
 const MultipleClientsMode = types.MultipleClientsMode;
 const FileKind = types.FileKind;
@@ -73,6 +74,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var force = false;
     var runtime_only = false;
     var parameters_as_struct = false;
+    var model_naming: model_names.Mode = .raw;
     var sdk = false;
     var sdk_config_path: ?[]const u8 = null;
     var sdk_name: ?[]const u8 = null;
@@ -211,6 +213,18 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             runtime_only = true;
         } else if (std.mem.eql(u8, arg, "--parameters-as-struct")) {
             parameters_as_struct = true;
+        } else if (std.mem.eql(u8, arg, "--model-naming")) {
+            i += 1;
+            if (i >= args.len) {
+                printUsage();
+                printError("--model-naming value required\n", .{});
+                return error.InvalidArguments;
+            }
+            model_naming = model_names.Mode.fromString(args[i]) orelse {
+                printUsage();
+                printError("invalid --model-naming '{s}', expected raw or namespaced\n", .{args[i]});
+                return error.InvalidArguments;
+            };
         } else if (std.mem.eql(u8, arg, "--sdk")) {
             sdk = true;
         } else if (std.mem.eql(u8, arg, "--sdk-config")) {
@@ -438,6 +452,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .force = force,
             .runtime_only = runtime_only,
             .parameters_as_struct = parameters_as_struct,
+            .model_naming = model_naming,
             .sdk = sdk,
             .sdk_config_path = sdk_config_path,
             .sdk_name = sdk_name,

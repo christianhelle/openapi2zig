@@ -8,6 +8,7 @@ const SchemaType = @import("../../models/common/document.zig").SchemaType;
 const Parameter = @import("../../models/common/document.zig").Parameter;
 const media_type = @import("../../media_type.zig");
 const ident = @import("ident_utils.zig");
+const model_names = @import("model_names.zig");
 const helpers = @import("api_generator/helpers.zig");
 
 const BodyKind = helpers.BodyKind;
@@ -49,6 +50,13 @@ pub const UnifiedApiGenerator = struct {
     /// disambiguated against every top-level declaration so generated clients
     /// always compile.
     options_type_names: std.StringHashMap([]const u8),
+    /// The values of `options_type_names`, for constant-time conflict checks.
+    options_name_set: std.StringHashMap(void),
+    /// Every name the flat client declares at the top level for an operation,
+    /// built on first use so name conflict checks do not rescan the document.
+    top_level_names: std.StringHashMap(void),
+    top_level_names_ready: bool = false,
+    top_level_owned: std.ArrayList([]u8) = .empty,
     /// Cached options struct field names, keyed by operation identity and
     /// parameter name/location. Populated on first use so repeated parameter
     /// references don't rescan the operation's parameter list.
@@ -72,6 +80,8 @@ pub const UnifiedApiGenerator = struct {
     flat_reserved_names: std.StringHashMap(void),
     parameter_scope_names: []const []const u8 = &.{},
     model_prefix: []const u8 = "",
+    /// Built while generating when `args.model_naming` is `.namespaced`.
+    name_map: ?model_names.ModelNameMap = null,
     emit_imports: bool = true,
     models_import: []const u8 = "models.zig",
     models_import_alias: []const u8 = "models",
@@ -86,6 +96,8 @@ pub const UnifiedApiGenerator = struct {
             .buffer = std.ArrayList(u8).empty,
             .args = args,
             .options_type_names = std.StringHashMap([]const u8).init(allocator),
+            .options_name_set = std.StringHashMap(void).init(allocator),
+            .top_level_names = std.StringHashMap(void).init(allocator),
             .options_field_names = std.StringHashMap([]const u8).init(allocator),
             .operation_names = std.StringHashMap([]const u8).init(allocator),
             .flat_parameter_names = std.StringHashMap(void).init(allocator),
@@ -100,6 +112,15 @@ pub const UnifiedApiGenerator = struct {
             allocator.free(entry.value_ptr.*);
         }
         self.options_type_names.clearRetainingCapacity();
+        self.options_name_set.clearRetainingCapacity();
+        self.top_level_names.clearRetainingCapacity();
+        self.top_level_names_ready = false;
+        self.freeTopLevelOwned();
+    }
+
+    fn freeTopLevelOwned(self: *UnifiedApiGenerator) void {
+        for (self.top_level_owned.items) |name| self.allocator.free(name);
+        self.top_level_owned.clearRetainingCapacity();
     }
 
     pub fn clearOptionsFieldNames(self: *UnifiedApiGenerator, allocator: std.mem.Allocator) void {
@@ -190,6 +211,25 @@ pub const UnifiedApiGenerator = struct {
     /// first, so this is a lookup; an id that was never reserved falls back to
     /// itself and is escaped at the point of use as it was before. The returned
     /// slice stays valid until the next `generate` call.
+    fn buildNameMap(self: *UnifiedApiGenerator, document: UnifiedDocument) !void {
+        self.releaseNameMap();
+        if (self.args.model_naming != .namespaced) return;
+        if (document.schemas) |schemas| {
+            self.name_map = try model_names.ModelNameMap.init(self.allocator, schemas);
+        }
+    }
+
+    fn releaseNameMap(self: *UnifiedApiGenerator) void {
+        if (self.name_map) |*map| map.deinit();
+        self.name_map = null;
+    }
+
+    /// The Zig name of the schema called `raw` in the specification.
+    pub fn typeName(self: *const UnifiedApiGenerator, raw: []const u8) []const u8 {
+        if (self.name_map) |*map| return map.flatName(raw);
+        return raw;
+    }
+
     pub fn operationName(self: *UnifiedApiGenerator, operation_id: []const u8) []const u8 {
         return self.operation_names.get(operation_id) orelse operation_id;
     }
@@ -201,9 +241,14 @@ pub const UnifiedApiGenerator = struct {
     }
 
     pub fn deinit(self: *UnifiedApiGenerator) void {
+        self.releaseNameMap();
         self.buffer.deinit(self.allocator);
         self.clearOptionsTypeNames(self.allocator);
         self.options_type_names.deinit();
+        self.options_name_set.deinit();
+        self.top_level_names.deinit();
+        self.freeTopLevelOwned();
+        self.top_level_owned.deinit(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
         self.options_field_names.deinit();
         self.clearOperationNames(self.allocator);
@@ -214,6 +259,8 @@ pub const UnifiedApiGenerator = struct {
     }
 
     pub fn generate(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
+        try self.buildNameMap(document);
+        defer self.releaseNameMap();
         if (document.schemas) |*schemas| self.inlined_model_names = schemas;
         defer self.inlined_model_names = null;
         self.buffer.clearRetainingCapacity();
@@ -239,6 +286,8 @@ pub const UnifiedApiGenerator = struct {
     }
 
     pub fn generateClientOnly(self: *UnifiedApiGenerator, document: UnifiedDocument) ![]const u8 {
+        try self.buildNameMap(document);
+        defer self.releaseNameMap();
         self.buffer.clearRetainingCapacity();
         self.clearOptionsTypeNames(self.allocator);
         self.clearOptionsFieldNames(self.allocator);

@@ -141,6 +141,7 @@ pub fn generateCodeFromUnifiedDocument(allocator: std.mem.Allocator, io: std.Io,
     }
 
     var model_generator = UnifiedModelGenerator.init(allocator);
+    model_generator.model_naming = args.model_naming;
     defer model_generator.deinit();
     const generated_models = try model_generator.generate(filtered_doc);
     defer allocator.free(generated_models);

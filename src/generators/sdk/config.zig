@@ -1,5 +1,6 @@
 const std = @import("std");
 const cli = @import("../../cli.zig");
+const model_names = @import("../unified/model_names.zig");
 
 pub const ConfigError = error{InvalidConfig};
 
@@ -7,6 +8,7 @@ pub const Generator = struct {
     resource_wrappers: cli.ResourceWrapperMode = .paths,
     parameters_as_struct: bool = false,
     tags: []const []const u8 = &.{},
+    model_naming: model_names.Mode = .raw,
 };
 
 /// Contents of `openapi2zig.json`, the file that describes an SDK repository.
@@ -35,6 +37,7 @@ pub const SdkConfig = struct {
         if (args.base_url == null) args.base_url = self.base_url;
         args.resource_wrappers = self.generator.resource_wrappers;
         args.parameters_as_struct = self.generator.parameters_as_struct;
+        args.model_naming = self.generator.model_naming;
         if (args.tags.len == 0) args.tags = self.generator.tags;
         return args;
     }

@@ -734,7 +734,7 @@ pub fn appendZigTypeFromSchema(self: *UnifiedApiGenerator, schema: Schema) !void
     if (schema.ref) |ref| {
         if (std.mem.lastIndexOf(u8, ref, "/")) |last_slash| {
             try self.buffer.appendSlice(self.allocator, self.model_prefix);
-            try self.appendIdentifier(ref[last_slash + 1 ..]);
+            try self.appendIdentifier(self.typeName(ref[last_slash + 1 ..]));
             return;
         }
     }

@@ -50,6 +50,9 @@ pub fn printUsage() void {
         \\   --force                   Force overwriting output even when unchanged
         \\   --parameters-as-struct    Wrap method parameters in a single options struct
         \\                            instead of individual function arguments
+        \\   --model-naming <mode>     Name generated model types: raw (default, names as written
+        \\                            in the spec) or namespaced (shared prefix removed, PascalCase,
+        \\                            plus nested aliases such as security.Alert).
         \\
         \\ EXAMPLES:
         \\   openapi2zig generate -i ./openapi/petstore.json -o api.zig
