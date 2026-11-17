@@ -51,3 +51,9 @@ test "root.zig keeps a multi-line description commented" {
     defer allocator.free(readme);
     try testing.expect(std.mem.indexOf(u8, readme, "# Pets SDK\nHandles pet operations.") != null);
 }
+
+test "docComment replaces tabs and control bytes" {
+    const out = try zig_text.docComment(testing.allocator, "a\tb\x01c");
+    defer testing.allocator.free(out);
+    try testing.expectEqualStrings("a    b c", out);
+}
