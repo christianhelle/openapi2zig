@@ -407,6 +407,9 @@ fn addOperationTopLevelNames(self: *UnifiedApiGenerator, maybe_operation: ?Opera
     if (self.hasReturnValue(method, operation)) {
         try putOwnedTopLevelName(self, "{s}Result", operation_id);
     }
+    if (self.args.pagination and operation.next_link_name != null) {
+        try putOwnedTopLevelName(self, "{s}Pages", operation_id);
+    }
     if (operation.streaming and std.mem.eql(u8, method, "POST")) {
         try putOwnedTopLevelName(self, "{s}Streaming", operation_id);
         try putOwnedTopLevelName(self, "{s}StreamingEvents", operation_id);
