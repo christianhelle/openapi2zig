@@ -246,6 +246,11 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
                 printError("--sdk-config value required\n", .{});
                 return error.InvalidArguments;
             }
+            if (std.mem.startsWith(u8, args[i], "-")) {
+                printUsage();
+                printError("--sdk-config value must not start with '-'\n", .{});
+                return error.InvalidArguments;
+            }
             sdk_config_path = args[i];
         } else if (std.mem.eql(u8, arg, "--sdk-name")) {
             i += 1;

@@ -471,7 +471,7 @@ pub fn generateFunctionBodyDirect(self: *UnifiedApiGenerator, method: []const u8
             else
                 parameter.type orelse .string;
             const param_type = switch (path_type) {
-                // Strings go through `PathSegment`, which percent-encodes them.
+                // Strings go through `OpenApiPathSegment`, which percent-encodes them.
                 .string => "f",
                 .integer => "d",
                 .number => "d",

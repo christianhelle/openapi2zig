@@ -176,7 +176,7 @@ test "a path parameter the template never uses still gets an argument" {
 
     // The extra argument makes the generated code fail to compile, rather than
     // silently ignoring the value the caller passed.
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/things/{f}\", .{ client.base_url, PathSegment{ .value = id }, unused }") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/things/{f}\", .{ client.base_url, OpenApiPathSegment{ .value = id }, unused }") != null);
 }
 
 test "path arguments follow the path template when their types differ" {
@@ -187,7 +187,7 @@ test "path arguments follow the path template when their types differ" {
     const code = try generateClient(allocator, spec_with_parameters_out_of_path_order);
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/users/{f}/projects/{d}/fields/{d}\", .{ client.base_url, PathSegment{ .value = username }, project_number, field_id }") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/users/{f}/projects/{d}/fields/{d}\", .{ client.base_url, OpenApiPathSegment{ .value = username }, project_number, field_id }") != null);
 }
 
 test "path arguments follow the path template when their types match" {
@@ -198,7 +198,7 @@ test "path arguments follow the path template when their types match" {
     const code = try generateClient(allocator, spec_with_parameters_out_of_path_order);
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{f}/variables/{f}\", .{ client.base_url, PathSegment{ .value = environment_name }, PathSegment{ .value = name } }") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{f}/variables/{f}\", .{ client.base_url, OpenApiPathSegment{ .value = environment_name }, OpenApiPathSegment{ .value = name } }") != null);
 }
 
 test "struct path arguments follow the path template" {
@@ -209,7 +209,7 @@ test "struct path arguments follow the path template" {
     const code = try generateClientWithArgs(allocator, spec_with_parameters_out_of_path_order, .{ .input_path = "fixture.json", .parameters_as_struct = true });
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/users/{f}/projects/{d}/fields/{d}\", .{ client.base_url, PathSegment{ .value = options.username }, options.project_number, options.field_id }") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/users/{f}/projects/{d}/fields/{d}\", .{ client.base_url, OpenApiPathSegment{ .value = options.username }, options.project_number, options.field_id }") != null);
 }
 
 test "struct path arguments follow the path template for operations without an operationId" {
@@ -220,7 +220,7 @@ test "struct path arguments follow the path template for operations without an o
     const code = try generateClientWithArgs(allocator, spec_with_parameters_out_of_path_order_no_operation_id, .{ .input_path = "fixture.json", .parameters_as_struct = true });
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{f}/variables/{f}\", .{ client.base_url, PathSegment{ .value = options.environment_name }, PathSegment{ .value = options.name } }") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{f}/variables/{f}\", .{ client.base_url, OpenApiPathSegment{ .value = options.environment_name }, OpenApiPathSegment{ .value = options.name } }") != null);
 }
 
 test "a repeated path placeholder gets one argument per occurrence" {
@@ -231,7 +231,7 @@ test "a repeated path placeholder gets one argument per occurrence" {
     const code = try generateClient(allocator, spec_with_parameters_out_of_path_order);
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/mirrors/{f}/of/{f}\", .{ client.base_url, PathSegment{ .value = id }, PathSegment{ .value = id } }") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/mirrors/{f}/of/{f}\", .{ client.base_url, OpenApiPathSegment{ .value = id }, OpenApiPathSegment{ .value = id } }") != null);
 }
 
 test "path arguments follow the path template for operations without an operationId" {
@@ -242,5 +242,5 @@ test "path arguments follow the path template for operations without an operatio
     const code = try generateClient(allocator, spec_with_parameters_out_of_path_order_no_operation_id);
     defer allocator.free(code);
 
-    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{f}/variables/{f}\", .{ client.base_url, PathSegment{ .value = environment_name }, PathSegment{ .value = name } }") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "\"{s}/environments/{f}/variables/{f}\", .{ client.base_url, OpenApiPathSegment{ .value = environment_name }, OpenApiPathSegment{ .value = name } }") != null);
 }

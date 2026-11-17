@@ -154,9 +154,9 @@ pub fn appendPathArguments(self: *UnifiedApiGenerator, operation: Operation, met
         for (parameters, 0..) |parameter, i| {
             if (parameter.location != .path or !std.mem.eql(u8, parameter.name, name)) continue;
             try self.buffer.appendSlice(self.allocator, ", ");
-            // String segments are percent-encoded by the `PathSegment` formatter.
+            // String segments are percent-encoded by the `OpenApiPathSegment` formatter.
             const encode = isStringPathParameter(parameter);
-            if (encode) try self.buffer.appendSlice(self.allocator, "PathSegment{ .value = ");
+            if (encode) try self.buffer.appendSlice(self.allocator, "OpenApiPathSegment{ .value = ");
             try self.appendParamReference(operation, method, path, i, parameter);
             if (encode) try self.buffer.appendSlice(self.allocator, " }");
             break;
@@ -189,7 +189,7 @@ pub fn appendUrlConstruction(self: *UnifiedApiGenerator, method: []const u8, pat
             const param = parameter.name;
             const path_type = pathParameterType(parameter);
             const param_type = switch (path_type) {
-                // Strings go through `PathSegment`, which percent-encodes them.
+                // Strings go through `OpenApiPathSegment`, which percent-encodes them.
                 .string => "f",
                 .integer => "d",
                 .number => "d",

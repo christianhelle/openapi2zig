@@ -271,7 +271,9 @@ pub const SwaggerConverter = struct {
         const raw = raw_operation orelse return null;
         var operation = try self.convertOperation(raw);
         if (path_parameters) |params| {
-            const path_level = try self.convertParameters(params, null);
+            // Inherited body parameters follow the operation's `consumes`, then the document's.
+            const op_consumes: ?[]const []const u8 = if (raw.consumes) |c| c else self.spec_consumes;
+            const path_level = try self.convertParameters(params, op_consumes);
             try param_merge.mergePathLevel(self.allocator, &operation, path_level);
         }
         return operation;

@@ -40,6 +40,9 @@ pub const OpenApi31Converter = struct {
     allocator: std.mem.Allocator,
     source_schemas: ?*const std.StringHashMap(SchemaOrReference31) = null,
     source_request_bodies: ?*const std.StringHashMap(RequestBodyOrReference31) = null,
+    /// Parameters declared under `components.parameters`, so that a parameter
+    /// given as a `$ref` resolves to the parameter it points at.
+    component_parameters: ?*const std.StringHashMap(ParameterOrReference31) = null,
     /// Responses declared under `components.responses`, so that a response given
     /// as a `$ref` keeps the schema it points at.
     source_responses: ?*const std.StringHashMap(ResponseOrReference31) = null,
@@ -58,6 +61,10 @@ pub const OpenApi31Converter = struct {
         }
         defer self.source_schemas = null;
         defer self.source_request_bodies = null;
+        if (openapi.components) |*components| {
+            if (components.parameters) |*component_parameters| self.component_parameters = component_parameters;
+        }
+        defer self.component_parameters = null;
         if (openapi.components) |*components| {
             if (components.responses) |*component_responses| self.source_responses = component_responses;
         }
@@ -731,9 +738,30 @@ pub const OpenApi31Converter = struct {
         return converted_params;
     }
 
+    /// Look up a `#/components/parameters/<name>` reference, following alias
+    /// chains. The hop limit bounds cyclic definitions.
+    fn resolveComponentParameter(self: *OpenApi31Converter, ref: []const u8) ?Parameter31 {
+        const prefix = "#/components/parameters/";
+        const max_hops = 32;
+        const parameters = self.component_parameters orelse return null;
+
+        var current = ref;
+        var hops: usize = 0;
+        while (hops < max_hops) : (hops += 1) {
+            if (!std.mem.startsWith(u8, current, prefix)) return null;
+            const entry = parameters.get(current[prefix.len..]) orelse return null;
+            switch (entry) {
+                .parameter => |param| return param,
+                .reference => |next| current = next.ref,
+            }
+        }
+        return null;
+    }
+
     fn convertParameterOrReference(self: *OpenApi31Converter, paramOrRef: *const ParameterOrReference31) !Parameter {
         switch (paramOrRef.*) {
             .reference => |ref| {
+                if (self.resolveComponentParameter(ref.ref)) |resolved| return self.convertParameter(resolved);
                 return Parameter{
                     .name = ref.ref,
                     .location = .query,

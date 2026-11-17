@@ -122,3 +122,47 @@ test "swagger 2.0 operations inherit path-level parameters" {
     defer unified.deinit(allocator);
     try expectMergedParameters(unified);
 }
+
+fn specWithParameterRef(comptime version: []const u8) []const u8 {
+    return "{\"openapi\":\"" ++ version ++ "\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{" ++
+        "\"/users/{id}\":{\"parameters\":[{\"$ref\":\"#/components/parameters/userId\"}]," ++
+        "\"get\":{\"operationId\":\"getUser\",\"parameters\":[{\"$ref\":\"#/components/parameters/select\"}],\"responses\":{\"200\":{\"description\":\"ok\"}}}}}," ++
+        "\"components\":{\"parameters\":{" ++
+        "\"userId\":{\"name\":\"id\",\"in\":\"path\",\"required\":true,\"schema\":{\"type\":\"string\"}}," ++
+        "\"select\":{\"name\":\"$select\",\"in\":\"query\",\"schema\":{\"type\":\"string\"}}}}}";
+}
+
+fn expectResolvedParameters(unified: anytype) !void {
+    const params = unified.paths.get("/users/{id}").?.get.?.parameters.?;
+    try testing.expectEqual(@as(usize, 2), params.len);
+    try testing.expectEqualStrings("id", params[0].name);
+    try testing.expect(params[0].location == .path);
+    try testing.expect(params[0].required);
+    try testing.expectEqualStrings("$select", params[1].name);
+}
+
+test "openapi 3.1 resolves parameter references, inherited ones included" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApi31Document.parseFromJson(allocator, specWithParameterRef("3.1.0"));
+    defer parsed.deinit(allocator);
+    var converter = OpenApi31Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    try expectResolvedParameters(unified);
+}
+
+test "openapi 3.2 resolves parameter references, inherited ones included" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApi32Document.parseFromJson(allocator, specWithParameterRef("3.2.0"));
+    defer parsed.deinit(allocator);
+    var converter = OpenApi32Converter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    try expectResolvedParameters(unified);
+}

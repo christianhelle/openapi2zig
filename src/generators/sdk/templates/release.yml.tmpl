@@ -34,6 +34,16 @@ jobs:
       - name: Build examples
         run: zig build examples
 
+      - name: Check an existing tag points at this commit
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null 2>&1; then
+            git fetch --depth=1 origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
+            if [ "$(git rev-parse "v$VERSION^{commit}")" != "$GITHUB_SHA" ]; then
+              echo "Tag v$VERSION already exists and does not point at $GITHUB_SHA" >&2
+              exit 1
+            fi
+          fi
+
       - name: Create release
         env:
           GH_TOKEN: ${{{{ github.token }}}}

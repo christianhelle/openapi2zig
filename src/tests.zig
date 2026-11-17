@@ -14,6 +14,7 @@ const sdk_auth_tests = @import("tests/sdk_auth_tests.zig");
 const runtime_features_tests = @import("tests/runtime_features_tests.zig");
 const recursive_model_tests = @import("tests/recursive_model_tests.zig");
 const model_names_tests = @import("tests/model_names_tests.zig");
+const review_fixes_tests = @import("tests/review_fixes_tests.zig");
 const odata_model_tests = @import("tests/odata_model_tests.zig");
 const deterministic_output_tests = @import("tests/deterministic_output_tests.zig");
 const openapi30_composition_tests = @import("tests/openapi30_composition_tests.zig");
@@ -76,6 +77,7 @@ comptime {
     _ = runtime_features_tests;
     _ = recursive_model_tests;
     _ = model_names_tests;
+    _ = review_fixes_tests;
     _ = odata_model_tests;
     _ = deterministic_output_tests;
     _ = openapi30_composition_tests;

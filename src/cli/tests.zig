@@ -1490,3 +1490,8 @@ test "parse generate sdk keeps parameters-as-struct" {
     const parsed = try parse(std.testing.allocator, &argv);
     try std.testing.expect(parsed.args.parameters_as_struct);
 }
+
+test "parse generate sdk-config rejects an option as its value" {
+    const argv = [_][:0]const u8{ "openapi2zig", "generate", "--sdk", "--sdk-name", "petstore", "--sdk-config", "--force" };
+    try std.testing.expectError(error.InvalidArguments, parse(std.testing.allocator, &argv));
+}

@@ -203,10 +203,10 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\}
         \\
         \\/// A path parameter value, percent-encoded when formatted with `{f}`.
-        \\const PathSegment = struct {
+        \\const OpenApiPathSegment = struct {
         \\    value: []const u8,
         \\
-        \\    pub fn format(self: PathSegment, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        \\    pub fn format(self: OpenApiPathSegment, writer: *std.Io.Writer) std.Io.Writer.Error!void {
         \\        try writeQueryComponent(writer, self.value);
         \\    }
         \\};
