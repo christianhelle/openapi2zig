@@ -313,6 +313,26 @@ test "emphasis markers inside plain scalars are not aliases" {
     try expectContains(json, "no fixed value - you might");
 }
 
+test "flow mapping leaves are typed like block values" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+
+    const yaml_content =
+        \\openapi: 3.0.3
+        \\info:
+        \\  title: t
+        \\  version: 1.0.0
+        \\x-schema: {nullable: true, maxLength: 5, default: null, type: string}
+    ;
+
+    const json = try yaml_loader.yamlToJson(allocator, yaml_content);
+    defer allocator.free(json);
+
+    try expectContains(json, "\"nullable\":true");
+    try expectContains(json, "\"default\":null");
+    try expectContains(json, "\"type\":\"string\"");
+}
+
 test "unbalanced brackets inside plain scalars do not leak into later lines" {
     var gpa = test_utils.createTestAllocator();
     const allocator = gpa.allocator();

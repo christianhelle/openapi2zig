@@ -352,6 +352,29 @@ fn appendMarkedLine(allocator: std.mem.Allocator, out: *std.ArrayList(u8), line:
     const comment_index = findInlineCommentStart(line[value_start..]) orelse line[value_start..].len;
     const scalar_end = value_start + comment_index;
     const scalar = std.mem.trimEnd(u8, line[value_start..scalar_end], " \t\r");
+    if (isSimpleFlowMap(scalar)) {
+        // The leaves of `{nullable: true, maxLength: 5}` are typed like block values.
+        try out.appendSlice(allocator, line[0..value_start]);
+        try out.append(allocator, '{');
+        var parts = std.mem.splitScalar(u8, scalar[1 .. scalar.len - 1], ',');
+        var first = true;
+        while (parts.next()) |part| {
+            if (!first) try out.append(allocator, ',');
+            first = false;
+            const colon = std.mem.indexOfScalar(u8, part, ':') orelse {
+                try out.appendSlice(allocator, part);
+                continue;
+            };
+            const value = std.mem.trim(u8, part[colon + 1 ..], " \t");
+            try out.appendSlice(allocator, part[0 .. colon + 1]);
+            try out.append(allocator, ' ');
+            if (shouldMarkOriginallyUnquotedScalar(value)) try out.appendSlice(allocator, unquoted_scalar_placeholder);
+            try out.appendSlice(allocator, value);
+        }
+        try out.append(allocator, '}');
+        try out.appendSlice(allocator, line[value_start + scalar.len ..]);
+        return;
+    }
     if (isPlainScalarWithQuotes(scalar)) {
         // zig-yaml starts a quoted string at any quote that follows a space, so
         // write the whole plain scalar as a single-quoted one.
@@ -690,4 +713,17 @@ fn findKeyColon(line: []const u8, start: usize) ?usize {
         if (line[i] == ':' and (i + 1 == line.len or line[i + 1] == ' ' or line[i + 1] == '\t' or line[i + 1] == '\r')) return i;
     }
     return null;
+}
+
+/// A one-line flow mapping without nesting, quotes or escapes, such as
+/// `{nullable: true, maxLength: 5}`.
+fn isSimpleFlowMap(value: []const u8) bool {
+    if (value.len < 3 or value[0] != '{' or value[value.len - 1] != '}') return false;
+    const inner = value[1 .. value.len - 1];
+    if (std.mem.indexOfAny(u8, inner, "{}[]'\"#&*!|>") != null) return false;
+    var parts = std.mem.splitScalar(u8, inner, ',');
+    while (parts.next()) |part| {
+        if (std.mem.indexOfScalar(u8, part, ':') == null) return false;
+    }
+    return true;
 }
