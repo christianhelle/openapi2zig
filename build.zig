@@ -327,7 +327,7 @@ pub fn build(b: *std.Build) void {
         "http://localhost:1234",
     });
     const run_generate_lmstudio_json_step = b.step("run-generate-lmstudio", "Run the app with generate command for LM Studio OpenAPI JSON");
-    run_generate_lmstudio_json_step.dependOn(&run_generate_v3_yaml_cmd.step);
+    run_generate_lmstudio_json_step.dependOn(&run_generate_lmstudio_json_cmd.step);
 
     const run_generate_lmstudio_multi_cmd = b.addRunArtifact(exe);
     run_generate_lmstudio_multi_cmd.addArgs(&.{
@@ -361,7 +361,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const run_generate_anthropic_json_step = b.step("run-generate-anthropic", "Run the app with generate command for Anthropic OpenAPI JSON");
-    run_generate_anthropic_json_step.dependOn(&run_generate_lmstudio_json_cmd.step);
+    run_generate_anthropic_json_step.dependOn(&run_generate_anthropic_json_cmd.step);
 
     const run_generate_openai_json_cmd = b.addRunArtifact(exe);
     run_generate_openai_json_cmd.addArgs(&.{
@@ -560,6 +560,8 @@ pub fn build(b: *std.Build) void {
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerTag" },
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerEndpoint" },
         &.{ "--resource-wrappers", "paths", "--parameters-as-struct" },
+        &.{ "--resource-wrappers", "paths", "--model-naming", "namespaced" },
+        &.{ "--resource-wrappers", "none", "--multiple-clients", "PerTag", "--model-naming", "namespaced", "--parameters-as-struct" },
     };
     for (odata_variants) |variant| {
         const odata_fixture = b.addRunArtifact(exe);
