@@ -3,6 +3,7 @@
 ## [Unreleased Changes]
 
 ### Features
+- Fix OpenAPI handling that OData descriptions need ([#128](https://github.com/christianhelle/openapi2zig/pull/128)) ([@christianhelle](https://github.com/christianhelle/))
 - Add --sdk to generate a complete SDK repository ([#127](https://github.com/christianhelle/openapi2zig/pull/127)) ([@christianhelle](https://github.com/christianhelle/))
 - Upgrade to Zig 0.17.1 ([#126](https://github.com/christianhelle/openapi2zig/pull/126)) ([@christianhelle](https://github.com/christianhelle/))
 
