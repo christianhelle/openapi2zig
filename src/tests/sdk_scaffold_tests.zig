@@ -310,3 +310,22 @@ test "sdk generation skips examples whose names cannot be a build step" {
     try testing.expect(std.mem.indexOf(u8, build_zig, "\"good_one\"") != null);
     try testing.expect(std.mem.indexOf(u8, build_zig, "a b") == null);
 }
+
+test "generateSdk applies the config settings to raw arguments" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.createDirPath(testing.io, "repo");
+    try tmp.dir.writeFile(testing.io, .{
+        .sub_path = "repo/openapi2zig.json",
+        .data = "{ \"name\": \"pets\", \"generator\": { \"resource_wrappers\": \"none\" } }",
+    });
+    try runGenerate(allocator, tmp.dir, false);
+
+    const client = try read(allocator, tmp.dir, "repo/src/client.zig");
+    defer allocator.free(client);
+    try testing.expect(std.mem.indexOf(u8, client, "pub const resources") == null);
+}
