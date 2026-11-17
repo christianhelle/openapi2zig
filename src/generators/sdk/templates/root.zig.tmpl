@@ -18,6 +18,8 @@ pub const Owned = runtime.Owned;
 pub const ApiResult = runtime.ApiResult;
 pub const RawResponse = runtime.RawResponse;
 pub const HttpObserver = runtime.HttpObserver;
+pub const TokenProvider = client.TokenProvider;
+pub const RetryPolicy = client.RetryPolicy;{{extra_exports}}
 
 /// The default base URL of the API, taken from the OpenAPI description.
 pub const api_base_url = "{{base_url}}";
@@ -28,6 +30,15 @@ pub const api_base_url = "{{base_url}}";
 pub fn init(allocator: std.mem.Allocator, io: std.Io, token: []const u8) Client {
     var api = Client.init(allocator, io, token);
     api.withBaseUrl(api_base_url);
+    api.retry = .{ .max_retries = {{max_retries}} };
+    return api;
+}
+
+/// Like `init`, but the bearer token of every request comes from `provider`,
+/// for example one that refreshes an access token before it expires.
+pub fn initWithTokenProvider(allocator: std.mem.Allocator, io: std.Io, provider: TokenProvider) Client {
+    var api = init(allocator, io, "");
+    api.token_provider = provider;
     return api;
 }
 

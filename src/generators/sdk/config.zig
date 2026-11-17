@@ -4,6 +4,11 @@ const model_names = @import("../unified/model_names.zig");
 
 pub const ConfigError = error{InvalidConfig};
 
+/// Retry behavior of the generated `init`.
+pub const Retry = struct {
+    max_retries: u8 = 0,
+};
+
 pub const Generator = struct {
     resource_wrappers: cli.ResourceWrapperMode = .paths,
     parameters_as_struct: bool = false,
@@ -27,6 +32,7 @@ pub const SdkConfig = struct {
     /// Overrides the server URL declared by the spec.
     base_url: ?[]const u8 = null,
     generator: Generator = .{},
+    retry: Retry = .{},
 
     /// Merges the config into the CLI args. Values given on the command line
     /// (input path, base URL) win over the config. The returned args borrow

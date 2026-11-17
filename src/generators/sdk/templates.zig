@@ -21,6 +21,9 @@ pub const SdkContext = struct {
     spec: []const u8 = "openapi/openapi.json",
     /// Example names (file stems in `examples/`), in build order.
     examples: []const []const u8 = &.{"quickstart"},
+    /// Whether the client was generated with `Pager` and `ApiError`.
+    pagination: bool = false,
+    typed_errors: bool = false,
 };
 
 /// A non-Zig or hand-off file of the SDK repository.
@@ -108,6 +111,8 @@ pub fn buildVars(arena: std.mem.Allocator, ctx: SdkContext) ![]template.Var {
         .{ .name = "spec", .value = ctx.spec },
         .{ .name = "year", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.year}) },
         .{ .name = "examples_list", .value = try examplesList(arena, ctx.examples) },
+        .{ .name = "extra_exports", .value = try extraExports(arena, ctx) },
+        .{ .name = "max_retries", .value = try std.fmt.allocPrint(arena, "{d}", .{c.retry.max_retries}) },
         .{ .name = "fingerprint", .value = try std.fmt.allocPrint(arena, "0x{x:0>16}", .{ctx.fingerprint}) },
         .{ .name = "path_count", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.path_count}) },
         .{ .name = "operation_count", .value = try std.fmt.allocPrint(arena, "{d}", .{ctx.operation_count}) },
@@ -146,4 +151,12 @@ pub fn applies(kind: Kind, ctx: SdkContext) bool {
         .license => std.mem.eql(u8, ctx.config.license, "MIT"),
         else => true,
     };
+}
+
+/// Re-exports of the optional client features that were generated.
+fn extraExports(arena: std.mem.Allocator, ctx: SdkContext) ![]const u8 {
+    var out: std.ArrayList(u8) = .empty;
+    if (ctx.pagination) try out.appendSlice(arena, "\npub const Pager = client.Pager;");
+    if (ctx.typed_errors) try out.appendSlice(arena, "\npub const ApiError = client.ApiError;\npub const parseApiError = client.parseApiError;");
+    return out.items;
 }

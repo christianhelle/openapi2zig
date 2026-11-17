@@ -116,6 +116,8 @@ pub fn generateSdk(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, do
         .fingerprint = templates.fingerprintFor(config.name, repository),
         .spec = config.spec orelse default_spec_path,
         .examples = examples,
+        .pagination = args.pagination,
+        .typed_errors = args.typed_errors,
     };
 
     for (templates.all_kinds) |kind| {

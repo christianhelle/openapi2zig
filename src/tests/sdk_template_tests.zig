@@ -256,3 +256,42 @@ test "quickstart example imports the sdk module" {
     try testing.expect(std.mem.indexOf(u8, out, "@import(\"petstore\")") != null);
     try testing.expect(std.mem.indexOf(u8, out, "client.deinit()") != null);
 }
+
+test "root.zig template exports the runtime features that were generated" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var ctx = testContext();
+    ctx.config.retry.max_retries = 3;
+    const plain = try templates.render(allocator, .root_zig, ctx);
+    defer allocator.free(plain);
+    try testing.expect(std.mem.indexOf(u8, plain, "pub const TokenProvider = client.TokenProvider;") != null);
+    try testing.expect(std.mem.indexOf(u8, plain, "pub const RetryPolicy = client.RetryPolicy;") != null);
+    try testing.expect(std.mem.indexOf(u8, plain, "api.retry = .{ .max_retries = 3 };") != null);
+    try testing.expect(std.mem.indexOf(u8, plain, "pub fn initWithTokenProvider(") != null);
+    try testing.expect(std.mem.indexOf(u8, plain, "Pager") == null);
+    try testing.expect(std.mem.indexOf(u8, plain, "ApiError") == null);
+
+    ctx.pagination = true;
+    ctx.typed_errors = true;
+    const full = try templates.render(allocator, .root_zig, ctx);
+    defer allocator.free(full);
+    try testing.expect(std.mem.indexOf(u8, full, "pub const Pager = client.Pager;") != null);
+    try testing.expect(std.mem.indexOf(u8, full, "pub const ApiError = client.ApiError;") != null);
+    try testing.expect(std.mem.indexOf(u8, full, "pub const parseApiError = client.parseApiError;") != null);
+}
+
+test "sdk config reads the retry count" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const sdk_config = @import("../generators/sdk/config.zig");
+    var parsed = try sdk_config.parse(allocator, "{ \"name\": \"pets\", \"retry\": { \"max_retries\": 4 }, \"generator\": { \"pagination\": true, \"typed_errors\": true } }");
+    defer parsed.deinit();
+    try testing.expectEqual(@as(u8, 4), parsed.value.retry.max_retries);
+    const args = parsed.value.toCliArgs(.{ .input_path = "", .sdk = true });
+    try testing.expect(args.pagination);
+    try testing.expect(args.typed_errors);
+}
