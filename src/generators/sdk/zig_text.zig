@@ -28,6 +28,9 @@ pub fn docComment(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
     for (text) |c| switch (c) {
         '\r' => {},
         '\n' => try out.appendSlice(allocator, "\n//! "),
+        // Zig rejects tabs and other control bytes inside comments.
+        '\t' => try out.appendSlice(allocator, "    "),
+        0...8, 11, 12, 14...31, 127 => try out.append(allocator, ' '),
         else => try out.append(allocator, c),
     };
     return out.toOwnedSlice(allocator);
