@@ -106,3 +106,44 @@ test "namespaced model naming is used by client signatures" {
     try testing.expect(std.mem.indexOf(u8, generated.client, "requestBody: User) !Owned(User)") != null);
     try testing.expect(std.mem.indexOf(u8, generated.client, "@\"microsoft.graph.user\"") == null);
 }
+
+fn generateEnums(allocator: std.mem.Allocator, string_enums: bool) ![]const u8 {
+    const contents = try std.Io.Dir.cwd().readFileAlloc(testing.io, fixture_path, allocator, .unlimited);
+    defer allocator.free(contents);
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, contents);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+
+    var model_generator = UnifiedModelGenerator.init(allocator);
+    model_generator.model_naming = .namespaced;
+    model_generator.string_enums = string_enums;
+    defer model_generator.deinit();
+    return model_generator.generate(unified);
+}
+
+test "string enums become Zig enums that survive unknown values" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateEnums(allocator, true);
+    defer allocator.free(code);
+
+    try testing.expect(std.mem.indexOf(u8, code, "pub const Importance = enum {\n    low,\n    normal,\n    high,\n    /// A value this version of the SDK does not know.\n    _unknown,\n") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !@This() {") != null);
+    try testing.expect(std.mem.indexOf(u8, code, "pub fn jsonStringify(self: @This(), jw: anytype) !void {") != null);
+    // Properties that refer to the enum use it.
+    try testing.expect(std.mem.indexOf(u8, code, "importance: ?Importance = null,") != null);
+}
+
+test "string enums are off unless requested" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    const code = try generateEnums(allocator, false);
+    defer allocator.free(code);
+    try testing.expect(std.mem.indexOf(u8, code, "_unknown") == null);
+}

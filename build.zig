@@ -560,7 +560,7 @@ pub fn build(b: *std.Build) void {
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerTag" },
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerEndpoint" },
         &.{ "--resource-wrappers", "paths", "--parameters-as-struct" },
-        &.{ "--resource-wrappers", "paths", "--model-naming", "namespaced" },
+        &.{ "--resource-wrappers", "paths", "--model-naming", "namespaced", "--string-enums" },
         &.{ "--resource-wrappers", "paths", "--pagination", "--typed-errors" },
         &.{ "--resource-wrappers", "none", "--pagination", "--typed-errors", "--model-naming", "namespaced", "--parameters-as-struct" },
         &.{ "--resource-wrappers", "none", "--multiple-clients", "PerTag", "--model-naming", "namespaced", "--parameters-as-struct" },
@@ -589,7 +589,7 @@ pub fn build(b: *std.Build) void {
 
     // The same description with the operations split into one file per tag.
     const odata_split_variants = [_][]const []const u8{
-        &.{ "--resource-wrappers", "none", "--parameters-as-struct", "--model-naming", "namespaced", "--pagination", "--typed-errors" },
+        &.{ "--resource-wrappers", "none", "--parameters-as-struct", "--model-naming", "namespaced", "--pagination", "--typed-errors", "--string-enums" },
         &.{ "--resource-wrappers", "paths" },
     };
     for (odata_split_variants) |variant| {

@@ -4,6 +4,7 @@ const Schema = @import("../../models/common/document.zig").Schema;
 const ident = @import("ident_utils.zig");
 const model_names = @import("model_names.zig");
 const cycles = @import("model_generator/cycles.zig");
+const enums = @import("model_generator/enums.zig");
 
 pub fn isExtensibleRequest(name: []const u8) bool {
     return std.mem.eql(u8, name, "CreateResponse") or
@@ -16,6 +17,8 @@ pub const UnifiedModelGenerator = struct {
     source_schemas: ?*const std.StringHashMap(Schema) = null,
     /// How component schema names become Zig type names.
     model_naming: model_names.Mode = .raw,
+    /// Declare named string enums as Zig enums instead of `[]const u8`.
+    string_enums: bool = false,
     /// Built while generating when `model_naming` is `.namespaced`.
     name_map: ?model_names.ModelNameMap = null,
     /// `"{type name}{field name}"` keys of the reference fields that are
@@ -189,6 +192,12 @@ pub const UnifiedModelGenerator = struct {
             return;
         }
         if (try self.generateManualSchema(name, schema)) return;
+        if (self.string_enums) {
+            if (enums.enumMembers(schema)) |members| {
+                try enums.generateStringEnum(self, name, members);
+                return;
+            }
+        }
         if (schema.type == .reference) return;
 
         if (try self.generateUnionAlias(name, schema)) return;

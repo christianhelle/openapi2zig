@@ -78,6 +78,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var pagination = false;
     var typed_errors = false;
     var split_by_tag = false;
+    var string_enums = false;
     var sdk = false;
     var sdk_config_path: ?[]const u8 = null;
     var sdk_name: ?[]const u8 = null;
@@ -218,6 +219,8 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             parameters_as_struct = true;
         } else if (std.mem.eql(u8, arg, "--pagination")) {
             pagination = true;
+        } else if (std.mem.eql(u8, arg, "--string-enums")) {
+            string_enums = true;
         } else if (std.mem.eql(u8, arg, "--split-by-tag")) {
             split_by_tag = true;
         } else if (std.mem.eql(u8, arg, "--typed-errors")) {
@@ -478,6 +481,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .pagination = pagination,
             .typed_errors = typed_errors,
             .split_by_tag = split_by_tag,
+            .string_enums = string_enums,
             .sdk = sdk,
             .sdk_config_path = sdk_config_path,
             .sdk_name = sdk_name,

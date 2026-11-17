@@ -29,6 +29,7 @@ pub const Generator = struct {
     pagination: bool = false,
     typed_errors: bool = false,
     split_by_tag: bool = false,
+    string_enums: bool = false,
 };
 
 /// Contents of `openapi2zig.json`, the file that describes an SDK repository.
@@ -63,6 +64,7 @@ pub const SdkConfig = struct {
         args.pagination = self.generator.pagination;
         args.typed_errors = self.generator.typed_errors;
         args.split_by_tag = self.generator.split_by_tag;
+        args.string_enums = self.generator.string_enums;
         if (args.tags.len == 0) args.tags = self.generator.tags;
         return args;
     }

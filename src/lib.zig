@@ -300,7 +300,7 @@ pub fn generateCode(allocator: std.mem.Allocator, io: std.Io, unified_doc: Unifi
         try rejectRuntimeOnlyConflicts(args);
         return try generateRuntime(allocator, io);
     }
-    const models_code = try generateModelsNamed(allocator, unified_doc, args.model_naming);
+    const models_code = try generateModelsFor(allocator, unified_doc, args);
     defer allocator.free(models_code);
 
     if (args.models_only) {
@@ -364,7 +364,7 @@ pub fn generateCodeMultiple(allocator: std.mem.Allocator, io: std.Io, unified_do
     const client_file = try std.mem.replaceOwned(u8, allocator, args.file_names.get(.client) orelse cli.FileKind.client.defaultName(), "\\", "/");
     defer allocator.free(client_file);
 
-    const models_code = try generateModelsNamed(allocator, unified_doc, args.model_naming);
+    const models_code = try generateModelsFor(allocator, unified_doc, args);
     defer allocator.free(models_code);
 
     const models_checksum = generated_header.computeChecksum(models_code);
@@ -983,4 +983,12 @@ test {
     // Import all tests to ensure they're run when testing the library
     std.testing.refAllDecls(@This());
     _ = @import("tests.zig");
+}
+
+fn generateModelsFor(allocator: std.mem.Allocator, unified_doc: UnifiedDocument, args: CliArgs) ![]const u8 {
+    var model_generator = UnifiedModelGenerator.init(allocator);
+    model_generator.model_naming = args.model_naming;
+    model_generator.string_enums = args.string_enums;
+    defer model_generator.deinit();
+    return try model_generator.generate(unified_doc);
 }

@@ -40,7 +40,10 @@ pub fn nonNullUnionChild(schema: Schema) ?Schema {
 pub fn isStringLikeSchema(self: *UnifiedModelGenerator, schema: Schema) bool {
     if (schema.ref) |ref| {
         const schemas = self.source_schemas orelse return false;
-        return self.isStringLikeSchema(schemas.get(refName(ref)) orelse return false);
+        const target = schemas.get(refName(ref)) orelse return false;
+        // A named enum that is declared as a Zig enum is a type of its own.
+        if (self.string_enums and @import("enums.zig").enumMembers(target) != null) return false;
+        return self.isStringLikeSchema(target);
     }
     if (schema.type == .string) return true;
     if (unionVariants(schema)) |variants| {

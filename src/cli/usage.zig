@@ -50,6 +50,8 @@ pub fn printUsage() void {
         \\   --force                   Force overwriting output even when unchanged
         \\   --parameters-as-struct    Wrap method parameters in a single options struct
         \\                            instead of individual function arguments
+        \\   --string-enums            Declare named string enums as Zig enums. Values the spec does
+        \\                            not list parse as the _unknown member instead of failing.
         \\   --split-by-tag            With --multiple-files, put the operations of each tag in
         \\                            client/<tag>.zig; client.zig re-exports all of them.
         \\   --typed-errors            Generate ApiError and parseApiError for the error model that

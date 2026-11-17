@@ -26,6 +26,7 @@ pub fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.
 
     var model_generator = UnifiedModelGenerator.init(allocator);
     model_generator.model_naming = args.model_naming;
+    model_generator.string_enums = args.string_enums;
     defer model_generator.deinit();
     const generated_models = try model_generator.generate(unified_doc);
     defer allocator.free(generated_models);
