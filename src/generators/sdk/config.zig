@@ -34,7 +34,7 @@ pub const SdkConfig = struct {
         if (args.input_path.len == 0) args.input_path = self.spec orelse "";
         if (args.base_url == null) args.base_url = self.base_url;
         args.resource_wrappers = self.generator.resource_wrappers;
-        args.parameters_as_struct = self.generator.parameters_as_struct;
+        args.parameters_as_struct = base.parameters_as_struct or self.generator.parameters_as_struct;
         if (args.tags.len == 0) args.tags = self.generator.tags;
         return args;
     }
