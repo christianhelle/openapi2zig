@@ -58,3 +58,28 @@ test "pointer fields survive a json round trip" {
     defer tree.deinit(allocator);
     try testing.expectEqual(@as(usize, 0), tree.errors.len);
 }
+
+const union_cycle_spec =
+    "{\"openapi\":\"3.0.3\",\"info\":{\"title\":\"t\",\"version\":\"1\"},\"paths\":{},\"components\":{\"schemas\":{" ++
+    "\"A\":{\"type\":\"object\",\"properties\":{\"b\":{\"$ref\":\"#/components/schemas/B\"}}}," ++
+    "\"B\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/A\"},{\"$ref\":\"#/components/schemas/C\"}]}," ++
+    "\"C\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}}}}";
+
+test "a cycle through a union gets its pointer on the property before the union" {
+    var gpa = test_utils.createTestAllocator();
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var parsed = try models.OpenApiDocument.parseFromJson(allocator, union_cycle_spec);
+    defer parsed.deinit(allocator);
+    var converter = OpenApiConverter.init(allocator);
+    var unified = try converter.convert(parsed);
+    defer unified.deinit(allocator);
+    var generator = UnifiedModelGenerator.init(allocator);
+    defer generator.deinit();
+    const code = try generator.generate(unified);
+    defer allocator.free(code);
+
+    // A holds a B, B may hold an A: the property A.b becomes the indirection.
+    try testing.expect(std.mem.indexOf(u8, code, "b: ?*const B = null,") != null);
+}
