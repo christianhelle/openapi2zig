@@ -14,7 +14,7 @@ pub fn enumMembers(schema: Schema) ?[]const std.json.Value {
             .string => |s| s,
             else => return null,
         };
-        if (text.len == 0 or std.mem.eql(u8, text, "_unknown")) return null;
+        if (text.len == 0 or isReservedMember(text)) return null;
         for (text) |c| if (c < 0x20 or c == 0x7f or c == '"' or c == '\\') return null;
         for (values[0..i]) |earlier| {
             if (std.mem.eql(u8, earlier.string, text)) return null;
@@ -64,4 +64,14 @@ pub fn generateStringEnum(self: *UnifiedModelGenerator, name: []const u8, member
         \\
         \\
     );
+}
+
+/// Member names that would clash with the generated `_unknown` member or with
+/// the declarations next to the members.
+fn isReservedMember(text: []const u8) bool {
+    const reserved = [_][]const u8{ "_unknown", "_", "jsonParse", "jsonParseFromValue", "jsonStringify", "fromWire" };
+    for (reserved) |name| {
+        if (std.mem.eql(u8, text, name)) return true;
+    }
+    return false;
 }
