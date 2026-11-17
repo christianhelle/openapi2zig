@@ -273,8 +273,9 @@ pub fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path
                 try self.buffer.appendSlice(self.allocator, "    defer stream_headers.deinit(client.allocator);\n");
                 try self.buffer.appendSlice(self.allocator, "    var auth_header: ?[]u8 = null;\n");
                 try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| client.allocator.free(value);\n");
-                try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) {\n");
-                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{client.api_key});\n");
+                try self.buffer.appendSlice(self.allocator, "    const bearer_token: []const u8 = if (client.token_provider) |provider| try provider.getToken(client.allocator, client.io) else client.api_key;\n");
+                try self.buffer.appendSlice(self.allocator, "    if (bearer_token.len > 0) {\n");
+                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{bearer_token});\n");
                 try self.buffer.appendSlice(self.allocator, "        try stream_headers.append(client.allocator, .{ .name = \"Authorization\", .value = auth_header.? });\n");
                 try self.buffer.appendSlice(self.allocator, "    }\n");
                 try self.buffer.appendSlice(self.allocator, "    return streamJsonWithExtraHeaders(client, \"");
@@ -289,8 +290,9 @@ pub fn generateStreamFunction(self: *UnifiedApiGenerator, name: []const u8, path
                 try self.buffer.appendSlice(self.allocator, "    defer stream_headers.deinit(client.allocator);\n");
                 try self.buffer.appendSlice(self.allocator, "    var auth_header: ?[]u8 = null;\n");
                 try self.buffer.appendSlice(self.allocator, "    defer if (auth_header) |value| client.allocator.free(value);\n");
-                try self.buffer.appendSlice(self.allocator, "    if (client.api_key.len > 0) {\n");
-                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{client.api_key});\n");
+                try self.buffer.appendSlice(self.allocator, "    const bearer_token: []const u8 = if (client.token_provider) |provider| try provider.getToken(client.allocator, client.io) else client.api_key;\n");
+                try self.buffer.appendSlice(self.allocator, "    if (bearer_token.len > 0) {\n");
+                try self.buffer.appendSlice(self.allocator, "        auth_header = try std.fmt.allocPrint(client.allocator, \"Bearer {s}\", .{bearer_token});\n");
                 try self.buffer.appendSlice(self.allocator, "        try stream_headers.append(client.allocator, .{ .name = \"Authorization\", .value = auth_header.? });\n");
                 try self.buffer.appendSlice(self.allocator, "    }\n");
                 try self.buffer.appendSlice(self.allocator, "    return streamJsonTypedWithExtraHeaders(Event, client, \"");
