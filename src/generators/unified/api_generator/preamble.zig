@@ -123,16 +123,16 @@ pub fn generateClientPreamble(self: *UnifiedApiGenerator) !void {
         \\
         \\/// The bearer token of one request: the provider's (owned by the request) or
         \\/// the client's static key.
-        \\pub const BearerToken = struct {
+        \\pub const RequestToken = struct {
         \\    value: []const u8,
         \\    owned: bool,
         \\
-        \\    pub fn deinit(self: BearerToken, allocator: std.mem.Allocator) void {
+        \\    pub fn deinit(self: RequestToken, allocator: std.mem.Allocator) void {
         \\        if (self.owned) allocator.free(self.value);
         \\    }
         \\};
         \\
-        \\pub fn bearerToken(client: *Client, allocator: std.mem.Allocator) !BearerToken {
+        \\pub fn requestToken(client: *Client, allocator: std.mem.Allocator) !RequestToken {
         \\    if (client.token_provider) |provider| {
         \\        return .{ .value = try provider.getToken(allocator, client.io), .owned = true };
         \\    }

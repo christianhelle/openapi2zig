@@ -69,7 +69,7 @@ pub fn generatePagerType(self: *UnifiedApiGenerator) !void {
         \\            var bearer: ?[]u8 = null;
         \\            defer if (bearer) |value| allocator.free(value);
         \\            if (use_bearer) {
-        \\                const holder = try bearerToken(client, allocator);
+        \\                const holder = try requestToken(client, allocator);
         \\                defer holder.deinit(allocator);
         \\                if (holder.value.len > 0) {
         \\                    bearer = try std.fmt.allocPrint(allocator, "Bearer {s}", .{holder.value});
