@@ -459,6 +459,8 @@ pub const OpenApiConverter = struct {
     /// `anyOf: [{$ref: X}, {type: object, nullable: true}]` is how OpenAPI 3.0
     /// writes "X or null". Returns the reference when `schema` has that shape.
     fn nullableReference(schema: Schema3) ?[]const u8 {
+        // Sibling constraints would be lost by collapsing to the reference.
+        if (schema.properties != null or schema.required != null or schema.allOf != null) return null;
         if ((schema.anyOf != null) == (schema.oneOf != null)) return null;
         const variants = schema.anyOf orelse schema.oneOf orelse return null;
         if (variants.len != 2) return null;

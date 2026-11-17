@@ -141,7 +141,21 @@ pub const UnifiedModelGenerator = struct {
             return;
         }
         if (try self.generateManualSchema(name, schema)) return;
-        if (schema.type == .reference) return;
+        if (schema.type == .reference) {
+            // A component that is itself a reference (such as a nullable
+            // reference) is declared as an alias, so types naming it still compile.
+            if (schema.ref) |ref| {
+                const target = refName(ref);
+                if (!std.mem.eql(u8, target, name)) {
+                    try self.buffer.appendSlice(self.allocator, "pub const ");
+                    try self.appendIdentifier(name);
+                    try self.buffer.appendSlice(self.allocator, " = ");
+                    try self.appendIdentifier(target);
+                    try self.buffer.appendSlice(self.allocator, ";\n\n");
+                }
+            }
+            return;
+        }
 
         if (try self.generateUnionAlias(name, schema)) return;
         if (try self.generateDiscriminatorUnion(name, schema)) return;
