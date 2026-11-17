@@ -587,6 +587,33 @@ pub fn build(b: *std.Build) void {
         odata_test_step.dependOn(&b.addRunArtifact(odata_tests).step);
     }
 
+    // The same description with the operations split into one file per tag.
+    const odata_split_variants = [_][]const []const u8{
+        &.{ "--resource-wrappers", "none", "--parameters-as-struct", "--model-naming", "namespaced", "--pagination", "--typed-errors" },
+        &.{ "--resource-wrappers", "paths" },
+    };
+    for (odata_split_variants) |variant| {
+        const split_fixture = b.addRunArtifact(exe);
+        split_fixture.addArgs(&.{ "generate", "--multiple-files", "--split-by-tag" });
+        split_fixture.addArgs(variant);
+        split_fixture.addArg("-i");
+        split_fixture.addFileArg(b.path("openapi/v3.0/regression-odata-shapes.json"));
+        split_fixture.addArg("-o");
+        const split_dir = split_fixture.addOutputDirectoryArg("odata_split");
+        const split_module = b.createModule(.{
+            .root_source_file = b.path("src/tests/compile_odata_fixture.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        split_module.addImport("odata_fixture", b.createModule(.{
+            .root_source_file = split_dir.path(b, "client.zig"),
+            .target = target,
+            .optimize = optimize,
+        }));
+        const split_tests = b.addTest(.{ .root_module = split_module });
+        odata_test_step.dependOn(&b.addRunArtifact(split_tests).step);
+    }
+
     const multi_generated_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("generated/compile_multi_generated.zig"),

@@ -9,6 +9,7 @@ const Parameter = @import("../../models/common/document.zig").Parameter;
 const media_type = @import("../../media_type.zig");
 const ident = @import("ident_utils.zig");
 const model_names = @import("model_names.zig");
+const split = @import("api_generator/split.zig");
 const helpers = @import("api_generator/helpers.zig");
 
 const BodyKind = helpers.BodyKind;
@@ -82,6 +83,8 @@ pub const UnifiedApiGenerator = struct {
     model_prefix: []const u8 = "",
     /// Built while generating when `args.model_naming` is `.namespaced`.
     name_map: ?model_names.ModelNameMap = null,
+    /// Extra files produced by `--split-by-tag`, next to the client file.
+    split_files: std.ArrayList(split.SplitFile) = .empty,
     emit_imports: bool = true,
     models_import: []const u8 = "models.zig",
     models_import_alias: []const u8 = "models",
@@ -116,6 +119,15 @@ pub const UnifiedApiGenerator = struct {
         self.top_level_names.clearRetainingCapacity();
         self.top_level_names_ready = false;
         self.freeTopLevelOwned();
+        self.freeSplitFiles();
+    }
+
+    fn freeSplitFiles(self: *UnifiedApiGenerator) void {
+        for (self.split_files.items) |file| {
+            self.allocator.free(file.name);
+            self.allocator.free(file.content);
+        }
+        self.split_files.clearRetainingCapacity();
     }
 
     fn freeTopLevelOwned(self: *UnifiedApiGenerator) void {
@@ -249,6 +261,8 @@ pub const UnifiedApiGenerator = struct {
         self.top_level_names.deinit();
         self.freeTopLevelOwned();
         self.top_level_owned.deinit(self.allocator);
+        self.freeSplitFiles();
+        self.split_files.deinit(self.allocator);
         self.clearOptionsFieldNames(self.allocator);
         self.options_field_names.deinit();
         self.clearOperationNames(self.allocator);
@@ -299,7 +313,7 @@ pub const UnifiedApiGenerator = struct {
         try self.generateHeaderMulti();
         try self.reserveFlatParameterNames(document);
         try self.generateTypedErrors(document);
-        try self.generateApiClient(document);
+        if (self.args.split_by_tag) try self.generateApiClientSplit(document) else try self.generateApiClient(document);
         if (self.args.resource_wrappers != .none) {
             try self.generateResourceWrappers(document);
         }
@@ -531,6 +545,7 @@ pub const UnifiedApiGenerator = struct {
     pub const generateEndpointClient = @import("api_generator/tag_clients.zig").generateEndpointClient;
     pub const topLevelNameConflicts = @import("api_generator/tag_clients.zig").topLevelNameConflicts;
     pub const generatePagerType = @import("api_generator/pagination.zig").generatePagerType;
+    pub const generateApiClientSplit = split.generateApiClientSplit;
     pub const generateTypedErrors = @import("api_generator/errors.zig").generateTypedErrors;
     pub const generatePagesFunction = @import("api_generator/pagination.zig").generatePagesFunction;
     pub const appendPagerType = @import("api_generator/pagination.zig").appendPagerType;

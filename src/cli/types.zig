@@ -107,6 +107,8 @@ pub const CliArgs = struct {
     pagination: bool = false,
     /// Emit `ApiError` and `parseApiError` for the API's common error model.
     typed_errors: bool = false,
+    /// Put the operations of each tag in their own file (`client/<tag>.zig`).
+    split_by_tag: bool = false,
     /// Generate a complete SDK repository (sources plus build files, docs,
     /// CI workflows and examples) instead of bare Zig sources.
     sdk: bool = false,

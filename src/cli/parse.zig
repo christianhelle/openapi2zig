@@ -77,6 +77,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
     var model_naming: model_names.Mode = .raw;
     var pagination = false;
     var typed_errors = false;
+    var split_by_tag = false;
     var sdk = false;
     var sdk_config_path: ?[]const u8 = null;
     var sdk_name: ?[]const u8 = null;
@@ -217,6 +218,8 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             parameters_as_struct = true;
         } else if (std.mem.eql(u8, arg, "--pagination")) {
             pagination = true;
+        } else if (std.mem.eql(u8, arg, "--split-by-tag")) {
+            split_by_tag = true;
         } else if (std.mem.eql(u8, arg, "--typed-errors")) {
             typed_errors = true;
         } else if (std.mem.eql(u8, arg, "--model-naming")) {
@@ -272,6 +275,19 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             }
         }
         multiple_files = true;
+    }
+
+    if (split_by_tag) {
+        if (!multiple_files) {
+            printUsage();
+            printError("--split-by-tag requires --multiple-files\n", .{});
+            return error.InvalidArguments;
+        }
+        if (multiple_clients != null or models_only or runtime_module != null or file_names.any()) {
+            printUsage();
+            printError("--split-by-tag cannot be combined with --multiple-clients, --models-only, --runtime-module or --file-name\n", .{});
+            return error.InvalidArguments;
+        }
     }
 
     if (input_path == null and !runtime_only and !sdk) {
@@ -461,6 +477,7 @@ pub fn parse(allocator: std.mem.Allocator, args: []const [:0]const u8) !ParsedAr
             .model_naming = model_naming,
             .pagination = pagination,
             .typed_errors = typed_errors,
+            .split_by_tag = split_by_tag,
             .sdk = sdk,
             .sdk_config_path = sdk_config_path,
             .sdk_name = sdk_name,

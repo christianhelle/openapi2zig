@@ -104,4 +104,9 @@ pub fn generateMultipleFiles(allocator: std.mem.Allocator, io: std.Io, cwd: std.
     defer allocator.free(generated_api);
 
     try writeFile(allocator, io, cwd, dir_path, client_file, generated_api, args.force);
+
+    // `--split-by-tag` puts the operations in files next to the client file.
+    for (api_generator.split_files.items) |split_file| {
+        try writeFile(allocator, io, cwd, dir_path, split_file.name, split_file.content, args.force);
+    }
 }

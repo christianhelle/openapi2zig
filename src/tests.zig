@@ -9,6 +9,7 @@ const test_input_loader = @import("tests/test_input_loader.zig");
 const yaml_loader_tests = @import("tests/yaml_loader_tests.zig");
 const resource_wrapper_tests = @import("tests/resource_wrapper_tests.zig");
 const sdk_config_tests = @import("tests/sdk_config_tests.zig");
+const split_by_tag_tests = @import("tests/split_by_tag_tests.zig");
 const sdk_auth_tests = @import("tests/sdk_auth_tests.zig");
 const runtime_features_tests = @import("tests/runtime_features_tests.zig");
 const recursive_model_tests = @import("tests/recursive_model_tests.zig");
@@ -69,6 +70,7 @@ comptime {
     _ = yaml_loader_tests;
     _ = resource_wrapper_tests;
     _ = sdk_config_tests;
+    _ = split_by_tag_tests;
     _ = sdk_auth_tests;
     _ = runtime_features_tests;
     _ = recursive_model_tests;
